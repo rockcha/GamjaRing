@@ -42,47 +42,47 @@ export default function SignupPage() {
         <BoorishHeader title="가입하기" />
 
         <div className="flex flex-col gap-8 mb-10 mt-6">
-          <div className="flex items-center  gap-1">
+          <div className="flex items-center gap-1">
             <span className="text-xl">🥔</span>
             <input
               type="text"
               placeholder="닉네임을 입력해주세요!"
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              className="flex-1 px-4 py-3 border border-[#e6ddd3] rounded-md focus:outline-none focus:ring-2 focus:ring-[#d7b89c]"
+              className="w-full min-w-0 px-4 py-3 border border-[#e6ddd3] rounded-md focus:outline-none focus:ring-2 focus:ring-[#d7b89c]"
             />
           </div>
 
-          <div className="flex items-center  gap-1">
+          <div className="flex items-center gap-1">
             <span className="text-xl">🥔</span>
             <input
               type="email"
               placeholder="이메일을 입력해주세요!"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="flex-1 px-4 py-3 border border-[#e6ddd3] rounded-md focus:outline-none focus:ring-2 focus:ring-[#d7b89c]"
+              className="w-full min-w-0 px-4 py-3 border border-[#e6ddd3] rounded-md focus:outline-none focus:ring-2 focus:ring-[#d7b89c]"
             />
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1">
             <span className="text-xl">🥔</span>
             <input
               type="password"
               placeholder="비밀번호를 입력해주세요! (6자 이상)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="flex-1 px-4 py-3 border border-[#e6ddd3] rounded-md focus:outline-none focus:ring-2 focus:ring-[#d7b89c]"
+              className="w-full min-w-0 px-4 py-3 border border-[#e6ddd3] rounded-md focus:outline-none focus:ring-2 focus:ring-[#d7b89c]"
             />
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1">
             <span className="text-xl">🥔</span>
             <input
               type="password"
               placeholder="비밀번호 확인"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="flex-1 px-4 py-3 border border-[#e6ddd3] rounded-md focus:outline-none focus:ring-2 focus:ring-[#d7b89c]"
+              className="w-full min-w-0 px-4 py-3 border border-[#e6ddd3] rounded-md focus:outline-none focus:ring-2 focus:ring-[#d7b89c]"
             />
           </div>
 
