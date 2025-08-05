@@ -1,6 +1,36 @@
 import DaysTogetherBadge from "@/components/DaysTogetherBadge";
-
+import { useUser } from "@/contexts/UserContext"; // 커스텀 훅 불러오기
+import { useNavigate } from "react-router-dom";
+import CoupleRequestButton from "@/components/CoupleRequestButton";
+import CoupleRequestAlert from "@/components/CoupleRequestAlert";
 export default function MainPage() {
+  const { isCoupled } = useUser();
+  const navigate = useNavigate();
+
+  const onInvitePartnerClick = () => {
+    navigate("/invite-partner"); // 초대 페이지로 이동
+  };
+
+  if (!isCoupled) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center text-center px-4 py-10">
+        {/* 슬픈 감자 이미지 */}
+        <img
+          src="/images/potato-sad.png"
+          alt="슬픈 감자"
+          className="w-80 h-80 object-contain mb-6"
+        />
+        {/* 상태 문구 */}
+        <p className="text-[#5b3d1d] text-xl font-semibold mb-4">
+          감자를 같이 키울 상대방이 없어요... 🥲
+        </p>
+        {/* 커플 초대 버튼 */}
+        <CoupleRequestButton />
+        <CoupleRequestAlert />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white px-4 py-6 flex flex-col gap-6">
       {/* 상단 상태 문구 */}

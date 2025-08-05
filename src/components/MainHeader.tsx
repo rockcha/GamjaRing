@@ -46,17 +46,20 @@ export default function MainHeader() {
   };
 
   return (
-    <header className="w-full flex items-center justify-between px-6 py-4 bg-white border-b shadow-sm">
-      {/* 로고 */}
-      <Link
-        to="/"
-        className="text-xl font-bold flex items-center gap-1 hover:text-amber-600 hover:scale-105 transition-all duration-300 ease-in-out"
-      >
-        <span className="text-2xl">🥔</span>감자링
-      </Link>
+    <header className="w-full flex items-center justify-between px-6 py-5 bg-[#d7b89c] border-b shadow-sm">
+      <div className="bg-white px-4 py-2 rounded-full shadow flex items-center gap-2">
+        <Link
+          to="/"
+          className="text-xl flex items-center gap-2 hover:text-amber-600 hover:scale-105 transition-all duration-300 ease-in-out"
+        >
+          감자링
+          <span className="w-8 h-8 flex items-center justify-center animate-bounce">
+            🥔
+          </span>
+        </Link>
+      </div>
 
-      <CoupleRequestButton />
-      <CoupleRequestAlert />
+      {/* 로고 */}
 
       {/* 오른쪽 영역 */}
       {user ? (

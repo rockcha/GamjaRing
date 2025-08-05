@@ -2,7 +2,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { UserProvider } from "@/contexts/UserContext";
 import { CoupleProvider } from "./contexts/CoupleContext";
-import AppLayout from "@/layouts/AppLayout";
+import AppLayout from "@/components/layouts/AppLayout";
 
 import IntroPage from "@/pages/IntroPage";
 import LoginPage from "@/pages/LoginPage";

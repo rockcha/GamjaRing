@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import BoorishHeader from "@/components/SubHeader";
+import SubHeader from "@/components/SubHeader";
 import { useUser } from "@/contexts/UserContext";
+import PotatoButton from "@/components/ui/PotatoButton";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -27,10 +28,10 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-200 px-4">
       <div className="w-full max-w-sm bg-white shadow-md rounded-xl p-6">
-        <BoorishHeader title="로그인하기" />
+        <SubHeader title="로그인하기" />
 
         {/* 입력창 */}
-        <div className="flex flex-col gap-8 mb-10 mt-6">
+        <div className="flex flex-col items-center gap-8 mb-10 mt-6">
           <div className="flex items-center gap-1">
             <span className="text-xl">🥔</span>
             <input
@@ -56,15 +57,15 @@ export default function LoginPage() {
           {errorMsg && (
             <p className="text-sm text-red-500 text-center">{errorMsg}</p>
           )}
-        </div>
 
-        <button
-          onClick={handleLogin}
-          disabled={loading}
-          className="w-full bg-[#f4c989] hover:bg-[#e5b97e] text-brown-800 py-3 rounded-full font-semibold shadow-inner border border-[#e1b574] transition duration-200 mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? "로딩 중..." : "🥔 로그인하기"}
-        </button>
+          <PotatoButton
+            text="로그인"
+            emoji="✅"
+            onClick={handleLogin}
+            disabled={loading}
+            loading={loading}
+          />
+        </div>
 
         <div className="text-sm text-center text-[#8a6b50]">
           계정이 없으신가요?{" "}

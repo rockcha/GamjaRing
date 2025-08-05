@@ -7,7 +7,7 @@ interface Props {
 }
 
 export default function SubHeader({
-  title = "부실감자록 키우기",
+  title = "감자링",
   imageSrc = "/images/potato-watering.png",
   className = "",
 }: Props) {
@@ -45,7 +45,7 @@ export default function SubHeader({
       <motion.img
         src={imageSrc}
         alt="부실감자"
-        className="w-28 h-28 object-contain"
+        className="w-32 h-32 object-contain"
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.6, delay: 0.2 }}

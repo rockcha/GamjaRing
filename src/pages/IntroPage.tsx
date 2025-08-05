@@ -9,7 +9,7 @@ export default function IntroPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       navigate("/main"); // 로그인 페이지나 메인페이지로 이동
-    }, 3500);
+    }, 3000);
 
     return () => clearTimeout(timer);
   }, [navigate]);
@@ -20,7 +20,7 @@ export default function IntroPage() {
       <img
         src="/images/potato-intro.gif"
         alt="감자 귀여움"
-        className="w-40 h-40 mb-6 object-contain"
+        className="w-45 h-45 mb-2 object-contain"
       />
 
       {/* 멘트 */}

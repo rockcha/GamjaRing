@@ -1,6 +1,7 @@
 // components/CoupleRequestButton.tsx
 import { useState } from "react";
 import { useCoupleContext } from "@/contexts/CoupleContext";
+import PotatoButton from "./ui/PotatoButton";
 
 export default function CoupleRequestButton() {
   const { isCoupled, requestCouple } = useCoupleContext();
@@ -27,14 +28,12 @@ export default function CoupleRequestButton() {
   if (isCoupled) return null;
 
   return (
-    <div className="p-4 border rounded-md max-w-md space-y-3 bg-white shadow">
-      <button
+    <div className="p-4 rounded-md max-w-md space-y-3 bg-white shadow">
+      <PotatoButton
+        text="커플 요청 보내기"
+        emoji="💌"
         onClick={() => setShowInput((prev) => !prev)}
-        className="bg-orange-400 hover:bg-orange-500 text-white font-bold px-4 py-2 rounded"
-      >
-        💌 커플 요청 보내기
-      </button>
-
+      />
       {showInput && (
         <div className="space-y-2">
           <input
