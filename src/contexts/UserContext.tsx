@@ -1,4 +1,3 @@
-// src/contexts/UserContext.tsx
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import supabase from "@/lib/supabase";
@@ -8,6 +7,7 @@ interface UserData {
   email: string;
   nickname: string;
   partner_id: string | null;
+  couple_id: string | null; // ✅ 추가됨
 }
 
 interface SignupInput {
@@ -47,7 +47,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
     const { data, error } = await supabase
       .from("users")
-      .select("id, email, nickname, partner_id")
+      .select("id, email, nickname, partner_id, couple_id") // ✅ couple_id 포함
       .eq("id", session.user.id)
       .maybeSingle();
 
@@ -57,6 +57,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     } else {
       setUser(data);
     }
+
     setLoading(false);
   };
 
@@ -124,7 +125,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       };
     }
 
-    // 연결: 양쪽 업데이트
+    // 연결: 양쪽 업데이트 (커플 RPC 사용)
     const { error: updateError } = await supabase.rpc("connect_partners", {
       user1_id: user.id,
       user2_id: partner.id,
@@ -136,7 +137,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     return { error: null };
   };
 
-  const isCoupled = !!user?.partner_id;
+  const isCoupled = !!user?.couple_id; // ✅ 기준 변경: partner_id → couple_id
 
   useEffect(() => {
     fetchUser();
