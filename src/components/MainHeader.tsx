@@ -33,11 +33,17 @@ export default function MainHeader() {
     await logout();
     navigate("/login");
   };
-  //bg-[#d7b89c]
+  //bg-gradient-to-b from-[#bfa07e] to-[#f5e6da]
+  //bg-gradient-to-b from-[#f2e4d5] to-[#8b5e3c]
   return (
-    <header className="w-full flex items-center justify-between bg-gradient-to-b from-[#fde2e4] to-[#fdf6e3] px-6 py-5  border-b shadow-sm">
+    <header
+      className="w-full flex items-center justify-between bg-gradient-to-b from-[#e9d8c8] to-[#d8bca3]
+
+
+  px-6 py-5  border-b shadow-sm"
+    >
       {/* 좌측 감자링 + 타이핑 멘트 */}
-      <div className="bg-white rounded-full shadow px-6 py-3 flex flex-col items-center justify-center w-[320px] h-[80px]">
+      <div className="bg-[#fbf8f2] rounded-full shadow px-6 py-3 flex flex-col items-center justify-center w-[320px] h-[80px]">
         <Link
           to="/"
           className="text-2xl font-bold text-[#5b3d1d] flex items-center gap-2"
