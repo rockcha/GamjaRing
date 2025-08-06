@@ -1,18 +1,10 @@
 // src/components/MainHeader.tsx
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTypewriter, Cursor } from "react-simple-typewriter";
-
 import NotificationButton from "./NotificationButton";
-
-import supabase from "@/lib/supabase";
-
-interface UserData {
-  id: string;
-  email: string;
-  nickname: string;
-  partner_id: string | null;
-}
+import UnlinkButton from "./widgets/UnlinkButton";
+import { useUser } from "@/contexts/UserContext";
 
 const potatoMessages = [
   "함께한 추억, 감자처럼 싹을 틔워요🌱",
@@ -25,7 +17,7 @@ const potatoMessages = [
 ];
 
 export default function MainHeader() {
-  const [user, setUser] = useState<UserData | null>(null);
+  const { user, logout, isCoupled } = useUser(); // ✅ context 사용
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -37,31 +29,8 @@ export default function MainHeader() {
     delaySpeed: 2000,
   });
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session) return;
-
-      const { data, error } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", session.user.id)
-        .single();
-
-      if (!error && data) {
-        setUser(data);
-      }
-    };
-
-    fetchUser();
-  }, []);
-
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
+    await logout();
     navigate("/login");
   };
 
@@ -81,7 +50,10 @@ export default function MainHeader() {
           <Cursor cursorColor="#5b3d1d" />
         </p>
       </div>
+
       <NotificationButton />
+      <UnlinkButton />
+
       {/* 우측 사용자 메뉴 */}
       {user ? (
         <div className="relative">
@@ -94,7 +66,7 @@ export default function MainHeader() {
 
           {dropdownOpen && (
             <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 shadow-md rounded-md z-10">
-              {user.partner_id && (
+              {isCoupled && (
                 <button
                   className="w-full px-4 py-2 text-left hover:bg-gray-100"
                   onClick={() => navigate("/couple")}

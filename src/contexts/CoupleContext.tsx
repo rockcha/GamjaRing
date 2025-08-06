@@ -2,7 +2,9 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import supabase from "@/lib/supabase";
 import { useUser } from "./UserContext";
-import { sendNotification } from "@/utils/SendNotification";
+import { sendUserNotification } from "@/utils/notifications/sendUserNotification";
+import { deleteUserNotification } from "@/utils/notifications/deleteUserNotification";
+import { getUserNotifications } from "@/utils/notifications/getUserNotifications";
 
 interface Couple {
   id: string;
@@ -12,12 +14,14 @@ interface Couple {
   created_at: string;
 }
 
-interface CoupleRequest {
+interface UserNotification {
   id: string;
   sender_id: string;
   receiver_id: string;
-  status: "pending" | "accepted" | "rejected";
+  type: string;
+  description: string;
   created_at: string;
+  is_request: boolean;
 }
 
 interface CoupleContextType {
@@ -28,9 +32,9 @@ interface CoupleContextType {
   connectToPartner: (nickname: string) => Promise<{ error: Error | null }>;
   disconnectCouple: () => Promise<{ error: Error | null }>;
   requestCouple: (nickname: string) => Promise<{ error: Error | null }>;
-  fetchIncomingRequests: () => Promise<CoupleRequest[]>;
-  acceptRequest: (requestId: string) => Promise<{ error: Error | null }>;
-  rejectRequest: (requestId: string) => Promise<{ error: Error | null }>;
+  fetchIncomingRequests: () => Promise<UserNotification[]>;
+  acceptRequest: (notificationId: string) => Promise<{ error: Error | null }>;
+  rejectRequest: (notificationId: string) => Promise<{ error: Error | null }>;
 }
 
 const CoupleContext = createContext<CoupleContextType | undefined>(undefined);
@@ -119,119 +123,108 @@ export const CoupleProvider = ({ children }: { children: React.ReactNode }) => {
     if (!user) return { error: new Error("로그인 필요") };
     if (isCoupled) return { error: new Error("이미 커플 상태입니다") };
 
-    const { data: receiver, error: findError } = await supabase
+    const { data: receiver, error } = await supabase
       .from("users")
-      .select("id, nickname")
+      .select("id")
       .eq("nickname", nickname)
       .maybeSingle();
 
-    if (findError || !receiver)
+    if (error || !receiver)
       return { error: new Error("상대방을 찾을 수 없습니다.") };
 
-    const { data: existing } = await supabase
-      .from("couple_requests")
-      .select("id")
-      .eq("sender_id", user.id)
-      .eq("receiver_id", receiver.id)
-      .eq("status", "pending")
-      .maybeSingle();
+    // 중복 확인
+    const { data: existing } = await getUserNotifications(receiver.id);
+    const duplicate = existing?.some(
+      (n) =>
+        n.sender_id === user.id &&
+        n.receiver_id === receiver.id &&
+        n.type === "커플요청" &&
+        n.is_request
+    );
+    if (duplicate) return { error: new Error("이미 요청을 보냈습니다.") };
 
-    if (existing) return { error: new Error("이미 요청을 보냈습니다.") };
-
-    const { error: insertError } = await supabase
-      .from("couple_requests")
-      .insert({ sender_id: user.id, receiver_id: receiver.id });
-
-    if (!insertError) {
-      await sendNotification({
-        toUserId: receiver.id,
-        fromUserId: user.id,
-        type: "커플요청",
-        partnerNickname: user.nickname,
-      });
-    }
-
-    return { error: insertError ?? null };
-  };
-
-  const fetchIncomingRequests = async () => {
-    if (!user) return [];
-    const { data, error } = await supabase
-      .from("couple_requests")
-      .select("*")
-      .eq("receiver_id", user.id)
-      .eq("status", "pending");
-    return error || !data ? [] : data;
-  };
-
-  const acceptRequest = async (requestId: string) => {
-    if (!user) return { error: new Error("로그인 필요") };
-
-    const { data: requestData, error: requestError } = await supabase
-      .from("couple_requests")
-      .select("sender_id")
-      .eq("id", requestId)
-      .maybeSingle();
-
-    if (requestError || !requestData)
-      return { error: new Error("요청을 찾을 수 없습니다.") };
-
-    const senderId = requestData.sender_id;
-
-    // 커플 연결
-    const { error: coupleError } = await connectToPartnerById(senderId);
-    if (coupleError) return { error: coupleError };
-
-    // 상태 업데이트 + 요청 삭제
-    await Promise.all([
-      supabase
-        .from("couple_requests")
-        .update({ status: "accepted" })
-        .eq("id", requestId),
-      supabase.from("couple_requests").delete().eq("id", requestId),
-    ]);
-
-    // 알림 전송
-    await sendNotification({
-      toUserId: senderId,
-      fromUserId: user.id,
-      type: "커플수락",
-      partnerNickname: user.nickname,
+    await sendUserNotification({
+      senderId: user.id,
+      receiverId: receiver.id,
+      type: "커플요청",
+      description: `${user.nickname}님이 커플 요청을 보냈어요 💌`,
+      isRequest: true,
     });
 
     return { error: null };
   };
 
-  const rejectRequest = async (requestId: string) => {
+  const fetchIncomingRequests = async () => {
+    if (!user) return [];
+    const { data, error } = await getUserNotifications(user.id);
+    return error || !data ? [] : data.filter((n) => n.is_request);
+  };
+
+  //요청 수락
+  const acceptRequest = async (notificationId: string) => {
     if (!user) return { error: new Error("로그인 필요") };
 
-    const { data: requestData, error: requestError } = await supabase
-      .from("couple_requests")
+    // 🔍 notificationId로 상대방(receiver)을 조회
+    const { data: notificationData, error: fetchError } = await supabase
+      .from("user_notification")
       .select("sender_id")
-      .eq("id", requestId)
+      .eq("id", notificationId)
       .maybeSingle();
 
-    if (requestError || !requestData)
-      return { error: new Error("요청을 찾을 수 없습니다.") };
+    if (fetchError || !notificationData)
+      return { error: new Error("알림을 찾을 수 없습니다.") };
 
-    const senderId = requestData.sender_id;
+    const partnerId = notificationData.sender_id;
 
-    // 상태 업데이트 + 요청 삭제
-    await Promise.all([
-      supabase
-        .from("couple_requests")
-        .update({ status: "rejected" })
-        .eq("id", requestId),
-      supabase.from("couple_requests").delete().eq("id", requestId),
-    ]);
+    if (user?.id === partnerId) {
+      return { error: new Error("자기 자신과는 커플을 맺을 수 없습니다.") };
+    }
 
-    // 알림 전송
-    await sendNotification({
-      toUserId: senderId,
-      fromUserId: user.id,
-      type: "커플거절",
-      partnerNickname: user.nickname,
+    // ✅ 커플 연결
+    const { error: coupleError } = await connectToPartnerById(partnerId);
+    if (coupleError) return { error: coupleError };
+
+    // ✅ 수락 알림 전송
+    await sendUserNotification({
+      senderId: user.id,
+      receiverId: partnerId,
+      type: "커플수락",
+      description: `${user.nickname}님이 커플 요청을 수락했어요! 💘`,
+      isRequest: false,
     });
+
+    // ✅ 기존 요청 알림 삭제
+    await deleteUserNotification(notificationId);
+
+    return { error: null };
+  };
+
+  const rejectRequest = async (notificationId: string) => {
+    if (!user) return { error: new Error("로그인 필요") };
+
+    // 🔍 notificationId로 상대방(receiver)을 조회
+    const { data: notificationData, error: fetchError } = await supabase
+      .from("user_notification")
+      .select("sender_id")
+      .eq("id", notificationId)
+      .maybeSingle();
+
+    if (fetchError || !notificationData)
+      return { error: new Error("알림을 찾을 수 없습니다.") };
+
+    const senderId = notificationData.sender_id;
+
+    // ✅ 거절 알림 전송
+    await sendUserNotification({
+      senderId: user.id,
+      receiverId: senderId,
+      type: "커플거절",
+      description: `${user.nickname}님이 커플 요청을 거절했어요 🙅`,
+      isRequest: false,
+    });
+
+    // ✅ 기존 요청 알림 삭제
+    await deleteUserNotification(notificationId);
 
     return { error: null };
   };
