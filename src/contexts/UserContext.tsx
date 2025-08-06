@@ -22,7 +22,7 @@ interface UserContextType {
   login: (email: string, password: string) => Promise<{ error: Error | null }>;
   signup: (data: SignupInput) => Promise<{ error: Error | null }>;
   logout: () => Promise<void>;
-  fetchUser: () => Promise<void>;
+  fetchUser: () => Promise<UserData | null>;
   isCoupled: boolean;
   connectToPartner: (nickname: string) => Promise<{ error: Error | null }>;
 }
@@ -33,32 +33,36 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchUser = async () => {
+  const fetchUser = async (): Promise<UserData | null> => {
     setLoading(true);
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
 
-    if (!session?.user) {
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.getSession();
+    const session = sessionData?.session;
+
+    if (sessionError || !session || !session.user) {
       setUser(null);
       setLoading(false);
-      return;
+      return null;
     }
 
     const { data, error } = await supabase
       .from("users")
-      .select("id, email, nickname, partner_id, couple_id") // ✅ couple_id 포함
+      .select("id, email, nickname, partner_id, couple_id")
       .eq("id", session.user.id)
       .maybeSingle();
 
-    if (error) {
-      console.error("사용자 정보 로드 실패", error);
+    if (error || !data) {
+      console.error("❌ 사용자 정보 로드 실패:", error?.message);
       setUser(null);
-    } else {
-      setUser(data);
+      setLoading(false);
+      return null;
     }
 
+    setUser(data);
     setLoading(false);
+
+    return data; // ✅ 리턴 추가
   };
 
   const login = async (email: string, password: string) => {

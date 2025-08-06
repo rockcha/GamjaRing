@@ -2,9 +2,9 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import supabase from "@/lib/supabase";
 import { useUser } from "./UserContext";
-import { sendUserNotification } from "@/utils/notifications/sendUserNotification";
-import { deleteUserNotification } from "@/utils/notifications/deleteUserNotification";
-import { getUserNotifications } from "@/utils/notifications/getUserNotifications";
+import { sendUserNotification } from "@/utils/notifications/notifications/sendUserNotification";
+import { deleteUserNotification } from "@/utils/notifications/notifications/deleteUserNotification";
+import { getUserNotifications } from "@/utils/notifications/notifications/getUserNotifications";
 
 interface Couple {
   id: string;
