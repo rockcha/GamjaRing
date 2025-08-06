@@ -26,7 +26,7 @@ export default function DaysTogetherBadge() {
 
   if (!couple) {
     return (
-      <div className="text-gray-500 text-base px-4 py-3 rounded bg-gray-100 shadow-sm inline-block">
+      <div className="text-gray-500 text-base px-4 py-2 rounded bg-gray-100 text-center">
         함께하는 사람이 없어요 😢
       </div>
     );
@@ -34,7 +34,7 @@ export default function DaysTogetherBadge() {
 
   if (!couple.started_at || !partnerNickname) {
     return (
-      <div className="text-gray-700 text-base px-4 py-3 rounded bg-yellow-100 shadow-sm inline-block">
+      <div className="text-gray-700 text-base px-4 py-2 rounded bg-gray-50 text-center">
         ?님과 함께한 지 ?일째
       </div>
     );
@@ -47,25 +47,24 @@ export default function DaysTogetherBadge() {
   );
 
   return (
-    <motion.div
-      whileHover={{
-        scale: 1.05,
-        rotate: [0, -1, 1, -1, 0],
-        transition: { duration: 0.4 },
-      }}
-      className="bg-pink-50 border border-pink-200 text-center px-6 py-4 rounded-xl shadow-md inline-block"
-    >
-      <p className="text-lg md:text-xl font-medium text-black">
-        <span className="text-amber-600 text-3xl font-semibold">
+    <div className="bg-white py-4 px-6 rounded-lg text-center">
+      <motion.p
+        whileHover={{
+          scale: 1.02,
+          opacity: 0.9,
+          transition: { duration: 0.3, ease: "easeInOut" },
+        }}
+        className="text-[15px] md:text-base font-medium text-[#5b3d1d]"
+      >
+        <span className="font-bold text-lg md:text-xl text-[#b75e20]">
           {partnerNickname}
         </span>
-        <span className="text-xl">님과 </span>
-        <br />
-        <span className="text-pink-600 text-4xl md:text-5xl font-extrabold tracking-wide">
-          {daysTogether}
+        &nbsp;님과&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <span className="font-extrabold text-2xl md:text-3xl text-[#e47100]">
+          {daysTogether}일째
         </span>
-        <span className="text-xl text-black">일째 함께하는 중 💘</span>
-      </p>
-    </motion.div>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;함께하는 중 💘
+      </motion.p>
+    </div>
   );
 }

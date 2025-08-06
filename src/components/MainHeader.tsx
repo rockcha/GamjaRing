@@ -33,9 +33,9 @@ export default function MainHeader() {
     await logout();
     navigate("/login");
   };
-
+  //bg-[#d7b89c]
   return (
-    <header className="w-full flex items-center justify-between px-6 py-5 bg-[#d7b89c] border-b shadow-sm">
+    <header className="w-full flex items-center justify-between bg-gradient-to-b from-[#fde2e4] to-[#fdf6e3] px-6 py-5  border-b shadow-sm">
       {/* 좌측 감자링 + 타이핑 멘트 */}
       <div className="bg-white rounded-full shadow px-6 py-3 flex flex-col items-center justify-center w-[320px] h-[80px]">
         <Link
@@ -53,7 +53,6 @@ export default function MainHeader() {
 
       <NotificationButton />
       <UnlinkButton />
-
       {/* 우측 사용자 메뉴 */}
       {user ? (
         <div className="relative">
