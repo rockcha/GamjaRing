@@ -20,7 +20,7 @@ export default function IntroPage() {
       <img
         src="/images/potato-intro.gif"
         alt="감자 귀여움"
-        className="w-45 h-45 mb-2 object-contain"
+        className="w-25 h-25 mb-2 object-contain"
       />
 
       {/* 멘트 */}

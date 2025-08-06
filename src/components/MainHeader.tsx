@@ -1,8 +1,10 @@
 // src/components/MainHeader.tsx
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import CoupleRequestButton from "@/components/CoupleRequestButton";
-import CoupleRequestAlert from "@/components/CoupleRequestAlert";
+import { useTypewriter, Cursor } from "react-simple-typewriter";
+
+import NotificationButton from "./NotificationButton";
+
 import supabase from "@/lib/supabase";
 
 interface UserData {
@@ -12,10 +14,28 @@ interface UserData {
   partner_id: string | null;
 }
 
+const potatoMessages = [
+  "함께한 추억, 감자처럼 싹을 틔워요🌱",
+  "비가 와도 괜찮아, 감자는 튼튼하니까☔",
+  "흙먼지 속에서도 넌 반짝였어✨",
+  "햇살 속 감자처럼 따스한 우리 기억들☀️",
+  "흙 속에서도 서로를 향해 자라는 중🌾",
+  "감자밭에도 봄은 와요🌸",
+  "우리 추억, 껍질째도 사랑스러워요🤎",
+];
+
 export default function MainHeader() {
   const [user, setUser] = useState<UserData | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const navigate = useNavigate();
+
+  const [text] = useTypewriter({
+    words: potatoMessages,
+    loop: 0,
+    typeSpeed: 80,
+    deleteSpeed: 40,
+    delaySpeed: 2000,
+  });
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -47,21 +67,22 @@ export default function MainHeader() {
 
   return (
     <header className="w-full flex items-center justify-between px-6 py-5 bg-[#d7b89c] border-b shadow-sm">
-      <div className="bg-white px-4 py-2 rounded-full shadow flex items-center gap-2">
+      {/* 좌측 감자링 + 타이핑 멘트 */}
+      <div className="bg-white rounded-full shadow px-6 py-3 flex flex-col items-center justify-center w-[320px] h-[80px]">
         <Link
           to="/"
-          className="text-xl flex items-center gap-2 hover:text-amber-600 hover:scale-105 transition-all duration-300 ease-in-out"
+          className="text-2xl font-bold text-[#5b3d1d] flex items-center gap-2"
         >
           감자링
-          <span className="w-8 h-8 flex items-center justify-center animate-bounce">
-            🥔
-          </span>
+          <span className="text-3xl animate-bounce">🥔</span>
         </Link>
+        <p className="text-[14px] font-medium text-[#5b3d1d] h-[20px]">
+          {text}
+          <Cursor cursorColor="#5b3d1d" />
+        </p>
       </div>
-
-      {/* 로고 */}
-
-      {/* 오른쪽 영역 */}
+      <NotificationButton />
+      {/* 우측 사용자 메뉴 */}
       {user ? (
         <div className="relative">
           <button

@@ -1,6 +1,8 @@
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { useState, useEffect } from "react";
+
 import supabase from "@/lib/supabase";
+import { useNavigate } from "react-router-dom";
 
 export default function CouplePage() {
   const { couple, partnerId, disconnectCouple, fetchCoupleData } =
@@ -8,7 +10,7 @@ export default function CouplePage() {
   const [partnerNickname, setPartnerNickname] = useState("");
   const [editDate, setEditDate] = useState(couple?.started_at ?? "");
   const [saving, setSaving] = useState(false);
-
+  const navigate = useNavigate();
   useEffect(() => {
     const fetchPartnerNickname = async () => {
       if (!partnerId) return;
@@ -44,7 +46,7 @@ export default function CouplePage() {
     alert("커플이 해제되었습니다.");
   };
 
-  if (!couple) return <p className="text-gray-500">커플 정보가 없습니다.</p>;
+  navigate("/main");
 
   return (
     <div className="p-6 max-w-md mx-auto space-y-6 bg-white shadow rounded">

@@ -8,7 +8,7 @@ interface Props {
 
 export default function SubHeader({
   title = "감자링",
-  imageSrc = "/images/potato-watering.png",
+  imageSrc = "/images/potato-intro.gif",
   className = "",
 }: Props) {
   return (
@@ -16,10 +16,10 @@ export default function SubHeader({
       initial={{ opacity: 0, y: 40 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
-      className={`flex flex-col items-center justify-center text-center ${className}`}
+      className={`flex flex-col items-center justify-center text-center ${className} mb-4`}
     >
       {/* 말풍선 영역 */}
-      <div className="relative bg-[#fff7e6] border border-[#f4c989] text-[#5b3d1d] px-6 py-4 rounded-[24px] shadow-[0_4px_10px_rgba(0,0,0,0.1)] mb-6 max-w-[280px]">
+      <div className="relative bg-[#fff7e6] border-2 border-[#bfa07e] text-[#5b3d1d] px-6 py-4 rounded-[24px] shadow-[0_4px_10px_rgba(0,0,0,0.1)] mb-6 max-w-[280px]">
         <p className="text-lg font-semibold leading-snug tracking-wide">
           {title}
         </p>
@@ -45,7 +45,7 @@ export default function SubHeader({
       <motion.img
         src={imageSrc}
         alt="부실감자"
-        className="w-32 h-32 object-contain"
+        className="w-28 h-28 object-contain"
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.6, delay: 0.2 }}
