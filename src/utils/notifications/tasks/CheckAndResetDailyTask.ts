@@ -1,22 +1,19 @@
-// utils/checkAndResetDailyTask.ts
-
 import supabase from "@/lib/supabase";
 
-// ✅ 접속 시 호출: 오늘 날짜의 daily_task가 없으면 새로 만들고, 날짜가 어제면 업데이트함
+// ✅ 접속 시 호출: 오늘 날짜의 daily_task가 없으면 새로 만들고, 어제면 초기화
 export async function CheckAndResetDailyTask(
   userId: string,
   coupleId: string | null
 ) {
   try {
-    const today = new Date().toISOString().split("T")[0];
+    const today = new Date().toLocaleDateString("sv-SE"); // "YYYY-MM-DD"
 
-    // 커플이 아니면 task를 관리할 필요 없음
     if (!coupleId) {
       console.log("🚫 커플이 아니므로 task 기록 생략");
       return;
     }
 
-    // 오늘의 daily_task가 존재하는지 조회
+    console.log(today);
     const { data: taskRow, error: fetchError } = await supabase
       .from("daily_task")
       .select("date")
@@ -29,7 +26,7 @@ export async function CheckAndResetDailyTask(
     }
 
     if (!taskRow) {
-      // ❗ 처음 생성
+      // ✅ 기록이 없으면 새로 생성
       const { error: insertError } = await supabase.from("daily_task").insert({
         user_id: userId,
         couple_id: coupleId,
@@ -43,7 +40,7 @@ export async function CheckAndResetDailyTask(
         console.log("✅ daily_task 생성 완료");
       }
     } else if (taskRow.date !== today) {
-      // ❗ 어제 날짜면 오늘로 초기화
+      // ✅ 기록은 있는데 날짜가 어제면 초기화
       const { error: updateError } = await supabase
         .from("daily_task")
         .update({ date: today, completed: false })

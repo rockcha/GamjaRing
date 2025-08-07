@@ -1,22 +1,23 @@
 import supabase from "@/lib/supabase";
 import { useUser } from "@/contexts/UserContext";
 import { useCoupleContext } from "@/contexts/CoupleContext";
+import { increaseCouplePoint } from "./IncreaseCouplePoint";
 
-// ✅ 오늘 task 완료 처리 + 감자 포인트 1 증가 (context 기반)
+// ✅ 오늘 task 완료 처리 + 감자 포인트 1 증가 (couple_points 테이블 기준)
 export function useCompleteTask() {
   const { user } = useUser();
   const { couple } = useCoupleContext();
 
   const completeTask = async () => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = new Date().toLocaleDateString("sv-SE");
 
     // 🔒 유효성 검사
-    if (!user || !user.id) {
+    if (!user?.id) {
       console.warn("❌ 유저 정보가 없습니다.");
       return;
     }
 
-    if (!couple || !couple.id) {
+    if (!couple?.id) {
       console.warn("🚫 커플 정보가 없습니다. task 처리 중단");
       return;
     }
@@ -56,29 +57,8 @@ export function useCompleteTask() {
       return;
     }
 
-    // 3. 커플 포인트 +1 처리 (직접 계산 방식)
-    const { data: coupleData, error: coupleFetchError } = await supabase
-      .from("couples")
-      .select("point")
-      .eq("id", couple.id)
-      .maybeSingle();
-
-    if (coupleFetchError || !coupleData) {
-      console.error("❌ 커플 point 조회 실패:", coupleFetchError?.message);
-      return;
-    }
-
-    const currentPoint = coupleData.point ?? 0;
-
-    const { error: pointError } = await supabase
-      .from("couples")
-      .update({ point: currentPoint + 1 }) // ✅ 직접 +1
-      .eq("id", couple.id);
-
-    if (pointError) {
-      console.error("❌ 커플 포인트 증가 실패:", pointError.message);
-      return;
-    }
+    // 3. 커플 포인트 증가 (✅ couple_points 테이블 기반)
+    await increaseCouplePoint(couple.id);
 
     console.log("✅ task 완료 + 감자 포인트 +1 성공!");
   };

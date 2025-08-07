@@ -12,7 +12,7 @@ export default function DailyTaskToggle() {
   const [isEligible, setIsEligible] = useState(false); // ✅ 버튼 활성화 여부 판단
 
   useEffect(() => {
-    const date = new Date().toISOString().split("T")[0];
+    const date = new Date().toLocaleDateString("sv-SE");
     setToday(date as string);
   }, []);
 

@@ -5,6 +5,7 @@ import { useUser } from "./UserContext";
 import { sendUserNotification } from "@/utils/notifications/notifications/sendUserNotification";
 import { deleteUserNotification } from "@/utils/notifications/notifications/deleteUserNotification";
 import { getUserNotifications } from "@/utils/notifications/notifications/getUserNotifications";
+import { createCouplePoints } from "@/utils/notifications/tasks/CreateCouplePoints";
 
 interface Couple {
   id: string;
@@ -60,6 +61,27 @@ export const CoupleProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const connectToPartnerById = async (partnerId: string) => {
+    // 1. 커플 테이블 생성
+
+    //이미 커플인지
+    const { data: existing, error: checkError } = await supabase
+      .from("couples")
+      .select("id")
+      .or(
+        `and(user1_id.eq.${user?.id},user2_id.eq.${partnerId}),and(user1_id.eq.${partnerId},user2_id.eq.${user?.id})`
+      )
+      .maybeSingle();
+
+    if (checkError) {
+      return { error: checkError };
+    }
+
+    if (existing) {
+      console.warn("⚠️ 이미 존재하는 커플입니다. 연결을 중단합니다.");
+      return { error: new Error("이미 연결된 커플입니다.") };
+    }
+
+    //커플 데이터 생성
     const { data: coupleData, error: coupleError } = await supabase
       .from("couples")
       .insert({
@@ -72,19 +94,27 @@ export const CoupleProvider = ({ children }: { children: React.ReactNode }) => {
 
     if (coupleError || !coupleData) return { error: coupleError };
 
+    const coupleId = coupleData.id;
+
+    // 2. 두 사용자 연결 (users 테이블 업데이트)
     await Promise.all([
       supabase
         .from("users")
-        .update({ couple_id: coupleData.id, partner_id: partnerId })
+        .update({ couple_id: coupleId, partner_id: partnerId })
         .eq("id", user?.id),
       supabase
         .from("users")
-        .update({ couple_id: coupleData.id, partner_id: user?.id })
+        .update({ couple_id: coupleId, partner_id: user?.id })
         .eq("id", partnerId),
     ]);
 
+    // ✅ 3. couple_points 테이블도 생성
+    await createCouplePoints(coupleId);
+
+    // 4. 상태 동기화
     await fetchUser();
     await fetchCoupleData();
+
     return { error: null };
   };
 
