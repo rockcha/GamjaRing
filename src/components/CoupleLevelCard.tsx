@@ -105,7 +105,7 @@ export default function CoupleLevelCard() {
     <div className="w-full max-w-xs bg-[#fbf8f2] rounded-xl shadow-md p-4 text-center group transition-all duration-300">
       <div className="text-2xl font-bold mb-2">{info?.name}</div>
 
-      <div className="relative w-48 h-48 mx-auto">
+      <div className="relative w-64 h-72 mx-auto">
         <svg className="absolute top-0 left-0 w-full h-full rotate-[-90deg] z-10">
           <defs>
             <linearGradient

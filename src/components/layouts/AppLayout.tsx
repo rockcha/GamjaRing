@@ -25,15 +25,14 @@ export default function AppLayout() {
           overflow: "hidden", // 하단 넘치는 것도 잘라냄
         }}
       >
-        {/* 사이드바 */}
-        <Sidebar />
-
         {/* 오른쪽 콘텐츠 */}
         <div className="flex-1 px-4 py-6 overflow-hidden">
           <PageTransition>
             <Outlet />
           </PageTransition>
         </div>
+        {/* 사이드바 */}
+        <Sidebar />
       </div>
     </div>
   );

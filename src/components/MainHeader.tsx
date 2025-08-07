@@ -55,7 +55,6 @@ export default function MainHeader() {
         </p>
       </div>
       <div>
-        {" "}
         <DaysTogetherBadge />
       </div>
 

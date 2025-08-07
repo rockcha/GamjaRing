@@ -3,8 +3,9 @@ import NavButton from "@/components/widgets/NavButton";
 
 export default function Sidebar() {
   return (
-    <aside className="w-[350px]   p-6 rounded-xl ">
-      <nav className="flex flex-col gap-6 items-center">
+    <aside className=" p-6 rounded-2xl">
+      {/* 👉 flex 대신 grid 사용 */}
+      <nav className="grid grid-cols-2 gap-2 place-items-center">
         <NavButton
           imgSrc="/navbuttons/nb-home.gif"
           description="메인페이지"
@@ -26,8 +27,43 @@ export default function Sidebar() {
           to="/schedule"
         />
         <NavButton
-          imgSrc="/navbuttons/nb-memo.png"
-          description="지수 바보"
+          imgSrc="/navbuttons/nb-memo.gif"
+          description="테스트용"
+          to="/schedule"
+        />
+        <NavButton
+          imgSrc="/navbuttons/nb-memo.gif"
+          description="테스트용"
+          to="/schedule"
+        />
+        <NavButton
+          imgSrc="/navbuttons/nb-memo.gif"
+          description="테스트용"
+          to="/schedule"
+        />
+        <NavButton
+          imgSrc="/navbuttons/nb-memo.gif"
+          description="테스트용"
+          to="/schedule"
+        />
+        <NavButton
+          imgSrc="/navbuttons/nb-memo.gif"
+          description="테스트용"
+          to="/schedule"
+        />
+        <NavButton
+          imgSrc="/navbuttons/nb-memo.gif"
+          description="테스트용"
+          to="/schedule"
+        />
+        <NavButton
+          imgSrc="/navbuttons/nb-memo.gif"
+          description="테스트용"
+          to="/schedule"
+        />
+        <NavButton
+          imgSrc="/navbuttons/nb-memo.gif"
+          description="테스트용"
           to="/schedule"
         />
       </nav>
