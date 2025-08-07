@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@/contexts/UserContext";
-import SoloMainPage from "./SoloMainPage";
-import CoupleMainPage from "./CoupleMainPage";
 import PotatoLoading from "@/components/PotatoLoading";
+import CoupleMainPage from "./CoupleMainPage";
+import SoloMainPage from "./SoloMainPage";
 
 export default function MainPage() {
   const { user, isCoupled, loading } = useUser();
@@ -11,7 +11,7 @@ export default function MainPage() {
 
   useEffect(() => {
     if (!loading && !user) {
-      navigate("/login"); // 로그인 페이지로 이동
+      navigate("/login");
     }
   }, [loading, user, navigate]);
 

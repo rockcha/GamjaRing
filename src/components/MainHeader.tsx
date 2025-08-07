@@ -5,7 +5,7 @@ import { useTypewriter, Cursor } from "react-simple-typewriter";
 import NotificationButton from "./NotificationButton";
 
 import { useUser } from "@/contexts/UserContext";
-
+import DaysTogetherBadge from "./DaysTogetherBadge";
 const potatoMessages = [
   "함께한 추억, 감자처럼 싹을 틔워요🌱",
   "비가 와도 괜찮아, 감자는 튼튼하니까☔",
@@ -33,28 +33,30 @@ export default function MainHeader() {
     await logout();
     navigate("/login");
   };
-  //bg-gradient-to-b from-[#bfa07e] to-[#f5e6da]
-  //bg-gradient-to-b from-[#f2e4d5] to-[#8b5e3c]
+
   return (
-    <header
-      className="w-full flex items-center justify-between #d6c3b4
-
-
-  px-6 py-5  border-b shadow-sm"
-    >
+    <header className="w-full flex items-center justify-between  px-10 py-10">
       {/* 좌측 감자링 + 타이핑 멘트 */}
-      <div className="bg-[#fbf8f2] rounded-full shadow px-6 py-3 flex flex-col items-center justify-center w-[320px] h-[80px]">
+      <div className="bg-[#fdf6ee] rounded-full shadow px-6 py-3 flex flex-col items-center justify-center w-[320px] h-[80px]">
         <Link
           to="/"
           className="text-2xl font-bold text-[#5b3d1d] flex items-center gap-2"
         >
           감자링
-          <span className="text-3xl animate-bounce">🥔</span>
+          <img
+            src="/logo.png"
+            alt="감자 이모지"
+            className="w-8 h-8 inline-block align-middle"
+          />
         </Link>
         <p className="text-[14px] font-medium text-[#5b3d1d] h-[20px]">
           {text}
           <Cursor cursorColor="#5b3d1d" />
         </p>
+      </div>
+      <div>
+        {" "}
+        <DaysTogetherBadge />
       </div>
 
       <NotificationButton />
@@ -64,13 +66,13 @@ export default function MainHeader() {
         <div className="relative">
           <button
             onClick={() => setDropdownOpen((prev) => !prev)}
-            className="px-4 py-2 border border-gray-300 rounded-md bg-white hover:bg-gray-100 transition"
+            className="px-4 py-2 border border-gray-300 rounded-md bg-[#fdf6ee] hover:bg-gray-100 transition"
           >
             {user.nickname} ▼
           </button>
 
           {dropdownOpen && (
-            <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 shadow-md rounded-md z-10">
+            <div className="absolute right-0 mt-2 w-40 bg-[#fdf6ee] border border-gray-200 shadow-md rounded-md z-10">
               {isCoupled && (
                 <button
                   className="w-full px-4 py-2 text-left hover:bg-gray-100"

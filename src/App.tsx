@@ -12,6 +12,7 @@ import AnswerPage from "./pages/AnswerPage";
 import AnswerDetailPage from "./pages/AnswerDetailPage";
 
 import CouplePage from "@/pages/CouplePage";
+
 //import MyPage from "@/pages/MyPage";
 
 export default function App() {
