@@ -8,12 +8,12 @@ export async function CheckAndResetDailyTask(
   try {
     const today = new Date().toLocaleDateString("sv-SE"); // "YYYY-MM-DD"
 
+    console.log(`${today} 체킹 시작`);
     if (!coupleId) {
       console.log("🚫 커플이 아니므로 task 기록 생략");
       return;
     }
 
-    console.log(today);
     const { data: taskRow, error: fetchError } = await supabase
       .from("daily_task")
       .select("date")
@@ -32,27 +32,29 @@ export async function CheckAndResetDailyTask(
         couple_id: coupleId,
         date: today,
         completed: false,
+        questionId: 0,
       });
 
       if (insertError) {
-        console.error("❌ daily_task 생성 실패:", insertError.message);
+        console.error("❌ 첫 daily_task 생성 실패:", insertError.message);
       } else {
-        console.log("✅ daily_task 생성 완료");
+        console.log("✅ 첫 daily_task 생성 완료");
       }
     } else if (taskRow.date !== today) {
       // ✅ 기록은 있는데 날짜가 어제면 초기화
+
       const { error: updateError } = await supabase
         .from("daily_task")
         .update({ date: today, completed: false })
         .eq("user_id", userId);
 
       if (updateError) {
-        console.error("❌ daily_task 날짜 초기화 실패:", updateError.message);
+        console.error("❌ daily_task  초기화 실패:", updateError.message);
       } else {
-        console.log("✅ daily_task 오늘로 초기화 완료");
+        console.log("✅ daily_task 초기화 완료");
       }
     } else {
-      console.log("ℹ️ 오늘 이미 접속했음. task 무시");
+      console.log("ℹ️ 오늘 이미 접속했음. 초기화 생략");
     }
   } catch (err) {
     console.error("❌ 처리 중 예외 발생:", err);

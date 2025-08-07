@@ -18,7 +18,7 @@ export default function QuestionCard({
   }, []);
 
   return (
-    <div className="bg-gradient-to-b from-[#e9d8c8] to-[#d8bca3] rounded-2xl p-6 w-full max-w-md mx-auto border border-[#e5cfc3] shadow-md space-y-6">
+    <div className="bg-amber-100 rounded-2xl p-6 w-full max-w-md mx-auto border border-[#e5cfc3] shadow-md space-y-6">
       {/* 제목 */}
       <h2 className="text-2xl md:text-3xl font-bold text-[#b75e20] text-center"></h2>
 

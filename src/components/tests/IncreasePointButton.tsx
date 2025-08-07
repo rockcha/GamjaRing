@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useUser } from "@/contexts/UserContext";
-import { increaseCouplePoint } from "@/utils/notifications/tasks/IncreaseCouplePoint";
+import { increaseCouplePoint } from "@/utils/tasks/IncreaseCouplePoint";
 
 export default function IncreasePointButton() {
   const { user } = useUser();

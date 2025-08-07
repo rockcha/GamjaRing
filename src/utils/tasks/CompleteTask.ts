@@ -2,8 +2,8 @@ import supabase from "@/lib/supabase";
 import { useUser } from "@/contexts/UserContext";
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { increaseCouplePoint } from "./IncreaseCouplePoint";
+import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 
-// ✅ 오늘 task 완료 처리 + 감자 포인트 1 증가 (couple_points 테이블 기준)
 export function useCompleteTask() {
   const { user } = useUser();
   const { couple } = useCoupleContext();
@@ -25,7 +25,7 @@ export function useCompleteTask() {
     // 1. 이미 오늘 task를 완료했는지 조회
     const { data: task, error: fetchError } = await supabase
       .from("daily_task")
-      .select("completed")
+      .select("completed, question_id")
       .eq("user_id", user.id)
       .eq("date", today)
       .maybeSingle();
@@ -45,10 +45,13 @@ export function useCompleteTask() {
       return;
     }
 
-    // 2. task 완료 처리
+    // 다음 질문 번호 설정
+    const nextQuestionId = ((task.question_id ?? 0) + 1) % 400;
+
+    // 2. task 완료 처리 + 질문 번호 올리기
     const { error: updateError } = await supabase
       .from("daily_task")
-      .update({ completed: true })
+      .update({ completed: true, question_id: nextQuestionId })
       .eq("user_id", user.id)
       .eq("date", today);
 
@@ -57,10 +60,22 @@ export function useCompleteTask() {
       return;
     }
 
-    // 3. 커플 포인트 증가 (✅ couple_points 테이블 기반)
+    // 커플 포인트 증가 (✅ couple_points 테이블 기반)
     await increaseCouplePoint(couple.id);
 
-    console.log("✅ task 완료 + 감자 포인트 +1 성공!");
+    //파트너 id 유효확인 -> receiver_id 가 string만 허용
+    if (!user?.partner_id) {
+      console.warn("❌ 파트너 ID가 없습니다. 알림 전송 중단");
+      return;
+    }
+
+    const { error } = await sendUserNotification({
+      senderId: user.id,
+      receiverId: user.partner_id, // 상대방의 Supabase UUID
+      type: "답변등록",
+      description: `${user.nickname}님이 오늘의 질문에 답변했어요! 📝`,
+      isRequest: false,
+    });
   };
 
   return { completeTask };

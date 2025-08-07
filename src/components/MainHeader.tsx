@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTypewriter, Cursor } from "react-simple-typewriter";
 import NotificationButton from "./NotificationButton";
-import UnlinkButton from "./tests/UnlinkButton";
+
 import { useUser } from "@/contexts/UserContext";
 
 const potatoMessages = [
@@ -37,7 +37,7 @@ export default function MainHeader() {
   //bg-gradient-to-b from-[#f2e4d5] to-[#8b5e3c]
   return (
     <header
-      className="w-full flex items-center justify-between bg-gradient-to-b from-[#e9d8c8] to-[#d8bca3]
+      className="w-full flex items-center justify-between #d6c3b4
 
 
   px-6 py-5  border-b shadow-sm"
@@ -58,7 +58,7 @@ export default function MainHeader() {
       </div>
 
       <NotificationButton />
-      <UnlinkButton />
+
       {/* 우측 사용자 메뉴 */}
       {user ? (
         <div className="relative">
@@ -81,9 +81,9 @@ export default function MainHeader() {
               )}
               <button
                 className="w-full px-4 py-2 text-left hover:bg-gray-100"
-                onClick={() => navigate("/mypage")}
+                onClick={() => navigate("/answerpage")}
               >
-                마이페이지
+                답변 꾸러미
               </button>
               <button
                 className="w-full px-4 py-2 text-left hover:bg-gray-100 text-red-500"

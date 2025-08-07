@@ -5,12 +5,10 @@ type NotificationType =
   | "커플요청"
   | "커플수락"
   | "커플거절"
-  | "일정등록"
-  | "일정수정"
-  | "일정삭제"
-  | "메모등록"
-  | "메모수정"
-  | "메모삭제";
+  | "답변등록"
+  | "답변수정"
+  | "답변삭제"
+  | "감자진화";
 
 interface SendUserNotificationInput {
   senderId: string;
@@ -41,5 +39,9 @@ export const sendUserNotification = async ({
     },
   ]);
 
+  if (error) {
+    console.error("❌ notification 삽입 실패:", error.message);
+    console.log("debug info", { senderId, receiverId, type, description });
+  }
   return { error };
 };

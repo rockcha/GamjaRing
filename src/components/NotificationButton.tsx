@@ -3,8 +3,8 @@ import { Bell, Circle } from "lucide-react";
 import { motion } from "framer-motion";
 import { useUser } from "@/contexts/UserContext";
 import { useCoupleContext } from "@/contexts/CoupleContext";
-import { getUserNotifications } from "@/utils/notifications/notifications/getUserNotifications";
-import { deleteUserNotification } from "@/utils/notifications/notifications/deleteUserNotification";
+import { getUserNotifications } from "@/utils/notification/getUserNotifications";
+import { deleteUserNotification } from "@/utils/notification/deleteUserNotification";
 import type { NotificationType } from "@/types/notificationType";
 
 interface Notification {

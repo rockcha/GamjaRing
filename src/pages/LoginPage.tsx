@@ -4,7 +4,7 @@ import SubHeader from "@/components/SubHeader";
 import { useUser } from "@/contexts/UserContext";
 import PotatoButton from "@/components/widgets/PotatoButton";
 import Popup from "@/components/widgets/Popup";
-import { CheckAndResetDailyTask } from "@/utils/notifications/tasks/CheckAndResetDailyTask";
+import { CheckAndResetDailyTask } from "@/utils/tasks/DailyCheckandReset";
 
 // 에러 메시지 번역 맵
 const errorMessageMap: Record<string, string> = {

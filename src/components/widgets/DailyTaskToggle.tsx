@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useUser } from "@/contexts/UserContext";
-import { useCompleteTask } from "@/utils/notifications/tasks/CompleteTask";
+import { useCompleteTask } from "@/utils/tasks/CompleteTask";
 import supabase from "@/lib/supabase";
 
 export default function DailyTaskToggle() {

@@ -36,7 +36,7 @@ export async function increaseCouplePoint(coupleId: string): Promise<void> {
       .update({
         point,
         level,
-        updated_at: new Date().toISOString(),
+        updated_at: new Date().toLocaleDateString("sv-SE"),
       })
       .eq("couple_id", coupleId);
 
