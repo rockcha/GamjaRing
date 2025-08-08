@@ -3,7 +3,6 @@ import { useCoupleContext } from "@/contexts/CoupleContext";
 import PotatoButton from "@/components/widgets/PotatoButton";
 import PopupWithInput from "@/components/widgets/PopupWithInput";
 import { useUser } from "@/contexts/UserContext";
-import PotatoLoading from "@/components/PotatoLoading";
 
 export default function SoloMainPage() {
   const { requestCouple } = useCoupleContext();
@@ -17,23 +16,23 @@ export default function SoloMainPage() {
     return "요청이 성공적으로 전송되었습니다! 💌";
   };
 
-  if (loading || !user) {
-    return <PotatoLoading />;
-  }
+  // if (loading || !user) {
+  //   return <PotatoLoading />;
+  // }
 
   return (
     <>
       {/* 메인 콘텐츠 */}
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center text-center px-4 py-10 ">
+      <div className="min-h-screen  flex flex-col items-center  text-center px-4 py-10 ">
         {/* 슬픈 감자 이미지 */}
         <img
           src="/images/potato-sad.png"
           alt="슬픈 감자"
-          className="w-60 h-60 object-contain mb-6"
+          className="w-40 h-40 object-contain mb-6"
         />
 
         {/* 상태 문구 */}
-        <p className="text-[#5b3d1d] text-xl font-semibold mb-4">
+        <p className="text-[#5b3d1d] text-xl font-semibold mb-3">
           감자를 같이 키울 상대방이 없어요... 🥲
         </p>
 

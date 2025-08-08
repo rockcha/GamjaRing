@@ -22,7 +22,7 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             {/* ✅ 인트로만 루트에서 처리 */}
-            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/" element={<Navigate to="/main" replace />} />
             <Route path="/intro" element={<IntroPage />} />
 
             {/* ✅ 헤더 없이 보여줄 페이지들 */}

@@ -109,8 +109,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
+    try {
+      setLoading(true);
+      await supabase.auth.signOut();
+      setUser(null);
+    } catch (error) {
+      console.error("로그아웃 실패:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const connectToPartner = async (partnerNickname: string) => {

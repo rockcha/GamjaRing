@@ -2,12 +2,11 @@
 import MyAnswersCard from "@/components/MyAnswersCard";
 import MyPartnerAnswersCard from "@/components/MyPartnerAnswersCard";
 import { useUser } from "@/contexts/UserContext";
-import PotatoLoading from "@/components/PotatoLoading";
 
 export default function AnswerPage() {
   const { user, loading } = useUser();
 
-  if (loading || !user) return <PotatoLoading />;
+  // if (loading || !user) return <PotatoLoading />;
 
   return (
     <div className="min-h-screen bg-[#fffaf4] px-4 py-6">
