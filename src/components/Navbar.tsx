@@ -5,6 +5,9 @@ import FullscreenOverlay, {
 } from "@/components/FullscreenOverlay";
 import IntroductionPanel from "./Panels/IntroductionPanel";
 import OurPotatoPanel from "./Panels/OurPotatoPanel";
+import AnswerPanel from "./Panels/AnswerPanel";
+import TodayQuestionPanel from "./Panels/TodayQuestionPanel";
+import NotificationPanel from "./Panels/NotificationPanel";
 
 export default function Navbar() {
   const [active, setActive] = useState<OverlayItem | null>(null);
@@ -35,9 +38,10 @@ export default function Navbar() {
         <NavButton
           id="updates"
           imgSrc="/navbuttons/Updates.gif"
-          label="공지사항"
+          label="알림메세지"
           onOpen={open}
           activeId={activeId}
+          content={<NotificationPanel />}
         />
         <NavButton
           id="home"
@@ -55,18 +59,20 @@ export default function Navbar() {
           activeId={activeId}
         />
         <NavButton
-          id="answers"
-          imgSrc="/navbuttons/nb-q&a.gif"
-          label="답변 꾸러미"
-          onOpen={open}
-          activeId={activeId}
-        />
-        <NavButton
           id="write"
           imgSrc="/navbuttons/nb-memo.gif"
           label="답변 작성"
           onOpen={open}
           activeId={activeId}
+          content={<TodayQuestionPanel />}
+        />
+        <NavButton
+          id="answers"
+          imgSrc="/navbuttons/nb-q&a.gif"
+          label="답변 꾸러미"
+          onOpen={open}
+          activeId={activeId}
+          content={<AnswerPanel />}
         />
       </nav>
 

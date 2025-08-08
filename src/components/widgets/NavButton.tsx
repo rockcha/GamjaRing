@@ -1,4 +1,5 @@
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
+import { useEffect, useState } from "react";
 
 export interface NavOverlayPayload {
   id: string;
@@ -10,11 +11,19 @@ export interface NavOverlayPayload {
 interface NavButtonProps {
   id: string;
   imgSrc: string;
-  label: string; // 버튼 라벨 (= title)
+  label: string;
   content?: React.ReactNode | (() => React.ReactNode);
   onOpen?: (payload: NavOverlayPayload) => void;
-  activeId?: string | null; // 클릭된 버튼 id (애니 제어)
+  activeId?: string | null;
 }
+
+const EASE_OUT: [number, number, number, number] = [0.16, 1, 0.3, 1];
+
+const CARD_VARIANTS: Variants = {
+  rest: { scale: 1, transition: { duration: 0.12, ease: EASE_OUT } },
+  hover: { scale: 1.1, transition: { duration: 0.12, ease: EASE_OUT } },
+  tap: { scale: 0.98, transition: { duration: 0.08, ease: EASE_OUT } },
+};
 
 export default function NavButton({
   id,
@@ -42,44 +51,31 @@ export default function NavButton({
       type="button"
       onClick={handleClick}
       className="
-        block
-        basis-[15.5%] shrink-0 grow-0
+        block basis-[15.5%] shrink-0 grow-0
         sm:basis-[30%] md:basis-[22%] lg:basis-[16%] xl:basis-[15.5%]
       "
     >
-      {/* 카드 전체에 shared transition */}
       <motion.div
         layoutId={`card-${id}`}
-        {...(!isActive
-          ? { whileHover: { scale: 1.04 }, whileTap: { scale: 0.98 } }
-          : {})}
-        transition={{ layout: { duration: 1, ease: "easeInOut" }, duration: 1 }}
-        className="
-          w-full aspect-[2/1]
-          rounded-xl overflow-hidden border bg-white
-          group flex items-center gap-4 px-4
-        "
+        variants={CARD_VARIANTS}
+        initial="rest"
+        animate="rest"
+        whileTap="tap"
+        transition={{ layout: { duration: 0.35, ease: EASE_OUT } }}
+        {...{ whileHover: "hover" as const }}
+        className="w-full aspect-[2/1] rounded-xl overflow-hidden border bg-white group flex items-center gap-4 px-4"
       >
-        {/* GIF 이미지 shared transition */}
         <motion.img
           layoutId={`thumb-${id}`}
           src={imgSrc}
           alt={label}
           className="w-1/4 h-auto object-contain mr-4"
-          transition={{
-            layout: { duration: 1, ease: "easeInOut" },
-            duration: 1,
-          }}
+          transition={{ layout: { duration: 0.35, ease: EASE_OUT } }}
         />
-
-        {/* 텍스트도 shared transition → 상단 헤더로 자연 이동 */}
         <motion.span
           layoutId={`title-${id}`}
           className="hidden sm:block text-sm md:text-base font-semibold text-[#3d2b1f] relative"
-          transition={{
-            layout: { duration: 1, ease: "easeInOut" },
-            duration: 1,
-          }}
+          transition={{ layout: { duration: 0.35, ease: EASE_OUT } }}
         >
           {label}
           <span className="absolute left-0 -bottom-1 w-0 h-1 bg-amber-300 rounded-full transition-all duration-700 group-hover:w-full" />

@@ -1,9 +1,6 @@
 import { useUser } from "@/contexts/UserContext";
 import HeroSection from "@/components/HeroSection";
 import HeroSection2 from "@/components/HeroSection2";
-import CoupleLevelCard from "@/components/CoupleLevelCard";
-
-import TodayQuestionCard from "@/components/TodayQuestionCard";
 
 export default function CoupleMainPage() {
   const { user, loading } = useUser();

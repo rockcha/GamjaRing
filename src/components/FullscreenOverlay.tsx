@@ -35,10 +35,10 @@ export default function FullscreenOverlay({
               layout: { duration: 1, ease: "easeInOut" },
               duration: 1,
             }}
-            className="relative w-[80%] h-[80%] bg-[#fdf6ee] rounded-xl overflow-hidden shadow-xl z-[1000] flex flex-col"
+            className="relative w-[80%] h-[80%] bg-white rounded-xl overflow-hidden shadow-xl z-[1000] flex flex-col"
           >
             {/* 상단 고정 헤더 */}
-            <div className="sticky top-0 flex items-center gap-3 px-6 py-4 border-b bg-[#fdf6ee]/90 backdrop-blur-md z-[1001]">
+            <div className="sticky top-0 flex items-center gap-3 px-6 py-4 border-b bg-white backdrop-blur-md z-[1001]">
               <motion.img
                 layoutId={`thumb-${active.id}`}
                 src={active.imgSrc}
