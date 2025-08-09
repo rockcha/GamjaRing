@@ -49,8 +49,9 @@ export default function TodayQuestionPanel() {
     (currentId: number | null, completed: boolean) => {
       if (currentId == null) return null;
       if (!completed) return currentId;
+
       const prev = currentId - 1;
-      return prev >= 1 ? prev : null;
+      return prev >= 0 ? prev : null;
     },
     []
   );
@@ -71,16 +72,17 @@ export default function TodayQuestionPanel() {
         setLoading(false);
         return;
       }
-
+      console.log(`질문 답변 여부 : ${data.completed}`);
       setQuestionId(data.question_id);
       setSubmitted(data.completed);
 
       // 보여줄 대상 question_id 결정
-      const displayId = computeDisplayId(data.question_id, data.completed);
 
+      const displayId = computeDisplayId(data.question_id, data.completed);
+      console.log(displayId);
       if (displayId == null) {
         // ✅ null 또는 undefined만 체크
-        setQuestion("첫 질문입니다. 아직 이전 질문이 없어요.");
+        setQuestion("문제가 발생했습니다.");
         setAnswer("");
         setLoading(false);
         console.log("displayID는 null");
@@ -90,13 +92,14 @@ export default function TodayQuestionPanel() {
       const questionText = await loadQuestionText(displayId);
       setQuestion(questionText);
 
-      console.log(`${questionText}`);
+      console.log(`현재 보여지는 질문: ${questionText}`);
       // 완료 상태라면 해당 전 질문의 내 답변도 로드
       if (data.completed) {
         const myAns = await loadMyAnswer(displayId);
         setAnswer(myAns ?? "");
       } else {
         setAnswer(""); // 아직 미완료면 입력 초기화
+        //console.log("아직 미완료면 입력 초기화");
       }
 
       setLoading(false);
@@ -114,7 +117,7 @@ export default function TodayQuestionPanel() {
 
     if (!answer.trim()) return;
     setSubmitting(true);
-
+    console.log(displayId);
     // 1) 답변 저장
     const { error: insertError } = await supabase.from("answer").insert({
       user_id: user.id,
@@ -162,8 +165,11 @@ export default function TodayQuestionPanel() {
 
     // 완료 화면에서 보여주는 질문 ID(= 직전에 제출했던 질문)
     const displayId = computeDisplayId(questionId, true);
-    if (!displayId) {
+    if (displayId == null) {
       open("수정할 질문이 없습니다.", 2500);
+      return;
+    } else if (displayId < 0) {
+      open("질문 번호가 음수입니다.", 2500);
       return;
     }
 

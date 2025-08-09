@@ -44,7 +44,7 @@ export default function DevNotice({
   defaultOpen = false,
   className = "",
   title = "개발자 공지사항",
-  subtitle = "⚠️ 개발자용: 변경/이슈를 공유합니다.",
+  subtitle = "⚠️  변경/이슈를 공유합니다.",
   storageKey = "dev-notice",
 }: Props) {
   // 환경 체크
@@ -101,7 +101,7 @@ export default function DevNotice({
         aria-label="개발자 노트 다시 열기"
         title="개발자 노트 다시 열기"
       >
-        🥔 개발자 노트
+        📢 개발자 노트
       </button>
     );
   }
@@ -121,7 +121,7 @@ export default function DevNotice({
       <div className="flex items-start justify-between gap-3 px-4 py-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-lg">🥔</span>
+            <span className="text-lg">📢</span>
             <h3 className="text-base md:text-lg font-bold text-[#3d2b1f] truncate">
               {title}{" "}
               <span className="ml-1 text-xs align-top text-amber-600">

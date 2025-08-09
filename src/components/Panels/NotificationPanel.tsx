@@ -204,7 +204,10 @@ export default function NotificationPanel() {
   const handleAccept = async (n: Notification) => {
     setBusy(true);
     try {
-      await acceptRequest(n.id);
+      const { error } = await acceptRequest(n.id);
+
+      if (error) console.log(error);
+
       await deleteUserNotification(n.id); // 처리 후 제거
       setNotifications((prev) => prev.filter((x) => x.id !== n.id));
       setSelectedIds((prev) => {

@@ -29,12 +29,14 @@ export default function MainPage() {
       title: "무결성 체크 간헐적 실패",
       description: "로그인 직후 fetchUser race condition 조사 중",
       severity: "critical",
+      date: "2025-08-09",
     },
     {
       id: "4",
       title: "답변 보기 기능 이슈",
       description: "내가 답변 안했을 시 상대방 답변 못보게하는 기능 추가 예정",
       severity: "warning",
+      date: "2025-08-09",
     },
   ];
 

@@ -40,9 +40,7 @@ export default function PotatoPokeButton({
     try {
       setLoading(true);
 
-      const description = `${
-        user?.nickname ?? "상대"
-      }님을 찔렀어요! 감자에서 알림이 도착했습니다 🥔✨`;
+      const description = `${user?.nickname ?? "상대"}님이 콕 찔렀어요! 🥔✨`;
 
       const { error } = await sendUserNotification({
         senderId: user.id,

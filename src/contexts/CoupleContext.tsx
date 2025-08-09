@@ -80,7 +80,7 @@ export const CoupleProvider = ({ children }: { children: React.ReactNode }) => {
     if (!user?.id) return { error: new Error("로그인 상태가 아닙니다.") };
 
     // 0) 오늘 날짜(YYYY-MM-DD)
-    const today = new Date().toISOString().slice(0, 10);
+    const today = new Date().toLocaleDateString("sv-SE");
 
     // 1) 이미 커플인지 검사
     const { data: existing, error: checkError } = await supabase
@@ -385,6 +385,7 @@ export const CoupleProvider = ({ children }: { children: React.ReactNode }) => {
     });
     if (taskError) return { error: taskError };
 
+    console.log("!!!");
     // ✅ 수락 알림 전송
     await sendUserNotification({
       senderId: user.id,

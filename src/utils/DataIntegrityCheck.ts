@@ -7,7 +7,7 @@ import supabase from "@/lib/supabase";
  *   [항목] -> [문제 여부] -> [해결/조치] 를 순서대로 출력합니다.
  */
 export async function runDataIntegrityCheck(userId: string) {
-  console.log("🩺 [DataIntegrityCheck] 데이터 무결성 체크 시작");
+  console.log("🚀🚀🚀 [DataIntegrityCheck] 데이터 무결성 체크 시작");
 
   if (!userId) {
     console.error("❌ [공통] 문제: userId가 비어있음 -> 해결: 즉시 종료");
@@ -217,80 +217,44 @@ export async function runDataIntegrityCheck(userId: string) {
   const DSEC = "데일리 태스크";
 
   // 1) 오늘자 존재 여부 먼저 확인
-  const { data: todayRow, error: todayErr } = await supabase
+
+  const { data: myTask, error: myTaskErr } = await supabase
     .from("daily_task")
     .select("user_id, date, completed, question_id, couple_id")
     .eq("user_id", me.id)
-    .eq("date", today)
+    .order("date", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
-  if (todayErr) {
-    warn(DSEC, `오늘자 조회 실패 → 존재 여부 확인 불가 (${todayErr.message})`);
-  } else if (todayRow) {
-    ok(DSEC, "오늘자 daily_task 존재/정상");
+  if (myTaskErr) {
+    warn(DSEC, `내 daily_task 조회 실패 (${myTaskErr.message})`);
+  } else if (!myTask) {
+    warn(DSEC, "내 daily_task 기록 없음");
   } else {
-    // 2) 오늘 게 없으면 가장 최근 1건 확인
-    const { data: lastRow, error: lastErr } = await supabase
-      .from("daily_task")
-      .select("user_id, date, completed, question_id, couple_id")
-      .eq("user_id", me.id)
-      .order("date", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (lastErr) {
-      warn(DSEC, `최신 기록 조회 실패 (${lastErr.message})`);
-    } else if (!lastRow) {
-      // 2-1) 과거 기록도 없으면 새로 생성
-      warn(DSEC, "오늘자 없음 + 과거 기록도 없음");
-      const { error: insErr } = await supabase.from("daily_task").insert({
-        user_id: me.id,
-        couple_id: me.couple_id ?? null,
-        date: today,
-        completed: false,
-        question_id: 0, // 규칙에 맞춰 초기값 설정
-      } as any);
-      if (insErr) warn(DSEC, `새로 생성 실패 (${insErr.message})`);
-      else fix(DSEC, "오늘자 daily_task 새로 생성");
+    const taskDate = (myTask as any).date?.slice(0, 10); // 'YYYY-MM-DD' 안전 비교
+    if (taskDate === today) {
+      ok(DSEC, "최신 daily_task가 오늘자임 (정상)");
     } else {
-      // 2-2) 과거 기록은 있는데 오늘이 아니라면 → 오늘로 보정
-      const prevDate = (lastRow as any).date?.slice(0, 10);
+      warn(DSEC, "📢daily_task 리셋! completed -> false");
 
-      if (prevDate !== today) {
-        warn(
-          DSEC,
-          `오늘자 없음 → 최신 기록 날짜(${prevDate})를 오늘(${today})로 보정 시도`
-        );
+      const { error: resetErr } = await supabase
+        .from("daily_task")
+        .update({ completed: false })
+        .eq("user_id", me.id)
+        .eq("date", taskDate);
 
-        // (user_id, date)가 유니크라면 충돌 가능 → 먼저 업데이트 시도, 실패 시 insert 대안
-        const { error: upErr } = await supabase
-          .from("daily_task")
-          .update({ date: today })
-          .eq("user_id", me.id)
-          .eq("date", prevDate);
-
-        if (upErr) {
-          warn(DSEC, `날짜 보정 실패 (${upErr.message}) → 대안: 새로 insert`);
-          const { error: insErr2 } = await supabase.from("daily_task").insert({
-            user_id: me.id,
-            couple_id: (lastRow as any).couple_id ?? me.couple_id ?? null,
-            date: today,
-            completed: (lastRow as any).completed ?? false,
-            question_id: (lastRow as any).question_id ?? 0,
-          } as any);
-          if (insErr2) warn(DSEC, `대안 insert 실패 (${insErr2.message})`);
-          else fix(DSEC, "대안 적용: 오늘자 새로 생성(값 승계)");
-        } else {
-          fix(DSEC, "최신 기록의 date를 오늘로 보정");
-        }
+      if (resetErr) {
+        warn(DSEC, `completed 보정 실패 (${resetErr.message})`);
       } else {
-        // 논리상 여기 안 들어오지만 안전차원
-        ok(DSEC, "최신 기록 날짜가 이미 오늘 (정상)");
+        fix(
+          DSEC,
+          "completed 보정 완료 → 오늘 날짜와 불일치해서 false로 초기화"
+        );
       }
     }
   }
 
   ok("커플 종료", "커플 상태 검진 완료");
-  console.log("✅ [DataIntegrityCheck] 데이터 무결성 체크 종료");
+  console.log("🎉🎉🎉 [DataIntegrityCheck] 데이터 무결성 체크 종료");
   return { error: null };
 }

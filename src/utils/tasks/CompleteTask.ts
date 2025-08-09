@@ -27,7 +27,7 @@ export function useCompleteTask() {
       .from("daily_task")
       .select("completed, question_id")
       .eq("user_id", user.id)
-      .eq("date", today)
+
       .maybeSingle();
 
     if (fetchError) {
@@ -52,8 +52,7 @@ export function useCompleteTask() {
     const { error: updateError } = await supabase
       .from("daily_task")
       .update({ completed: true, question_id: nextQuestionId })
-      .eq("user_id", user.id)
-      .eq("date", today);
+      .eq("user_id", user.id);
 
     if (updateError) {
       console.error("❌ task 완료 처리 실패:", updateError.message);
