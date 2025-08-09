@@ -11,8 +11,6 @@ import SignupPage from "@/pages/SignupPage";
 import MainPage from "@/pages/MainPages/MainPage";
 import AnswerDetailPage from "./pages/AnswerDetailPage";
 
-import CouplePage from "@/pages/CouplePage";
-
 //import MyPage from "@/pages/MyPage";
 
 export default function App() {
@@ -33,7 +31,6 @@ export default function App() {
               {/* ✅ 헤더 포함된 레이아웃 (MainHeader + Outlet) */}
               <Route element={<AppLayout />}>
                 <Route path="/main" element={<MainPage />} />
-                <Route path="/couple" element={<CouplePage />} />
 
                 <Route
                   path="/answerdetailpage"

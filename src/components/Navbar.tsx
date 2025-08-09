@@ -8,6 +8,7 @@ import OurPotatoPanel from "./Panels/OurPotatoPanel";
 import AnswerPanel from "./Panels/AnswerPanel";
 import TodayQuestionPanel from "./Panels/TodayQuestionPanel";
 import NotificationPanel from "./Panels/NotificationPanel";
+import MyPagePanel from "./Panels/MyPagePanel";
 
 export default function Navbar() {
   const [active, setActive] = useState<OverlayItem | null>(null);
@@ -61,6 +62,7 @@ export default function Navbar() {
           label="마이페이지"
           onOpen={open}
           activeId={activeId}
+          content={<MyPagePanel />}
         />
         <NavButton
           id="write"

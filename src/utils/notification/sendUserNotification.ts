@@ -8,6 +8,7 @@ type NotificationType =
   | "답변등록"
   | "답변수정"
   | "답변삭제"
+  | "감자 콕찌르기"
   | "감자진화";
 
 interface SendUserNotificationInput {

@@ -3,6 +3,7 @@ import { GetQuestionById } from "@/utils/GetQuestionById";
 import { useUser } from "@/contexts/UserContext";
 import { useCompleteTask } from "@/utils/tasks/CompleteTask";
 import { useToast } from "@/contexts/ToastContext";
+import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 import supabase from "@/lib/supabase";
 
 export default function TodayQuestionPanel() {
@@ -127,7 +128,22 @@ export default function TodayQuestionPanel() {
       open("답변 저장 실패ㅠㅠ ", 3000);
       return;
     }
-    open("답변 저장 완료! ✉️", 3000);
+
+    if (user.partner_id) {
+      const { error } = await sendUserNotification({
+        senderId: user.id,
+        receiverId: user.partner_id,
+        type: "답변등록", // NotificationType 중 하나
+        description: `${user.nickname}님이 답변을 등록했어요! `,
+        isRequest: false,
+      });
+
+      if (error) {
+        open("알림 전송 실패", 2000);
+      } else {
+        open("알림 전송 완료!", 2000);
+      }
+    }
 
     // 2) 완료 처리 (이 과정에서 서버는 daily_task.question_id를 +1 올린다고 가정)
     await completeTask();
@@ -141,11 +157,66 @@ export default function TodayQuestionPanel() {
     //    answer는 이미 state에 있으므로 그대로 읽기 전용 표기됨
   }, [user, questionId, answer, completeTask]);
 
-  const handleModifyClick = () => {
-    console.log("수정하기 버튼 클릭됨");
-    // TODO: 수정 기능 로직 구현
-  };
+  const handleModifyClick = useCallback(async () => {
+    if (!user) return;
 
+    // 완료 화면에서 보여주는 질문 ID(= 직전에 제출했던 질문)
+    const displayId = computeDisplayId(questionId, true);
+    if (!displayId) {
+      open("수정할 질문이 없습니다.", 2500);
+      return;
+    }
+
+    if (!answer?.trim()) {
+      open("수정할 기존 답변이 없습니다.", 2500);
+      return;
+    }
+
+    // 간단 편집 UI: 브라우저 prompt (필요하면 나중에 커스텀 모달로 교체)
+    const next = window.prompt("답변을 수정하세요.", answer);
+    if (next == null) return; // 사용자 취소
+    const trimmed = next.trim();
+
+    if (!trimmed) {
+      open("내용이 비어 있습니다.", 2500);
+      return;
+    }
+    if (trimmed === answer.trim()) {
+      open("변경된 내용이 없습니다.", 2000);
+      return;
+    }
+
+    // DB 업데이트
+    const { error } = await supabase
+      .from("answer")
+      .update({ content: trimmed })
+      .eq("user_id", user.id)
+      .eq("question_id", displayId);
+
+    if (error) {
+      console.error("❌ 답변 수정 실패:", error.message);
+      open("답변 수정에 실패했어요. 잠시 후 다시 시도해주세요.", 3000);
+      return;
+    }
+    if (user.partner_id) {
+      const { error } = await sendUserNotification({
+        senderId: user.id,
+        receiverId: user.partner_id,
+        type: "답변수정", // NotificationType 중 하나
+        description: `${user.nickname}님이 답변을 수정했어요! `,
+        isRequest: false,
+      });
+
+      if (error) {
+        open("알림 전송 실패", 2000);
+      } else {
+        open("알림 전송 완료!", 2000);
+      }
+    }
+    // 로컬 반영 + 알림
+    setAnswer(trimmed);
+    open("답변을 수정했어요 ✏️", 2000);
+  }, [user, questionId, answer, computeDisplayId, open]);
   if (loading) return <div>로딩 중...</div>;
 
   // 현재 렌더에서 보여줄 question_id (읽기용)

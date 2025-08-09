@@ -19,7 +19,7 @@ interface NavButtonProps {
 
   /** 🔸 선택: 알림 점 표시 기능을 사용할지 */
   enableNotificationDot?: boolean; // 기본값 false
-  forceNotificationDotOff?: boolean;
+  /** 🔸 선택: 강제로 알림 점을 끄기 */
 }
 
 const EASE_OUT: [number, number, number, number] = [0.16, 1, 0.3, 1];
@@ -37,8 +37,7 @@ export default function NavButton({
   content,
   onOpen,
   activeId,
-  enableNotificationDot = false, // ← 추가 옵션 (기본 꺼짐)
-  forceNotificationDotOff = false,
+  enableNotificationDot = false,
 }: NavButtonProps) {
   const isActive = activeId === id;
 
@@ -55,6 +54,9 @@ export default function NavButton({
       content: resolved ?? <div className="text-gray-600">내용 준비 중…</div>,
     });
   }, [onOpen, id, imgSrc, label, content]);
+
+  // ✅ 최종 표시 여부 (깜빡임 전용)
+  const showBlinkingDot = enableNotificationDot && hasAlert;
 
   return (
     <button
@@ -76,11 +78,13 @@ export default function NavButton({
         {...({ whileHover: "hover" } as const)}
         className="relative w-full aspect-[2/1] rounded-xl overflow-hidden border bg-white group flex items-center gap-4 px-4"
       >
-        {/* 🔴 알림 점 (옵션 켜짐 + 알림 있으면만) */}
-        {hasAlert && (
-          <span
+        {/* 🔴 깜빡이는 알림 점 (다른 기능 변경 없음) */}
+        {showBlinkingDot && (
+          <motion.span
             className="absolute top-2 right-2 w-3.5 h-3.5 rounded-full bg-red-500 ring-2 ring-white"
             aria-hidden="true"
+            animate={{ opacity: [0, 1, 0] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
           />
         )}
 

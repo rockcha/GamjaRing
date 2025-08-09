@@ -6,13 +6,10 @@ import { useToast } from "@/contexts/ToastContext";
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 
 type NotificationType =
-  | "커플요청"
-  | "커플수락"
-  | "커플거절"
-  | "답변등록"
-  | "답변수정"
-  | "답변삭제"
-  | "감자진화";
+  //   | "커플요청"
+  //   | "커플수락"
+  //   | "커플거절"
+  "답변등록" | "답변수정" | "답변삭제" | "감자 콕찌르기" | "감자진화";
 
 type Props = {
   typeOptions?: NotificationType[];
@@ -20,14 +17,15 @@ type Props = {
   buttonLabel?: string;
 };
 
-export default function SendUserNotification({
+export default function SendUserNotificationSimulator({
   typeOptions = [
-    "커플요청",
-    "커플수락",
-    "커플거절",
+    // "커플요청",
+    // "커플수락",
+    // "커플거절",
     "답변등록",
     "답변수정",
     "답변삭제",
+    "감자 콕찌르기",
     "감자진화",
   ],
   onSent,
@@ -72,7 +70,7 @@ export default function SendUserNotification({
         receiverId,
         type: nType,
         description: desc || "",
-        isRequest: nType === "커플요청",
+        isRequest: false,
       });
 
       if (error) {
@@ -96,6 +94,11 @@ export default function SendUserNotification({
 
   return (
     <div className="flex flex-col gap-2 p-3 rounded-xl border bg-white">
+      <p>
+        <strong className="text-red-500">
+          ⚠️개발자용: 절대 건드리지 마세요⚠️
+        </strong>
+      </p>
       <div className="flex items-center gap-2">
         <label className="w-20 text-sm text-gray-600">닉네임</label>
         <input

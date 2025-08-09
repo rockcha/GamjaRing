@@ -362,7 +362,7 @@ export default function NotificationPanel() {
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-3 border-t bg-white flex items-center justify-between">
+      <div className="px-4 py-3 border-t bg-white flex items-center justify-between fixed bottom-0 left-0 right-0">
         <div className="text-sm text-[#6b533b]">
           선택됨(일반):{" "}
           <span className="font-semibold">{selectedIds.size}</span> /{" "}

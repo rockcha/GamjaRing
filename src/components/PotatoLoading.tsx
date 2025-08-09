@@ -30,7 +30,7 @@ const potatoStates: PotatoStatus[] = [
   {
     message: "감자 조는 중...",
     emoji: "😪",
-    image: "/images/potato-sleepy.png",
+    image: "/images/potato-lazy.png",
   },
 ];
 
