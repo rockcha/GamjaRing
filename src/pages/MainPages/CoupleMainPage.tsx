@@ -1,6 +1,7 @@
 import { useUser } from "@/contexts/UserContext";
 import HeroSection from "@/components/HeroSection";
 import HeroSection2 from "@/components/HeroSection2";
+import SendUserNotification from "@/components/tests/SendUserNotification";
 
 export default function CoupleMainPage() {
   const { user, loading } = useUser();
@@ -16,6 +17,7 @@ export default function CoupleMainPage() {
       <div className="flex flex-col md:flex-row gap-12 justify-center items-center mt-10">
         <HeroSection />
         <HeroSection2 />
+        <SendUserNotification />
       </div>
     </div>
   );

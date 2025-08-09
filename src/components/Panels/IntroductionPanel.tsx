@@ -116,6 +116,28 @@ export default function IntroductionPanel() {
           </li>
         </ol>
       </section>
+
+      {/* Contact */}
+      <section className="max-w-4xl mx-auto text-center mt-12">
+        <h3 className="text-xl md:text-2xl font-bold text-[#5b3d1d]">
+          Contact
+        </h3>
+        <p className="mt-3 text-base text-[#7a5b3a]">
+          이메일:{" "}
+          <a
+            href="mailto:ojr5521@naver.com"
+            className="text-amber-600 hover:underline"
+          >
+            ojr5521@naver.com
+          </a>
+        </p>
+        <p className="mt-1 text-base text-[#7a5b3a]">
+          연락처:{" "}
+          <a href="tel:01055211476" className="text-amber-600 hover:underline">
+            010-5521-1476
+          </a>
+        </p>
+      </section>
     </main>
   );
 }

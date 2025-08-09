@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { GetQuestionById } from "@/utils/GetQuestionById";
 import { useUser } from "@/contexts/UserContext";
 import { useCompleteTask } from "@/utils/tasks/CompleteTask";
+import { useToast } from "@/contexts/ToastContext";
 import supabase from "@/lib/supabase";
 
 export default function TodayQuestionPanel() {
@@ -15,9 +16,11 @@ export default function TodayQuestionPanel() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  const { open } = useToast();
+
   // 특정 questionId의 질문 텍스트 로드
   const loadQuestionText = useCallback(async (qid: number | null) => {
-    if (!qid || qid < 1) return null;
+    if (qid == null || qid < 0) return null;
     return await GetQuestionById(qid);
   }, []);
 
@@ -43,7 +46,7 @@ export default function TodayQuestionPanel() {
   // 화면에 보여줄 question_id 계산: 완료면 전 문제, 아니면 현재 문제
   const computeDisplayId = useCallback(
     (currentId: number | null, completed: boolean) => {
-      if (!currentId) return null;
+      if (currentId == null) return null;
       if (!completed) return currentId;
       const prev = currentId - 1;
       return prev >= 1 ? prev : null;
@@ -74,17 +77,19 @@ export default function TodayQuestionPanel() {
       // 보여줄 대상 question_id 결정
       const displayId = computeDisplayId(data.question_id, data.completed);
 
-      if (!displayId) {
+      if (displayId == null) {
+        // ✅ null 또는 undefined만 체크
         setQuestion("첫 질문입니다. 아직 이전 질문이 없어요.");
         setAnswer("");
         setLoading(false);
+        console.log("displayID는 null");
         return;
       }
-
       // 질문 로드
       const questionText = await loadQuestionText(displayId);
       setQuestion(questionText);
 
+      console.log(`${questionText}`);
       // 완료 상태라면 해당 전 질문의 내 답변도 로드
       if (data.completed) {
         const myAns = await loadMyAnswer(displayId);
@@ -119,8 +124,10 @@ export default function TodayQuestionPanel() {
     if (insertError) {
       console.error("❌ 답변 저장 실패:", insertError.message);
       setSubmitting(false);
+      open("답변 저장 실패ㅠㅠ ", 3000);
       return;
     }
+    open("답변 저장 완료! ✉️", 3000);
 
     // 2) 완료 처리 (이 과정에서 서버는 daily_task.question_id를 +1 올린다고 가정)
     await completeTask();

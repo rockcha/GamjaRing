@@ -19,8 +19,11 @@ export default function Navbar() {
   };
 
   const close = () => {
+    // 🔸 현재 열린 게 알림 패널이면 dot 끄는 신호 브로드캐스트
+    if (active?.id === "updates") {
+      window.dispatchEvent(new Event("notifications:cleared"));
+    }
     setActive(null);
-    // 살짝 지연 후 해제하면 레이아웃 전환 잔상 최소화
     setTimeout(() => setActiveId(null), 200);
   };
 
@@ -42,6 +45,7 @@ export default function Navbar() {
           onOpen={open}
           activeId={activeId}
           content={<NotificationPanel />}
+          enableNotificationDot={true}
         />
         <NavButton
           id="home"

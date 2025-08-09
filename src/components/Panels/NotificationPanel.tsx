@@ -5,6 +5,7 @@ import { useUser } from "@/contexts/UserContext";
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { getUserNotifications } from "@/utils/notification/getUserNotifications";
 import { deleteUserNotification } from "@/utils/notification/deleteUserNotification";
+import { useToast } from "@/contexts/ToastContext";
 import supabase from "@/lib/supabase";
 import type { NotificationType } from "@/types/notificationType";
 
@@ -29,7 +30,7 @@ export default function NotificationPanel() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [nicknameMap, setNicknameMap] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
-
+  const { open } = useToast();
   // 커플요청 등 액션 전용 알림은 선택/삭제 불가
   const isSelectable = (n: Notification) =>
     !(n.is_request && n.type === "커플요청");
@@ -193,6 +194,7 @@ export default function NotificationPanel() {
       await Promise.all(ids.map((id) => deleteUserNotification(id)));
       setNotifications((prev) => prev.filter((n) => !selectedIds.has(n.id)));
       setSelectedIds(new Set());
+      open("알람이 삭제되었습니다");
     } finally {
       setBusy(false);
     }

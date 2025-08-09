@@ -71,7 +71,9 @@ export default function FullscreenOverlay({
             </div>
 
             {/* 본문 */}
-            <div className="flex-1 overflow-auto p-6">{active.content}</div>
+            <div className="flex-1 overflow-auto p-12 items-center">
+              {active.content}
+            </div>
           </motion.div>
         </div>
       )}

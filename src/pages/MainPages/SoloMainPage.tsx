@@ -16,10 +16,6 @@ export default function SoloMainPage() {
     return "요청이 성공적으로 전송되었습니다! 💌";
   };
 
-  // if (loading || !user) {
-  //   return <PotatoLoading />;
-  // }
-
   return (
     <>
       {/* 메인 콘텐츠 */}

@@ -1,103 +1,131 @@
+// src/components/MyAnswersCard.tsx
 import { useEffect, useState } from "react";
-import { useUser } from "@/contexts/UserContext";
 import supabase from "@/lib/supabase";
+import { useUser } from "@/contexts/UserContext";
 import { GetQuestionById } from "@/utils/GetQuestionById";
-import { useNavigate } from "react-router-dom";
+import SimplePopup from "@/components/widgets/SimplePopup";
 
 interface AnswerItem {
   question_id: number;
   content: string;
+  created_at: string;
 }
 
-interface AnswerItemWithQuestion extends AnswerItem {
-  questionText: string | null;
+interface AnswerWithQuestion extends AnswerItem {
+  questionText: string;
 }
 
-const ITEMS_PER_PAGE = 8;
+const ITEMS_PER_PAGE = 4;
 
 export default function MyAnswersCard() {
   const { user } = useUser();
-  const navigate = useNavigate();
-  const [answers, setAnswers] = useState<AnswerItemWithQuestion[]>([]);
+  const [answers, setAnswers] = useState<AnswerWithQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
 
+  // ✅ 팝업 상태
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [popupTitle, setPopupTitle] = useState("");
+  const [popupContent, setPopupContent] = useState("");
+
   useEffect(() => {
-    const fetchAnswers = async () => {
+    const fetchMyAnswers = async () => {
       if (!user?.id) return;
 
       const { data, error } = await supabase
         .from("answer")
-        .select("question_id, content")
+        .select("question_id, content, created_at")
         .eq("user_id", user.id)
-        .order("question_id", { ascending: true });
+        .order("created_at", { ascending: true });
 
       if (error) {
-        console.error("❌ 답변 조회 실패:", error.message);
+        console.error("❌ 내 답변 불러오기 실패:", error.message);
         return;
       }
 
-      const withQuestions: AnswerItemWithQuestion[] = await Promise.all(
-        data.map(async (item: AnswerItem) => {
+      const enriched = await Promise.all(
+        data.map(async (item) => {
           const questionText = await GetQuestionById(item.question_id);
-          return {
-            ...item,
-            questionText,
-          };
+          return { ...item, questionText: questionText ?? "" };
         })
       );
 
-      setAnswers(withQuestions);
+      setAnswers(enriched);
+
+      const lastPage = Math.max(1, Math.ceil(enriched.length / ITEMS_PER_PAGE));
+      setCurrentPage(lastPage);
+
       setLoading(false);
     };
 
-    fetchAnswers();
-  }, [user]);
+    fetchMyAnswers();
+  }, [user?.id]);
 
   const totalPages = Math.max(1, Math.ceil(answers.length / ITEMS_PER_PAGE));
-  const paginatedAnswers = answers.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
+  const start = (currentPage - 1) * ITEMS_PER_PAGE;
+  const currentAnswers = answers.slice(start, start + ITEMS_PER_PAGE);
 
-  if (loading) return <div className="text-center py-4">로딩 중...</div>;
+  const getFormattedDate = (createdAt: string) => {
+    const createdDate = new Date(createdAt);
+    const today = new Date();
+
+    const isToday =
+      today.getFullYear() === createdDate.getFullYear() &&
+      today.getMonth() === createdDate.getMonth() &&
+      today.getDate() === createdDate.getDate();
+
+    const formatted = createdDate.toLocaleDateString("ko-KR", {
+      month: "long",
+      day: "numeric",
+      weekday: "short",
+    });
+
+    return {
+      isToday,
+      formattedDate: formatted,
+    };
+  };
+
+  if (loading) return <p className="text-gray-500">불러오는 중...</p>;
 
   return (
     <div className="flex flex-col justify-between h-[500px]">
-      {/* 답변 목록 */}
       <div className="space-y-4 overflow-y-auto max-h-[420px] pr-2">
-        {answers.length === 0 ? (
-          <p className="text-gray-500 text-center">
-            아직 작성한 답변이 없습니다.
-          </p>
+        {currentAnswers.length === 0 ? (
+          <p className="text-gray-500">아직 내 답변이 없습니다.</p>
         ) : (
-          paginatedAnswers.map((item, index) => (
-            <div
-              key={item.question_id}
-              onClick={() =>
-                navigate("/answerdetailpage", {
-                  state: {
-                    questionId: item.question_id,
-                    questionText: item.questionText,
-                    answer: item.content,
-                    isMine: false,
-                  },
-                })
-              }
-              className="cursor-pointer border rounded-md p-3 hover:bg-amber-100 transition"
-            >
-              <p className="text-sm text-gray-400 mb-1">
-                {index + 1}. 질문 #{item.question_id}
-              </p>
-              <p className="text-gray-800 font-medium truncate">
-                {item.questionText}
-              </p>
-            </div>
-          ))
+          currentAnswers.map((item) => {
+            const { isToday, formattedDate } = getFormattedDate(
+              item.created_at
+            );
+
+            return (
+              <div
+                key={`${item.question_id}-${item.created_at}`}
+                onClick={() => {
+                  setPopupTitle(item.questionText);
+                  setPopupContent(item.content);
+                  setPopupOpen(true);
+                }}
+                className="cursor-pointer border rounded-md p-3 hover:bg-pink-100 transition"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-sm text-gray-400">{formattedDate}</p>
+                  {isToday && (
+                    <span className="text-xs text-pink-500 font-bold animate-pulse">
+                      NEW
+                    </span>
+                  )}
+                </div>
+                <p className="text-gray-800 font-medium truncate">
+                  {item.questionText}
+                </p>
+              </div>
+            );
+          })
         )}
       </div>
 
-      {/* 페이지네이션 */}
       <div className="flex justify-center mt-4 gap-2">
         {Array.from({ length: totalPages }, (_, i) => (
           <button
@@ -113,6 +141,14 @@ export default function MyAnswersCard() {
           </button>
         ))}
       </div>
+
+      {/* ✅ 팝업 컴포넌트 */}
+      <SimplePopup
+        open={popupOpen}
+        onClose={() => setPopupOpen(false)}
+        title={popupTitle}
+        content={popupContent}
+      />
     </div>
   );
 }

@@ -4,7 +4,8 @@ import SubHeader from "@/components/SubHeader";
 import { useUser } from "@/contexts/UserContext";
 import PotatoButton from "@/components/widgets/PotatoButton";
 import Popup from "@/components/widgets/Popup";
-import { CheckAndResetDailyTask } from "@/utils/tasks/DailyCheckandReset";
+
+import { runDataIntegrityCheck } from "@/utils/DataIntegrityCheck";
 
 // 에러 메시지 번역 맵
 const errorMessageMap: Record<string, string> = {
@@ -44,7 +45,7 @@ export default function LoginPage() {
     const fetchedUser = await fetchUser();
 
     if (fetchedUser) {
-      await CheckAndResetDailyTask(fetchedUser.id, fetchedUser.couple_id);
+      await runDataIntegrityCheck(fetchedUser.id);
     } else {
       console.warn("❌ 유저 정보 로드 실패");
     }
