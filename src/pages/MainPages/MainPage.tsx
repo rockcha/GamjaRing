@@ -19,8 +19,8 @@ export default function MainPage() {
     },
     {
       id: "2",
-      title: "D-Day이슈 ",
-      description: "D-Day 0일부터 시작함 ->수정 예정",
+      title: "감자 찌르기 이슈",
+      description: "내가 찔렀는데 상대가 찔렀다고 가는듯? 알림이 이상하게 감.",
       severity: "info",
       date: "2025-08-09",
     },
@@ -29,6 +29,12 @@ export default function MainPage() {
       title: "무결성 체크 간헐적 실패",
       description: "로그인 직후 fetchUser race condition 조사 중",
       severity: "critical",
+    },
+    {
+      id: "4",
+      title: "답변 보기 기능 이슈",
+      description: "내가 답변 안했을 시 상대방 답변 못보게하는 기능 추가 예정",
+      severity: "warning",
     },
   ];
 
