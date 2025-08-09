@@ -44,7 +44,7 @@ export default function DaysTogetherBadge() {
   const today = new Date();
   const anniversaryDate = new Date(couple.started_at);
   const daysTogether = Math.floor(
-    (+today - +anniversaryDate) / (1000 * 60 * 60 * 24)
+    (+today - +anniversaryDate) / (1000 * 60 * 60 * 24) + 1
   );
 
   return (

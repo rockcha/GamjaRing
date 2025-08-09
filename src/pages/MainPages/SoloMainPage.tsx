@@ -19,8 +19,10 @@ export default function SoloMainPage() {
   return (
     <>
       {/* 메인 콘텐츠 */}
-      <div className="min-h-screen  flex flex-col items-center  text-center px-4 py-10 ">
+
+      <div className=" flex flex-col items-center  text-center  ">
         {/* 슬픈 감자 이미지 */}
+
         <img
           src="/images/potato-sad.png"
           alt="슬픈 감자"
