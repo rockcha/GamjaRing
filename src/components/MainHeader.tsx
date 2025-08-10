@@ -31,8 +31,9 @@ export default function MainHeader() {
     delaySpeed: 2000,
   });
 
+  //bg-[#D2B48C]
   return (
-    <header className="w-full bg-[#D2B48C] py-6 px-6 md:px-6 flex items-center gap-3 md:gap-6  mb-6 sticky top-0 z-50">
+    <header className="w-full py-6 px-6 flex items-center gap-3 md:gap-6 mb-6 sticky top-0 z-50 bg-transparent border-b border-[#e2c6a7]">
       {/* 1) 감자링 + 로고 (약 20%) */}
       <div className="basis-[20%] grow-0 shrink-0 flex items-center -mt-2 md:-mt-4 ml-2 md:ml-4">
         <Link to="/" className="flex items-center gap-2">
@@ -44,7 +45,7 @@ export default function MainHeader() {
       </div>
 
       {/* 2) 배지 + 타이핑 (약 70%) */}
-      <div className="basis-[70%] grow shrink flex flex-col items-center justify-center min-w-0 -ml-8">
+      <div className="basis-[70%] grow shrink flex flex-col items-center justify-center min-w-0 -ml-32">
         {/* 배지: 높이 과도 방지용 scale (필요시 조절) */}
         <div className="hidden sm:block origin-center ">
           <DaysTogetherBadge />
