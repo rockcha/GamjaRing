@@ -30,7 +30,7 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="flex flex-wrap justify-evenly gap-y-2">
+      <nav className="sticky top-[180px] z-50 flex flex-wrap justify-evenly gap-y-2">
         <NavButton
           id="about"
           imgSrc="/navbuttons/About.gif"
