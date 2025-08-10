@@ -108,7 +108,7 @@ export default function MyAnswersCard() {
                   setPopupContent(item.content);
                   setPopupOpen(true);
                 }}
-                className="cursor-pointer border rounded-md p-3 hover:bg-amber-100 transition"
+                className="cursor-pointer bg-[#fdfdf8] border rounded-md p-3 hover:bg-amber-100 transition"
               >
                 <div className="flex items-center gap-2 mb-1">
                   <p className="text-sm text-gray-400">{formattedDate}</p>

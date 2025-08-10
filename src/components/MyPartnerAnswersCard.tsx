@@ -105,7 +105,7 @@ export default function MyPartnerAnswersCard() {
                   setPopupContent(item.content);
                   setPopupOpen(true);
                 }}
-                className="cursor-pointer border rounded-md p-3 hover:bg-pink-100 transition" // 💗 hover 색상 변경
+                className="cursor-pointer  bg-[#fdfdf8] border rounded-md p-3 hover:bg-pink-100 transition" // 💗 hover 색상 변경
               >
                 <div className="flex items-center gap-2 mb-1">
                   <p className="text-sm text-gray-400">{formattedDate}</p>
