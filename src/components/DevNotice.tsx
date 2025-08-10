@@ -78,7 +78,7 @@ export default function DevNotice({
     setHidden(false);
     localStorage.removeItem(fullKey);
     // 복원 시 접힌 상태로 시작하고 싶다면 아래 주석을 해제
-    // setOpen(false);
+    setOpen(false);
   };
 
   // 공지가 없으면 아무것도 노출하지 않음
@@ -101,7 +101,7 @@ export default function DevNotice({
         aria-label="개발자 노트 다시 열기"
         title="개발자 노트 다시 열기"
       >
-        📢 개발자 노트
+        📢 개발자 공지사항
       </button>
     );
   }
@@ -110,7 +110,7 @@ export default function DevNotice({
   return (
     <section
       className={[
-        "rounded-xl border bg-white shadow-sm",
+        "rounded-xl border bg-[#F5F5F5] shadow-sm",
         "border-amber-200/70",
         className,
       ].join(" ")}
@@ -118,7 +118,7 @@ export default function DevNotice({
       aria-live="polite"
     >
       {/* 헤더 */}
-      <div className="flex items-start justify-between gap-3 px-4 py-3">
+      <div className="flex items-start justify-between gap-4 px-4 py-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-lg">📢</span>
