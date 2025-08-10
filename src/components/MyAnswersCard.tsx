@@ -36,7 +36,7 @@ export default function MyAnswersCard() {
         .from("answer")
         .select("question_id, content, created_at")
         .eq("user_id", user.id)
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: false }); // 🔧 CHANGED: 최신이 먼저 오도록 내림차순
 
       if (error) {
         console.error("❌ 내 답변 불러오기 실패:", error.message);
@@ -52,8 +52,9 @@ export default function MyAnswersCard() {
 
       setAnswers(enriched);
 
-      const lastPage = Math.max(1, Math.ceil(enriched.length / ITEMS_PER_PAGE));
-      setCurrentPage(lastPage);
+      // const lastPage = Math.max(1, Math.ceil(enriched.length / ITEMS_PER_PAGE));
+      // setCurrentPage(lastPage); // (삭제)
+      setCurrentPage(1); // 🔧 CHANGED: 처음 켰을 때 1페이지 보이도록 고정
 
       setLoading(false);
     };
@@ -107,7 +108,7 @@ export default function MyAnswersCard() {
                   setPopupContent(item.content);
                   setPopupOpen(true);
                 }}
-                className="cursor-pointer border rounded-md p-3 hover:bg-pink-100 transition"
+                className="cursor-pointer border rounded-md p-3 hover:bg-amber-100 transition"
               >
                 <div className="flex items-center gap-2 mb-1">
                   <p className="text-sm text-gray-400">{formattedDate}</p>
@@ -133,7 +134,7 @@ export default function MyAnswersCard() {
             onClick={() => setCurrentPage(i + 1)}
             className={`px-3 py-1 rounded-full border text-sm transition-all ${
               currentPage === i + 1
-                ? "bg-pink-100 text-pink-500 font-bold border-pink-300"
+                ? "bg-amber-100 text-amber-500 font-bold border-amber-300" //
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >

@@ -18,7 +18,7 @@ interface AnswerWithQuestion extends AnswerItem {
 const ITEMS_PER_PAGE = 4;
 
 export default function MyPartnerAnswersCard() {
-  const { user, isCoupled } = useUser();
+  const { user } = useUser();
   const [answers, setAnswers] = useState<AnswerWithQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -30,13 +30,13 @@ export default function MyPartnerAnswersCard() {
 
   useEffect(() => {
     const fetchPartnerAnswers = async () => {
-      if (!user?.partner_id || !isCoupled) return;
+      if (!user?.partner_id) return;
 
       const { data, error } = await supabase
         .from("answer")
         .select("question_id, content, created_at")
-        .eq("user_id", user.partner_id)
-        .order("created_at", { ascending: true });
+        .eq("user_id", user.partner_id) // 🔄 partner 기준
+        .order("created_at", { ascending: false });
 
       if (error) {
         console.error("❌ 파트너 답변 불러오기 실패:", error.message);
@@ -51,15 +51,13 @@ export default function MyPartnerAnswersCard() {
       );
 
       setAnswers(enriched);
-
-      const lastPage = Math.max(1, Math.ceil(enriched.length / ITEMS_PER_PAGE));
-      setCurrentPage(lastPage);
+      setCurrentPage(1); // 첫 페이지 고정
 
       setLoading(false);
     };
 
     fetchPartnerAnswers();
-  }, [user?.partner_id, isCoupled]);
+  }, [user?.partner_id]);
 
   const totalPages = Math.max(1, Math.ceil(answers.length / ITEMS_PER_PAGE));
   const start = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -92,7 +90,7 @@ export default function MyPartnerAnswersCard() {
     <div className="flex flex-col justify-between h-[500px]">
       <div className="space-y-4 overflow-y-auto max-h-[420px] pr-2">
         {currentAnswers.length === 0 ? (
-          <p className="text-gray-500">아직 연인의 답변이 없습니다.</p>
+          <p className="text-gray-500">아직 파트너의 답변이 없습니다.</p>
         ) : (
           currentAnswers.map((item) => {
             const { isToday, formattedDate } = getFormattedDate(
@@ -107,7 +105,7 @@ export default function MyPartnerAnswersCard() {
                   setPopupContent(item.content);
                   setPopupOpen(true);
                 }}
-                className="cursor-pointer border rounded-md p-3 hover:bg-pink-100 transition"
+                className="cursor-pointer border rounded-md p-3 hover:bg-pink-100 transition" // 💗 hover 색상 변경
               >
                 <div className="flex items-center gap-2 mb-1">
                   <p className="text-sm text-gray-400">{formattedDate}</p>
@@ -133,8 +131,8 @@ export default function MyPartnerAnswersCard() {
             onClick={() => setCurrentPage(i + 1)}
             className={`px-3 py-1 rounded-full border text-sm transition-all ${
               currentPage === i + 1
-                ? "bg-pink-100 text-pink-500 font-bold border-pink-300"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                ? "bg-pink-100 text-pink-500 font-bold border-pink-300" // 💗 현재 페이지 pink 계열
+                : "bg-gray-100 text-gray-600 hover:bg-pink-100 hover:text-pink-500"
             }`}
           >
             {i + 1}

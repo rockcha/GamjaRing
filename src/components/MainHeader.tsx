@@ -33,7 +33,7 @@ export default function MainHeader() {
 
   //bg-[#D2B48C]
   return (
-    <header className="w-full py-6 px-6 flex items-center gap-3 md:gap-6 mb-6 sticky top-0 z-50 bg-transparent border-b border-[#e2c6a7]">
+    <header className="w-full h-[152px] py-6 px-6 flex items-center gap-3 md:gap-6 mb-6 sticky top-0 z-50 bg-transparent border-b border-[#e2c6a7]">
       {/* 1) 감자링 + 로고 (약 20%) */}
       <div className="basis-[20%] grow-0 shrink-0 flex items-center -mt-2 md:-mt-4 ml-2 md:ml-4">
         <Link to="/" className="flex items-center gap-2">

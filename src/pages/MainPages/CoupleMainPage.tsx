@@ -4,7 +4,5 @@ import { useUser } from "@/contexts/UserContext";
 import PotatoPokeButton from "@/components/widgets/PotatoPokeButton";
 
 export default function CoupleMainPage() {
-  const { user, loading } = useUser();
-
   return <PotatoPokeButton />;
 }

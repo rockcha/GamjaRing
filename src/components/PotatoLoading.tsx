@@ -46,11 +46,11 @@ export default function PotatoLoading() {
       <img
         src={potato!.image}
         alt="로딩 감자"
-        className="w-64 h-64 object-contain mb-6"
+        className="w-[300px] h-[300px] object-contain mb-6"
       />
 
       {/* 감자 메시지 + 이모지 */}
-      <p className="text-[#5b3d1d] text-lg font-semibold animate-pulse">
+      <p className="text-[#5b3d1d] text-3xl font-semibold animate-pulse">
         {potato!.message} {potato!.emoji}
       </p>
     </div>
