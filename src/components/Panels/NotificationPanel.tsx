@@ -20,7 +20,7 @@ interface Notification {
 }
 
 const TABLE = "user_notification";
-const PAGE_SIZE = 4;
+const PAGE_SIZE = 3;
 
 export default function NotificationPanel() {
   const { user } = useUser();
