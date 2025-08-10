@@ -41,7 +41,7 @@ export default function PotatoLoading() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-amber-200 flex flex-col items-center justify-center text-center px-4 py-10">
+    <div className="min-h-screen bg-white flex flex-col items-center justify-center text-center px-4 py-10">
       {/* 감자 이미지 */}
       <img
         src={potato!.image}
