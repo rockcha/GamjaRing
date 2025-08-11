@@ -135,16 +135,16 @@ export default function DevNotice({
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className="px-2 py-1 text-xs rounded-md border border-amber-700 hover:bg-amber-300 text-amber-700 transition"
+            className="px-2 py-1 text-xs rounded-md border border-gray-300 hover:bg-amber-300 text-amber-700 transition"
             aria-expanded={open}
           >
-            {open ? "➖" : "➕"}
+            {open ? "🔼" : "🔽"}
           </button>
           {dismissible && (
             <button
               type="button"
               onClick={handleDismiss}
-              className="ml-1 px-2 py-1 text-xs rounded-md border border-red-400 text-red-700 hover:bg-red-300 transition"
+              className="ml-1 px-2 py-1 text-xs rounded-md border border-gray-300  hover:bg-red-300 transition"
               aria-label="공지 숨기기"
             >
               최소화
