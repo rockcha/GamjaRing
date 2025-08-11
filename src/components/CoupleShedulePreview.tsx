@@ -104,14 +104,14 @@ export default function CoupleSchedulePreview({
           {/* ✅ 최소화 버튼 */}
         </div>
       </div>
-      <div className="flex gap-6 mb-4">
-        <p className="pl-2 text-xm text-amber-800 ">
+      <div className="flex gap-10 mb-4">
+        <p className="pl-4 text-xm text-amber-800 ">
           다가오는 일정을 확인해보세요
         </p>
 
         <button
           onClick={() => setMinimized(true)}
-          className="text-xs rounded-xl border-2 border-[#e6d7c6]  px-2  hover:bg-amber-200  "
+          className="text-xs rounded-lg border border-[#e6d7c6]  px-2  hover:bg-amber-200  "
           title="최소화"
           aria-label="최소화"
         >

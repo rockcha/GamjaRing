@@ -1,5 +1,7 @@
-import React from "react";
-
+import { useState } from "react";
+import { useCoupleContext } from "@/contexts/CoupleContext";
+import PotatoButton from "@/components/widgets/PotatoButton";
+import PopupWithInput from "@/components/widgets/PopupWithInput";
 interface Props {
   /** 이미지 경로 (기본: /images/potato-sad.png) */
   imageSrc?: string;
@@ -25,20 +27,26 @@ interface Props {
 export default function SadPotatoGuard({
   imageSrc = "/images/potato-sad.png",
   message = "커플 추가가 되어야 확인할 수 있는 페이지 입니다.",
-  hint = "상대 닉네임으로 요청을 보내보세요 💌",
-  showRequestButton = false,
-  requestText = "요청 보내기",
-  onRequestClick,
+  hint = "상대 닉네임으로 요청을 보내보세요 ",
+
   className = "",
 }: Props) {
+  const [showPopup, setShowPopup] = useState(false);
+  const { requestCouple } = useCoupleContext();
+  const handleSubmit = async (nickname: string): Promise<string> => {
+    const { error } = await requestCouple(nickname);
+    if (error) return `❗ ${error.message}`;
+
+    return "요청이 성공적으로 전송되었습니다! 💌";
+  };
   return (
     <div
       className={[
-        "min-h-[60vh] w-full flex items-center justify-center px-4",
+        "min-h-[40vh] w-full flex items-center justify-center px-4",
         className,
       ].join(" ")}
     >
-      <div className="max-w-[520px] w-full text-center bg-white/70 border  rounded-2xl shadow-sm p-6 sm:p-8">
+      <div className="max-w-[520px] w-full  text-center  bg-white/70  rounded-2xl  p-6 sm:p-8">
         {/* 이미지 */}
         <img
           src={imageSrc}
@@ -56,25 +64,25 @@ export default function SadPotatoGuard({
         {hint && (
           <p className="mt-2 text-[15px] sm:text-base text-[#6b533b]">{hint}</p>
         )}
-
-        {/* 액션 버튼 (선택) */}
-        {showRequestButton && (
-          <button
-            type="button"
-            onClick={onRequestClick}
-            className="mt-5 inline-flex items-center justify-center gap-2 rounded-xl border border-amber-300 bg-[#fdf6ee] px-4 py-2 text-sm sm:text-base font-medium text-[#3d2b1f] transition-transform duration-200 hover:scale-[1.02] hover:border-amber-400 active:scale-[0.98]"
-          >
-            <span
-              role="img"
-              aria-hidden
-              className="inline-block animate-bounce"
-            >
-              💌
-            </span>
-            {requestText}
-          </button>
-        )}
+        <div className="mt-4 flex justify-center">
+          <PotatoButton
+            text="요청 보내기"
+            emoji="💌"
+            onClick={() => setShowPopup(true)}
+          />
+        </div>
       </div>
+      {/* 액션 버튼 (선택) */}
+
+      <PopupWithInput
+        show={showPopup}
+        onClose={() => setShowPopup(false)}
+        onSubmit={handleSubmit}
+        title="상대 닉네임을 입력해주세요"
+        placeholder="닉네임 입력"
+        confirmText="요청 보내기"
+        emoji=""
+      />
     </div>
   );
 }

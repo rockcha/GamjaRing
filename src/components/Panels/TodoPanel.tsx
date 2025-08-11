@@ -6,7 +6,7 @@ import {
   getMyTodos,
   insertTodo,
   updateTodo,
-  toggleTodo,
+  toggleTodo, // 사용 안 하지만 기존 import 유지
   deleteTodo,
 } from "@/utils/todo";
 import { useToast } from "@/contexts/ToastContext";
@@ -17,12 +17,16 @@ export default function TodoPanel() {
   const [loading, setLoading] = useState(false);
   const { open } = useToast();
 
-  // 입력창
+  // 입력값(모달에서 사용)
   const [input, setInput] = useState("");
 
   // 편집 상태
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
+
+  // 등록 모달
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addSubmitting, setAddSubmitting] = useState(false);
 
   const todayLabel = useMemo(() => {
     const d = new Date();
@@ -47,49 +51,70 @@ export default function TodoPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  // 추가
+  // 추가(모달 확인)
   const handleAdd = async () => {
-    console.log("hadnleAdd진입");
     if (!user?.id || !user?.nickname) {
       console.warn("유저 id 혹은 닉네임 존재 X");
       return;
     }
-
     const content = input.trim();
     if (!content) return;
 
+    setAddSubmitting(true);
     const { data, error } = await insertTodo({
       userId: user.id,
       nickname: user.nickname,
       content,
     });
+    setAddSubmitting(false);
+
     if (!error && data) {
       setTodos((prev) => [data, ...prev]);
       setInput("");
+      setShowAddModal(false);
       open("할 일 등록 완료! ", 3000);
     }
   };
 
-  // 완료 토글
+  // 완료 토글 (낙관적 업데이트)
   const handleToggle = async (id: string) => {
-    const { data, error } = await toggleTodo(id);
-    if (!error && data) {
+    const target = todos.find((t) => t.id === id);
+    if (!target) return;
+
+    const nextCompleted = !target.completed;
+
+    // 1) UI 먼저 업데이트
+    setTodos((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, completed: nextCompleted } : t))
+    );
+
+    // 2) 서버 반영
+    const { data, error } = await updateTodo({ id, completed: nextCompleted });
+
+    // 3) 실패 시 롤백
+    if (error) {
+      setTodos((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, completed: !nextCompleted } : t))
+      );
+      open("완료 상태 변경 실패. 다시 시도해주세요.", 3000);
+      return;
+    }
+
+    // 4) 서버 응답 동기화(타임스탬프 등 변화 반영)
+    if (data) {
       setTodos((prev) => prev.map((t) => (t.id === id ? data : t)));
     }
   };
 
-  // 편집 열기
+  // 편집 열기/닫기/저장
   const startEdit = (t: Todo) => {
     setEditingId(t.id);
     setEditingText(t.content);
   };
-
   const cancelEdit = () => {
     setEditingId(null);
     setEditingText("");
   };
-
-  // 편집 저장
   const saveEdit = async () => {
     if (!editingId) return;
     const content = editingText.trim();
@@ -114,47 +139,34 @@ export default function TodoPanel() {
   return (
     <div className="w-full max-w-2xl mx-auto p-4 sm:p-6 border-4 border-[#e6d7c6] rounded-xl">
       {/* 오늘 날짜 타이틀 */}
-      <h2 className="text-2xl sm:text-3xl font-bold text-[#3d2b1f] mb-2">
-        {todayLabel}
+      <h2 className="text-2xl sm:text-3xl font-bold text-[#3d2b1f] mb-6">
+        📝 {todayLabel}
       </h2>
 
-      {/* 자동 삭제 배너 (나중 구현 placeholder) */}
-      <div className="mb-4 rounded-lg border  bg-[#fdf6ee] px-4 py-3 text-sm text-[#5b3d1d]">
-        오늘이 지나면 할 일은 자동 삭제될 예정입니다.{" "}
-        <span className="opacity-70">(나중 구현)</span>
+      {/* 자동 삭제 배너 */}
+      <div className="mb-6 rounded-lg border bg-[#fdf6ee] px-4 py-3 text-sm text-[#5b3d1d]">
+        오늘이 지나면 할 일은 자동 삭제될 예정입니다.
       </div>
 
-      {/* 입력 영역 */}
-      <div className="flex items-center gap-2 mb-12">
-        <input
-          className="flex-1 rounded-lg border-4 border-[#e6d7c6] bg-white px-3 py-2 text-base outline-none focus:border-amber-600"
-          placeholder="할일을 적어주세요"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-        />
+      {/* 목록 헤더 & 등록 + 일괄 삭제 */}
+      <div className="flex mt-2 mb-4 ">
+        <div className="font-semibold text-2xl mr-10">📌 목록</div>
         <button
-          onClick={handleAdd}
-          className="rounded-lg border-4 border-[#e6d7c6]  bg-white px-4 py-2 text-sm font-semibold text-[#3d2b1f] transition hover:bg-[#fdf6ee] active:scale-[0.98]"
+          onClick={() => setShowAddModal(true)}
+          className="mr-2 rounded-lg border border-[#e6d7c6] bg-gray-50 px-4 py-2 text-sm font-semibold text-[#3d2b1f] transition hover:bg-[#fdf6ee] active:scale-[0.98]"
         >
           등록
         </button>
-      </div>
-
-      {/* 일괄 삭제 버튼 */}
-
-      <div className="flex mt-2 mb-4 gap-4">
-        <div className="text-bold text-2xl">할 일 목록</div>
         <button
           onClick={deleteCompleted}
-          className="rounded-lg border-4 border-[#e6d7c6]  bg-white px-3 py-1.5 text-xm text-gray-700 transition hover:bg-[#fdf6ee]  "
+          className="rounded-lg border border-[#e6d7c6] bg-gray-50 px-3 py-1.5  text-sm font-semibold text-[#3d2b1f] transition hover:bg-[#fdf6ee]"
         >
           일괄 삭제
         </button>
       </div>
 
       {/* 목록 */}
-      <div className="rounded-xl border-4 border-[#e6d7c6] bg-white divide-y">
+      <div className="rounded-xl border-2 border-[#e6d7c6] bg-blue-50 divide-y">
         {loading ? (
           <div className="p-4 text-base text-gray-500">불러오는 중...</div>
         ) : todos.length === 0 ? (
@@ -164,7 +176,7 @@ export default function TodoPanel() {
         ) : (
           todos.map((t) => (
             <div key={t.id} className="flex items-center gap-3 p-3">
-              {/* 완료 체크 */}
+              {/* 완료 체크 (낙관적) */}
               <input
                 type="checkbox"
                 checked={t.completed}
@@ -203,13 +215,13 @@ export default function TodoPanel() {
                     onClick={saveEdit}
                     className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs hover:bg-[#fdf6ee]"
                   >
-                    💾
+                    💾 저장
                   </button>
                   <button
                     onClick={cancelEdit}
                     className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs hover:bg-[#fdf6ee]"
                   >
-                    ↩️
+                    ↩️ 취소
                   </button>
                 </div>
               ) : (
@@ -218,7 +230,7 @@ export default function TodoPanel() {
                     onClick={() => startEdit(t)}
                     className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs hover:bg-[#fdf6ee]"
                   >
-                    ✏️
+                    ✏️ 수정
                   </button>
                   <button
                     onClick={async () => {
@@ -227,7 +239,7 @@ export default function TodoPanel() {
                     }}
                     className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs hover:bg-[#fdf6ee]"
                   >
-                    🗑️
+                    🗑️ 삭제
                   </button>
                 </div>
               )}
@@ -235,6 +247,46 @@ export default function TodoPanel() {
           ))
         )}
       </div>
+
+      {/* 등록 모달(오버레이) */}
+      {showAddModal && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 p-4"
+          onClick={() => setShowAddModal(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-[#e6d7c6] bg-white p-5 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-[#3d2b1f] mb-3">
+              할 일 추가
+            </h3>
+            <input
+              className="w-full rounded-lg border-2 border-[#e6d7c6] bg-blue-50 px-3 py-2 text-base outline-none focus:border-blue-300"
+              placeholder="할일을 적어주세요"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+              autoFocus
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm hover:bg-gray-50"
+              >
+                ↩️ 취소
+              </button>
+              <button
+                onClick={handleAdd}
+                disabled={addSubmitting}
+                className="rounded-md border border-[#e6d7c6] bg-gray-50 px-3 py-1.5 text-sm font-semibold text-[#3d2b1f] transition hover:bg-[#fdf6ee] disabled:opacity-50"
+              >
+                {addSubmitting ? "등록 중..." : "💾 등록"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

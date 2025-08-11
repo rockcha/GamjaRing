@@ -7,7 +7,6 @@ import { useUser } from "@/contexts/UserContext";
 export default function SoloMainPage() {
   const { requestCouple } = useCoupleContext();
   const [showPopup, setShowPopup] = useState(false);
-  const { user, isCoupled, loading } = useUser();
 
   const handleSubmit = async (nickname: string): Promise<string> => {
     const { error } = await requestCouple(nickname);
