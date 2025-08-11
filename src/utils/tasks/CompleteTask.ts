@@ -51,7 +51,7 @@ export function useCompleteTask() {
     // 2. task 완료 처리 + 질문 번호 올리기
     const { error: updateError } = await supabase
       .from("daily_task")
-      .update({ completed: true, question_id: nextQuestionId })
+      .update({ completed: true, question_id: nextQuestionId, date: today })
       .eq("user_id", user.id);
 
     if (updateError) {
