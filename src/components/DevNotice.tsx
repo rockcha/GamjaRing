@@ -88,20 +88,12 @@ export default function DevNotice({
   if (hidden) {
     return (
       <button
-        type="button"
         onClick={handleRestore}
-        className={[
-          // 화면 좌하단 작은 플로팅
-          "fixed bottom-4 left-4 z-[60]",
-          // 버튼 스타일
-          "px-2 py-1 text-[11px] rounded-full border shadow-sm",
-          "bg-white border-amber-200 text-[#5b3d1d]",
-          "hover:bg-amber-50 active:scale-[0.99] transition",
-        ].join(" ")}
-        aria-label="개발자 노트 다시 열기"
+        className="fixed left-4 bottom-4 z-50 rounded-full bg-[#fdf6ee] border border-amber-700 shadow-lg px-4 py-2 text-sm text-[#3d2b1f] flex items-center gap-2"
         title="개발자 노트 다시 열기"
       >
-        📢 개발자 공지사항
+        <span>📢</span>
+        <span className="font-semibold"> 개발자 공지사항</span>
       </button>
     );
   }
@@ -111,7 +103,7 @@ export default function DevNotice({
     <section
       className={[
         "rounded-xl border bg-[#F5F5F5] shadow-sm",
-        "border-amber-200/70",
+        "border-2 border-amber-700",
         className,
       ].join(" ")}
       role="status"
@@ -143,19 +135,19 @@ export default function DevNotice({
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className="px-2 py-1 text-xs rounded-md border border-amber-200 hover:bg-amber-50 text-[#5b3d1d] transition"
+            className="px-2 py-1 text-xs rounded-md border border-amber-700 hover:bg-amber-300 text-amber-700 transition"
             aria-expanded={open}
           >
-            {open ? "접기" : "펼치기"}
+            {open ? "➖" : "➕"}
           </button>
           {dismissible && (
             <button
               type="button"
               onClick={handleDismiss}
-              className="ml-1 px-2 py-1 text-xs rounded-md border border-red-200 text-red-700 hover:bg-red-50 transition"
+              className="ml-1 px-2 py-1 text-xs rounded-md border border-red-400 text-red-700 hover:bg-red-300 transition"
               aria-label="공지 숨기기"
             >
-              닫기
+              최소화
             </button>
           )}
         </div>

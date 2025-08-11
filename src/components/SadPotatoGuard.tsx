@@ -38,7 +38,7 @@ export default function SadPotatoGuard({
         className,
       ].join(" ")}
     >
-      <div className="max-w-[520px] w-full text-center bg-white/70 border border-amber-200/60 rounded-2xl shadow-sm p-6 sm:p-8">
+      <div className="max-w-[520px] w-full text-center bg-white/70 border  rounded-2xl shadow-sm p-6 sm:p-8">
         {/* 이미지 */}
         <img
           src={imageSrc}

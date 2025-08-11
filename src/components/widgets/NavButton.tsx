@@ -16,17 +16,14 @@ interface NavButtonProps {
   content?: React.ReactNode | (() => React.ReactNode);
   onOpen?: (payload: NavOverlayPayload) => void;
   activeId?: string | null;
-
-  /** 🔸 선택: 알림 점 표시 기능을 사용할지 */
-  enableNotificationDot?: boolean; // 기본값 false
-  /** 🔸 선택: 강제로 알림 점을 끄기 */
+  enableNotificationDot?: boolean;
 }
 
 const EASE_OUT: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
 const CARD_VARIANTS: Variants = {
   rest: { scale: 1, transition: { duration: 0.12, ease: EASE_OUT } },
-  hover: { scale: 1.1, transition: { duration: 0.12, ease: EASE_OUT } },
+  hover: { scale: 1.04, transition: { duration: 0.12, ease: EASE_OUT } },
   tap: { scale: 0.98, transition: { duration: 0.08, ease: EASE_OUT } },
 };
 
@@ -40,8 +37,6 @@ export default function NavButton({
   enableNotificationDot = false,
 }: NavButtonProps) {
   const isActive = activeId === id;
-
-  // 알림 빨간점: 옵션이 켜졌을 때만 훅 구독
   const hasAlert = useHasNotifications(enableNotificationDot);
 
   const handleClick = useCallback(() => {
@@ -55,17 +50,13 @@ export default function NavButton({
     });
   }, [onOpen, id, imgSrc, label, content]);
 
-  // ✅ 최종 표시 여부 (깜빡임 전용)
   const showBlinkingDot = enableNotificationDot && hasAlert;
 
   return (
     <button
       type="button"
       onClick={handleClick}
-      className="
-        block basis-[15.5%] shrink-0 grow-0
-        sm:basis-[30%] md:basis-[22%] lg:basis-[16%] xl:basis-[15.5%]
-      "
+      className="flex-none"
       aria-label={label}
     >
       <motion.div
@@ -76,9 +67,15 @@ export default function NavButton({
         whileTap="tap"
         transition={{ layout: { duration: 0.35, ease: EASE_OUT } }}
         {...({ whileHover: "hover" } as const)}
-        className="relative w-full aspect-[2/1] rounded-xl overflow-hidden border bg-white group flex items-center gap-4 px-4"
+        className="
+          relative rounded-xl overflow-hidden border bg-white group
+          flex flex-col items-center justify-center p-3
+          w-[96px] md:w-[120px]   /* ✅ 이미지보다 살짝 넓게 */
+          h-[120px] md:h-[148px]  /* ✅ 라벨 자리까지 높이 미리 확보 */
+          mx-auto
+        "
       >
-        {/* 🔴 깜빡이는 알림 점 (다른 기능 변경 없음) */}
+        {/* 🔴 알림 점(옵션) */}
         {showBlinkingDot && (
           <motion.span
             className="absolute top-2 right-2 w-3.5 h-3.5 rounded-full bg-red-500 ring-2 ring-white"
@@ -88,21 +85,27 @@ export default function NavButton({
           />
         )}
 
+        {/* 🖼️ 이미지: 살짝 축소 */}
         <motion.img
           layoutId={`thumb-${id}`}
           src={imgSrc}
           alt={label}
-          className="w-1/4 h-auto object-contain mr-4"
+          className="w-14 h-14 md:w-16 md:h-16 object-contain"
           transition={{ layout: { duration: 0.35, ease: EASE_OUT } }}
         />
-        <motion.span
-          layoutId={`title-${id}`}
-          className="hidden sm:block text-sm md:text-base font-semibold text-[#3d2b1f] relative"
-          transition={{ layout: { duration: 0.35, ease: EASE_OUT } }}
-        >
-          {label}
-          <span className="absolute left-0 -bottom-1 w-0 h-1 bg-amber-300 rounded-full transition-all duration-700 group-hover:w-full" />
-        </motion.span>
+
+        {/* 🔤 라벨: 높이 예약(h-5/md:h-6) → hover시만 보이게 */}
+        <div className="mt-1 h-5 md:h-6 w-full flex items-center justify-center overflow-hidden">
+          <motion.span
+            layoutId={`title-${id}`}
+            className="relative text-xs md:text-sm font-semibold text-[#3d2b1f] opacity-100 translate-y-0 transition-all duration-300"
+            transition={{ layout: { duration: 0.35, ease: EASE_OUT } }}
+          >
+            {label}
+            {/* 밑줄 애니메이션 유지 */}
+            <span className="absolute left-0 -bottom-1 w-0 h-5 bg-amber-400 opacity-30 rounded-full transition-all duration-700 group-hover:w-full" />
+          </motion.span>
+        </div>
       </motion.div>
     </button>
   );
