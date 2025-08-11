@@ -102,8 +102,8 @@ export default function DevNotice({
   return (
     <section
       className={[
-        "rounded-xl border bg-[#F5F5F5] shadow-sm",
-        "border-2 border-amber-700",
+        "rounded-xl bg-[#F5F5F5] shadow-sm",
+        "border-4 border-[#e6d7c6]",
         className,
       ].join(" ")}
       role="status"

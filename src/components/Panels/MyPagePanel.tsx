@@ -169,9 +169,9 @@ export default function MyPagePanel() {
   }
 
   return (
-    <main className="w-full max-w-2xl mx-auto px-4 py-6 space-y-8 overflow-y-auto">
+    <main className="w-full max-w-2xl mx-auto px-4 py-6  space-y-8 overflow-y-auto">
       {/* 1. 내 정보 */}
-      <section className="rounded-2xl border border-[#e6d7c6] bg-[#fffaf4] p-5 shadow-sm">
+      <section className="rounded-2xl border-4 border-[#e6d7c6] bg-[#fffaf4] p-5 shadow-sm">
         <h2 className="text-lg font-bold text-[#b75e20]">내 정보</h2>
 
         <div className="mt-4 space-y-4">
@@ -208,9 +208,9 @@ export default function MyPagePanel() {
                 <span className="text-sm">{user?.nickname ?? "-"}</span>
                 <button
                   onClick={() => setEditingNick(true)}
-                  className="px-3 py-2 rounded-md border text-sm hover:bg-[#f6e9de]"
+                  className="px-3 py-2 rounded-md border-2 text-sm hover:bg-[#f6e9de]"
                 >
-                  수정
+                  ✏️
                 </button>
               </div>
             )}
@@ -235,7 +235,7 @@ export default function MyPagePanel() {
       </section>
 
       {/* 2. 커플 정보 */}
-      <section className="rounded-2xl border border-[#e6d7c6] bg-[#fffaf4] p-5 shadow-sm">
+      <section className="rounded-2xl border-4 border-[#e6d7c6] bg-[#fffaf4] p-5 shadow-sm">
         <h2 className="text-lg font-bold text-[#b75e20]">커플 정보</h2>
 
         {!isCoupled || !couple ? (

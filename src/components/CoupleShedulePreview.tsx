@@ -90,7 +90,7 @@ export default function CoupleSchedulePreview({
   return (
     <div
       className={[
-        "rounded-2xl border-2 border-amber-700 bg-[#fdf6ee] p-4 sm:p-5 shadow-sm",
+        "rounded-2xl border-4 border-[#e6d7c6] bg-[#fdf6ee] p-4 sm:p-5 shadow-sm",
         "relative overflow-hidden",
         className,
       ].join(" ")}
@@ -106,12 +106,12 @@ export default function CoupleSchedulePreview({
       </div>
       <div className="flex gap-6 mb-4">
         <p className="pl-2 text-xm text-amber-800 ">
-          최대 {limit}개의 가장 임박한 일정입니다.
+          다가오는 일정을 확인해보세요
         </p>
 
         <button
           onClick={() => setMinimized(true)}
-          className="text-xs rounded-xl border border-amber-700 bg-amber-100 px-2  hover:bg-amber-300  "
+          className="text-xs rounded-xl border-2 border-[#e6d7c6]  px-2  hover:bg-amber-200  "
           title="최소화"
           aria-label="최소화"
         >
@@ -142,7 +142,7 @@ export default function CoupleSchedulePreview({
             return (
               <div
                 key={it.id}
-                className="flex items-center justify-between gap-3 rounded-xl bg-white/70 border border-amber-700 px-3 py-2"
+                className="flex items-center justify-between gap-3 rounded-xl bg-white/70 border-2 border-[#e6d7c6] px-3 py-2"
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="truncate text-[15px] font-semibold text-[#3d2b1f]">

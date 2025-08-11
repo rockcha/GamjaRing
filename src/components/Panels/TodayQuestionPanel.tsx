@@ -221,7 +221,7 @@ export default function TodayQuestionPanel() {
   const bannerTodo = "border border-rose-300 bg-rose-50 text-rose-700";
 
   return (
-    <div className="w-1/2  absolute left-1/2 -translate-x-1/2 bg-[#fffaf4] rounded-xl p-6 border text-center ">
+    <div className="w-1/2  absolute left-1/2 -translate-x-1/2 bg-[#fffaf4] rounded-xl p-6 border-4 border-[#e6d7c6] text-center ">
       <h2 className="text-xl font-bold text-[#b75e20] mb-2">오늘의 질문</h2>
 
       <p className="text-xs text-gray-500 mb-1">
