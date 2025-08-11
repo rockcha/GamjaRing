@@ -9,7 +9,10 @@ type NotificationType =
   | "답변수정"
   | "답변삭제"
   | "감자 콕찌르기"
-  | "감자진화";
+  | "감자진화"
+  | "일정등록"
+  | "일정수정"
+  | "일정삭제";
 
 interface SendUserNotificationInput {
   senderId: string;

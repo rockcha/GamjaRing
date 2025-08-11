@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useUser } from "@/contexts/UserContext";
 import { useToast } from "@/contexts/ToastContext";
 import DevNotice from "@/components/DevNotice";
+import CoupleSchedulePreview from "@/components/CoupleShedulePreview";
 
 import CoupleMainPage from "./CoupleMainPage";
 import SoloMainPage from "./SoloMainPage";
@@ -21,9 +22,13 @@ export default function MainPage() {
   return (
     <div className="min-h-screen ">
       {/* 메인 영역 */}
-      <div className=" fixed  z-50 w-[450px] max-w-2xl ">
+      <div className="  fixed top-[350px] right-[1%]  z-50 w-[350px] max-w-2xl ">
         <DevNotice notes={DevNotices} />
       </div>
+      <div className="   fixed top-[350px]  z-50 w-[350px] max-w-2xl ">
+        <CoupleSchedulePreview limit={3} />
+      </div>
+
       <section className="max-w-6xl mx-auto px-4 pt-36">
         <div className="grid grid-cols-1 md:grid-cols-[1fr_minmax(0,420px)_1fr] gap-10 items-start relative z-0 ">
           {/* 왼쪽: Hero1 */}
