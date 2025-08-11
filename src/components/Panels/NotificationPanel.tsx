@@ -319,7 +319,7 @@ export default function NotificationPanel() {
   };
 
   return (
-    <section className="absolute left-1/2 -translate-x-1/2 w-1/2 h-4/5 bg-[#f5e6d3] rounded-2xl border border-gray-200 flex flex-col overflow-hidden">
+    <section className="absolute left-1/2 -translate-x-1/2 w-1/2 h-4/5 bg-[#f5e6d3] rounded-2xl border-4 border-[#e6d7c6] flex flex-col overflow-hidden">
       {/* Header */}
       <div className="px-4 py-3 bg-[#f5e6d3] border-b border-amber-200/60 flex items-center justify-between">
         <h3 className="text-[17px] font-bold text-[#5b3d1d]">알림</h3>

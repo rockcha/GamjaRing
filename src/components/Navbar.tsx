@@ -12,6 +12,7 @@ import MyPagePanel from "./Panels/MyPagePanel";
 import SadPotatoGuard from "./SadPotatoGuard";
 import { useUser } from "@/contexts/UserContext";
 import CoupleSchedulerPage from "./Panels/CoupleSchedulerPanel";
+import TodoPanel from "./Panels/TodoPanel";
 
 export default function Navbar() {
   const [active, setActive] = useState<OverlayItem | null>(null);
@@ -98,7 +99,7 @@ export default function Navbar() {
           label="오늘의 할일"
           onOpen={open}
           activeId={activeId}
-          content={isCoupled ? <div>구현 예정입니당</div> : <SadPotatoGuard />}
+          content={<TodoPanel />}
         />
       </nav>
 
