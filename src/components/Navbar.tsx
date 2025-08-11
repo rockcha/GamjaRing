@@ -9,10 +9,14 @@ import AnswerPanel from "./Panels/AnswerPanel";
 import TodayQuestionPanel from "./Panels/TodayQuestionPanel";
 import NotificationPanel from "./Panels/NotificationPanel";
 import MyPagePanel from "./Panels/MyPagePanel";
+import SadPotatoGuard from "./SadPotatoGuard";
+import { useUser } from "@/contexts/UserContext";
+import CoupleSchedulerPage from "./Panels/CoupleSchedulerPanel";
 
 export default function Navbar() {
   const [active, setActive] = useState<OverlayItem | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const { isCoupled } = useUser();
 
   const open = (p: OverlayItem) => {
     setActiveId(p.id); // 어떤 버튼이 클릭됐는지 내려줘서 hover 막고 자연 전환
@@ -54,7 +58,7 @@ export default function Navbar() {
           label="우리의 감자"
           onOpen={open}
           activeId={activeId}
-          content={<OurPotatoPanel />}
+          content={isCoupled ? <OurPotatoPanel /> : <SadPotatoGuard />}
         />
         <NavButton
           id="mypage"
@@ -70,7 +74,7 @@ export default function Navbar() {
           label="답변 작성"
           onOpen={open}
           activeId={activeId}
-          content={<TodayQuestionPanel />}
+          content={isCoupled ? <TodayQuestionPanel /> : <SadPotatoGuard />}
         />
         <NavButton
           id="answers"
@@ -78,7 +82,23 @@ export default function Navbar() {
           label="답변 꾸러미"
           onOpen={open}
           activeId={activeId}
-          content={<AnswerPanel />}
+          content={isCoupled ? <AnswerPanel /> : <SadPotatoGuard />}
+        />
+        <NavButton
+          id="schedule"
+          imgSrc="/navbuttons/nb-schedule.gif"
+          label="커플 스케쥴러"
+          onOpen={open}
+          activeId={activeId}
+          content={isCoupled ? <CoupleSchedulerPage /> : <SadPotatoGuard />}
+        />
+        <NavButton
+          id="todo"
+          imgSrc="/navbuttons/nb-todo.gif"
+          label="오늘의 할일"
+          onOpen={open}
+          activeId={activeId}
+          content={isCoupled ? <IntroductionPanel /> : <SadPotatoGuard />}
         />
       </nav>
 
