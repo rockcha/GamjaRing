@@ -23,7 +23,7 @@ export default function MainPage() {
     <div className="min-h-screen ">
       {/* 메인 영역 */}
       <div className="  fixed top-[350px] right-[1%]  z-50 w-[350px] max-w-2xl ">
-        <DevNotice notes={DevNotices} />
+        <DevNotice notes={DevNotices} defaultOpen={true} />
       </div>
       <div className="   fixed top-[350px]  z-50 w-[350px] max-w-2xl ">
         <CoupleSchedulePreview limit={3} />

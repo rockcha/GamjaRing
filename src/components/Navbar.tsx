@@ -34,7 +34,7 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="sticky top-[170px] z-50 justify-center  flex flex-wrap pb-4 border-b border-[#e2c6a7] gap-2">
+      <nav className="sticky top-[176px] z-50 justify-center  flex flex-wrap pb-4 border-b border-[#e2c6a7] gap-2">
         <NavButton
           id="about"
           imgSrc="/navbuttons/About.gif"

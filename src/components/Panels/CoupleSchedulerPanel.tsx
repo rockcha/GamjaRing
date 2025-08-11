@@ -236,7 +236,7 @@ export default function CoupleSchedulerPage() {
   }
 
   return (
-    <div className=" bg-amber-50 max-w-5xl mx-auto px-4 py-4 ">
+    <div className="border-2 border-amber-700 rounded-xl bg-amber-50 max-w-5xl mx-auto px-4 py-4 ">
       {/* 헤더 */}
       <div className="text-2xl flex justify-center font-semibold text-[#5b3d1d] mb-2">
         {cursor.getFullYear()}년 {cursor.getMonth() + 1}월

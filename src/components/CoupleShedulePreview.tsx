@@ -74,16 +74,6 @@ export default function CoupleSchedulePreview({
 
   const preview = useMemo(() => items.slice(0, limit), [items, limit]);
 
-  if (!isCoupled || !coupleId) {
-    return (
-      <SadPotatoGuard
-        hint="상대 닉네임으로 커플 연결을 먼저 완료해주세요"
-        showRequestButton
-        onRequestClick={() => console.log("요청 보내기")}
-      />
-    );
-  }
-
   if (minimized) {
     return (
       <button

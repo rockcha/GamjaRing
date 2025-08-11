@@ -222,34 +222,37 @@ export async function runDataIntegrityCheck(userId: string) {
     .from("daily_task")
     .select("user_id, date, completed, question_id, couple_id")
     .eq("user_id", me.id)
-    .order("date", { ascending: false })
     .limit(1)
     .maybeSingle();
 
   if (myTaskErr) {
     warn(DSEC, `내 daily_task 조회 실패 (${myTaskErr.message})`);
   } else if (!myTask) {
-    warn(DSEC, "내 daily_task 기록 없음");
+    warn(DSEC, "내 daily_task 데이터 이상");
   } else {
     const taskDate = (myTask as any).date?.slice(0, 10); // 'YYYY-MM-DD' 안전 비교
     if (taskDate === today) {
-      ok(DSEC, "최신 daily_task가 오늘자임 (정상)");
+      if (!myTask.completed)
+        warn(DSEC, "daily_task date는 오늘인데 completed가 false");
     } else {
-      warn(DSEC, "📢daily_task 리셋! completed -> false");
+      //마지막 task 완료가 오늘이 아니다 .
+      if (myTask.completed) {
+        warn(DSEC, "📢daily_task 리셋! completed -> false");
 
-      const { error: resetErr } = await supabase
-        .from("daily_task")
-        .update({ completed: false })
-        .eq("user_id", me.id)
-        .eq("date", taskDate);
+        const { error: resetErr } = await supabase
+          .from("daily_task")
+          .update({ completed: false })
+          .eq("user_id", me.id)
+          .eq("date", taskDate);
 
-      if (resetErr) {
-        warn(DSEC, `completed 보정 실패 (${resetErr.message})`);
-      } else {
-        fix(
-          DSEC,
-          "completed 보정 완료 → 오늘 날짜와 불일치해서 false로 초기화"
-        );
+        if (resetErr) {
+          warn(DSEC, `completed 보정 실패 (${resetErr.message})`);
+        } else {
+          fix(
+            DSEC,
+            "completed 보정 완료 → 오늘 날짜와 불일치해서 false로 초기화"
+          );
+        }
       }
     }
   }
