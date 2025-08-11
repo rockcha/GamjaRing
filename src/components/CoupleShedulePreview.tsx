@@ -142,13 +142,8 @@ export default function CoupleSchedulePreview({
             return (
               <div
                 key={it.id}
-                className="flex items-center justify-between gap-3 rounded-xl bg-white/70 border-2 border-[#e6d7c6] px-3 py-2"
+                className="flex items-center justify-start gap-4 rounded-xl bg-white/70 border-2 border-[#e6d7c6] px-3 py-2"
               >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="truncate text-[15px] font-semibold text-[#3d2b1f]">
-                    {it.title}
-                  </span>
-                </div>
                 <span
                   className={[
                     "shrink-0 px-2 py-0.5 rounded-lg border text-xs font-semibold",
@@ -157,6 +152,11 @@ export default function CoupleSchedulePreview({
                 >
                   {dLabel}
                 </span>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="truncate text-[15px] font-semibold text-[#3d2b1f]">
+                    {it.title}
+                  </span>
+                </div>
               </div>
             );
           })}
