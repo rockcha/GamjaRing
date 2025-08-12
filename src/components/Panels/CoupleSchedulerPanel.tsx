@@ -236,14 +236,10 @@ export default function CoupleSchedulerPage() {
   }
 
   return (
-    <div className="border-4 border-[#e6d7c6]  rounded-xl bg-amber-50 max-w-5xl mx-auto px-4 py-4 ">
+    <div className="mx-auto border-4 border-[#e6d7c6]  rounded-xl bg-amber-50 max-w-5xl  px-2 py-2 ">
       {/* 헤더 */}
-      <div className="text-2xl flex justify-center font-semibold text-[#5b3d1d] mb-2">
-        {cursor.getFullYear()}년 {cursor.getMonth() + 1}월
-      </div>
-      <div className="flex items-center justify-between "></div>
-      {/* 월 네비게이션 */}
-      <div className="flex items-center justify-between mb-3">
+
+      <div className="flex items-center justify-between mb-3 border-b-2 py-2">
         <button
           onClick={goPrevMonth}
           className="rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50"
@@ -251,12 +247,18 @@ export default function CoupleSchedulerPage() {
           ← 이전달
         </button>
 
-        <button
-          onClick={() => handleOpenCreate()}
-          className="rounded-xl border  bg-amber-300 px-4 py-2 text-[#3d2b1f] font-medium transition-transform hover:scale-[1.04] active:scale-[0.98]"
-        >
-          + 일정 추가
-        </button>
+        <div className="gap-2 text-center">
+          <div className="text-2xl flex justify-center font-semibold text-[#5b3d1d] mb-2">
+            {cursor.getFullYear()}년 {cursor.getMonth() + 1}월
+          </div>
+          <button
+            onClick={() => handleOpenCreate()}
+            className="rounded-xl border  bg-amber-300 px-4 py-2 text-[#3d2b1f] font-medium transition-transform hover:scale-[1.04] active:scale-[0.98]"
+          >
+            + 추가
+          </button>
+        </div>
+
         <button
           onClick={goNextMonth}
           className="rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50"

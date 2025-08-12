@@ -38,8 +38,8 @@ export default function Navbar() {
       <nav className="sticky top-[176px] z-50 justify-center  flex flex-wrap pb-4 border-b border-[#e2c6a7] gap-2">
         <NavButton
           id="about"
-          imgSrc="/navbuttons/About.gif"
-          label="소개페이지"
+          imgSrc="/About.gif"
+          label="감자링이란?"
           onOpen={open}
           activeId={activeId}
           content={<IntroductionPanel />}
@@ -47,7 +47,7 @@ export default function Navbar() {
         <NavButton
           id="updates"
           imgSrc="/navbuttons/Updates.gif"
-          label="알림메세지"
+          label="알림"
           onOpen={open}
           activeId={activeId}
           content={<NotificationPanel />}

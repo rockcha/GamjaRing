@@ -138,31 +138,24 @@ export default function TodoPanel() {
 
   return (
     <div className="w-full max-w-2xl mx-auto p-4 sm:p-6 border-4 border-[#e6d7c6] rounded-xl">
-      {/* 오늘 날짜 타이틀 */}
-      <h2 className="text-2xl sm:text-3xl font-bold text-[#3d2b1f] mb-6">
-        📝 {todayLabel}
-      </h2>
-
-      {/* 자동 삭제 배너 */}
-      <div className="mb-6 rounded-lg border bg-[#fdf6ee] px-4 py-3 text-sm text-[#5b3d1d]">
-        오늘이 지나면 할 일은 자동 삭제될 예정입니다.
-      </div>
-
       {/* 목록 헤더 & 등록 + 일괄 삭제 */}
-      <div className="flex mt-2 mb-4 ">
-        <div className="font-semibold text-2xl mr-10">📌 목록</div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="mr-2 rounded-lg border border-[#e6d7c6] bg-gray-50 px-4 py-2 text-sm font-semibold text-[#3d2b1f] transition hover:bg-[#fdf6ee] active:scale-[0.98]"
-        >
-          등록
-        </button>
-        <button
-          onClick={deleteCompleted}
-          className="rounded-lg border border-[#e6d7c6] bg-gray-50 px-3 py-1.5  text-sm font-semibold text-[#3d2b1f] transition hover:bg-[#fdf6ee]"
-        >
-          일괄 삭제
-        </button>
+
+      <div className="flex justify-between font-semibold text-2xl pb-2 border-b-2 border-[#e6d7c6] mb-5">
+        <div>📌 목록</div>
+        <div>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="mr-2 rounded-lg border border-[#e6d7c6] bg-gray-50 px-4 py-2 text-sm font-semibold text-[#3d2b1f] transition hover:bg-[#fdf6ee] active:scale-[0.98]"
+          >
+            등록
+          </button>
+          <button
+            onClick={deleteCompleted}
+            className="rounded-lg border border-[#e6d7c6] bg-gray-50 px-3 py-1.5  text-sm font-semibold text-[#3d2b1f] transition hover:bg-[#fdf6ee]"
+          >
+            일괄 삭제
+          </button>
+        </div>
       </div>
 
       {/* 목록 */}
@@ -170,8 +163,8 @@ export default function TodoPanel() {
         {loading ? (
           <div className="p-4 text-base text-gray-500">불러오는 중...</div>
         ) : todos.length === 0 ? (
-          <div className="p-4 text-base text-gray-500">
-            등록된 할 일이 없어요.
+          <div className="p-4 text-base text-gray-500 text-center">
+            📅 일정을 추가해보세요
           </div>
         ) : (
           todos.map((t) => (
@@ -197,7 +190,7 @@ export default function TodoPanel() {
                 ) : (
                   <span
                     className={[
-                      "text-xl break-words",
+                      "text-base break-words",
                       t.completed
                         ? "line-through text-gray-400"
                         : "text-[#3d2b1f]",

@@ -66,32 +66,34 @@ export default function MyAnswersCard() {
   const start = (currentPage - 1) * ITEMS_PER_PAGE;
   const currentAnswers = answers.slice(start, start + ITEMS_PER_PAGE);
 
+  // createdAt: UTC 문자열 (예: "2025-08-12T00:30:00Z")
   const getFormattedDate = (createdAt: string) => {
-    const createdDate = new Date(createdAt);
-    const today = new Date();
+    const tz = "Asia/Seoul"; // KST
 
-    const isToday =
-      today.getFullYear() === createdDate.getFullYear() &&
-      today.getMonth() === createdDate.getMonth() &&
-      today.getDate() === createdDate.getDate();
+    // 오늘과 createdAt을 동일한 타임존 + 동일한 포맷으로 변환해 비교
+    const todayStr = new Date().toLocaleDateString("sv-SE", { timeZone: tz });
+    const createdDateStr = new Date(createdAt).toLocaleDateString("sv-SE", {
+      timeZone: tz,
+    });
 
-    const formatted = createdDate.toLocaleDateString("ko-KR", {
+    const isToday = todayStr === createdDateStr;
+
+    // 사용자 표시용 포맷도 동일 타임존으로
+    const formattedDate = new Date(createdAt).toLocaleDateString("ko-KR", {
       month: "long",
       day: "numeric",
       weekday: "short",
+      timeZone: tz,
     });
 
-    return {
-      isToday,
-      formattedDate: formatted,
-    };
+    return { isToday, formattedDate };
   };
 
   if (loading) return <p className="text-gray-500">불러오는 중...</p>;
 
   return (
     <div className="flex flex-col justify-between h-[500px]">
-      <div className="space-y-4 overflow-y-auto max-h-[420px] pr-2">
+      <div className="space-y-4 overflow-y-auto max-h-[440px] pr-2">
         {currentAnswers.length === 0 ? (
           <p className="text-gray-500">아직 내 답변이 없습니다.</p>
         ) : (

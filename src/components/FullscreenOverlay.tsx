@@ -35,7 +35,7 @@ export default function FullscreenOverlay({
               layout: { duration: 1, ease: "easeInOut" },
               duration: 1,
             }}
-            className="relative w-[80%] h-[80%] bg-white rounded-xl overflow-hidden shadow-xl z-[1000] flex flex-col"
+            className="relative w-[90%] h-[90%] bg-white/90 rounded-xl overflow-hidden shadow-xl z-[1000] flex flex-col"
           >
             {/* 상단 고정 헤더 */}
             <div className="sticky top-0 flex items-center gap-3 px-6 py-4 border-b bg-white backdrop-blur-md z-[1001]">
@@ -71,7 +71,7 @@ export default function FullscreenOverlay({
             </div>
 
             {/* 본문 */}
-            <div className="flex-1 overflow-auto p-12 items-center">
+            <div className="flex-1 overflow-auto py-3 px-12 items-center">
               {active.content}
             </div>
           </motion.div>

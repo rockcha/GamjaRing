@@ -15,6 +15,7 @@ export default function MainPage() {
 
   useEffect(() => {
     open("환영합니다! 🥔 감자링에 오신 걸 환영해요.");
+    console.log(new Date().toLocaleDateString("sv-SE"));
   }, [open]);
 
   const CenterContent = isCoupled ? <CoupleMainPage /> : <SoloMainPage />;
