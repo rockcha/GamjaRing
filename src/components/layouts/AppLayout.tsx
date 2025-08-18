@@ -3,6 +3,7 @@ import MainHeader from "@/components/MainHeader";
 import Navbar from "@/components/Navbar";
 import PageTransition from "@/components/PageTransition";
 import { Outlet } from "react-router-dom";
+import AppInit from "@/AppInit";
 
 export default function AppLayout() {
   return (
@@ -13,6 +14,7 @@ export default function AppLayout() {
       {/* 헤더는 고정 */}
       <MainHeader />
       <Navbar />
+      <AppInit />
       {/* 전체 배경 적용 */}
       <div
         className="flex"
