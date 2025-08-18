@@ -10,6 +10,7 @@ import LoginPage from "@/pages/LoginPage";
 import SignupPage from "@/pages/SignupPage";
 import MainPage from "@/pages/MainPages/MainPage";
 import AnswerDetailPage from "./pages/AnswerDetailPage";
+import ResetPasswordPage from "./pages/ResetPasswardPage";
 
 //import MyPage from "@/pages/MyPage";
 
@@ -27,6 +28,7 @@ export default function App() {
               <Route path="/intro" element={<IntroPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignupPage />} />
+              <Route path="/auth/reset" element={<ResetPasswordPage />} />
 
               {/* ✅ 헤더 포함된 레이아웃 (MainHeader + Outlet) */}
               <Route element={<AppLayout />}>

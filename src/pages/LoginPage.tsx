@@ -1,11 +1,13 @@
+// src/pages/LoginPage.tsx
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import SubHeader from "@/components/SubHeader";
 import { useUser } from "@/contexts/UserContext";
 import PotatoButton from "@/components/widgets/PotatoButton";
 import Popup from "@/components/widgets/Popup";
-import PotatoLoading from "@/components/PotatoLoading"; //
+import PotatoLoading from "@/components/PotatoLoading";
 import { runDataIntegrityCheck } from "@/utils/DataIntegrityCheck";
+import supabase from "@/lib/supabase";
 
 const errorMessageMap: Record<string, string> = {
   "Invalid login credentials": "이메일 또는 비밀번호가 잘못되었습니다.",
@@ -20,7 +22,8 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
-  const [checking, setChecking] = useState(false); //
+  const [infoMsg, setInfoMsg] = useState(""); // ✅ 전송 성공/안내 메시지
+  const [checking, setChecking] = useState(false);
 
   const navigate = useNavigate();
   const { login, user, loading, fetchUser } = useUser();
@@ -30,35 +33,73 @@ export default function LoginPage() {
 
   const handleLogin = async () => {
     setErrorMsg("");
+    setInfoMsg("");
 
-    // 1) 로그인
     const { error } = await login(email, password);
     if (error) {
       setErrorMsg(translateError(error.message));
       return;
     }
 
-    // 2) 유저 최신화 + 무결성 체크 (로딩 오버레이 ON)
     setChecking(true);
-    try {
-      const fetchedUser = await fetchUser(); // ⚠️ fetchUser가 값을 반환하지 않으면 컨텍스트의 user를 사용
-      const userId = (fetchedUser as any)?.id ?? user?.id;
-      if (userId) {
-        await runDataIntegrityCheck(userId);
-      } else {
-        console.warn("❌ 유저 정보 로드 실패");
-      }
-    } finally {
-      setChecking(false);
+    // try {
+    //   const fetchedUser = await fetchUser();
+    //   const userId =
+    //     (fetchedUser as { id?: string } | null | undefined)?.id ?? user?.id;
+    //   if (userId) await runDataIntegrityCheck(userId);
+    // } finally {
+    //   setChecking(false);
+    // }
+    navigate("/main");
+  };
+
+  // ✅ 비밀번호 재설정 메일 발송 (항상 입력창 먼저)
+  const handleSendReset = async (
+    e?: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>
+  ) => {
+    e?.preventDefault(); // 폼 submit/링크 네비게이션 방지
+
+    setErrorMsg("");
+    setInfoMsg("");
+
+    // 현재 이메일을 기본값으로 보여주기 (있으면)
+    const suggested = email.trim();
+    const input = window.prompt(
+      "재설정 링크를 받을 이메일 주소를 입력하세요:",
+      suggested
+    );
+
+    // 사용자가 취소하면 종료
+    if (input === null) return;
+
+    const addr = input.trim();
+    if (!addr) {
+      setErrorMsg("이메일을 입력해주세요.");
+      return;
     }
 
-    // 3) 이동
-    navigate("/main");
+    const origin = window.location.origin; // 예: http://localhost:5174
+    const redirectTo = `${origin}/auth/reset`; // Supabase 대시보드에 허용 URL로 등록돼 있어야 함
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(addr, {
+        redirectTo,
+      });
+      if (error) throw error;
+
+      if (!email) setEmail(addr);
+      setInfoMsg(
+        "재설정 링크를 메일로 보냈어요. 메일함(스팸함 포함)을 확인해주세요!"
+      );
+    } catch (e) {
+      const msg =
+        e instanceof Error ? e.message : "재설정 메일 전송에 실패했습니다.";
+      setErrorMsg(translateError(msg));
+    }
   };
 
   return (
     <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-b from-[#e9d8c8] to-[#d8bca3] px-4">
-      {/* ✅ 무결성 체크 중 오버레이 */}
       {checking && (
         <div className="fixed inset-0 z-50">
           <PotatoLoading />
@@ -91,11 +132,25 @@ export default function LoginPage() {
             />
           </div>
 
-          {errorMsg && (
+          {/* ✅ 비밀번호 재설정 링크 */}
+          <div className="w-full -mt-4 text-right">
+            <button
+              type="button" // ← 중요: submit 방지
+              onClick={handleSendReset}
+              className="mt-2 text-sm underline text-[#8a6b50] hover:text-[#6b4e2d]"
+            >
+              비밀번호를 잊으셨나요?
+            </button>
+          </div>
+
+          {(errorMsg || infoMsg) && (
             <Popup
-              message={errorMsg}
-              show={!!errorMsg}
-              onClose={() => setErrorMsg("")}
+              message={errorMsg || infoMsg}
+              show={!!(errorMsg || infoMsg)}
+              onClose={() => {
+                setErrorMsg("");
+                setInfoMsg("");
+              }}
             />
           )}
 
@@ -103,8 +158,8 @@ export default function LoginPage() {
             text="로그인"
             emoji="✅"
             onClick={handleLogin}
-            disabled={loading || checking} // ✅ 체크 중 비활성화
-            loading={loading || checking} // ✅ 버튼 로딩도 같이 표시
+            disabled={loading || checking}
+            loading={loading || checking}
           />
         </div>
 
