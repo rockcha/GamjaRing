@@ -93,14 +93,14 @@ export default function Navbar() {
           activeId={activeId}
           content={isCoupled ? <CoupleSchedulerPage /> : <SadPotatoGuard />}
         />
-        <NavButton
+        {/* <NavButton
           id="todo"
           imgSrc="/navbuttons/nb-todo.gif"
           label="오늘의 할일"
           onOpen={open}
           activeId={activeId}
           content={<TodoPanel />}
-        />
+        /> */}
       </nav>
 
       <FullscreenOverlay active={active} onDismiss={close} />

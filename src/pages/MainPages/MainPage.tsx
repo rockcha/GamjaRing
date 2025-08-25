@@ -27,7 +27,7 @@ export default function MainPage() {
         <DevNotice notes={DevNotices} defaultOpen={true} />
       </div>
       <div className="   fixed top-[350px]  z-50 w-[350px] max-w-2xl ">
-        <CoupleSchedulePreview limit={3} />
+        <CoupleSchedulePreview limit={5} />
       </div>
 
       <section className="max-w-6xl mx-auto px-4 pt-36">

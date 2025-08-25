@@ -1,7 +1,10 @@
 // src/pages/couple_scheduler.tsx
-import { useEffect, useMemo, useState } from "react";
+"use client";
+
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useUser } from "@/contexts/UserContext";
 import { useCoupleContext } from "@/contexts/CoupleContext";
+
 import SadPotatoGuard from "@/components/SadPotatoGuard";
 import {
   createCoupleSchedule,
@@ -13,30 +16,62 @@ import {
 } from "@/utils/coupleScheduler";
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 
+// ✅ shadcn/ui
+import { Button } from "../ui/button";
+import { Card, CardContent } from "../ui/card";
+import { Input } from "../ui/input";
+import { Textarea } from "../ui/textarea";
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from "../ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "../ui/dialog";
+import { Separator } from "../ui/separator";
+import { ScrollArea } from "../ui/scroll-area";
+
+import { DialogPortal, DialogOverlay } from "../ui/dialog";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+
+// ✅ icons
+import { ChevronLeft, ChevronRight, Loader2, Plus } from "lucide-react";
+
 const TYPE_OPTIONS: ScheduleType[] = ["데이트", "기념일", "기타 일정"];
 
-const typeBadgeClass: Record<ScheduleType, string> = {
-  데이트: "bg-pink-100 border-pink-300 text-pink-800",
-  기념일: "bg-amber-100 border-amber-300 text-amber-800",
-  "기타 일정": "bg-blue-100 border-blue-300 text-blue-800",
+// 제목 버튼 색상(타입별)
+const typePillClass: Record<ScheduleType, string> = {
+  데이트:
+    "bg-pink-100 border border-pink-200 text-pink-900 hover:bg-pink-100/90",
+  기념일:
+    "bg-amber-100 border border-amber-200 text-amber-900 hover:bg-amber-100/90",
+  "기타 일정":
+    "bg-blue-100 border border-blue-200 text-blue-900 hover:bg-blue-100/90",
 };
 
-type CoupleLike = { id: string; user1_id: string; user2_id: string };
-
-// 수정 (로컬타임 기준)
+// 로컬타임 YYYY-MM-DD
 function formatYMD(d: Date) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
+
+type CoupleLike = { id: string; user1_id: string; user2_id: string };
+
 export default function CoupleSchedulerPage() {
   const { user, isCoupled } = useUser();
   const { couple } = useCoupleContext?.() ?? { couple: null as any };
-
   const coupleId = couple?.id ?? user?.partner_id ?? null;
 
-  // 파트너 사용자 ID (알림용)
   const partnerUserId = useMemo(() => {
     const c = couple as CoupleLike | null;
     if (!c || !user) return null;
@@ -50,21 +85,23 @@ export default function CoupleSchedulerPage() {
   const [items, setItems] = useState<CoupleSchedule[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Create modal/form
-  const [showCreate, setShowCreate] = useState(false);
+  // Create dialog
+  const [openCreate, setOpenCreate] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newType, setNewType] = useState<ScheduleType>("데이트");
   const [newDate, setNewDate] = useState(formatYMD(today));
   const [newDesc, setNewDesc] = useState("");
 
-  // Detail Overlay
-  const [showDetail, setShowDetail] = useState(false);
+  // Detail dialog
+  const [openDetail, setOpenDetail] = useState(false);
   const [selected, setSelected] = useState<CoupleSchedule | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editType, setEditType] = useState<ScheduleType>("데이트");
   const [editDate, setEditDate] = useState(formatYMD(today));
   const [editDesc, setEditDesc] = useState("");
+
+  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!coupleId) return;
@@ -83,7 +120,7 @@ export default function CoupleSchedulerPage() {
   const daysInMonth = useMemo(() => {
     const year = cursor.getFullYear();
     const month = cursor.getMonth();
-    const firstDay = new Date(year, month, 1).getDay(); // 0:Sun
+    const firstDay = new Date(year, month, 1).getDay();
     const lastDate = new Date(year, month + 1, 0).getDate();
 
     const cells: Array<{ date: Date | null }> = [];
@@ -114,7 +151,7 @@ export default function CoupleSchedulerPage() {
     setNewType("데이트");
     setNewDate(date ?? formatYMD(today));
     setNewDesc("");
-    setShowCreate(true);
+    setOpenCreate(true);
   };
 
   const handleSubmitCreate = async () => {
@@ -132,9 +169,8 @@ export default function CoupleSchedulerPage() {
       alert(error.message);
       return;
     }
-    setShowCreate(false);
+    setOpenCreate(false);
 
-    // refresh
     const { data: refreshed } = await getSchedulesByMonth(
       coupleId,
       cursor.getFullYear(),
@@ -142,7 +178,6 @@ export default function CoupleSchedulerPage() {
     );
     setItems(refreshed || []);
 
-    // 알림
     if (partnerUserId) {
       await sendUserNotification({
         senderId: user.id,
@@ -151,22 +186,22 @@ export default function CoupleSchedulerPage() {
         description: `${user.nickname}님이 '${newTitle}' 일정을 등록했어요. (${newDate}, ${newType})`,
       });
     }
-    // 방금 등록한 항목 선택(선택 사항)
+
     if (data) {
       setSelected(data);
       setEditMode(false);
-      setShowDetail(true);
+      setOpenDetail(true);
     }
   };
 
-  const openDetail = (it: CoupleSchedule) => {
+  const handleOpenDetail = (it: CoupleSchedule) => {
     setSelected(it);
     setEditMode(false);
     setEditTitle(it.title);
     setEditType(it.type);
     setEditDate(it.schedule_date);
     setEditDesc(it.description);
-    setShowDetail(true);
+    setOpenDetail(true);
   };
 
   const handleSaveEdit = async () => {
@@ -182,14 +217,12 @@ export default function CoupleSchedulerPage() {
       alert(error.message);
       return;
     }
-    // local 업데이트
     setItems((prev) =>
       prev.map((x) => (x.id === selected.id ? (data as CoupleSchedule) : x))
     );
     setSelected(data as CoupleSchedule);
     setEditMode(false);
 
-    // 알림
     if (partnerUserId) {
       await sendUserNotification({
         senderId: user.id,
@@ -208,20 +241,20 @@ export default function CoupleSchedulerPage() {
       alert(error.message);
       return;
     }
-    // local 제거
     setItems((prev) => prev.filter((x) => x.id !== selected.id));
 
-    // 알림
     if (partnerUserId) {
       await sendUserNotification({
         senderId: user.id,
         receiverId: partnerUserId,
         type: "일정삭제",
-        description: `${user.nickname}님이 '${selected.title}' 일정을 삭제했어요. (${selected.schedule_date})`,
+        description: `${user.nickname}님이 '${
+          selected!.title
+        }' 일정을 삭제했어요. (${selected!.schedule_date})`,
       });
     }
 
-    setShowDetail(false);
+    setOpenDetail(false);
     setSelected(null);
   };
 
@@ -235,287 +268,306 @@ export default function CoupleSchedulerPage() {
     );
   }
 
+  const isToday = (date?: Date | null) =>
+    !!date &&
+    date.getFullYear() === today.getFullYear() &&
+    date.getMonth() === today.getMonth() &&
+    date.getDate() === today.getDate();
+
   return (
-    <div className="mx-auto border-4 border-[#e6d7c6]  rounded-xl bg-amber-50 max-w-5xl  px-2 py-2 ">
-      {/* 헤더 */}
-
-      <div className="flex items-center justify-between mb-3 border-b-2 py-2">
-        <button
-          onClick={goPrevMonth}
-          className="rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50"
-        >
-          ← 이전달
-        </button>
-
-        <div className="gap-2 text-center">
-          <div className="text-2xl flex justify-center font-semibold text-[#5b3d1d] mb-2">
-            {cursor.getFullYear()}년 {cursor.getMonth() + 1}월
-          </div>
-          <button
-            onClick={() => handleOpenCreate()}
-            className="rounded-xl border  bg-amber-300 px-4 py-2 text-[#3d2b1f] font-medium transition-transform hover:scale-[1.04] active:scale-[0.98]"
-          >
-            + 추가
-          </button>
-        </div>
-
-        <button
-          onClick={goNextMonth}
-          className="rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50"
-        >
-          다음달 →
-        </button>
-      </div>
-
-      {/* 요일 헤더 */}
-      <div className="grid grid-cols-7 text-center text-sm font-medium text-[#6b533b] mb-2">
-        {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
-          <div key={d} className="py-2">
-            {d}
-          </div>
-        ))}
-      </div>
-
-      {/* 달력 그리드 */}
-      <div className="grid grid-cols-7 gap-2">
-        {daysInMonth.map(({ date }, idx) => {
-          const key = date ? formatYMD(date) : `blank-${idx}`;
-          const dayItems = date ? itemsByDate.get(formatYMD(date)) ?? [] : [];
-          const isToday =
-            !!date &&
-            date.getFullYear() === today.getFullYear() &&
-            date.getMonth() === today.getMonth() &&
-            date.getDate() === today.getDate();
-
-          return (
-            <div
-              key={key}
-              className={[
-                "min-h-[96px] rounded-xl border-2 bg-white p-2 flex flex-col",
-                date ? "opacity-100" : "opacity-60 bg-gray-50",
-              ].join(" ")}
+    <div ref={rootRef} className="mx-auto max-w-5xl relative isolate">
+      {/* 달력 카드 */}
+      <Card className="rounded-xl border-amber-200 bg-amber-50">
+        <CardContent className="p-4 sm:p-6">
+          {/* 헤더 */}
+          <div className="mb-4 flex items-center justify-center gap-10">
+            <Button
+              variant="ghost"
+              onClick={goPrevMonth}
+              className="gap-2 cursor-pointer"
             >
-              {/* 날짜 */}
-              <div
-                className={[
-                  "mb-1 text-xs font-semibold",
-                  isToday ? "text-amber-600" : "text-gray-500",
-                ].join(" ")}
-              >
-                {date ? date.getDate() : ""}
-              </div>
+              <ChevronLeft className="h-4 w-4" />
+              이전달
+            </Button>
 
-              {/* 배지 목록 (title만 표시) */}
-              <div className="flex flex-col gap-1 overflow-hidden">
-                {dayItems.slice(0, 3).map((it) => (
-                  <button
-                    key={it.id}
-                    onClick={() => openDetail(it)}
+            <div className="flex flex-col items-center">
+              <div className="mb-2 text-center text-2xl font-semibold text-amber-900">
+                {cursor.getFullYear()}년 {cursor.getMonth() + 1}월
+              </div>
+              {/* 중앙의 추가 버튼 제거 (FAB로 대체) */}
+            </div>
+
+            <Button
+              variant="ghost"
+              onClick={goNextMonth}
+              className="gap-2 cursor-pointer"
+            >
+              다음달
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* 요일 헤더 */}
+          <div className="mb-2 grid grid-cols-7 text-center text-sm font-medium text-amber-800">
+            {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
+              <div key={d} className="py-2">
+                {d}
+              </div>
+            ))}
+          </div>
+
+          {/* 달력 그리드 */}
+          <div className="grid grid-cols-7 gap-2">
+            {daysInMonth.map(({ date }, idx) => {
+              const key = date ? formatYMD(date) : `blank-${idx}`;
+              const dayItems = date
+                ? itemsByDate.get(formatYMD(date)) ?? []
+                : [];
+
+              return (
+                <div
+                  key={key}
+                  className={[
+                    "min-h-[112px] rounded-lg border bg-white p-2",
+                    !date && "opacity-60 bg-muted",
+                  ].join(" ")}
+                >
+                  {/* 날짜 */}
+                  <div
                     className={[
-                      "truncate text-left px-2 py-1 rounded-lg border text-[12px] font-medium",
-                      typeBadgeClass[it.type],
-                      "hover:brightness-95",
+                      "mb-2 text-xs font-semibold",
+                      isToday(date)
+                        ? "text-amber-600"
+                        : "text-muted-foreground",
                     ].join(" ")}
-                    title={`${it.type} - ${it.title}`}
                   >
-                    {it.title}
-                  </button>
-                ))}
-                {dayItems.length > 3 && (
-                  <div className="text-[11px] text-gray-500">
-                    +{dayItems.length - 3} 더보기
+                    {date ? date.getDate() : ""}
                   </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
 
-      {/* 로딩 */}
-      {loading && (
-        <div className="mt-4 text-sm text-gray-500">불러오는 중…</div>
-      )}
+                  {/* 일정 목록(제목만, 타입색 배경 버튼) */}
+                  <ScrollArea className="h-[84px]">
+                    <div className="flex flex-col items-center gap-1 pr-1">
+                      {dayItems.slice(0, 4).map((it) => (
+                        <button
+                          key={it.id}
+                          onClick={() => handleOpenDetail(it)}
+                          className={[
+                            "w-[100px] block min-w-0 truncate text-left px-2 py-1 rounded-md text-[12px] font-medium",
+                            "cursor-pointer transition",
+                            typePillClass[it.type],
+                          ].join(" ")}
+                          title={it.title}
+                        >
+                          {it.title}
+                        </button>
+                      ))}
+                      {dayItems.length > 4 && (
+                        <div className="pl-2 text-[11px] text-muted-foreground">
+                          +{dayItems.length - 4} 더보기
+                        </div>
+                      )}
+                    </div>
+                  </ScrollArea>
+                </div>
+              );
+            })}
+          </div>
 
-      {/* 생성 모달 */}
-      {showCreate && (
-        <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 border shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold">일정 등록</h3>
-              <button
-                onClick={() => setShowCreate(false)}
-                className="text-sm text-gray-500 hover:text-black"
-              >
-                ✕
-              </button>
+          {/* 로딩 */}
+          {loading && (
+            <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              불러오는 중…
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ✅ 우측 하단 FAB(추가) */}
+      <Button
+        onClick={() => handleOpenCreate()}
+        size="icon"
+        className="absolute top-6 right-6 h-10 w-10 rounded-full shadow-lg cursor-pointer bg-amber-800 hover:bg-amber-700"
+        title="일정 추가"
+      >
+        <Plus className="h-6 w-6" />
+      </Button>
+
+      {/* 생성 다이얼로그 - z 보강 */}
+      <Dialog open={openCreate} onOpenChange={setOpenCreate}>
+        <DialogPortal container={rootRef.current}>
+          <DialogOverlay className="absolute inset-0 bg-black/40" />
+          <DialogPrimitive.Content className="fixed left-1/2 top-1/2 z-[1000] w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border bg-background p-6 shadow-lg outline-none">
+            <DialogHeader>
+              <DialogTitle className="mb-4">일정 등록 🪶</DialogTitle>
+            </DialogHeader>
+
             <div className="grid gap-3">
-              <input
+              <Input
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 placeholder="제목"
-                className="w-full rounded-lg border px-3 py-2"
               />
+
               <div className="flex gap-3">
-                <select
+                <Select
                   value={newType}
-                  onChange={(e) => setNewType(e.target.value as ScheduleType)}
-                  className="rounded-lg border px-3 py-2"
+                  onValueChange={(v) => setNewType(v as ScheduleType)}
                 >
-                  {TYPE_OPTIONS.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-                <input
+                  <SelectTrigger className="w-40 cursor-pointer">
+                    <SelectValue placeholder="유형" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TYPE_OPTIONS.map((t) => (
+                      <SelectItem key={t} value={t} className="cursor-pointer">
+                        {t}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Input
                   type="date"
                   value={newDate}
                   onChange={(e) => setNewDate(e.target.value)}
-                  className="rounded-lg border px-3 py-2"
+                  className="flex-1"
                 />
               </div>
-              <textarea
+
+              <Textarea
                 value={newDesc}
                 onChange={(e) => setNewDesc(e.target.value)}
                 placeholder="설명"
                 rows={4}
-                className="w-full rounded-lg border px-3 py-2"
               />
-              <div className="mt-2 flex justify-end gap-2">
-                <button
-                  onClick={() => setShowCreate(false)}
-                  className="rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50"
-                >
+            </div>
+
+            <DialogFooter className="mt-2">
+              <DialogClose asChild>
+                <Button variant="outline" className="cursor-pointer">
                   취소
-                </button>
-                <button
-                  onClick={handleSubmitCreate}
-                  className="rounded-lg border px-3 py-1.5 text-sm bg-[#fdf6ee] border-amber-300 hover:brightness-95"
-                >
-                  등록
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+                </Button>
+              </DialogClose>
+              <Button onClick={handleSubmitCreate} className="cursor-pointer">
+                등록
+              </Button>
+            </DialogFooter>
+          </DialogPrimitive.Content>
+        </DialogPortal>
+      </Dialog>
 
-      {/* 상세/수정 오버레이 */}
-      {showDetail && selected && (
-        <div className="fixed inset-0 z-50 bg-black/35 flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 border shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold">
-                {editMode ? "일정 수정" : "일정 상세"}
-              </h3>
-              <button
-                onClick={() => {
-                  setShowDetail(false);
-                  setEditMode(false);
-                }}
-                className="text-sm text-gray-500 hover:text-black"
-              >
-                ✕
-              </button>
-            </div>
+      {/* 상세/수정 다이얼로그 - z 보강 */}
+      <Dialog open={openDetail} onOpenChange={setOpenDetail}>
+        <DialogPortal container={rootRef.current}>
+          <DialogOverlay className="absolute inset-0 bg-black/40 z-[900]" />
+          <DialogPrimitive.Content className="fixed left-1/2 top-1/2 z-[1000] w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border bg-background p-6 shadow-lg outline-none">
+            {!editMode && selected ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="text-lg font-semibold">{selected.title}</div>
+                </div>
 
-            {!editMode ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="text-lg font-semibold text-[#3d2b1f]">
-                    {selected.title}
+                <Separator />
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  <div>
+                    <span className="font-medium text-foreground">날짜:</span>{" "}
+                    {selected.schedule_date}
                   </div>
-                  <div
-                    className={[
-                      "px-2 py-0.5 rounded-lg border text-xs",
-                      typeBadgeClass[selected.type],
-                    ].join(" ")}
-                  >
+                  <div>
+                    <span className="font-medium text-foreground">작성자:</span>{" "}
+                    {selected.writer_nickname}
+                  </div>
+                  <div>
+                    <span className="font-medium text-foreground">유형:</span>{" "}
                     {selected.type}
                   </div>
                 </div>
-                <div className="text-sm text-gray-600">
-                  날짜: {selected.schedule_date}
-                </div>
-                <div className="text-sm text-gray-600">
-                  작성자: {selected.writer_nickname}
-                </div>
-                <p className="mt-2 whitespace-pre-wrap text-[15px] text-[#3d2b1f]">
+
+                <Separator />
+                <p className="whitespace-pre-wrap text-[15px]">
                   {selected.description}
                 </p>
 
-                <div className="mt-4 flex gap-2 justify-end">
-                  <button
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button
+                    variant="outline"
                     onClick={() => setEditMode(true)}
-                    className="rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50"
+                    className="cursor-pointer"
                   >
                     수정
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="destructive"
                     onClick={handleDelete}
-                    className="rounded-lg border px-3 py-1.5 text-sm text-red-700 border-red-200 hover:bg-red-50"
+                    className="cursor-pointer"
                   >
                     삭제
-                  </button>
+                  </Button>
                 </div>
               </div>
             ) : (
-              <div className="grid gap-3">
-                <input
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  placeholder="제목"
-                  className="w-full rounded-lg border px-3 py-2"
-                />
-                <div className="flex gap-3">
-                  <select
-                    value={editType}
-                    onChange={(e) =>
-                      setEditType(e.target.value as ScheduleType)
-                    }
-                    className="rounded-lg border px-3 py-2"
-                  >
-                    {TYPE_OPTIONS.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="date"
-                    value={editDate}
-                    onChange={(e) => setEditDate(e.target.value)}
-                    className="rounded-lg border px-3 py-2"
+              selected && (
+                <div className="grid gap-3">
+                  <Input
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    placeholder="제목"
                   />
+
+                  <div className="flex gap-3">
+                    <Select
+                      value={editType}
+                      onValueChange={(v) => setEditType(v as ScheduleType)}
+                    >
+                      <SelectTrigger className="w-40 cursor-pointer">
+                        <SelectValue placeholder="유형" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TYPE_OPTIONS.map((t) => (
+                          <SelectItem
+                            key={t}
+                            value={t}
+                            className="cursor-pointer"
+                          >
+                            {t}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Input
+                      type="date"
+                      value={editDate}
+                      onChange={(e) => setEditDate(e.target.value)}
+                      className="flex-1"
+                    />
+                  </div>
+
+                  <Textarea
+                    value={editDesc}
+                    onChange={(e) => setEditDesc(e.target.value)}
+                    placeholder="설명"
+                    rows={4}
+                  />
+
+                  <div className="flex justify-end gap-2">
+                    <Button onClick={handleSaveEdit} className="cursor-pointer">
+                      저장
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setEditMode(false)}
+                      className="cursor-pointer"
+                    >
+                      취소
+                    </Button>
+                  </div>
                 </div>
-                <textarea
-                  value={editDesc}
-                  onChange={(e) => setEditDesc(e.target.value)}
-                  placeholder="설명"
-                  rows={4}
-                  className="w-full rounded-lg border px-3 py-2"
-                />
-                <div className="flex gap-2 justify-end">
-                  <button
-                    onClick={handleSaveEdit}
-                    className="rounded-lg border px-3 py-1.5 text-sm bg-[#fdf6ee] border-amber-300 hover:brightness-95"
-                  >
-                    저장
-                  </button>
-                  <button
-                    onClick={() => setEditMode(false)}
-                    className="rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50"
-                  >
-                    취소
-                  </button>
-                </div>
-              </div>
+              )
             )}
-          </div>
-        </div>
-      )}
+          </DialogPrimitive.Content>
+        </DialogPortal>
+      </Dialog>
     </div>
   );
 }

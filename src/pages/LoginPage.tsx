@@ -22,7 +22,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
-  const [infoMsg, setInfoMsg] = useState(""); // ✅ 전송 성공/안내 메시지
+  const [infoMsg, setInfoMsg] = useState("");
   const [checking, setChecking] = useState(false);
 
   const navigate = useNavigate();
@@ -42,10 +42,10 @@ export default function LoginPage() {
     }
 
     setChecking(true);
+    // 필요한 경우 데이터 정합성 체크 로직 복원
     // try {
     //   const fetchedUser = await fetchUser();
-    //   const userId =
-    //     (fetchedUser as { id?: string } | null | undefined)?.id ?? user?.id;
+    //   const userId = (fetchedUser as { id?: string } | null | undefined)?.id ?? user?.id;
     //   if (userId) await runDataIntegrityCheck(userId);
     // } finally {
     //   setChecking(false);
@@ -53,23 +53,19 @@ export default function LoginPage() {
     navigate("/main");
   };
 
-  // ✅ 비밀번호 재설정 메일 발송 (항상 입력창 먼저)
   const handleSendReset = async (
     e?: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>
   ) => {
-    e?.preventDefault(); // 폼 submit/링크 네비게이션 방지
+    e?.preventDefault();
 
     setErrorMsg("");
     setInfoMsg("");
 
-    // 현재 이메일을 기본값으로 보여주기 (있으면)
     const suggested = email.trim();
     const input = window.prompt(
       "재설정 링크를 받을 이메일 주소를 입력하세요:",
       suggested
     );
-
-    // 사용자가 취소하면 종료
     if (input === null) return;
 
     const addr = input.trim();
@@ -78,8 +74,8 @@ export default function LoginPage() {
       return;
     }
 
-    const origin = window.location.origin; // 예: http://localhost:5174
-    const redirectTo = `${origin}/auth/reset`; // Supabase 대시보드에 허용 URL로 등록돼 있어야 함
+    const origin = window.location.origin;
+    const redirectTo = `${origin}/auth/reset`;
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(addr, {
@@ -99,69 +95,114 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-b from-[#e9d8c8] to-[#d8bca3] px-4">
+    <div
+      className="
+        relative min-h-dvh
+        flex items-center justify-center
+        bg-gradient-to-b from-[#e9d8c8] to-[#d8bca3]
+        px-4 py-8 sm:py-12
+      "
+    >
       {checking && (
         <div className="fixed inset-0 z-50">
           <PotatoLoading />
         </div>
       )}
 
-      <div className="w-full max-w-sm bg-white shadow-md rounded-xl p-6">
+      {/* 카드: 모바일 전체폭에 가깝게, md에서 고정폭 */}
+      <div className="w-full max-w-md bg-white shadow-lg rounded-2xl p-5 sm:p-6">
         <SubHeader title="로그인하기" />
 
-        <div className="flex flex-col items-center gap-8 mb-10">
-          <div className="flex items-center gap-1 w-full">
-            <span className="text-xl">🥔</span>
-            <input
-              type="email"
-              placeholder="이메일을 입력해주세요!"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="flex-1 px-4 py-3 border border-[#e6ddd3] rounded-md focus:outline-none focus:ring-2 focus:ring-[#d7b89c]"
-            />
-          </div>
+        {/* 폼으로 감싸서 Enter 제출 가능 + 모바일 키보드 대응 */}
+        <form
+          className="flex flex-col items-stretch gap-6 sm:gap-8 mb-8"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleLogin();
+          }}
+        >
+          {/* 이메일 */}
+          <label className="w-full">
+            <span className="sr-only">이메일</span>
+            <div className="flex items-center gap-2 w-full">
+              <span aria-hidden className="text-xl">
+                🥔
+              </span>
+              <input
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                placeholder="이메일을 입력해주세요!"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="
+                  flex-1 px-4 py-3 text-base
+                  border border-[#e6ddd3] rounded-md
+                  bg-white
+                  focus:outline-none focus:ring-2 focus:ring-[#d7b89c]
+                "
+              />
+            </div>
+          </label>
 
-          <div className="flex items-center gap-1 w-full">
-            <span className="text-xl">🥔</span>
-            <input
-              type="password"
-              placeholder="비밀번호를 입력해주세요!"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="flex-1 px-4 py-3 border border-[#e6ddd3] rounded-md focus:outline-none focus:ring-2 focus:ring-[#d7b89c]"
-            />
-          </div>
+          {/* 비밀번호 */}
+          <label className="w-full">
+            <span className="sr-only">비밀번호</span>
+            <div className="flex items-center gap-2 w-full">
+              <span aria-hidden className="text-xl">
+                🥔
+              </span>
+              <input
+                type="password"
+                autoComplete="current-password"
+                placeholder="비밀번호를 입력해주세요!"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="
+                  flex-1 px-4 py-3 text-base
+                  border border-[#e6ddd3] rounded-md
+                  bg-white
+                  focus:outline-none focus:ring-2 focus:ring-[#d7b89c]
+                "
+              />
+            </div>
+          </label>
 
-          {/* ✅ 비밀번호 재설정 링크 */}
-          <div className="w-full -mt-4 text-right">
+          {/* 비밀번호 재설정 */}
+          <div className="w-full -mt-2 text-right">
             <button
-              type="button" // ← 중요: submit 방지
+              type="button"
               onClick={handleSendReset}
-              className="mt-2 text-sm underline text-[#8a6b50] hover:text-[#6b4e2d]"
+              className="mt-1 text-sm underline text-[#8a6b50] hover:text-[#6b4e2d]"
             >
               비밀번호를 잊으셨나요?
             </button>
           </div>
 
           {(errorMsg || infoMsg) && (
-            <Popup
-              message={errorMsg || infoMsg}
-              show={!!(errorMsg || infoMsg)}
-              onClose={() => {
-                setErrorMsg("");
-                setInfoMsg("");
-              }}
-            />
+            <div className="w-full">
+              <Popup
+                message={errorMsg || infoMsg}
+                show={!!(errorMsg || infoMsg)}
+                onClose={() => {
+                  setErrorMsg("");
+                  setInfoMsg("");
+                }}
+              />
+            </div>
           )}
 
-          <PotatoButton
-            text="로그인"
-            emoji="✅"
-            onClick={handleLogin}
-            disabled={loading || checking}
-            loading={loading || checking}
-          />
-        </div>
+          {/* 로그인 버튼: 모바일 여백 확보 */}
+          <div className="flex justify-center pt-2">
+            <PotatoButton
+              text="로그인"
+              emoji="✅"
+              onClick={handleLogin}
+              disabled={loading || checking}
+              loading={loading || checking}
+            />
+          </div>
+        </form>
 
         <div className="text-sm text-center text-[#8a6b50]">
           계정이 없으신가요?{" "}

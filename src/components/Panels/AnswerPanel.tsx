@@ -10,7 +10,7 @@ export default function AnswerPanel() {
         {/* 나의 답변 카드 */}
         <div className="border-4 border-[#e6d7c6]  bg-[#fdf6ee] rounded-xl shadow-md p-4">
           <h2 className="text-3xl font-semibold mb-6 text-center text-amber-600">
-            내 답변
+            나의 답변뭉치
           </h2>
           <MyAnswersCard />
         </div>
@@ -18,7 +18,7 @@ export default function AnswerPanel() {
         {/* 상대방 답변 카드 */}
         <div className="border-4 border-[#e6d7c6]  bg-[#fdf6ee] rounded-xl shadow-md p-4">
           <h2 className="text-3xl font-semibold mb-6 text-center text-pink-600">
-            상대방 답변
+            연인의 답변뭉치
           </h2>
           <MyPartnerAnswersCard />
         </div>

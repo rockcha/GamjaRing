@@ -6,29 +6,41 @@ import { useToast } from "@/contexts/ToastContext";
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 import supabase from "@/lib/supabase";
 
+// ✅ shadcn/ui
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "../ui/card";
+import { Button } from "../ui/button";
+import { Textarea } from "../ui/textarea";
+import { Separator } from "../ui/separator";
+import { Badge } from "../ui/badge";
+import { Loader2, PencilLine, CheckCircle2, Ban } from "lucide-react";
+
 export default function TodayQuestionPanel() {
   const { user } = useUser();
   const { completeTask } = useCompleteTask();
-
-  const [question, setQuestion] = useState<string | null>(null);
-  const [questionId, setQuestionId] = useState<number | null>(null); // DB의 현재 question_id
-  const [answer, setAnswer] = useState<string>("");
-  const [submitted, setSubmitted] = useState<boolean>(false); // daily_task.completed
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-
-  // 🔹 추가: 완료 화면에서 인라인 수정 모드
-  const [isEditing, setIsEditing] = useState(false);
-
   const { open } = useToast();
 
-  // 특정 questionId의 질문 텍스트 로드
+  const [question, setQuestion] = useState<string | null>(null);
+  const [questionId, setQuestionId] = useState<number | null>(null);
+  const [answer, setAnswer] = useState<string>("");
+  const [submitted, setSubmitted] = useState<boolean>(false);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+
+  // 질문 텍스트 로드
   const loadQuestionText = useCallback(async (qid: number | null) => {
     if (qid == null || qid < 0) return null;
     return await GetQuestionById(qid);
   }, []);
 
-  // 특정 questionId의 내 답변 로드
+  // 내 답변 로드
   const loadMyAnswer = useCallback(
     async (qid: number | null) => {
       if (!qid || !user?.id) return null;
@@ -47,12 +59,11 @@ export default function TodayQuestionPanel() {
     [user?.id]
   );
 
-  // 화면에 보여줄 question_id 계산: 완료면 전 문제, 아니면 현재 문제
+  // 보여줄 ID 계산
   const computeDisplayId = useCallback(
     (currentId: number | null, completed: boolean) => {
       if (currentId == null) return null;
       if (!completed) return currentId;
-
       const prev = currentId - 1;
       return prev >= 0 ? prev : null;
     },
@@ -78,9 +89,8 @@ export default function TodayQuestionPanel() {
 
       setQuestionId(data.question_id);
       setSubmitted(data.completed);
-      setIsEditing(false); // 새로 진입 시 편집모드 해제
+      setIsEditing(false);
 
-      // 보여줄 대상 question_id 결정
       const displayId = computeDisplayId(data.question_id, data.completed);
       if (displayId == null) {
         setQuestion("문제가 발생했습니다.");
@@ -89,16 +99,14 @@ export default function TodayQuestionPanel() {
         return;
       }
 
-      // 질문 로드
       const questionText = await loadQuestionText(displayId);
       setQuestion(questionText ?? "");
 
-      // 완료 상태라면 전 질문의 내 답변도 로드
       if (data.completed) {
         const myAns = await loadMyAnswer(displayId);
         setAnswer(myAns ?? "");
       } else {
-        setAnswer(""); // 아직 미완료면 입력 초기화
+        setAnswer("");
       }
 
       setLoading(false);
@@ -107,16 +115,14 @@ export default function TodayQuestionPanel() {
     fetchQuestion();
   }, [user, computeDisplayId, loadQuestionText, loadMyAnswer]);
 
+  // 제출
   const handleSubmitAnswer = useCallback(async () => {
     if (!user || questionId == null) return;
-
-    // 제출 시점에 “현재 보여주는 질문” id는 미완료 상태 → displayId = questionId
     const displayId = questionId;
 
     if (!answer.trim()) return;
     setSubmitting(true);
 
-    // 1) 답변 저장
     const { error: insertError } = await supabase.from("answer").insert({
       user_id: user.id,
       question_id: displayId,
@@ -130,7 +136,7 @@ export default function TodayQuestionPanel() {
       return;
     }
 
-    // 파트너에게 알림
+    // 알림
     if (user.partner_id) {
       const { error } = await sendUserNotification({
         senderId: user.id,
@@ -143,21 +149,19 @@ export default function TodayQuestionPanel() {
       else open("알림 전송 완료!", 2000);
     }
 
-    // 2) 완료 처리(서버에서 question_id +1 가정)
+    // 완료 처리
     await completeTask();
 
-    // 클라이언트도 questionId +1 및 상태 갱신
     setQuestionId((prev) => (prev == null ? null : prev + 1));
     setSubmitted(true);
     setIsEditing(false);
     setSubmitting(false);
   }, [user, questionId, answer, completeTask, open]);
 
-  // 🔹 수정 버튼 토글: 편집 시작/종료 + 저장
+  // 수정 토글/저장
   const handleToggleEdit = useCallback(async () => {
     if (!user) return;
 
-    // 완료 화면에서 보여주는 질문 ID(= 직전에 제출했던 질문)
     const displayId = computeDisplayId(questionId, true);
     if (displayId == null || displayId < 0) {
       open("수정할 질문이 없습니다.", 2500);
@@ -170,7 +174,7 @@ export default function TodayQuestionPanel() {
       return;
     }
 
-    // 편집 종료 → 저장 시도
+    // 저장
     const trimmed = (answer ?? "").trim();
     if (!trimmed) {
       open("내용이 비어 있습니다.", 2500);
@@ -191,7 +195,6 @@ export default function TodayQuestionPanel() {
       return;
     }
 
-    // 알림
     if (user.partner_id) {
       const { error } = await sendUserNotification({
         senderId: user.id,
@@ -209,99 +212,122 @@ export default function TodayQuestionPanel() {
     open("답변을 수정했어요 ✏️", 2000);
   }, [user, questionId, answer, isEditing, computeDisplayId, open]);
 
-  if (loading) return <div>로딩 중...</div>;
+  if (loading) {
+    return (
+      <Card className="mx-auto w-full max-w-2xl">
+        <CardContent className="p-8 flex items-center gap-2 text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          로딩 중...
+        </CardContent>
+      </Card>
+    );
+  }
 
-  // 현재 렌더에서 보여줄 question_id (읽기용)
   const currentDisplayId = computeDisplayId(questionId, submitted);
 
-  // 상태 배너 공용 스타일
-  const bannerBase =
-    "mt-5 w-[200px] mx-auto rounded-lg px-4 py-3 flex items-center justify-center gap-2 text-sm md:text-base";
-  const bannerDone = "border border-green-300 bg-green-50 text-green-800";
-  const bannerTodo = "border border-rose-300 bg-rose-50 text-rose-700";
-
   return (
-    <div className="w-1/2  absolute left-1/2 -translate-x-1/2 bg-[#fffaf4] rounded-xl p-6 border-4 border-[#e6d7c6] text-center ">
-      <h2 className="text-xl font-bold text-[#b75e20] mb-2">오늘의 질문</h2>
+    <Card className="mx-auto mt-20 w-full max-w-2xl">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-[#b75e20]">오늘의 질문</CardTitle>
+        <CardDescription>
+          {currentDisplayId != null ? `Q.ID: ${currentDisplayId}` : ""}
+        </CardDescription>
+      </CardHeader>
 
-      <p className="text-xs text-gray-500 mb-1">
-        {currentDisplayId ? `Q.ID: ${currentDisplayId}` : ""}
-      </p>
+      <CardContent className="space-y-4">
+        {/* 질문 */}
+        <p className="text-base md:text-lg text-[#5b3d1d] whitespace-pre-line">
+          {question ? `"${question}"` : "질문을 불러오지 못했습니다."}
+        </p>
 
-      <p className="text-lg text-[#5b3d1d] whitespace-pre-line mb-4">
-        {question ? `"${question}"` : "질문을 불러오지 못했습니다."}
-      </p>
+        {/* 상태 배너 */}
+        <div className="flex justify-center">
+          {submitted ? (
+            <Badge
+              variant="outline"
+              className="gap-2 border-green-300 bg-green-50 text-green-800"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              <span className="font-medium">답변 완료</span>
+            </Badge>
+          ) : (
+            <Badge
+              variant="outline"
+              className="gap-2 border-rose-300 bg-rose-50 text-rose-700"
+            >
+              <Ban className="h-4 w-4" />
+              <span className="font-medium">답변 미제출</span>
+            </Badge>
+          )}
+        </div>
 
-      {/* 🔹 항상 노출되는 상태 배너 */}
-      <div
-        className={[bannerBase, submitted ? bannerDone : bannerTodo].join(" ")}
-      >
-        {submitted ? (
-          <>
-            <span className="text-lg">✅</span>
-            <span className="font-semibold"> 답변 완료!</span>
-          </>
-        ) : (
-          <>
-            <span className="text-lg">⛔</span>
-            <span className="font-semibold">답변 미제출</span>
-          </>
-        )}
-      </div>
+        <Separator />
 
-      {/* 입력 영역: md 이상에서 70% 폭 */}
-      <div className="mx-auto w-full md:w-[70%] mt-4">
-        <label
-          htmlFor="answer"
-          className="block text-sm text-[#5b3d1d] mb-1 font-medium text-left"
-        >
-          내 답변
-        </label>
+        {/* 답변 입력 */}
+        <div className="mx-auto w-full md:w-[70%] space-y-2">
+          <label
+            htmlFor="answer"
+            className="block text-sm text-[#5b3d1d] font-medium"
+          >
+            내 답변
+          </label>
 
-        {/* 완료 + 편집 아님 → 읽기 전용 / 편집 중 → 활성화 */}
-        <textarea
-          id="answer"
-          className={[
-            "w-full min-h-[120px] p-4 border border-[#d3b7a6] rounded-lg",
-            "text-sm md:text-base resize-none focus:outline-none focus:ring-2 focus:ring-[#e4bfa4]",
-            "bg-white placeholder:text-gray-400",
-            submitted && !isEditing ? "cursor-default bg-[#fffefb]" : "",
-          ].join(" ")}
-          disabled={submitted && !isEditing}
-          readOnly={submitted && !isEditing}
-          value={answer}
-          onChange={(e) => setAnswer(e.target.value)}
-          placeholder={submitted ? undefined : "이곳에 답변을 입력해주세요..."}
-        />
+          <Textarea
+            id="answer"
+            value={answer}
+            onChange={(e) => setAnswer(e.target.value)}
+            placeholder={
+              submitted ? undefined : "이곳에 답변을 입력해주세요..."
+            }
+            className={[
+              "min-h-[120px] resize-none ",
+              submitted && !isEditing ? "bg-white cursor-default" : "bg-white",
+            ].join(" ")}
+            disabled={submitted && !isEditing}
+          />
+        </div>
+      </CardContent>
 
-        {/* 버튼/상태 영역 */}
+      <CardFooter className="justify-center">
         {!submitted ? (
-          <button
-            className="mt-4 px-5 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 text-white rounded-md text-sm transition"
+          <Button
             onClick={handleSubmitAnswer}
             disabled={submitting || answer.trim() === ""}
+            className="min-w-[160px]"
           >
-            {submitting ? "제출 중..." : "답변 제출하기"}
-          </button>
+            {submitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                제출 중...
+              </>
+            ) : (
+              "답변 제출하기"
+            )}
+          </Button>
         ) : (
-          <button
+          <Button
             onClick={handleToggleEdit}
-            className={[
-              "mt-3 inline-flex items-center justify-center px-4 py-2 rounded-md text-sm transition",
-              isEditing
-                ? "bg-[#b75e20] text-white hover:bg-[#a5531d]"
-                : "border border-[#d3b7a6] text-[#b75e20] hover:bg-[#f6e9de]",
-            ].join(" ")}
             disabled={submitting}
+            variant={isEditing ? "default" : "outline"}
+            className="min-w-[160px] gap-2"
           >
-            {isEditing
-              ? submitting
-                ? "저장 중..."
-                : "수정 완료"
-              : "✏️ 내 답변 수정하기"}
-          </button>
+            {isEditing ? (
+              submitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  저장 중...
+                </>
+              ) : (
+                "수정 완료"
+              )
+            ) : (
+              <>
+                <PencilLine className="h-4 w-4" />내 답변 수정하기
+              </>
+            )}
+          </Button>
         )}
-      </div>
-    </div>
+      </CardFooter>
+    </Card>
   );
 }

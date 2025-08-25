@@ -1,10 +1,36 @@
 // src/pages/MyPagePanel.tsx
 import { useEffect, useMemo, useState } from "react";
 import supabase from "@/lib/supabase";
-import { useUser } from "@/contexts/UserContext"; // user, fetchUser 제공 가정
+import { useUser } from "@/contexts/UserContext";
 import Popup from "../widgets/Popup";
 import UnlinkButton from "../tests/UnlinkButton";
-import { Unlink } from "lucide-react";
+
+// ✅ shadcn/ui
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter,
+} from "../ui/card";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Separator } from "../ui/separator";
+import { Badge } from "../ui/badge";
+import { Skeleton } from "../ui/skeleton";
+
+// ✅ icons
+import {
+  PencilLine,
+  Save,
+  X,
+  CalendarDays,
+  UserRound,
+  HeartHandshake,
+  Trash2,
+} from "lucide-react";
+
 type CoupleRow = {
   id: string;
   user1_id: string;
@@ -27,7 +53,7 @@ export default function MyPagePanel() {
     setTimeout(() => setToast({ show: false, msg: "" }), ms);
   };
 
-  // 가입일: auth.users에서 가져옴 (users 테이블에 created_at이 있으면 거기서 써도 됨)
+  // 가입일
   const [signupDate, setSignupDate] = useState<string>("");
 
   // 닉네임 편집
@@ -49,12 +75,12 @@ export default function MyPagePanel() {
       if (!user?.id) return;
       setLoading(true);
 
-      // 1) 가입일 (auth)
+      // 1) 가입일
       const { data } = await supabase.auth.getUser();
       const createdAt = data.user?.created_at ?? null;
       if (createdAt) setSignupDate(createdAt.slice(0, 10));
 
-      // 2) 최신 닉네임 값 동기화
+      // 2) 닉네임 동기화
       setNickInput(user.nickname ?? "");
 
       // 3) 커플 정보
@@ -67,7 +93,7 @@ export default function MyPagePanel() {
 
         if (!cErr && cRow) {
           setCouple(cRow as CoupleRow);
-          // 파트너 닉네임
+
           const partnerId =
             cRow.user1_id === user.id ? cRow.user2_id : cRow.user1_id;
           const { data: p, error: pErr } = await supabase
@@ -77,10 +103,7 @@ export default function MyPagePanel() {
             .maybeSingle();
           if (!pErr && p) setPartnerNickname(p.nickname ?? "");
 
-          // started_at -> input 반영
-          if (cRow.started_at) {
-            setDdayInput(cRow.started_at.slice(0, 10));
-          }
+          if (cRow.started_at) setDdayInput(cRow.started_at.slice(0, 10));
         }
       } else {
         setCouple(null);
@@ -131,7 +154,7 @@ export default function MyPagePanel() {
     await fetchUser?.();
   };
 
-  // D-Day 저장 (couples.started_at)
+  // D-Day 저장
   const saveDday = async () => {
     if (!user?.couple_id) return;
     if (!ddayInput) {
@@ -157,132 +180,190 @@ export default function MyPagePanel() {
     openToast("회원탈퇴는 추후 구현 예정입니다.");
   };
 
-  // 커플 끊기(추후)
-  const handleBreakUp = () => {
-    openToast("커플 끊기는 추후 구현 예정입니다.");
-  };
-
   if (loading) {
     return (
-      <div className="p-6 text-center text-sm text-[#5b3d1d]">로딩 중…</div>
+      <main className="w-full max-w-2xl mx-auto px-4 py-6 space-y-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>내 정보</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-2/3" />
+            <Skeleton className="h-9 w-28" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>커플 정보</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-2/3" />
+            <Skeleton className="h-9 w-28" />
+          </CardContent>
+        </Card>
+      </main>
     );
   }
 
   return (
-    <main className="w-full max-w-2xl mx-auto px-4 py-6  space-y-8 overflow-y-auto">
-      {/* 1. 내 정보 */}
-      <section className="rounded-2xl border-4 border-[#e6d7c6] bg-[#fffaf4] p-5 shadow-sm">
-        <h2 className="text-lg font-bold text-[#b75e20]">내 정보</h2>
-
-        <div className="mt-4 space-y-4">
+    <main className="w-full max-w-2xl mx-auto px-4 py-6 space-y-8">
+      {/* 내 정보 */}
+      <Card className="bg-amber-50 border-amber-200">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-[#b75e20]">
+            <UserRound className="h-5 w-5" />내 정보
+          </CardTitle>
+        </CardHeader>
+        <Separator />
+        <CardContent className="pt-4 space-y-5">
           {/* 닉네임 */}
-          <div className="flex items-center gap-3">
-            <span className="w-24 text-sm text-[#6b533b]">닉네임</span>
+          <div className="grid grid-cols-12 items-center gap-3">
+            <Label className="col-span-4 sm:col-span-3 text-[#6b533b]">
+              닉네임
+            </Label>
             {editingNick ? (
-              <div className="flex-1 flex items-center gap-2">
-                <input
+              <div className="col-span-8 sm:col-span-9 flex items-center gap-2">
+                <Input
                   value={nickInput}
                   onChange={(e) => setNickInput(e.target.value)}
-                  className="flex-1 rounded-md border border-[#d3b7a6] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#e4bfa4]"
                   placeholder="닉네임 입력"
+                  className="flex-1"
                 />
-                <button
+                <Button
                   onClick={saveNickname}
                   disabled={savingNick}
-                  className="px-3 py-2 rounded-md bg-amber-600 text-white text-sm disabled:opacity-60"
+                  className="gap-1"
                 >
-                  {savingNick ? "저장중…" : "저장"}
-                </button>
-                <button
+                  {savingNick ? (
+                    "저장중…"
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      저장
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
                   onClick={() => {
                     setEditingNick(false);
                     setNickInput(user?.nickname ?? "");
                   }}
-                  className="px-3 py-2 rounded-md border text-sm"
+                  className="gap-1"
                 >
+                  <X className="h-4 w-4" />
                   취소
-                </button>
+                </Button>
               </div>
             ) : (
-              <div className="flex-1 flex items-center justify-between">
-                <span className="text-sm">{user?.nickname ?? "-"}</span>
-                <button
+              <div className="col-span-8 sm:col-span-9 flex items-center justify-between">
+                <span className="text-sm sm:text-base">
+                  {user?.nickname ?? "-"}
+                </span>
+                <Button
+                  variant="outline"
                   onClick={() => setEditingNick(true)}
-                  className="px-3 py-2 rounded-md border-2 text-sm hover:bg-[#f6e9de]"
+                  className="gap-1"
                 >
-                  ✏️
-                </button>
+                  <PencilLine className="h-4 w-4" />
+                  수정
+                </Button>
               </div>
             )}
           </div>
 
           {/* 가입날짜 */}
-          <div className="flex items-center gap-3">
-            <span className="w-24 text-sm text-[#6b533b]">가입날짜</span>
-            <span className="text-sm">{signupDate || "-"}</span>
-          </div>
-
-          {/* 회원탈퇴 */}
-          <div className="pt-2">
-            <button
-              onClick={handleDeleteAccount}
-              className="px-4 py-2 rounded-md border border-red-300 text-red-700 text-sm hover:bg-red-50"
-            >
-              회원탈퇴
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* 2. 커플 정보 */}
-      <section className="rounded-2xl border-4 border-[#e6d7c6] bg-[#fffaf4] p-5 shadow-sm">
-        <h2 className="text-lg font-bold text-[#b75e20]">커플 정보</h2>
-
-        {!isCoupled || !couple ? (
-          <div className="mt-4 text-sm text-[#6b533b]">
-            새로운 인연을 찾아보세요 💫
-          </div>
-        ) : (
-          <div className="mt-4 space-y-4">
-            {/* 커플 닉네임(상대) */}
-            <div className="flex items-center gap-3">
-              <span className="w-24 text-sm text-[#6b533b]">커플 닉네임</span>
-              <span className="text-sm">{partnerNickname || "-"}</span>
-            </div>
-
-            {/* D-Day */}
-            <div className="flex items-center gap-3">
-              <span className="w-24 text-sm text-[#6b533b]">디데이</span>
-              <span className="text-sm">{ddayText}</span>
-            </div>
-
-            {/* 만난날짜 수정 */}
-            <div className="flex items-center gap-3">
-              <span className="w-24 text-sm text-[#6b533b]">만난날짜</span>
-              <input
-                type="date"
-                value={ddayInput}
-                onChange={(e) => setDdayInput(e.target.value)}
-                className="rounded-md border border-[#d3b7a6] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#e4bfa4]"
-              />
-              <button
-                onClick={saveDday}
-                disabled={savingDday}
-                className="px-3 py-2 rounded-md bg-amber-600 text-white text-sm disabled:opacity-60"
-              >
-                {savingDday ? "저장중…" : "저장"}
-              </button>
-            </div>
-
-            {/* 커플 끊기 */}
-
-            <div className="pt-2">
-              <UnlinkButton />
+          <div className="grid grid-cols-12 items-center gap-3">
+            <Label className="col-span-4 sm:col-span-3 text-[#6b533b]">
+              가입날짜
+            </Label>
+            <div className="col-span-8 sm:col-span-9 flex items-center gap-2">
+              <Badge variant="outline" className="gap-1">
+                <CalendarDays className="h-4 w-4" />
+                {signupDate || "-"}
+              </Badge>
             </div>
           </div>
-        )}
-      </section>
+        </CardContent>
+        <CardFooter className="justify-end">
+          <Button
+            variant="destructive"
+            onClick={handleDeleteAccount}
+            className="gap-1"
+          >
+            <Trash2 className="h-4 w-4" />
+            회원탈퇴
+          </Button>
+        </CardFooter>
+      </Card>
 
+      {/* 커플 정보 */}
+      <Card className="bg-amber-50 border-amber-200">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-[#b75e20]">
+            <HeartHandshake className="h-5 w-5" />
+            커플 정보
+          </CardTitle>
+        </CardHeader>
+        <Separator />
+        <CardContent className="pt-4 space-y-5">
+          {!isCoupled || !couple ? (
+            <div className="text-sm text-[#6b533b]">
+              새로운 인연을 찾아보세요 💫
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-12 items-center gap-3">
+                <Label className="col-span-4 sm:col-span-3 text-[#6b533b]">
+                  커플 닉네임
+                </Label>
+                <div className="col-span-8 sm:col-span-9">
+                  <span className="text-sm sm:text-base">
+                    {partnerNickname || "-"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-12 items-center gap-3">
+                <Label className="col-span-4 sm:col-span-3 text-[#6b533b]">
+                  디데이
+                </Label>
+                <div className="col-span-8 sm:col-span-9">
+                  <Badge variant="outline">{ddayText}</Badge>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-12 items-center gap-3">
+                <Label className="col-span-4 sm:col-span-3 text-[#6b533b]">
+                  만난날짜
+                </Label>
+                <div className="col-span-8 sm:col-span-9 flex items-center gap-2">
+                  <Input
+                    type="date"
+                    value={ddayInput}
+                    onChange={(e) => setDdayInput(e.target.value)}
+                    className="max-w-[220px]"
+                  />
+                  <Button onClick={saveDday} disabled={savingDday}>
+                    {savingDday ? "저장중…" : "저장"}
+                  </Button>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* 커플 끊기 (테스트 버튼 유지) */}
+              <div className="pt-1">
+                <UnlinkButton />
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 토스트 */}
       <Popup
         show={toast.show}
         message={toast.msg}
