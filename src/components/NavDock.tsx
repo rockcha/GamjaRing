@@ -174,8 +174,7 @@ export default function NavDock({
           className={cn(
             "fixed inset-x-0 bottom-0 z-50 border-t",
             // ✅ 베이지 그라데이션 + 살짝 블러
-            "bg-gradient-to-t from-[#FFF9F0]/95 via-[#F5EDE3]/85 to-transparent",
-            "backdrop-blur supports-[backdrop-filter]:bg-[#FFF9F0]/60"
+            "bg-white/90"
           )}
         >
           <div className="mx-auto w-full max-w-screen-md px-4">

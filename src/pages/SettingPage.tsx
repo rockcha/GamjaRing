@@ -219,10 +219,8 @@ export default function SettingPage() {
 
   return (
     <main className="w-full max-w-3xl mx-auto px-4 md:px-6 py-6 space-y-8">
-      <SectionTitle title="설정" subtitle="내 정보와 커플 정보를 관리해요." />
-
       {/* 내 정보 */}
-      <Card className="bg-white border-amber-200/60 shadow-sm">
+      <Card className="bg-white  shadow-base">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-[#b75e20]">
             <UserRound className="h-5 w-5" />내 정보
@@ -297,7 +295,7 @@ export default function SettingPage() {
       </Card>
 
       {/* 커플 정보 */}
-      <Card className="bg-white border-amber-200/60 shadow-sm">
+      <Card className="bg-white  shadow-base">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-[#b75e20]">
             <HeartHandshake className="h-5 w-5" />

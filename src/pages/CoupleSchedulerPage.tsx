@@ -255,17 +255,7 @@ export default function CoupleSchedulerPage() {
 
   if (!isCoupled || !coupleId) {
     return (
-      <main className="mx-auto w-full max-w-screen-lg px-4 md:px-6 py-6">
-        <div className="mb-4  flex justify-center">
-          <div className="text-center">
-            <h1 className="text-2xl md:text-3xl font-bold text-[#3d2b1f]">
-              커플 스케쥴러
-            </h1>
-            <p className="mt-1 text-sm md:text-base text-[#6b533b]">
-              두 사람이 함께 쓰는 달력입니다.
-            </p>
-          </div>
-        </div>
+      <main className="mx-auto  w-full max-w-screen-lg px-4 md:px-6 py-6">
         <SadPotatoGuard
           showRequestButton
           onRequestClick={() => console.log("요청 보내기")}
@@ -282,19 +272,9 @@ export default function CoupleSchedulerPage() {
     date.getDate() === today.getDate();
 
   return (
-    <main className="mx-auto w-full max-w-screen-lg px-4 md:px-6 py-6">
-      {/* 제목 + 보충설명 중앙정렬 */}
-      <header className="mb-4 text-center">
-        <h1 className="text-2xl md:text-3xl font-bold text-[#3d2b1f]">
-          커플 스케쥴러
-        </h1>
-        <p className="mt-1 text-sm md:text-base text-[#6b533b]">
-          중요한 날을 함께 기록하고 공유하세요.
-        </p>
-      </header>
-
+    <main className="mx-auto w-full max-w-screen-lg px-4 md:px-6  ">
       {/* 카드 (FAB는 카드 안쪽 우상단) */}
-      <Card className="relative bg-white border shadow-sm pt-2">
+      <Card className="relative bg-white border shadow-sm pt-4">
         <Button
           onClick={() => handleOpenCreate()}
           size="icon"
@@ -304,17 +284,19 @@ export default function CoupleSchedulerPage() {
           <Plus className="h-5 w-5" />
         </Button>
 
-        <div className="pb-2 flex justify-center items-center gap-2">
+        <div className=" flex justify-center items-center gap-1 ">
           <Button
             variant="ghost"
             onClick={goPrevMonth}
-            className="gap-2 hover:cursor-pointer"
+            className=" hover:cursor-pointer"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
+
           <CardTitle className="text-base md:text-lg">
             {cursor.getFullYear()}년 {cursor.getMonth() + 1}월
           </CardTitle>
+
           <Button
             variant="ghost"
             onClick={goNextMonth}
@@ -335,7 +317,7 @@ export default function CoupleSchedulerPage() {
           </div>
 
           {/* 달력 그리드 — 각 칸은 고정 높이, 내부 리스트만 스크롤 */}
-          <div className="grid grid-cols-7 gap-2">
+          <div className="grid grid-cols-7 gap-1">
             {daysInMonth.map(({ date }, idx) => {
               const key = date ? formatYMD(date) : `blank-${idx}`;
               const dayItems = date
@@ -346,7 +328,7 @@ export default function CoupleSchedulerPage() {
                 <div
                   className={[
                     "grid grid-rows-[auto_minmax(0,1fr)]",
-                    "h-[92px] sm:h-[102px] md:h-[114px]",
+                    "h-[90px] sm:h-[82px] md:h-[100px]",
                     "rounded-lg border bg-white p-2",
                     "min-w-0 overflow-hidden", // 🔵 추가
                     !date && "opacity-60",

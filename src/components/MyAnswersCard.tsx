@@ -92,8 +92,8 @@ export default function MyAnswersCard() {
   if (loading) return <p className="text-gray-500">불러오는 중...</p>;
 
   return (
-    <div className="flex flex-col justify-between h-[500px]">
-      <div className="space-y-4 overflow-y-auto max-h-[440px] pr-2">
+    <div className=" flex flex-col justify-between h-[400px]">
+      <div className="space-y-2 overflow-y-auto max-h-[540px] ">
         {currentAnswers.length === 0 ? (
           <p className="text-gray-500">아직 내 답변이 없습니다.</p>
         ) : (
@@ -110,9 +110,9 @@ export default function MyAnswersCard() {
                   setPopupContent(item.content);
                   setPopupOpen(true);
                 }}
-                className="cursor-pointer bg-[#fdfdf8] border rounded-md p-3 hover:bg-amber-100 transition"
+                className="cursor-pointer bg-[#fdfdf8] border rounded-md p-4 hover:bg-amber-100 transition"
               >
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center  mb-1">
                   <p className="text-sm text-gray-400">{formattedDate}</p>
                   {isToday && (
                     <span className="text-xs text-pink-500 font-bold animate-pulse">
@@ -129,7 +129,7 @@ export default function MyAnswersCard() {
         )}
       </div>
 
-      <div className="flex justify-center mt-4 gap-2">
+      <div className="flex justify-center  gap-2">
         {Array.from({ length: totalPages }, (_, i) => (
           <button
             key={i}
