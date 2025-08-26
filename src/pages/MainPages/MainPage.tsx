@@ -58,8 +58,8 @@ export default function MainPage() {
 
         {/* 오른쪽: 오늘의 질문 + 일정 미리보기 (xl 이상에서 독립 컬럼) */}
         <div className="flex flex-col gap-4 min-w-0">
-          <TodayQuestionCard className="w-full h-fit" />
           <CoupleSchedulePreview limit={5} className="w-full h-fit" />
+          <TodayQuestionCard className="w-full h-fit" />
         </div>
       </div>
     </div>

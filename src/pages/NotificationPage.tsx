@@ -309,19 +309,13 @@ export default function NotificationPage() {
   const headerChecked: boolean | "indeterminate" = some ? "indeterminate" : all;
 
   return (
-    <main className="mx-auto w-1/2 max-w-screen-lg px-4 md:px-6 py-6">
+    <main className="mx-auto w-1/2 max-w-screen-lg px-4 md:px-6 ">
       {/* 제목 + 보충설명 */}
-      <header className="flex flex-col items-center justify-center mb-4">
-        <h1 className="text-2xl md:text-3xl font-bold text-[#3d2b1f]">알람</h1>
-        <p className="mt-1 text-sm md:text-base text-[#6b533b]">
-          오늘 받은 알림을 확인하고 정리해 보세요.
-        </p>
-      </header>
 
       {/* 콘텐츠 카드 */}
       <Card className="bg-white border shadow-sm">
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between ">
             <CardDescription className="text-center">
               알림은 생성 시점으로부터 24시간 후 자동으로 삭제됩니다.
             </CardDescription>
@@ -352,11 +346,11 @@ export default function NotificationPage() {
                   return (
                     <li
                       key={n.id}
-                      className="rounded-xl border bg-white p-3 hover:bg-muted/30 transition"
+                      className="rounded-xl border bg-sky-50 p-3  transition "
                     >
-                      <div className="flex pl-4 items-start gap-3">
+                      <div className="flex pl-4 items-start gap-3 ">
                         {/* 본문 */}
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1 ">
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 min-w-0">
                               <div className="w-7 h-7 rounded-full bg-muted grid place-items-center">

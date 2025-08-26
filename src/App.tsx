@@ -4,8 +4,8 @@ import { UserProvider } from "@/contexts/UserContext";
 import { CoupleProvider } from "@/contexts/CoupleContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 
-import PageLayout from "@/components/layouts/PageLayout";
-
+import PageLayout from "./components/layouts/PageLayout";
+import AppInit from "./AppInit";
 import IntroPage from "@/pages/IntroPage";
 import LoginPage from "@/pages/LoginPage";
 import SignupPage from "@/pages/SignupPage";
@@ -24,6 +24,7 @@ export default function App() {
       <UserProvider>
         <CoupleProvider>
           <BrowserRouter>
+            <AppInit />
             <Routes>
               {/* 루트 → 인트로로 */}
               <Route path="/" element={<Navigate to="/intro" replace />} />
@@ -38,9 +39,9 @@ export default function App() {
               <Route element={<PageLayout />}>
                 {/* index를 메인으로 라우팅 */}
                 <Route index element={<Navigate to="main" replace />} />
-                {/* ✅ 여기서는 슬래시 없이 상대 경로로! */}
-                <Route path="main" element={<MainPage />} />
 
+                {/* ✅ 상대 경로 사용 */}
+                <Route path="main" element={<MainPage />} />
                 <Route path="info" element={<InfoPage />} />
                 <Route path="settings" element={<SettingPage />} />
                 <Route path="notifications" element={<NotificationPage />} />

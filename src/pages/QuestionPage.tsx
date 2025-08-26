@@ -285,14 +285,6 @@ export default function QuestionPage() {
   return (
     <main className="mx-auto  w-full max-w-screen-lg px-4 md:px-6 py-8">
       {/* 제목 + 보충설명 (중앙 정렬) */}
-      <header className="mb-6 text-center ">
-        <h1 className="text-2xl md:text-3xl font-extrabold text-[#3d2b1f]">
-          질문 답변
-        </h1>
-        <p className="mt-2 text-sm md:text-base text-[#6b533b]">
-          오늘의 질문에 답하고 서로의 마음을 기록해요.
-        </p>
-      </header>
 
       <Card className=" relative mx-auto bg-white border shadow-sm max-w-3xl">
         {loading ? (

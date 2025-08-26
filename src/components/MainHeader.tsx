@@ -56,8 +56,6 @@ export default function MainHeader() {
           <Cursor cursorColor="#5b3d1d" />
         </p>
       </div>
-
-      <UserGreetingSection user={user} isCoupled={isCoupled} />
     </header>
   );
 }
