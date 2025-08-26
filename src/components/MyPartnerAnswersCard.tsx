@@ -131,7 +131,7 @@ export default function MyPartnerAnswersCard() {
           <button
             key={i}
             onClick={() => setCurrentPage(i + 1)}
-            className={`px-3 py-1 rounded-full border text-sm transition-all ${
+            className={`px-3 py-1 rounded-lg border text-sm transition-all ${
               currentPage === i + 1
                 ? "bg-pink-100 text-pink-500 font-bold border-pink-300" // 💗 현재 페이지 pink 계열
                 : "bg-gray-100 text-gray-600 hover:bg-pink-100 hover:text-pink-500"

@@ -1,18 +1,22 @@
 // src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { UserProvider } from "@/contexts/UserContext";
-import { CoupleProvider } from "./contexts/CoupleContext";
-import { ToastProvider } from "./contexts/ToastContext";
-import AppLayout from "@/components/layouts/AppLayout";
+import { CoupleProvider } from "@/contexts/CoupleContext";
+import { ToastProvider } from "@/contexts/ToastContext";
+
+import PageLayout from "@/components/layouts/PageLayout";
 
 import IntroPage from "@/pages/IntroPage";
 import LoginPage from "@/pages/LoginPage";
 import SignupPage from "@/pages/SignupPage";
 import MainPage from "@/pages/MainPages/MainPage";
-import AnswerDetailPage from "./pages/AnswerDetailPage";
-import ResetPasswordPage from "./pages/ResetPasswardPage";
-
-//import MyPage from "@/pages/MyPage";
+import ResetPasswordPage from "@/pages/ResetPasswardPage";
+import InfoPage from "./pages/InfoPage";
+import SettingPage from "./pages/SettingPage";
+import NotificationPage from "./pages/NotificationPage";
+import CoupleSchedulerPage from "./pages/CoupleSchedulerPage";
+import AnswersPage from "./pages/AnswerPage";
+import QuestionPage from "./pages/QuestionPage";
 
 export default function App() {
   return (
@@ -21,24 +25,32 @@ export default function App() {
         <CoupleProvider>
           <BrowserRouter>
             <Routes>
-              {/* ✅ 인트로만 루트에서 처리 */}
+              {/* 루트 → 인트로로 */}
               <Route path="/" element={<Navigate to="/intro" replace />} />
 
-              {/* ✅ 헤더 없이 보여줄 페이지들 */}
+              {/* 퍼블릭(헤더/도크 없음) */}
               <Route path="/intro" element={<IntroPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignupPage />} />
               <Route path="/auth/reset" element={<ResetPasswordPage />} />
 
-              {/* ✅ 헤더 포함된 레이아웃 (MainHeader + Outlet) */}
-              <Route element={<AppLayout />}>
-                <Route path="/main" element={<MainPage />} />
+              {/* 공통 레이아웃(헤더 + NavDock) */}
+              <Route element={<PageLayout />}>
+                {/* index를 메인으로 라우팅 */}
+                <Route index element={<Navigate to="main" replace />} />
+                {/* ✅ 여기서는 슬래시 없이 상대 경로로! */}
+                <Route path="main" element={<MainPage />} />
 
-                <Route
-                  path="/answerdetailpage"
-                  element={<AnswerDetailPage />}
-                />
+                <Route path="info" element={<InfoPage />} />
+                <Route path="settings" element={<SettingPage />} />
+                <Route path="notifications" element={<NotificationPage />} />
+                <Route path="bundle" element={<AnswersPage />} />
+                <Route path="scheduler" element={<CoupleSchedulerPage />} />
+                <Route path="questions" element={<QuestionPage />} />
               </Route>
+
+              {/* 그 외 → 인트로 */}
+              <Route path="*" element={<Navigate to="/intro" replace />} />
             </Routes>
           </BrowserRouter>
         </CoupleProvider>

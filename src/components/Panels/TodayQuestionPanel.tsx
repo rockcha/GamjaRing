@@ -227,12 +227,7 @@ export default function TodayQuestionPanel() {
 
   return (
     <Card className="mx-auto mt-20 w-full max-w-2xl">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-[#b75e20]">오늘의 질문</CardTitle>
-        <CardDescription>
-          {currentDisplayId != null ? `Q.ID: ${currentDisplayId}` : ""}
-        </CardDescription>
-      </CardHeader>
+      <CardHeader className="pb-4"></CardHeader>
 
       <CardContent className="space-y-4">
         {/* 질문 */}

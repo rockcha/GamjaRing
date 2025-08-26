@@ -26,7 +26,7 @@ interface Props {
  */
 export default function SadPotatoGuard({
   imageSrc = "/images/potato-sad.png",
-  message = "커플 추가가 되어야 확인할 수 있는 페이지 입니다.",
+  message = "커플이 아닙니다.",
   hint = "상대 닉네임으로 요청을 보내보세요 ",
 
   className = "",
@@ -42,11 +42,11 @@ export default function SadPotatoGuard({
   return (
     <div
       className={[
-        "min-h-[40vh] w-full flex items-center justify-center px-4",
+        "min-h-[40vh] w-full flex items-center justify-center px-4 bg-white border rounded-xl",
         className,
       ].join(" ")}
     >
-      <div className="max-w-[520px] w-full  text-center  bg-white/70  rounded-2xl  p-6 sm:p-8">
+      <div className="max-w-[520px] w-full   text-center   rounded-2xl  p-6 sm:p-8">
         {/* 이미지 */}
         <img
           src={imageSrc}
@@ -66,7 +66,7 @@ export default function SadPotatoGuard({
         )}
         <div className="mt-4 flex justify-center">
           <PotatoButton
-            text="요청 보내기"
+            text="커플 요청 "
             emoji="💌"
             onClick={() => setShowPopup(true)}
           />

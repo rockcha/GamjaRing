@@ -1,36 +1,42 @@
+// src/components/LogoutButton.tsx
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { useUser } from "@/contexts/UserContext";
+import { LogOut, Loader2 } from "lucide-react";
 
 export default function LogoutButton() {
   const { logout } = useUser();
+  const [loading, setLoading] = useState(false);
+
+  const handleLogout = async () => {
+    if (loading) return;
+    try {
+      setLoading(true);
+      await logout();
+    } catch (error) {
+      console.error("로그아웃 실패:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <button
+    <Button
       type="button"
       aria-label="로그아웃"
-      onClick={async () => {
-        try {
-          await logout(); // 로그아웃 실행
-        } catch (error) {
-          console.error("로그아웃 실패:", error);
-        }
-      }}
-      className="
-        group inline-flex flex-col items-center justify-center
-        border border-gray-200 bg-white shadow-sm
-        rounded-xl
-        transition-transform duration-200 hover:scale-105 cursor-pointer
-        focus:outline-none
-      "
-      style={{ width: 80, height: 80 }}
+      variant="ghost"
+      size="sm"
+      onClick={handleLogout}
+      className="gap-1.5 text-[#3d2b1f]"
     >
-      <img
-        src="/navbuttons/logout.gif"
-        alt=""
-        className="w-8 h-8 object-contain pointer-events-none"
-      />
-      <span className="mt-1 text-xs font-semibold text-[#3d2b1f]">
-        로그아웃
-      </span>
-    </button>
+      {loading ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <LogOut className="h-4 w-4" />
+      )}
+      로그아웃
+    </Button>
   );
 }

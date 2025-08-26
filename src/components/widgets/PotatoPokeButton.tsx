@@ -99,7 +99,7 @@ export default function PotatoPokeButton({
         <img
           src={POKE_IMG}
           alt="감자 콕 찌르기"
-          className="w-58 h-58 object-contain"
+          className="w-48 h-32 object-contain"
           draggable={false}
         />
 
