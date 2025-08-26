@@ -48,12 +48,12 @@ export default function DaysTogetherBadge() {
   );
 
   return (
-    <p className="w-full text-left text-[22px] md:text-[24px] font-semibold text-[#5b3d1d]">
-      <span className="font-bold text-[30px] md:text-[50px] text-[#b75e20]">
+    <p className="w-full text-left text-[20px]  font-semibold text-[#5b3d1d]">
+      <span className="font-bold text-[30px]  text-[#b75e20]">
         {partnerNickname}
       </span>
       &nbsp;와 함께한 시간은 &nbsp;
-      <span className="font-extrabold text-[34px] md:text-[50px] text-[#b75e20]">
+      <span className="font-extrabold text-[30px]  text-[#b75e20]">
         {daysTogether}
       </span>
       &nbsp;일

@@ -1,5 +1,6 @@
 // src/components/UnlinkButton.tsx
 import { useCoupleContext } from "@/contexts/CoupleContext";
+import { Button } from "../ui/button";
 
 export default function UnlinkButton() {
   const { isCoupled, disconnectCouple } = useCoupleContext();
@@ -18,11 +19,8 @@ export default function UnlinkButton() {
   };
 
   return (
-    <button
-      onClick={handleClick}
-      className="px-4 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm"
-    >
-      💔 커플 끊기
-    </button>
+    <Button variant="destructive" onClick={handleClick}>
+      커플 끊기
+    </Button>
   );
 }

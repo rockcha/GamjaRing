@@ -134,7 +134,7 @@ export default function MyAnswersCard() {
           <button
             key={i}
             onClick={() => setCurrentPage(i + 1)}
-            className={`px-3 py-1 rounded-full border text-sm transition-all ${
+            className={`px-3 py-1 rounded-lg border text-sm transition-all ${
               currentPage === i + 1
                 ? "bg-amber-100 text-amber-500 font-bold border-amber-300" //
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"

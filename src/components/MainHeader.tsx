@@ -8,6 +8,7 @@ import { useUser } from "@/contexts/UserContext";
 import DaysTogetherBadge from "./DaysTogetherBadge";
 
 import UserGreetingSection from "./UserGreetingSection";
+import NavDock from "./NavDock";
 const potatoMessages = [
   "함께한 추억, 감자처럼 싹을 틔워요🌱",
   "비가 와도 괜찮아, 감자는 튼튼하니까☔",
@@ -33,15 +34,14 @@ export default function MainHeader() {
 
   //bg-[#D2B48C]
   return (
-    <header className="w-full h-[152px] py-6 px-6 flex items-center gap-3 md:gap-6 mb-6 sticky top-0 z-50 bg-transparent border-b border-[#e2c6a7]">
+    <header className="w-full md:h-[152px] sm:h-[100px] bg-[#FDF2E6] py-6 px-6 flex items-center gap-3 md:gap-6 mb-6 sticky top-0 z-50  ">
       {/* 1) 감자링 + 로고 (약 20%) */}
       <div className="basis-[20%] grow-0 shrink-0 flex items-center -mt-2 md:-mt-4 ml-2 md:ml-4">
-        <Link to="/" className="flex items-center gap-2">
-          <img src="/logo.png" alt="감자" className="w-8 h-8" />
-          <span className="text-3xl font-bold text-[#5b3d1d] leading-none">
-            감자링
-          </span>
-        </Link>
+        <img src="/logo.png" alt="감자" className="w-8 h-8" />
+        <span className="text-3xl font-bold text-[#5b3d1d] leading-none">
+          감자링
+        </span>
+        <NavDock />
       </div>
 
       {/* 2) 배지 + 타이핑 (약 70%) */}

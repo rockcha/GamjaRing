@@ -1,28 +1,24 @@
+// src/components/LoginButton.tsx
+"use client";
+
+import { Button } from "@/components/ui/button";
+import { LogIn } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export default function LoginButton() {
   const navigate = useNavigate();
 
   return (
-    <button
+    <Button
       type="button"
       aria-label="로그인"
+      variant="ghost"
+      size="sm"
       onClick={() => navigate("/login")}
-      className="
-        group inline-flex flex-col items-center justify-center
-        border border-gray-200 bg-white shadow-sm
-        rounded-xl
-        transition-transform duration-200 hover:scale-105 cursor-pointer
-        focus:outline-none
-      "
-      style={{ width: 80, height: 80 }}
+      className="gap-1.5 text-[#3d2b1f]"
     >
-      <img
-        src="/login.gif" // 로그인용 gif로 교체 가능
-        alt=""
-        className="w-8 h-8 object-contain pointer-events-none"
-      />
-      <span className="mt-1 text-xs font-semibold text-[#3d2b1f]">로그인</span>
-    </button>
+      <LogIn className="h-4 w-4" />
+      로그인
+    </Button>
   );
 }

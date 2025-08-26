@@ -1,18 +1,19 @@
+// src/features/couple/CoupleSchedulePreview.tsx
+"use client";
+
 import { useEffect, useMemo, useState } from "react";
 import supabase from "@/lib/supabase";
 import { useUser } from "@/contexts/UserContext";
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import type { CoupleSchedule, ScheduleType } from "@/utils/coupleScheduler";
 
-// ✅ shadcn/ui
-import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
-import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
-import { Separator } from "./ui/separator";
-import { Skeleton } from "./ui/skeleton";
+// shadcn/ui
+import { Card, CardHeader, CardTitle, CardContent } from "../../ui/card";
+import { Badge } from "../../ui/badge";
+import { Separator } from "../../ui/separator";
+import { Skeleton } from "../../ui/skeleton";
 
 interface Props {
-  /** 미리보기로 보여줄 일정 개수 (기본 3) */
   limit?: number;
   className?: string;
 }
@@ -22,14 +23,6 @@ const TYPE_BADGE: Record<ScheduleType, string> = {
   기념일: "bg-amber-100 border border-amber-200 text-amber-900",
   "기타 일정": "bg-blue-100 border border-blue-200 text-blue-900",
 };
-
-function ymdTodayLocal(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
 
 function dday(dateStr: string): number {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
@@ -48,24 +41,24 @@ export default function CoupleSchedulePreview({
   limit = 3,
   className = "",
 }: Props) {
-  const { user, isCoupled } = useUser();
+  const { user } = useUser();
   const { couple } = useCoupleContext();
   const coupleId = couple?.id ?? user?.partner_id ?? null;
 
   const [items, setItems] = useState<CoupleSchedule[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  const [minimized, setMinimized] = useState(false);
 
   useEffect(() => {
     if (!coupleId) return;
     (async () => {
       setLoading(true);
-      const today = ymdTodayLocal();
+      // 필요 시 로컬 YYYY-MM-DD 사용으로 교체 가능
+      const today = new Date().toISOString().slice(0, 10);
       const { data, error } = await supabase
         .from("couple_scheduler")
         .select("*")
         .eq("couple_id", coupleId)
-        .gte("schedule_date", today) // 과거 제외
+        .gte("schedule_date", today)
         .order("schedule_date", { ascending: true })
         .limit(200);
 
@@ -76,47 +69,25 @@ export default function CoupleSchedulePreview({
 
   const preview = useMemo(() => items.slice(0, limit), [items, limit]);
 
-  if (minimized) {
-    return (
-      <Button
-        onClick={() => setMinimized(false)}
-        variant="outline"
-        className="fixed left-4 bottom-14 z-50 rounded-full bg-amber-50 border-amber-700 shadow-lg px-4 py-2 text-[#3d2b1f] gap-2"
-        title="일정 미리보기 펼치기"
-      >
-        ⏰ <span className="font-semibold">일정 미리보기</span>
-      </Button>
-    );
-  }
-
   return (
-    <Card
-      className={[
-        "relative overflow-hidden bg-amber-50 border-amber-200",
-        className,
-      ].join(" ")}
-    >
+    <Card className={["relative overflow-hidden", className].join(" ")}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-[#3d2b1f]">⏰ 일정 미리보기</CardTitle>
-          <Button
-            onClick={() => setMinimized(true)}
-            size="sm"
-            variant="outline"
-            className="text-xs"
-            title="최소화"
-            aria-label="최소화"
-          >
-            접기
-          </Button>
+          {/* 제목 XL */}
+          <CardTitle className="text-[#3d2b1f] text-xl">
+            ⏰ 일정 미리보기
+          </CardTitle>
+          {/* ✅ 최소화/닫기 버튼 제거 */}
         </div>
         <p className="pl-1 text-sm text-amber-800 mt-1">
           다가오는 일정을 확인해보세요
         </p>
       </CardHeader>
 
+      {/* 구분선 */}
+      <Separator />
+
       <CardContent>
-        {/* 리스트 */}
         <div className="mt-2 space-y-2">
           {loading && (
             <>
@@ -139,11 +110,14 @@ export default function CoupleSchedulePreview({
               return (
                 <div
                   key={it.id}
-                  className="flex items-center justify-start gap-4 rounded-xl bg-white/70 border border-amber-200 px-3 py-2"
+                  className="flex items-center justify-start gap-4 rounded-xl py-2"
                 >
                   <Badge
                     variant="outline"
-                    className={["shrink-0", TYPE_BADGE[it.type]].join(" ")}
+                    className={[
+                      "inline-flex items-center gap-1.5 shrink-0",
+                      TYPE_BADGE[it.type],
+                    ].join(" ")}
                   >
                     {dLabel}
                   </Badge>
