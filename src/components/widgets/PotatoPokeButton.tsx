@@ -1,10 +1,11 @@
 // src/components/PotatoPokeButton.tsx
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useUser } from "@/contexts/UserContext";
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
-// ✅ 프로젝트의 useToast 경로에 맞춰 조정하세요.
 import { useToast } from "@/contexts/ToastContext";
+import supabase from "@/lib/supabase";
+import { avatarSrc } from "@/features/localAvatar";
 
 interface Props {
   className?: string;
@@ -14,8 +15,7 @@ interface Props {
   subtitle?: string;
 }
 
-// ✅ 내부 고정 이미지 (원하면 경로만 바꾸면 됨)
-const POKE_IMG = "/images/potato-poke.png";
+const POKE_FALLBACK_IMG = "/images/potato-poke.png";
 
 export default function PotatoPokeButton({
   className = "",
@@ -28,10 +28,44 @@ export default function PotatoPokeButton({
   const { open } = useToast();
   const [loading, setLoading] = useState(false);
 
+  // 파트너 정보 (아바타/닉네임)
+  const [partnerAvatarId, setPartnerAvatarId] = useState<number | null>(null);
+  const [partnerNickname, setPartnerNickname] = useState<string>("상대");
+
+  // 파트너 아바타 URL (없으면 폴백 이미지)
+  const partnerAvatarUrl = useMemo(
+    () => avatarSrc(partnerAvatarId ?? undefined) ?? POKE_FALLBACK_IMG,
+    [partnerAvatarId]
+  );
+
+  // 파트너 프로필 로드
+  useEffect(() => {
+    const run = async () => {
+      if (!user?.partner_id) {
+        setPartnerAvatarId(null);
+        setPartnerNickname("상대");
+        return;
+      }
+      const { data, error } = await supabase
+        .from("users")
+        .select("nickname, avatar_id")
+        .eq("id", user.partner_id)
+        .maybeSingle();
+
+      if (!error && data) {
+        setPartnerNickname(data.nickname ?? "상대");
+        setPartnerAvatarId((data.avatar_id as number | null) ?? null);
+      } else {
+        setPartnerAvatarId(null);
+        setPartnerNickname("상대");
+      }
+    };
+    run();
+  }, [user?.partner_id]);
+
   const handleClick = async () => {
     if (loading) return;
 
-    // 파트너 없는 경우: 토스트
     if (!user?.partner_id) {
       open("커플 연결부터 해주세요");
       return;
@@ -58,9 +92,7 @@ export default function PotatoPokeButton({
       open("연인에게 알림을 보냈어요! 💌");
       onSent?.();
     } catch (e) {
-      const err = e as Error;
-
-      onError?.(err);
+      onError?.(e as Error);
     } finally {
       setLoading(false);
     }
@@ -68,18 +100,16 @@ export default function PotatoPokeButton({
 
   return (
     <div className={`w-full flex flex-col items-center ${className}`}>
-      {/* 타이틀/서브타이틀 */}
       <div className="text-center mb-3">
         <h3 className="text-lg font-bold text-[#3d2b1f]">{title}</h3>
         <p className="text-sm text-[#6b533b]">{subtitle}</p>
       </div>
 
-      {/* 이미지 버튼 (고정 이미지) */}
       <motion.button
         type="button"
         onClick={handleClick}
-        whileHover={{ scale: 1.05 }} // 🔹 호버 시 살짝 확대
-        whileTap={{ scale: 0.97 }} // 🔹 탭 시 살짝 축소
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.97 }}
         disabled={loading}
         aria-busy={loading}
         className={[
@@ -88,36 +118,39 @@ export default function PotatoPokeButton({
           loading ? "opacity-70 cursor-not-allowed" : "cursor-pointer",
         ].join(" ")}
       >
-        {/* ✅ 보더 레이어: 평소 보이고, 탭 중에는 숨김 */}
         <motion.div
-          className="pointer-events-none absolute inset-0 rounded-xl "
+          className="pointer-events-none absolute inset-0 rounded-xl"
           initial={{ opacity: 1 }}
           animate={{ opacity: 1 }}
-          whileTap={{ opacity: 0 }} // ← 눌렀을 때 보더 안 보이게
+          whileTap={{ opacity: 0 }}
         />
 
+        {/* ▶ 파트너 아바타 or 폴백 이미지 */}
         <img
-          src={POKE_IMG}
-          alt="감자 콕 찌르기"
-          className="w-48 h-32 object-contain"
+          src={partnerAvatarUrl}
+          alt={`${partnerNickname} 콕 찌르기`}
+          className={
+            partnerAvatarId
+              ? "w-40 h-40 rounded-full object-cover border shadow-sm" // 아바타면 동그랗게
+              : "w-48 h-32 object-contain" // 폴백 이미지면 기존 사이즈
+          }
           draggable={false}
+          loading="lazy"
         />
 
-        {/* ✅ 호버 힌트: '나를 찔러봐' */}
         <div
           className="
-          absolute bottom-14 left-1/2 -translate-x-1/2 z-20
-          px-2 py-1 text-xs rounded-md
-          bg-black/60 text-white
-          opacity-0 translate-y-1
-          transition-all duration-200
-          group-hover:opacity-100 group-hover:translate-y-0
-        "
+            absolute bottom-14 left-1/2 -translate-x-1/2 z-20
+            px-2 py-1 text-xs rounded-md
+            bg-black/60 text-white
+            opacity-0 translate-y-1
+            transition-all duration-200
+            group-hover:opacity-100 group-hover:translate-y-0
+          "
         >
-          나를 찔러봐
+          {partnerNickname}에게 찌르기
         </div>
 
-        {/* 로딩 인디케이터 (최상단) */}
         {loading && (
           <div className="absolute inset-0 z-30 flex items-center justify-center rounded-xl">
             <span className="animate-pulse text-[#5b3d1d] text-sm">

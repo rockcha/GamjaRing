@@ -22,7 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PencilLine, Save, X, UserRound, HeartHandshake } from "lucide-react";
 
 import AvatarPicker from "@/features/AvatarPicker";
-import { LocalAvatarSrc } from "@/features/localAvatar";
+import { avatarSrc } from "@/features/localAvatar";
 
 type CoupleRow = {
   id: string;
@@ -33,7 +33,7 @@ type CoupleRow = {
 };
 
 export default function SettingPage() {
-  const { user, fetchUser } = useUser();
+  const { user, fetchUser, updateAvatarId } = useUser(); // ✅ 컨텍스트 메서드 사용
   const [loading, setLoading] = useState(true);
 
   // toast
@@ -65,10 +65,15 @@ export default function SettingPage() {
   const [ddayInput, setDdayInput] = useState(""); // yyyy-mm-dd
   const [savingDday, setSavingDday] = useState(false);
 
-  // 아바타 id
+  // 아바타 id(내)
   const [myAvatarId, setMyAvatarId] = useState<number | null>(
     user?.avatar_id ?? null
   );
+
+  // user가 바뀌면 로컬 상태도 동기화
+  useEffect(() => {
+    setMyAvatarId(user?.avatar_id ?? null);
+  }, [user?.avatar_id]);
 
   const myAvatarUrl = avatarSrc(myAvatarId ?? undefined);
   const partnerAvatarUrl = avatarSrc(partnerAvatarId ?? undefined);
@@ -78,20 +83,16 @@ export default function SettingPage() {
     return nk ? nk[0] : "🙂";
   }, [user?.nickname]);
 
-  // 내 아바타 저장
+  // ✅ 내 아바타 저장: 컨텍스트 메서드 사용
   const saveAvatarId = async (id: number) => {
-    if (!user?.id) return;
-    const { error } = await supabase
-      .from("users")
-      .update({ avatar_id: id })
-      .eq("id", user.id);
+    const { error } = await updateAvatarId(id);
     if (error) {
       openToast(`아바타 저장 실패: ${error.message}`);
       return;
     }
-    setMyAvatarId(id);
+    setMyAvatarId(id); // 즉시 미리보기 반영
     openToast("아바타가 저장되었습니다.");
-    await fetchUser?.(); // 컨텍스트 갱신(선택)
+    await fetchUser?.(); // 선택: 서버값 재동기화
   };
 
   useEffect(() => {
@@ -104,14 +105,14 @@ export default function SettingPage() {
       const createdAt = data.user?.created_at ?? null;
       if (createdAt) setSignupDate(createdAt.slice(0, 10));
 
-      // users에서 avatar_id 최신값 보정
+      // users에서 최신 닉네임/아바타 확인 (방어적)
       const { data: me } = await supabase
         .from("users")
         .select("nickname, avatar_id")
         .eq("id", user.id)
         .maybeSingle();
       setNickInput(me?.nickname ?? user.nickname ?? "");
-      setMyAvatarId(me?.avatar_id ?? null);
+      setMyAvatarId((me?.avatar_id as number | null) ?? user.avatar_id ?? null);
 
       // 커플/파트너
       if (isCoupled && user.couple_id) {
@@ -266,6 +267,7 @@ export default function SettingPage() {
                 )}
               </div>
 
+              {/* ✅ 5x5 선택기 → 저장 시 updateAvatarId 사용 */}
               <AvatarPicker value={myAvatarId} onSave={saveAvatarId} />
             </div>
 
