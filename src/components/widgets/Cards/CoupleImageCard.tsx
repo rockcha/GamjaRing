@@ -30,13 +30,23 @@ import { cn } from "@/lib/utils";
 
 const BUCKET = "Couple_Image";
 const MAX_SLOTS = 5;
+const ASPECT_RATIO = "3 / 2";
 
-// 원하는 비율 (가로:세로). 작은 화면에서 보기 좋았던 비율을 그대로 유지하려면 여기만 바꾸면 됩니다.
-const ASPECT_RATIO = "3 / 2"; // 3:2 권장 (원하면 "4 / 3", "16 / 10", "16 / 9" 등으로 변경)
+// ===== egress 최적화 상수 =====
+const SIGNED_TTL_SEC = 60 * 60 * 24 * 7; // 7일
+const RENEW_BEFORE_SEC = 60 * 5; // 만료 5분 전이면 갱신
+// 구버전 타입과 런타임 모두 안전: format/resizer 옵션 없이 width/quality만 사용
+const TRANSFORM = {
+  width: 1280,
+  quality: 70,
+};
+
+// localStorage 키
+const URL_CACHE_KEY = `sb-url-cache:${BUCKET}:v1`;
 
 type Slot = {
-  url: string | null;
-  path: string | null;
+  url: string | null; // 실제 <img src>
+  path: string | null; // 스토리지 경로
   uploading: boolean;
   deleting: boolean;
 };
@@ -50,14 +60,24 @@ const emptySlot = (): Slot => ({
 
 type Props = {
   className?: string;
-  /**
-   * 기준 최소 높이. 숫자(px) 또는 문자열 가능.
-   * 예: 420, "420px". 기본 480.
-   * 실제 높이는 비율을 기준으로 가로폭에 맞춰 커지되,
-   * min 360px / max 550px 범위를 지키도록 합니다.
-   */
-  imageHeight?: number | string;
+  imageHeight?: number | string; // minHeight 기준
 };
+
+// ===== 캐시 =====
+type CacheEntry = { url: string; exp: number }; // exp: epoch(sec)
+function readCache(): Record<string, CacheEntry> {
+  try {
+    const raw = localStorage.getItem(URL_CACHE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+function writeCache(map: Record<string, CacheEntry>) {
+  try {
+    localStorage.setItem(URL_CACHE_KEY, JSON.stringify(map));
+  } catch {}
+}
 
 export default function CoupleImageCard({
   className,
@@ -79,24 +99,57 @@ export default function CoupleImageCard({
   );
   const [error, setError] = useState<string | null>(null);
   const [carouselApi, setCarouselApi] = useState<CarouselApi | null>(null);
+  const [activeIdx, setActiveIdx] = useState(0);
 
   const isDisabled = !user?.id || !isCoupled;
 
-  // ===== Helpers =====
+  // 캐시/쿨다운
+  const cacheRef = useRef<Record<string, CacheEntry>>(readCache());
+  const failRef = useRef<Record<string, number>>({});
+  const FAIL_COOLDOWN_SEC = 10 * 60;
+
   const inRange = (i: number) => i >= 0 && i < MAX_SLOTS;
   const updateSlot = (i: number, updater: (prev: Slot) => Slot) =>
     setSlots((prev) => prev.map((s, idx) => (idx === i ? updater(s) : s)));
+
   const buildSlotPath = (cid: string, i: number, ext: string) =>
     `${cid}/slot-${i}.${ext}`;
-  const signUrl = async (path: string) => {
-    const { data, error } = await supabase.storage
-      .from(BUCKET)
-      .createSignedUrl(path, 3600);
-    if (error) throw error;
-    return data!.signedUrl;
-  };
 
-  // ===== Load existing =====
+  // 캐시를 고려한 서명 URL 발급 (+실패 쿨다운)
+  const getSignedUrlCached = useCallback(
+    async (path: string): Promise<string> => {
+      if (!path) throw new Error("invalid path");
+      const now = Math.floor(Date.now() / 1000);
+
+      // 실패 쿨다운
+      if (failRef.current[path] && failRef.current[path] > now) {
+        throw new Error("cooldown");
+      }
+
+      const c = cacheRef.current[path];
+      if (c && c.exp - RENEW_BEFORE_SEC > now) {
+        return c.url; // 아직 유효 → 그대로 사용
+      }
+
+      const { data, error } = await supabase.storage
+        .from(BUCKET)
+        .createSignedUrl(path, SIGNED_TTL_SEC, { transform: TRANSFORM });
+
+      if (error || !data?.signedUrl) {
+        failRef.current[path] = now + FAIL_COOLDOWN_SEC;
+        throw error ?? new Error("sign failed");
+      }
+
+      const signed = data.signedUrl;
+      const exp = now + SIGNED_TTL_SEC;
+      cacheRef.current[path] = { url: signed, exp };
+      writeCache(cacheRef.current);
+      return signed;
+    },
+    []
+  );
+
+  // ===== 기존 파일 목록 로드 (path만 세팅) + 캐시된 URL 즉시 주입 =====
   const loadExisting = useCallback(async () => {
     if (!coupleId || !isCoupled) {
       setSlots(Array.from({ length: MAX_SLOTS }, emptySlot));
@@ -112,44 +165,34 @@ export default function CoupleImageCard({
       if (listErr) throw listErr;
 
       const next: Slot[] = Array.from({ length: MAX_SLOTS }, emptySlot);
-
-      // slot-i.* 우선 매핑
       const leftOver: string[] = [];
+
       for (const f of files ?? []) {
         const m = f.name.match(/^slot-(\d)\.(png|jpe?g|webp|gif|bmp|avif)$/i);
         if (m) {
           const idx = Number(m[1]);
-          if (idx >= 0 && idx < next.length) {
+          if (idx >= 0 && idx < next.length)
             next[idx]!.path = `${coupleId}/${f.name}`;
-          } else {
-            leftOver.push(f.name);
-          }
+          else leftOver.push(f.name);
         } else {
           leftOver.push(f.name);
         }
       }
-
-      // 남은 파일을 빈 슬롯에 순차 배치
       for (const name of leftOver) {
-        const emptyIdx = next.findIndex((s) => !s.path);
-        if (emptyIdx === -1) break;
-        next[emptyIdx]!.path = `${coupleId}/${name}`;
+        const i = next.findIndex((s) => !s.path);
+        if (i === -1) break;
+        next[i]!.path = `${coupleId}/${name}`;
       }
 
-      // 서명 URL 생성
-      const signed = await Promise.all(
-        next.map(async (s) => {
-          if (!s.path) return { ...s };
-          try {
-            const url = await signUrl(s.path);
-            return { ...s, url };
-          } catch {
-            return { ...s, url: null, path: null };
-          }
-        })
-      );
+      // 캐시에서 URL 즉시 주입 → 첫 렌더부터 이미지 보여주기(깜빡임 제거)
+      const cached = cacheRef.current;
+      const hydrated = next.map((s) => {
+        if (!s.path) return s;
+        const entry = cached[s.path]; // <- 한 번만 꺼내서 좁히기
+        return entry ? { ...s, url: entry.url } : s;
+      });
 
-      setSlots(signed);
+      setSlots(hydrated);
     } catch (e: any) {
       setError(e?.message ?? "이미지를 불러오는 중 오류가 발생했어요.");
       setSlots(Array.from({ length: MAX_SLOTS }, emptySlot));
@@ -162,22 +205,131 @@ export default function CoupleImageCard({
     loadExisting();
   }, [loadExisting]);
 
-  // ===== Upload / Delete =====
+  // Embla active index 추적
+  useEffect(() => {
+    if (!carouselApi) return;
+    const onSelect = () => setActiveIdx(carouselApi.selectedScrollSnap());
+    onSelect();
+    carouselApi.on("select", onSelect);
+    return () => {
+      carouselApi?.off("select", onSelect);
+    };
+  }, [carouselApi]);
+
+  // 현재/양옆만 url 로드
+  const ensureUrlFor = useCallback(
+    async (idx: number) => {
+      if (!inRange(idx)) return;
+      const s = slots[idx];
+      if (!s?.path) return;
+      if (s.url) return;
+      try {
+        const signed = await getSignedUrlCached(s.path);
+        // 선로드 후 교체(깜빡임 방지)
+        await new Promise<void>((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
+          img.decoding = "async";
+          img.src = signed;
+        });
+        updateSlot(idx, (prev) => ({ ...prev, url: signed }));
+      } catch {
+        // 실패 시 그대로 두고, 실패 쿨다운에 의해 반복요청 차단
+      }
+    },
+    [slots, getSignedUrlCached]
+  );
+
+  useEffect(() => {
+    void ensureUrlFor(activeIdx);
+    void ensureUrlFor((activeIdx + 1) % MAX_SLOTS);
+    void ensureUrlFor((activeIdx - 1 + MAX_SLOTS) % MAX_SLOTS);
+  }, [activeIdx, ensureUrlFor]);
+
+  // 오토플레이
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isPausedRef = useRef(false);
+  const clearTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+  const imageCount = useMemo(
+    () => slots.filter((s) => !!s.path).length,
+    [slots]
+  );
+  const startTimer = useCallback(() => {
+    clearTimer();
+    if (!carouselApi) return;
+    if (imageCount < 2) return;
+    timerRef.current = setInterval(() => {
+      if (isPausedRef.current) return;
+      carouselApi.scrollNext();
+    }, 4500);
+  }, [carouselApi, imageCount]);
+  const pause = () => {
+    isPausedRef.current = true;
+    clearTimer();
+  };
+  const resume = () => {
+    isPausedRef.current = false;
+    startTimer();
+  };
+  useEffect(() => {
+    startTimer();
+    return clearTimer;
+  }, [startTimer]);
+  useEffect(() => {
+    const handler = () => {
+      if (document.hidden) pause();
+      else resume();
+    };
+    document.addEventListener("visibilitychange", handler);
+    return () => document.removeEventListener("visibilitychange", handler);
+  }, []);
+
+  // 업로드/교체
   const openPickerFor = (idx: number) => {
     if (isDisabled || !inRange(idx)) return;
     pendingTargetIndex.current = idx;
     fileInputRef.current?.click();
   };
 
+  // 업로드 전 다운스케일(선택)
+  async function downscaleImage(file: File): Promise<File> {
+    try {
+      const bitmap = await createImageBitmap(file);
+      const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+      if (scale >= 1) return file;
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(bitmap.width * scale);
+      canvas.height = Math.round(bitmap.height * scale);
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      const blob: Blob | null = await new Promise((res) =>
+        canvas.toBlob(res, "image/webp", 0.82)
+      );
+      if (!blob) return file;
+      return new File([blob], file.name.replace(/\.[^.]+$/, ".webp"), {
+        type: "image/webp",
+      });
+    } catch {
+      return file;
+    }
+  }
+
   const handleChangeFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] ?? null;
+    const raw = e.target.files?.[0] ?? null;
     const idx = pendingTargetIndex.current;
     pendingTargetIndex.current = null;
-    if (!file || !inRange(idx ?? -1) || !coupleId || !isCoupled) return;
+    if (!raw || !inRange(idx ?? -1) || !coupleId || !isCoupled) return;
 
     const index = idx as number;
     const cid = coupleId as string;
 
+    const file = await downscaleImage(raw);
     const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
     const uploadPath = buildSlotPath(cid, index, ext);
 
@@ -185,26 +337,39 @@ export default function CoupleImageCard({
     updateSlot(index, (prev) => ({ ...prev, url: tempURL, uploading: true }));
 
     try {
+      // 동일 슬롯 기존 파일 제거
       const { data: listing } = await supabase.storage
         .from(BUCKET)
         .list(`${cid}`);
       const toRemove = (listing ?? [])
         .filter((x) => x.name.startsWith(`slot-${index}.`))
         .map((x) => `${cid}/${x.name}`);
-      if (toRemove.length) {
-        await supabase.storage.from(BUCKET).remove(toRemove);
-      }
+      if (toRemove.length) await supabase.storage.from(BUCKET).remove(toRemove);
 
       const { error: upErr } = await supabase.storage
         .from(BUCKET)
         .upload(uploadPath, file, {
           upsert: true,
-          cacheControl: "3600",
+          cacheControl: "31536000",
           contentType: file.type,
         });
       if (upErr) throw upErr;
 
-      const signed = await signUrl(uploadPath);
+      // 새 경로의 캐시 무효화
+      delete cacheRef.current[uploadPath];
+      writeCache(cacheRef.current);
+      delete failRef.current[uploadPath];
+
+      // 변환 포함 서명 URL 발급 + 선로드
+      const signed = await getSignedUrlCached(uploadPath);
+      await new Promise<void>((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve();
+        img.onerror = () => resolve();
+        img.decoding = "async";
+        img.src = signed;
+      });
+
       updateSlot(index, (_) => ({
         url: signed,
         path: uploadPath,
@@ -234,6 +399,12 @@ export default function CoupleImageCard({
         .from(BUCKET)
         .remove([s.path]);
       if (delErr) throw delErr;
+
+      // 캐시/쿨다운도 제거
+      delete cacheRef.current[s.path];
+      delete failRef.current[s.path];
+      writeCache(cacheRef.current);
+
       updateSlot(idx, (_) => ({ ...emptySlot() }));
     } catch (e: any) {
       updateSlot(idx, (prev) => ({ ...prev, deleting: false }));
@@ -241,62 +412,12 @@ export default function CoupleImageCard({
     }
   };
 
-  // ===== Autoplay (5s, loop) =====
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const isPausedRef = useRef(false);
-
-  const imageCount = useMemo(
-    () => slots.filter((s) => !!s.url).length,
-    [slots]
-  );
-
-  const clearTimer = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  };
-
-  const startTimer = useCallback(() => {
-    clearTimer();
-    if (!carouselApi) return;
-    if (imageCount < 2) return;
-    timerRef.current = setInterval(() => {
-      if (isPausedRef.current) return;
-      carouselApi.scrollNext(); // loop:true 로 자연 순환
-    }, 4500);
-  }, [carouselApi, imageCount]);
-
-  const pause = () => {
-    isPausedRef.current = true;
-    clearTimer();
-  };
-  const resume = () => {
-    isPausedRef.current = false;
-    startTimer();
-  };
-
-  useEffect(() => {
-    startTimer();
-    return clearTimer;
-  }, [startTimer]);
-
-  useEffect(() => {
-    const handler = () => {
-      if (document.hidden) pause();
-      else resume();
-    };
-    document.addEventListener("visibilitychange", handler);
-    return () => document.removeEventListener("visibilitychange", handler);
-  }, []);
-
-  // ===== Size (aspect-ratio + min/max height) =====
+  // 크기 스타일
   const minH =
-    typeof imageHeight === "number" ? Math.max(360, imageHeight) : 360; // 숫자만 최소 보정. 문자열("420px")은 별도 처리X
+    typeof imageHeight === "number" ? Math.max(360, imageHeight) : 360;
   const ratioBoxStyle: React.CSSProperties = {
-    aspectRatio: ASPECT_RATIO, // <- 핵심: 가로세로 비율 유지
+    aspectRatio: ASPECT_RATIO,
     width: "100%",
-    // 높이는 비율로 계산되지만 아래 제약으로 너무 작거나 크지 않게
     minHeight: `${minH}px`,
     maxHeight: "550px",
   };
@@ -345,23 +466,40 @@ export default function CoupleImageCard({
             >
               <CarouselContent>
                 {slots.map((s, idx) => {
-                  const hasImg = !!s.url;
+                  const visibleIdx = [
+                    activeIdx,
+                    (activeIdx + 1) % MAX_SLOTS,
+                    (activeIdx - 1 + MAX_SLOTS) % MAX_SLOTS,
+                  ];
+                  const shouldLoad = visibleIdx.includes(idx);
+                  const hasImg = !!s.path && !!s.url && shouldLoad;
+
                   return (
                     <CarouselItem key={idx}>
                       <div>
                         <Card className="overflow-hidden">
-                          {/* 비율 박스 */}
                           <div
                             className="relative w-full"
                             style={ratioBoxStyle}
                           >
-                            {hasImg ? (
-                              <img
-                                src={s.url!}
-                                alt={`커플 이미지 ${idx + 1}`}
-                                className="w-full h-full object-cover"
-                                draggable={false}
-                              />
+                            {s.path && shouldLoad ? (
+                              hasImg ? (
+                                <img
+                                  src={s.url!}
+                                  alt={`커플 이미지 ${idx + 1}`}
+                                  className="w-full h-full object-cover scale-60 rounded-md transition-transform duration-300"
+                                  draggable={false}
+                                  loading={idx === activeIdx ? "eager" : "lazy"}
+                                  decoding="async"
+                                  fetchPriority={
+                                    idx === activeIdx ? "high" : "low"
+                                  }
+                                />
+                              ) : (
+                                <div className="w-full h-full grid place-items-center">
+                                  <Skeleton className="w-full h-full rounded-md" />
+                                </div>
+                              )
                             ) : (
                               <button
                                 type="button"
@@ -394,7 +532,7 @@ export default function CoupleImageCard({
                               </div>
                             )}
 
-                            {hasImg && !isDisabled && (
+                            {s.path && !isDisabled && (
                               <div className="absolute right-2 top-2 flex items-center gap-1">
                                 <Button
                                   size="sm"
@@ -419,7 +557,6 @@ export default function CoupleImageCard({
                               </div>
                             )}
 
-                            {/* 인덱스 배지 (흰 배경 pill) */}
                             <div className="absolute bottom-2 right-2">
                               <span className="px-2 py-1 text-xs rounded-md bg-white/95 shadow-sm border">
                                 {idx + 1} / {MAX_SLOTS}

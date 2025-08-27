@@ -28,11 +28,11 @@ export default function MainPage() {
       */}
       <div
         className="
-  grid gap-4 items-start
-  grid-cols-1
-  md:[grid-template-columns:minmax(220px,.9fr)_minmax(0,1.3fr)]
-  lg:[grid-template-columns:minmax(240px,.8fr)_minmax(0,2fr)_minmax(0,1.1fr)]   
-"
+    grid gap-4 items-start
+    grid-cols-1
+    md:[grid-template-columns:minmax(220px,.9fr)_minmax(0,1.1fr)]
+    lg:[grid-template-columns:minmax(240px,.8fr)_minmax(0,1.6fr)_minmax(0,1fr)]   
+  "
       >
         {/* 왼쪽: 포크 버튼 + 감자 진행 카드 (상대적으로 좁은 컬럼) */}
         <div className="flex flex-col gap-4 min-w-0">

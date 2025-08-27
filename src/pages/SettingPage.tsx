@@ -1,4 +1,4 @@
-// src/pages/MyPagePanel.tsx
+// src/app/.../SettingPage.tsx
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
@@ -7,7 +7,6 @@ import { useUser } from "@/contexts/UserContext";
 import Popup from "@/components/widgets/Popup";
 import UnlinkButton from "@/components/tests/UnlinkButton";
 
-// shadcn/ui
 import {
   Card,
   CardHeader,
@@ -19,19 +18,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui//input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PencilLine, Save, X, UserRound, HeartHandshake } from "lucide-react";
 
-// icons
-import {
-  PencilLine,
-  Save,
-  X,
-  CalendarDays,
-  UserRound,
-  HeartHandshake,
-  Trash2,
-} from "lucide-react";
+import AvatarPicker from "@/features/AvatarPicker";
+import { LocalAvatarSrc } from "@/features/localAvatar";
 
 type CoupleRow = {
   id: string;
@@ -45,7 +36,7 @@ export default function SettingPage() {
   const { user, fetchUser } = useUser();
   const [loading, setLoading] = useState(true);
 
-  // toast-like popup
+  // toast
   const [toast, setToast] = useState<{ show: boolean; msg: string }>({
     show: false,
     msg: "",
@@ -57,64 +48,103 @@ export default function SettingPage() {
   }, []);
 
   // 가입일
-  const [signupDate, setSignupDate] = useState<string>("");
+  const [signupDate, setSignupDate] = useState("");
 
-  // 닉네임 편집
+  // 닉네임
   const [editingNick, setEditingNick] = useState(false);
   const [nickInput, setNickInput] = useState(user?.nickname ?? "");
   const [savingNick, setSavingNick] = useState(false);
 
-  // 커플 정보
+  // 커플
   const [couple, setCouple] = useState<CoupleRow | null>(null);
-  const [partnerNickname, setPartnerNickname] = useState<string>("");
+  const [partnerNickname, setPartnerNickname] = useState("");
+  const [partnerAvatarId, setPartnerAvatarId] = useState<number | null>(null);
   const isCoupled = !!user?.partner_id;
 
-  // D-Day(만난 날짜) 편집
-  const [ddayInput, setDdayInput] = useState<string>(""); // yyyy-mm-dd
+  // D-Day
+  const [ddayInput, setDdayInput] = useState(""); // yyyy-mm-dd
   const [savingDday, setSavingDday] = useState(false);
+
+  // 아바타 id
+  const [myAvatarId, setMyAvatarId] = useState<number | null>(
+    user?.avatar_id ?? null
+  );
+
+  const myAvatarUrl = avatarSrc(myAvatarId ?? undefined);
+  const partnerAvatarUrl = avatarSrc(partnerAvatarId ?? undefined);
+
+  const myInitial = useMemo(() => {
+    const nk = user?.nickname?.trim() ?? "";
+    return nk ? nk[0] : "🙂";
+  }, [user?.nickname]);
+
+  // 내 아바타 저장
+  const saveAvatarId = async (id: number) => {
+    if (!user?.id) return;
+    const { error } = await supabase
+      .from("users")
+      .update({ avatar_id: id })
+      .eq("id", user.id);
+    if (error) {
+      openToast(`아바타 저장 실패: ${error.message}`);
+      return;
+    }
+    setMyAvatarId(id);
+    openToast("아바타가 저장되었습니다.");
+    await fetchUser?.(); // 컨텍스트 갱신(선택)
+  };
 
   useEffect(() => {
     const init = async () => {
       if (!user?.id) return;
       setLoading(true);
 
-      // 1) 가입일
+      // 내 정보(가입일 등)
       const { data } = await supabase.auth.getUser();
       const createdAt = data.user?.created_at ?? null;
       if (createdAt) setSignupDate(createdAt.slice(0, 10));
 
-      // 2) 닉네임 입력 초기화
-      setNickInput(user.nickname ?? "");
+      // users에서 avatar_id 최신값 보정
+      const { data: me } = await supabase
+        .from("users")
+        .select("nickname, avatar_id")
+        .eq("id", user.id)
+        .maybeSingle();
+      setNickInput(me?.nickname ?? user.nickname ?? "");
+      setMyAvatarId(me?.avatar_id ?? null);
 
-      // 3) 커플 정보
+      // 커플/파트너
       if (isCoupled && user.couple_id) {
-        const { data: cRow, error: cErr } = await supabase
+        const { data: cRow } = await supabase
           .from("couples")
           .select("id, user1_id, user2_id, started_at, created_at")
           .eq("id", user.couple_id)
           .maybeSingle();
 
-        if (!cErr && cRow) {
+        if (cRow) {
           setCouple(cRow as CoupleRow);
-
           const partnerId =
             cRow.user1_id === user.id ? cRow.user2_id : cRow.user1_id;
-          const { data: p, error: pErr } = await supabase
+
+          const { data: p } = await supabase
             .from("users")
-            .select("nickname")
+            .select("nickname, avatar_id")
             .eq("id", partnerId)
             .maybeSingle();
-          if (!pErr && p) setPartnerNickname(p.nickname ?? "");
 
+          setPartnerNickname(p?.nickname ?? "");
+          setPartnerAvatarId((p?.avatar_id as number | null) ?? null);
           if (cRow.started_at) setDdayInput(cRow.started_at.slice(0, 10));
         } else {
           setCouple(null);
           setPartnerNickname("");
+          setPartnerAvatarId(null);
           setDdayInput("");
         }
       } else {
         setCouple(null);
         setPartnerNickname("");
+        setPartnerAvatarId(null);
         setDdayInput("");
       }
 
@@ -122,9 +152,8 @@ export default function SettingPage() {
     };
 
     init();
-  }, [user?.id, user?.couple_id, user?.partner_id, isCoupled]);
+  }, [user?.id, user?.couple_id, user?.partner_id, isCoupled, fetchUser]);
 
-  // D-Day 계산
   const ddayText = useMemo(() => {
     if (!couple?.started_at) return "-";
     const start = new Date(couple.started_at);
@@ -135,7 +164,6 @@ export default function SettingPage() {
     return `D+${Math.max(0, diffDays)}`;
   }, [couple?.started_at]);
 
-  // 닉네임 저장
   const saveNickname = async () => {
     if (!user?.id) return;
     const newNick = nickInput.trim();
@@ -158,7 +186,6 @@ export default function SettingPage() {
     await fetchUser?.();
   };
 
-  // D-Day 저장
   const saveDday = async () => {
     if (!user?.couple_id) return;
     if (!ddayInput) {
@@ -179,11 +206,6 @@ export default function SettingPage() {
     setCouple((prev) => (prev ? { ...prev, started_at: ddayInput } : prev));
   };
 
-  // 회원탈퇴(추후)
-  const handleDeleteAccount = () => {
-    openToast("회원탈퇴는 추후 구현 예정입니다.");
-  };
-
   if (loading) {
     return (
       <main className="w-full max-w-3xl mx-auto px-4 md:px-6 py-6 space-y-8">
@@ -194,6 +216,7 @@ export default function SettingPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            <Skeleton className="h-24 w-24 rounded-full" />
             <Skeleton className="h-9 w-full" />
             <Skeleton className="h-9 w-2/3" />
             <Skeleton className="h-9 w-28" />
@@ -207,6 +230,7 @@ export default function SettingPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            <Skeleton className="h-24 w-24 rounded-full" />
             <Skeleton className="h-9 w-full" />
             <Skeleton className="h-9 w-2/3" />
             <Skeleton className="h-9 w-28" />
@@ -219,73 +243,94 @@ export default function SettingPage() {
   return (
     <main className="w-full max-w-3xl mx-auto px-4 md:px-6 py-6 space-y-8">
       {/* 내 정보 */}
-      <Card className="bg-white  shadow-base">
+      <Card className="bg-white shadow-base">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-[#b75e20]">
             <UserRound className="h-5 w-5" />내 정보
           </CardTitle>
         </CardHeader>
         <Separator />
-        <CardContent className="pt-4 space-y-5">
-          {/* 닉네임 */}
-          <FieldRow label="닉네임">
-            {editingNick ? (
-              <div className="flex w-full items-center gap-2">
-                <Input
-                  value={nickInput}
-                  onChange={(e) => setNickInput(e.target.value)}
-                  placeholder="닉네임 입력"
-                  className="flex-1"
-                />
-                <Button
-                  onClick={saveNickname}
-                  disabled={savingNick}
-                  className="gap-1"
-                >
-                  {savingNick ? (
-                    "저장중…"
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4" />
-                      저장
-                    </>
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setEditingNick(false);
-                    setNickInput(user?.nickname ?? "");
-                  }}
-                  className="gap-1"
-                >
-                  <X className="h-4 w-4" />
-                  취소
-                </Button>
+        <CardContent className="pt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-[220px_1fr] gap-6 items-start">
+            {/* 왼쪽: 아바타 & 버튼 */}
+            <div className="flex flex-col gap-3">
+              <div className="h-28 w-28 rounded-full overflow-hidden border bg-white grid place-items-center">
+                {myAvatarUrl ? (
+                  <img
+                    src={myAvatarUrl}
+                    alt="내 아바타"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span className="text-2xl">{myInitial}</span>
+                )}
               </div>
-            ) : (
-              <div className="flex w-full items-center  gap-3">
-                <span className="text-sm sm:text-base">
-                  {user?.nickname ?? "-"}
-                </span>
-                <Button
-                  variant="ghost"
-                  onClick={() => setEditingNick(true)}
-                  className="gap-1"
-                >
-                  <PencilLine className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-          </FieldRow>
 
-          {/* 가입날짜 */}
-          <FieldRow label="가입날짜">{signupDate || "-"}</FieldRow>
+              <AvatarPicker value={myAvatarId} onSave={saveAvatarId} />
+            </div>
+
+            {/* 오른쪽: 기존 필드 */}
+            <div className="space-y-5">
+              <FieldRow label="닉네임">
+                {editingNick ? (
+                  <div className="flex w-full items-center gap-2">
+                    <Input
+                      value={nickInput}
+                      onChange={(e) => setNickInput(e.target.value)}
+                      placeholder="닉네임 입력"
+                      className="flex-1"
+                    />
+                    <Button
+                      onClick={saveNickname}
+                      disabled={savingNick}
+                      className="gap-1"
+                    >
+                      {savingNick ? (
+                        "저장중…"
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4" />
+                          저장
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setEditingNick(false);
+                        setNickInput(user?.nickname ?? "");
+                      }}
+                      className="gap-1"
+                    >
+                      <X className="h-4 w-4" />
+                      취소
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex w-full items-center gap-3">
+                    <span className="text-sm sm:text-base">
+                      {user?.nickname ?? "-"}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      onClick={() => setEditingNick(true)}
+                      className="gap-1"
+                    >
+                      <PencilLine className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </FieldRow>
+
+              <FieldRow label="가입날짜">{signupDate || "-"}</FieldRow>
+            </div>
+          </div>
         </CardContent>
+
         <CardFooter className="justify-start">
           <Button
             variant="destructive"
-            onClick={handleDeleteAccount}
+            onClick={() => openToast("회원탈퇴는 추후 구현 예정입니다.")}
             className="gap-1"
           >
             회원탈퇴
@@ -294,7 +339,7 @@ export default function SettingPage() {
       </Card>
 
       {/* 커플 정보 */}
-      <Card className="bg-white  shadow-base">
+      <Card className="bg-white shadow-base">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-[#b75e20]">
             <HeartHandshake className="h-5 w-5" />
@@ -302,42 +347,60 @@ export default function SettingPage() {
           </CardTitle>
         </CardHeader>
         <Separator />
-        <CardContent className="pt-4 space-y-5">
+        <CardContent className="pt-4">
           {!isCoupled || !couple ? (
             <p className="text-sm text-[#6b533b]">
               아직 연결된 커플이 없어요 💫
             </p>
           ) : (
-            <>
-              <FieldRow label="커플 닉네임">
-                <span className="text-sm sm:text-base">
-                  {partnerNickname || "-"}
-                </span>
-              </FieldRow>
-
-              <FieldRow label="만난날짜">
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="date"
-                    value={ddayInput}
-                    onChange={(e) => setDdayInput(e.target.value)}
-                    className="max-w-[220px]"
-                  />
-                  <Button onClick={saveDday} disabled={savingDday}>
-                    {savingDday ? "저장중…" : "저장"}
-                  </Button>
+            <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] gap-6 items-start">
+              <div className="flex flex-col items-center gap-2">
+                <div className="h-24 w-24 rounded-full overflow-hidden border bg-white grid place-items-center">
+                  {partnerAvatarUrl ? (
+                    <img
+                      src={partnerAvatarUrl}
+                      alt="연인 아바타"
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <span className="text-sm text-muted-foreground">
+                      아바타 없음
+                    </span>
+                  )}
                 </div>
-              </FieldRow>
-
-              <div className="pt-1">
-                <UnlinkButton />
               </div>
-            </>
+
+              <div className="space-y-5">
+                <FieldRow label="커플 닉네임">
+                  <span className="text-sm sm:text-base">
+                    {partnerNickname || "-"}
+                  </span>
+                </FieldRow>
+
+                <FieldRow label="만난날짜">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="date"
+                      value={ddayInput}
+                      onChange={(e) => setDdayInput(e.target.value)}
+                      className="max-w-[220px]"
+                    />
+                    <Button onClick={saveDday} disabled={savingDday}>
+                      {savingDday ? "저장중…" : "저장"}
+                    </Button>
+                  </div>
+                </FieldRow>
+
+                <div className="pt-1">
+                  <UnlinkButton />
+                </div>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
 
-      {/* 토스트 */}
       <Popup
         show={toast.show}
         message={toast.msg}
@@ -347,27 +410,7 @@ export default function SettingPage() {
   );
 }
 
-/* -------------------- 작은 유틸 컴포넌트 -------------------- */
-
-function SectionTitle({
-  title,
-  subtitle,
-}: {
-  title: string;
-  subtitle?: string;
-}) {
-  return (
-    <div className="text-center">
-      <h2 className="text-xl md:text-2xl font-bold tracking-tight text-[#3d2b1f]">
-        {title}
-      </h2>
-      {subtitle && (
-        <p className="mt-1 text-sm md:text-base text-[#6b533b]">{subtitle}</p>
-      )}
-    </div>
-  );
-}
-
+/* ---- 작은 유틸 ---- */
 function FieldRow({
   label,
   children,

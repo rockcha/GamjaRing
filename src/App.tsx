@@ -9,7 +9,7 @@ import AppInit from "./AppInit";
 import IntroPage from "@/pages/IntroPage";
 import LoginPage from "@/pages/LoginPage";
 import SignupPage from "@/pages/SignupPage";
-import MainPage from "@/pages/MainPages/MainPage";
+import MainPage from "./pages/MainPage";
 import ResetPasswordPage from "@/pages/ResetPasswardPage";
 import InfoPage from "./pages/InfoPage";
 import SettingPage from "./pages/SettingPage";
