@@ -344,7 +344,7 @@ export default function MyPartnerAnswersCard() {
                 variant="outline"
                 className="hover:cursor-pointer active:scale-95 transition"
                 onClick={() => setEmojiOpen((o) => !o)}
-                disabled={!activeQuestionId || !user?.partner_id}
+                disabled={activeQuestionId === null || !user?.partner_id}
               >
                 반응 추가하기
               </Button>
@@ -364,7 +364,7 @@ export default function MyPartnerAnswersCard() {
                         title={`${e.char} 선택`}
                         onClick={async () => {
                           if (
-                            !activeQuestionId ||
+                            activeQuestionId == null ||
                             !user?.partner_id ||
                             !user?.id
                           )
@@ -399,7 +399,7 @@ export default function MyPartnerAnswersCard() {
                             senderId: user.id,
                             receiverId: user.partner_id,
                             type: "반응추가",
-                            description: e.char, // 방금 저장한 이모지
+                            description: `${user.nickname}님이 ${e.char}로 반응했어요`, // 방금 저장한 이모지
                             isRequest: false,
                           });
 

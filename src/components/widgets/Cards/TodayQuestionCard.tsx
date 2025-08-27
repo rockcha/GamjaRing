@@ -174,8 +174,8 @@ export default function TodayQuestionCard({
   return (
     <Card className={cn("bg-white", className)}>
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between gap-2">
-          <CardTitle className="flex items-center gap-2 text-[#3d2b1f]">
+        <div className="flex items-center justify-around gap-2">
+          <CardTitle className="flex items-center  gap-2 text-[#3d2b1f]">
             <MessageSquareText className="h-5 w-5 text-amber-700" />
             오늘의 질문
             {loading ? (
