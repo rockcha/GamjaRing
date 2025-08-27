@@ -81,7 +81,7 @@ function writeCache(map: Record<string, CacheEntry>) {
 
 export default function CoupleImageCard({
   className,
-  imageHeight = 480,
+  imageHeight = 600,
 }: Props) {
   const { user, isCoupled } = useUser();
   const { couple } = useCoupleContext();

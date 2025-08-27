@@ -101,6 +101,7 @@ export default function PageLayout({
           {/* 상단 바: 좌-중-우 */}
           <div className="flex h-14 items-center gap-3 ">
             {/* 좌: 타이틀 */}
+
             <h1 className="min-w-0 flex-1 truncate pl-1 text-lg font-extrabold tracking-tight">
               {routeTitle}
             </h1>
