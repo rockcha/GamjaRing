@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "./ui/separator";
-import { LocalAvatarSrc } from "@/features/localAvatar";
+import { avatarSrc } from "@/features/localAvatar";
 
 type Item = {
   id: string;

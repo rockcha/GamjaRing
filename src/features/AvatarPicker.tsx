@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { avatarSrc, AVATAR_IDS } from "@/utils/avatar/localAvatar";
+import { avatarSrc, AVATAR_IDS } from "@/features/localAvatar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

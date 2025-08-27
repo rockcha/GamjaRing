@@ -1,3 +1,4 @@
+// src/contexts/UserContext.tsx
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useToast } from "./ToastContext";
@@ -8,7 +9,8 @@ interface UserData {
   email: string;
   nickname: string;
   partner_id: string | null;
-  couple_id: string | null; // ✅ 추가됨
+  couple_id: string | null;
+  avatar_id: number | null; // ✅ 추가
 }
 
 interface SignupInput {
@@ -26,9 +28,18 @@ interface UserContextType {
   fetchUser: () => Promise<UserData | null>;
   isCoupled: boolean;
   connectToPartner: (nickname: string) => Promise<{ error: Error | null }>;
+  updateAvatarId: (id: number | null) => Promise<{ error: Error | null }>; // ✅ 추가
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
+
+// 숫자/문자 혼용 대비 보정
+function toAvatarId(val: unknown): number | null {
+  if (val === null || val === undefined) return null;
+  if (typeof val === "number" && Number.isFinite(val)) return val;
+  const n = Number(val);
+  return Number.isFinite(n) ? n : null;
+}
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserData | null>(null);
@@ -42,7 +53,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       await supabase.auth.getSession();
     const session = sessionData?.session;
 
-    if (sessionError || !session || !session.user) {
+    if (sessionError || !session?.user) {
       setUser(null);
       setLoading(false);
       return null;
@@ -50,7 +61,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
     const { data, error } = await supabase
       .from("users")
-      .select("id, email, nickname, partner_id, couple_id")
+      .select("id, email, nickname, partner_id, couple_id, avatar_id") // ✅ avatar_id 포함
       .eq("id", session.user.id)
       .maybeSingle();
 
@@ -61,10 +72,18 @@ export function UserProvider({ children }: { children: ReactNode }) {
       return null;
     }
 
-    setUser(data);
-    setLoading(false);
+    const shaped: UserData = {
+      id: data.id,
+      email: data.email,
+      nickname: data.nickname,
+      partner_id: data.partner_id,
+      couple_id: data.couple_id,
+      avatar_id: toAvatarId(data.avatar_id), // ✅ 보정
+    };
 
-    return data; // ✅ 리턴 추가
+    setUser(shaped);
+    setLoading(false);
+    return shaped;
   };
 
   const login = async (email: string, password: string) => {
@@ -80,7 +99,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
 
     await fetchUser();
-
     return { error: null };
   };
 
@@ -100,6 +118,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       id: newUser.id,
       email,
       nickname,
+      avatar_id: null, // ✅ 초기값
     });
 
     if (insertError) {
@@ -141,7 +160,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
       };
     }
 
-    // 연결: 양쪽 업데이트 (커플 RPC 사용)
     const { error: updateError } = await supabase.rpc("connect_partners", {
       user1_id: user.id,
       user2_id: partner.id,
@@ -153,7 +171,25 @@ export function UserProvider({ children }: { children: ReactNode }) {
     return { error: null };
   };
 
-  const isCoupled = !!user?.couple_id; // ✅ 기준 변경: partner_id → couple_id
+  // ✅ 아바타 ID 업데이트
+  const updateAvatarId = async (
+    id: number | null
+  ): Promise<{ error: Error | null }> => {
+    if (!user?.id) return { error: new Error("로그인 필요") };
+
+    const { error } = await supabase
+      .from("users")
+      .update({ avatar_id: id })
+      .eq("id", user.id);
+
+    if (error) return { error };
+
+    // 로컬 상태 즉시 반영
+    setUser((prev) => (prev ? ({ ...prev, avatar_id: id } as UserData) : prev));
+    return { error: null };
+  };
+
+  const isCoupled = !!user?.couple_id;
 
   useEffect(() => {
     fetchUser();
@@ -170,6 +206,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         fetchUser,
         isCoupled,
         connectToPartner,
+        updateAvatarId, // ✅ 노출
       }}
     >
       {children}
