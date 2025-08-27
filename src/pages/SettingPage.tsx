@@ -187,7 +187,6 @@ export default function SettingPage() {
   if (loading) {
     return (
       <main className="w-full max-w-3xl mx-auto px-4 md:px-6 py-6 space-y-8">
-        <SectionTitle title="설정" />
         <Card className="bg-white border-amber-200/60 shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-[#b75e20]">

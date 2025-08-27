@@ -1,81 +1,167 @@
 // src/components/MyPartnerAnswersCard.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import supabase from "@/lib/supabase";
 import { useUser } from "@/contexts/UserContext";
 import { GetQuestionById } from "@/utils/GetQuestionById";
-import SimplePopup from "@/components/widgets/SimplePopup";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogOverlay,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Separator } from "./ui/separator";
+import { useToast } from "@/contexts/ToastContext";
+import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 
 interface AnswerItem {
   question_id: number;
   content: string;
   created_at: string;
+  emoji_type_id: number | null; // ✅ 추가
 }
-
 interface AnswerWithQuestion extends AnswerItem {
   questionText: string;
 }
+
+type EmojiRow = { id: number; char: string };
 
 const ITEMS_PER_PAGE = 4;
 
 export default function MyPartnerAnswersCard() {
   const { user } = useUser();
+  const { open } = useToast();
+
   const [answers, setAnswers] = useState<AnswerWithQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // ✅ 팝업 상태
+  // emoji id -> char 매핑(리스트 표시용)
+  const [emojiMap, setEmojiMap] = useState<Record<number, string>>({});
+
+  // dialog
   const [popupOpen, setPopupOpen] = useState(false);
   const [popupTitle, setPopupTitle] = useState("");
   const [popupContent, setPopupContent] = useState("");
+  const [activeQuestionId, setActiveQuestionId] = useState<number | null>(null);
 
+  // reaction dropdown
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const [emojis, setEmojis] = useState<EmojiRow[]>([]);
+  const emojiBtnRef = useRef<HTMLButtonElement | null>(null);
+  const emojiMenuRef = useRef<HTMLDivElement | null>(null);
+
+  // 파트너 답변 불러오기 (+ 이모지 매핑 로드)
   useEffect(() => {
     const fetchPartnerAnswers = async () => {
-      if (!user?.partner_id) return;
+      if (!user?.partner_id) {
+        setLoading(false);
+        return;
+      }
 
       const { data, error } = await supabase
         .from("answer")
-        .select("question_id, content, created_at")
-        .eq("user_id", user.partner_id) // 🔄 partner 기준
+        .select("question_id, content, created_at, emoji_type_id") // ✅ emoji_type_id 함께 조회
+        .eq("user_id", user.partner_id)
         .order("created_at", { ascending: false });
 
       if (error) {
         console.error("❌ 파트너 답변 불러오기 실패:", error.message);
+        setLoading(false);
         return;
       }
 
       const enriched = await Promise.all(
-        data.map(async (item) => {
+        (data ?? []).map(async (item) => {
           const questionText = await GetQuestionById(item.question_id);
           return { ...item, questionText: questionText ?? "" };
         })
       );
 
       setAnswers(enriched);
-      setCurrentPage(1); // 첫 페이지 고정
-
+      setCurrentPage(1);
       setLoading(false);
+
+      // ✅ 이모지 매핑 로드
+      const ids = Array.from(
+        new Set(
+          (data ?? [])
+            .map((r) => r.emoji_type_id)
+            .filter((v): v is number => typeof v === "number")
+        )
+      );
+      if (ids.length) {
+        const { data: emojiRows, error: eErr } = await supabase
+          .from("emoji_type")
+          .select("id, char")
+          .in("id", ids);
+        if (!eErr && emojiRows) {
+          const map: Record<number, string> = {};
+          for (const row of emojiRows) map[row.id] = row.char;
+          setEmojiMap((prev) => ({ ...prev, ...map }));
+        }
+      }
     };
 
     fetchPartnerAnswers();
   }, [user?.partner_id]);
 
+  // 모달 처음 열릴 때 전체 이모지 목록 로드(이미 있으면 스킵)
+  useEffect(() => {
+    const fetchEmojis = async () => {
+      if (!popupOpen) return;
+      if (emojis.length > 0) return;
+      const { data, error } = await supabase
+        .from("emoji_type")
+        .select("id, char")
+        .order("id", { ascending: true });
+      if (!error && data) setEmojis(data as EmojiRow[]);
+    };
+    fetchEmojis();
+  }, [popupOpen, emojis.length]);
+
+  // 외부 클릭/ESC 시 드롭다운 닫기
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (
+        emojiOpen &&
+        !emojiBtnRef.current?.contains(t) &&
+        !emojiMenuRef.current?.contains(t)
+      ) {
+        setEmojiOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (emojiOpen && e.key === "Escape") setEmojiOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [emojiOpen]);
+
   const totalPages = Math.max(1, Math.ceil(answers.length / ITEMS_PER_PAGE));
   const start = (currentPage - 1) * ITEMS_PER_PAGE;
   const currentAnswers = answers.slice(start, start + ITEMS_PER_PAGE);
 
-  // createdAt: UTC 문자열 (예: "2025-08-12T00:30:00Z")
+  // createdAt: UTC → KST 비교/표시
   const getFormattedDate = (createdAt: string) => {
-    const tz = "Asia/Seoul"; // KST
-
-    // 오늘과 createdAt을 동일한 타임존 + 동일한 포맷으로 변환해 비교
+    const tz = "Asia/Seoul";
     const todayStr = new Date().toLocaleDateString("sv-SE", { timeZone: tz });
     const createdDateStr = new Date(createdAt).toLocaleDateString("sv-SE", {
       timeZone: tz,
     });
-
     const isToday = todayStr === createdDateStr;
 
-    // 사용자 표시용 포맷도 동일 타임존으로
     const formattedDate = new Date(createdAt).toLocaleDateString("ko-KR", {
       month: "long",
       day: "numeric",
@@ -86,69 +172,256 @@ export default function MyPartnerAnswersCard() {
     return { isToday, formattedDate };
   };
 
-  if (loading) return <p className="text-gray-500">불러오는 중...</p>;
+  const refreshSingleEmoji = useCallback(
+    async (emojiId: number) => {
+      // 저장 직후 바로 맵에 없을 수 있으니 단건 보강
+      if (emojiMap[emojiId]) return;
+      const { data, error } = await supabase
+        .from("emoji_type")
+        .select("id,char")
+        .eq("id", emojiId)
+        .maybeSingle();
+      if (!error && data) {
+        setEmojiMap((prev) => ({ ...prev, [data.id]: data.char }));
+      }
+    },
+    [emojiMap]
+  );
+
+  // 로딩 스켈레톤
+  if (loading) {
+    return (
+      <Card className="h-[420px] flex flex-col">
+        <CardContent className="flex-1 space-y-3 overflow-hidden pt-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="space-y-2">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ))}
+        </CardContent>
+        <CardFooter className="justify-center gap-2 pb-6">
+          <Skeleton className="h-9 w-24" />
+          <Skeleton className="h-9 w-24" />
+        </CardFooter>
+      </Card>
+    );
+  }
 
   return (
-    <div className="flex flex-col justify-between h-[400px]">
-      <div className="space-y-2 overflow-y-auto max-h-[540px] ">
-        {currentAnswers.length === 0 ? (
-          <p className="text-gray-500">아직 파트너의 답변이 없습니다.</p>
-        ) : (
-          currentAnswers.map((item) => {
-            const { isToday, formattedDate } = getFormattedDate(
-              item.created_at
-            );
+    <>
+      <div className="h-[420px] flex flex-col">
+        <CardContent className="flex-1 overflow-y-auto space-y-2 ">
+          {currentAnswers.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              아직 파트너의 답변이 없습니다.
+            </p>
+          ) : (
+            currentAnswers.map((item) => {
+              const { isToday, formattedDate } = getFormattedDate(
+                item.created_at
+              );
+              const emojiChar =
+                item.emoji_type_id != null
+                  ? emojiMap[item.emoji_type_id]
+                  : null;
 
-            return (
-              <div
-                key={`${item.question_id}-${item.created_at}`}
-                onClick={() => {
-                  setPopupTitle(item.questionText);
-                  setPopupContent(item.content);
-                  setPopupOpen(true);
-                }}
-                className="cursor-pointer p-4 bg-[#fdfdf8] border rounded-md  hover:bg-pink-100 transition" // 💗 hover 색상 변경
-              >
-                <div className="flex items-center mb-1">
-                  <p className="text-sm text-gray-400">{formattedDate}</p>
-                  {isToday && (
-                    <span className="text-xs text-pink-500 font-bold animate-pulse">
-                      NEW
+              return (
+                <button
+                  key={`${item.question_id}-${item.created_at}`}
+                  onClick={() => {
+                    setPopupTitle(item.questionText);
+                    setPopupContent(item.content);
+                    setActiveQuestionId(item.question_id);
+                    setPopupOpen(true);
+                  }}
+                  className="relative w-full text-left p-4 bg-rose-50 border rounded-md hover:bg-rose-100 transition focus:outline-none"
+                >
+                  {/* ✅ 우상단 반응 배지 */}
+                  <div className="absolute top-2 right-2 pointer-events-none">
+                    {emojiChar ? (
+                      <div className="h-8 w-8 grid place-items-center rounded-full bg-white border shadow text-lg">
+                        {emojiChar}
+                      </div>
+                    ) : (
+                      <div className="h-8 w-8 grid place-items-center rounded-full bg-white border shadow">
+                        <span className="text-[10px] text-muted-foreground"></span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm text-muted-foreground">
+                      {formattedDate}
                     </span>
-                  )}
-                </div>
-                <p className="text-gray-800 font-medium truncate">
-                  {item.questionText}
-                </p>
-              </div>
-            );
-          })
-        )}
-      </div>
+                    {isToday && (
+                      <span className="text-[10px] text-pink-500 font-bold animate-pulse">
+                        NEW
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-foreground font-medium truncate">
+                    {item.questionText}
+                  </p>
+                </button>
+              );
+            })
+          )}
+        </CardContent>
 
-      <div className="flex justify-center gap-2">
-        {Array.from({ length: totalPages }, (_, i) => (
-          <button
-            key={i}
-            onClick={() => setCurrentPage(i + 1)}
-            className={`px-3 py-1 rounded-lg border text-sm transition-all ${
-              currentPage === i + 1
-                ? "bg-pink-100 text-pink-500 font-bold border-pink-300" // 💗 현재 페이지 pink 계열
-                : "bg-gray-100 text-gray-600 hover:bg-pink-100 hover:text-pink-500"
-            }`}
+        <CardFooter className="justify-between gap-2 pb-6">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
           >
-            {i + 1}
-          </button>
-        ))}
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Prev
+          </Button>
+
+          <div className="flex items-center gap-2">
+            {Array.from({ length: totalPages }, (_, i) => {
+              const page = i + 1;
+              const active = currentPage === page;
+              return (
+                <Button
+                  key={page}
+                  size="sm"
+                  variant={active ? "secondary" : "outline"}
+                  onClick={() => setCurrentPage(page)}
+                  className={active ? "font-bold" : ""}
+                >
+                  {page}
+                </Button>
+              );
+            })}
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+            <ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+        </CardFooter>
       </div>
 
-      {/* ✅ 팝업 컴포넌트 */}
-      <SimplePopup
+      {/* Dialog */}
+      <Dialog
         open={popupOpen}
-        onClose={() => setPopupOpen(false)}
-        title={popupTitle}
-        content={popupContent}
-      />
-    </div>
+        onOpenChange={(v) => {
+          setPopupOpen(v);
+          if (!v) {
+            setEmojiOpen(false);
+            setActiveQuestionId(null);
+          }
+        }}
+      >
+        <DialogOverlay className="bg-black/10 backdrop-blur-[2px]" />
+        <DialogContent className=" sm:max-w-2xl max-w-[92vw]">
+          <DialogHeader>
+            <div className="flex justify-center">
+              <DialogTitle className="text-base font-semibold leading-6">
+                {popupTitle}
+              </DialogTitle>
+            </div>
+          </DialogHeader>
+          <Separator />
+          <div className="ml-4 mt-2 max-h-[70vh] overflow-auto whitespace-pre-wrap text-sm leading-6 text-foreground/80">
+            {popupContent}
+          </div>
+
+          <DialogFooter className="mt-4 flex items-center justify-between">
+            {/* ✅ 반응 추가하기 (좌측) */}
+            <div className="relative">
+              <Button
+                ref={emojiBtnRef}
+                type="button"
+                variant="outline"
+                className="hover:cursor-pointer active:scale-95 transition"
+                onClick={() => setEmojiOpen((o) => !o)}
+                disabled={!activeQuestionId || !user?.partner_id}
+              >
+                반응 추가하기
+              </Button>
+
+              {emojiOpen && (
+                <div
+                  ref={emojiMenuRef}
+                  className="absolute bottom-11 left-0 z-50 w-[260px] rounded-lg border bg-white p-3 shadow-xl"
+                >
+                  {/* 4×4 그리드 */}
+                  <div className="grid grid-cols-4 gap-2">
+                    {emojis.map((e) => (
+                      <button
+                        key={e.id}
+                        type="button"
+                        className="h-11 w-full rounded-md border bg-white hover:bg-rose-50 hover:shadow active:scale-95 transition text-2xl flex items-center justify-center hover:cursor-pointer"
+                        title={`${e.char} 선택`}
+                        onClick={async () => {
+                          if (
+                            !activeQuestionId ||
+                            !user?.partner_id ||
+                            !user?.id
+                          )
+                            return;
+
+                          // ✅ partner의 해당 답변에 emoji_type_id 설정/업데이트
+                          const { error: upErr } = await supabase
+                            .from("answer")
+                            .update({ emoji_type_id: e.id })
+                            .eq("user_id", user.partner_id)
+                            .eq("question_id", activeQuestionId);
+
+                          if (upErr) {
+                            console.error("❌ 반응 저장 실패:", upErr.message);
+                            open("반응 저장에 실패했어요.");
+                            setEmojiOpen(false);
+                            return;
+                          }
+
+                          // 리스트 데이터도 즉시 반영 (UI 갱신)
+                          setAnswers((prev) =>
+                            prev.map((row) =>
+                              row.question_id === activeQuestionId
+                                ? { ...row, emoji_type_id: e.id }
+                                : row
+                            )
+                          );
+                          await refreshSingleEmoji(e.id);
+
+                          // ✅ 알림 전송
+                          await sendUserNotification({
+                            senderId: user.id,
+                            receiverId: user.partner_id,
+                            type: "반응추가",
+                            description: e.char, // 방금 저장한 이모지
+                            isRequest: false,
+                          });
+
+                          open(`반응을 추가했어요: ${e.char}`);
+                          setEmojiOpen(false);
+                        }}
+                      >
+                        {e.char}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 닫기 (우측) */}
+            <Button variant="secondary" onClick={() => setPopupOpen(false)}>
+              닫기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

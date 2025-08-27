@@ -1,7 +1,7 @@
 // src/pages/QuestionPage.tsx
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { GetQuestionById } from "@/utils/GetQuestionById";
 import { useUser } from "@/contexts/UserContext";
 import { useCompleteTask } from "@/utils/tasks/CompleteTask";
@@ -13,8 +13,6 @@ import supabase from "@/lib/supabase";
 import {
   Card,
   CardHeader,
-  CardTitle,
-  CardDescription,
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
@@ -24,9 +22,17 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 
 // icons
-import { Loader2, PencilLine, CheckCircle2, Ban } from "lucide-react";
+import {
+  Loader2,
+  CheckCircle2,
+  Ban,
+  Smile,
+  ChevronDown,
+  PencilLine,
+  Save as SaveIcon,
+} from "lucide-react";
 
-const HEARTS = [
+const EMOJIS_5x5 = [
   "❤️",
   "🧡",
   "💛",
@@ -36,18 +42,33 @@ const HEARTS = [
   "🤎",
   "🖤",
   "🤍",
-  "💖",
-  "💘",
-  "💝",
-  "💞",
-  "💓",
-  "💗",
-  "💟",
-  "💌",
   "✨",
-];
+  "⭐",
+  "🔥",
+  "😀",
+  "😊",
+  "😎",
+  "🥳",
+  "👍",
+  "👏",
+  "🙏",
+  "👌",
+  "🌸",
+  "🌈",
+  "☀️",
+  "🍀",
+  "☕",
+] as const;
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
+
+// ✅ 표시용 질문 ID 계산: 완료면 이전 질문, 아니면 오늘 질문
+const getDisplayId = (currentId: number | null, completed: boolean) => {
+  if (currentId == null) return null;
+  if (!completed) return currentId;
+  const prev = currentId - 1;
+  return prev >= 0 ? prev : null;
+};
 
 export default function QuestionPage() {
   const { user } = useUser();
@@ -55,17 +76,24 @@ export default function QuestionPage() {
   const { open } = useToast();
 
   const [question, setQuestion] = useState<string | null>(null);
-  const [questionId, setQuestionId] = useState<number | null>(null);
+  const [questionId, setQuestionId] = useState<number | null>(null); // 오늘의 id
   const [answer, setAnswer] = useState<string>("");
-  const [lastSavedAnswer, setLastSavedAnswer] = useState<string>("");
-  const [submitted, setSubmitted] = useState<boolean>(false);
+  const [submitted, setSubmitted] = useState<boolean>(false); // 오늘 제출 여부
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+
+  // 제출 완료 상태에서만 "수정하기"로 편집 허용
+  const [editing, setEditing] = useState(false);
+  const canEdit = useMemo(() => !submitted || editing, [submitted, editing]);
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const saveTimerRef = useRef<number | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // 이모지 drop-up
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const emojiBtnRef = useRef<HTMLButtonElement | null>(null);
+  const emojiMenuRef = useRef<HTMLDivElement | null>(null);
 
   const loadQuestionText = useCallback(async (qid: number | null) => {
     if (qid == null || qid < 0) return null;
@@ -87,18 +115,23 @@ export default function QuestionPage() {
     [user?.id]
   );
 
-  // ✅ 오늘 이미 제출했다면 '이전 질문(id-1)'을 보여주도록
-  const computeDisplayId = useCallback(
-    (currentId: number | null, completed: boolean) => {
-      if (currentId == null) return null;
-      if (!completed) return currentId;
-      const prev = currentId - 1;
-      return prev >= 0 ? prev : null;
-    },
-    []
-  );
+  // 현재 상태(questionId, submitted) 기준으로 화면에 보여줄 질문/답변 새로고침
+  const refreshDisplayContent = useCallback(async () => {
+    const displayId = getDisplayId(questionId, submitted);
+    if (displayId == null) {
+      setQuestion("표시할 이전 질문이 없습니다.");
+      setAnswer("");
+      return;
+    }
+    const [qText, myAns] = await Promise.all([
+      loadQuestionText(displayId),
+      loadMyAnswer(displayId),
+    ]);
+    setQuestion(qText ?? "");
+    setAnswer(myAns ?? "");
+  }, [questionId, submitted, loadQuestionText, loadMyAnswer]);
 
-  // 초기 로드
+  // 초기 로드: 오늘 id/제출여부 가져오고, 표시용 콘텐츠 로드
   useEffect(() => {
     const fetchQuestion = async () => {
       if (!user) return;
@@ -116,49 +149,63 @@ export default function QuestionPage() {
 
       setQuestionId(data.question_id);
       setSubmitted(data.completed);
+      setEditing(false);
 
-      const displayId = computeDisplayId(data.question_id, data.completed);
+      // 표시용 로드
+      const displayId = getDisplayId(data.question_id, data.completed);
       if (displayId == null) {
-        setQuestion("문제가 발생했습니다.");
+        setQuestion("표시할 이전 질문이 없습니다.");
         setAnswer("");
-        setLastSavedAnswer("");
         setLoading(false);
         return;
       }
-
-      const questionText = await loadQuestionText(displayId);
-      setQuestion(questionText ?? "");
-
-      const myAns = await loadMyAnswer(displayId);
+      const [qText, myAns] = await Promise.all([
+        loadQuestionText(displayId),
+        loadMyAnswer(displayId),
+      ]);
+      setQuestion(qText ?? "");
       setAnswer(myAns ?? "");
-      setLastSavedAnswer(myAns ?? "");
-
       setLoading(false);
     };
 
     fetchQuestion();
-  }, [user, computeDisplayId, loadQuestionText, loadMyAnswer]);
+  }, [user, loadQuestionText, loadMyAnswer]);
 
-  // 🔄 자동저장 유틸 (blur/unmount)
-  const autoSaveIfNeeded = useCallback(
-    async (reason: "blur" | "unmount") => {
-      if (!user) return;
-      const displayId = computeDisplayId(questionId, submitted);
-      if (displayId == null) return;
+  // 드롭다운 외부 클릭/ESC 닫기
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (
+        emojiOpen &&
+        !emojiBtnRef.current?.contains(t) &&
+        !emojiMenuRef.current?.contains(t)
+      ) {
+        setEmojiOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (emojiOpen && e.key === "Escape") setEmojiOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [emojiOpen]);
 
-      const trimmed = (answer ?? "").trim();
-      const last = (lastSavedAnswer ?? "").trim();
+  // 저장(버튼 클릭 시만)
+  const persistAnswer = useCallback(
+    async (content: string) => {
+      if (!user) return false;
+      const displayId = getDisplayId(questionId, submitted);
+      if (displayId == null) return false;
 
-      // 내용 변화가 없거나 비어있으면 저장 안 함(불필요한 쓰기 방지)
-      if (!trimmed || trimmed === last) return;
-
+      setSaveStatus("saving");
       try {
-        setSaveStatus("saving");
-
-        // 먼저 update 시도 → 없으면 insert
         const { data: updated, error: upErr } = await supabase
           .from("answer")
-          .update({ content: trimmed })
+          .update({ content })
           .eq("user_id", user.id)
           .eq("question_id", displayId)
           .select("user_id")
@@ -168,99 +215,82 @@ export default function QuestionPage() {
           const { error: insErr } = await supabase.from("answer").insert({
             user_id: user.id,
             question_id: displayId,
-            content: trimmed,
+            content,
           });
           if (insErr) throw insErr;
         }
 
-        setLastSavedAnswer(trimmed);
         setSaveStatus("saved");
-        // 2초 뒤 표시 제거
+        if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = window.setTimeout(
+          () => setSaveStatus("idle"),
+          1500
+        );
+        return true;
+      } catch {
+        setSaveStatus("error");
         if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
         saveTimerRef.current = window.setTimeout(
           () => setSaveStatus("idle"),
           2000
         );
-      } catch (e) {
-        setSaveStatus("error");
-        if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
-        saveTimerRef.current = window.setTimeout(
-          () => setSaveStatus("idle"),
-          2500
-        );
+        return false;
       }
     },
-    [answer, lastSavedAnswer, user, questionId, submitted, computeDisplayId]
+    [user, questionId, submitted]
   );
 
-  // 페이지 이탈(unmount) 시 최종 자동저장
-  useEffect(() => {
-    const onBeforeUnload = () => {
-      // 비동기 저장은 보장되지 않지만, cleanup에서도 저장 시도
-      // 여기선 별도 동작 없이 cleanup에 맡김
-    };
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => {
-      window.removeEventListener("beforeunload", onBeforeUnload);
-      // 마지막으로 한 번 더 시도
-      void autoSaveIfNeeded("unmount");
-    };
-  }, [autoSaveIfNeeded]);
+  // 단일 버튼 동작
+  const onPrimaryClick = useCallback(async () => {
+    // 제출 완료 + 편집 아님 → 편집 시작
+    if (submitted && !editing) {
+      setEditing(true);
+      requestAnimationFrame(() => textareaRef.current?.focus());
+      return;
+    }
 
-  // 제출(완료 처리 + 알림)
-  const handleSubmitAnswer = useCallback(async () => {
-    if (!user || questionId == null) return;
-    const displayId = questionId;
+    // 저장하기
     const trimmed = answer.trim();
     if (!trimmed) return;
 
-    setSubmitting(true);
+    const ok = await persistAnswer(trimmed);
+    if (!ok) return;
 
-    // 제출 전 내용 반영(업데이트 우선 → 없으면 insert)
-    const { data: updated, error: upErr } = await supabase
-      .from("answer")
-      .update({ content: trimmed })
-      .eq("user_id", user.id)
-      .eq("question_id", displayId)
-      .select("user_id")
-      .maybeSingle();
-
-    if (upErr || !updated) {
-      const { error: insErr } = await supabase.from("answer").insert({
-        user_id: user.id,
-        question_id: displayId,
-        content: trimmed,
-      });
-      if (insErr) {
-        setSubmitting(false);
-        open("답변 저장 실패ㅠㅠ", 3000);
-        return;
+    if (!submitted) {
+      // 첫 저장 = 제출
+      if (user?.partner_id) {
+        await sendUserNotification({
+          senderId: user.id,
+          receiverId: user.partner_id,
+          type: "답변등록",
+          description: `${user.nickname}님이 답변을 등록했어요! `,
+          isRequest: false,
+        }).catch(() => {});
       }
+      await completeTask().catch(() => {});
+      setSubmitted(true);
+      setEditing(false);
+      // ✅ 제출 직후, 화면을 "이전 질문"으로 전환
+      await refreshDisplayContent();
+    } else {
+      // 수정 저장 완료 → 편집 종료
+      setEditing(false);
+      // 같은 표시용 질문 내용을 다시 반영
+      await refreshDisplayContent();
     }
+  }, [
+    submitted,
+    editing,
+    answer,
+    persistAnswer,
+    user,
+    completeTask,
+    refreshDisplayContent,
+  ]);
 
-    if (user.partner_id) {
-      const { error } = await sendUserNotification({
-        senderId: user.id,
-        receiverId: user.partner_id,
-        type: "답변등록",
-        description: `${user.nickname}님이 답변을 등록했어요! `,
-        isRequest: false,
-      });
-      if (error) {
-        // 알림 실패는 치명적이지 않음
-      }
-    }
-
-    await completeTask();
-
-    setLastSavedAnswer(trimmed);
-    setQuestionId((prev) => (prev == null ? null : prev + 1));
-    setSubmitted(true);
-    setSubmitting(false);
-  }, [user, questionId, answer, completeTask, open]);
-
-  // ✨ 하트 삽입: 현재 커서 위치에 문자열 삽입
+  // 커서 위치에 이모지 삽입(편집 가능 시만)
   const insertAtCursor = (token: string) => {
+    if (!canEdit) return;
     const el = textareaRef.current;
     if (!el) {
       setAnswer((prev) => (prev ?? "") + token);
@@ -271,7 +301,6 @@ export default function QuestionPage() {
     const next =
       (answer ?? "").slice(0, start) + token + (answer ?? "").slice(end);
     setAnswer(next);
-    // 커서 유지
     requestAnimationFrame(() => {
       el.focus();
       const pos = start + token.length;
@@ -279,14 +308,9 @@ export default function QuestionPage() {
     });
   };
 
-  // 편집 가능 여부: 항상 가능(요청사항)
-  const editable = true;
-
   return (
-    <main className="mx-auto  w-full max-w-screen-lg px-4 md:px-6 py-8">
-      {/* 제목 + 보충설명 (중앙 정렬) */}
-
-      <Card className=" relative mx-auto bg-white border shadow-sm max-w-3xl">
+    <main className="mx-auto w-full max-w-screen-lg px-4 md:px-6 ">
+      <Card className="relative mx-auto bg-white border shadow-sm max-w-3xl">
         {loading ? (
           <CardContent className="p-10 flex items-center justify-center text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin mr-2" />
@@ -294,115 +318,114 @@ export default function QuestionPage() {
           </CardContent>
         ) : (
           <>
-            <CardHeader className="pb-4 text-center items-center"></CardHeader>
+            <CardHeader className=" text-center items-center" />
 
             <CardContent className="space-y-5">
-              {/* 질문 본문 (중앙, 살짝 크게) */}
+              {/* 질문 본문 (완료 상태면 이전 질문 내용이 로드됨) */}
               <p className="text-lg md:text-xl text-[#5b3d1d] whitespace-pre-line text-center leading-relaxed">
-                {question ? `"${question}"` : "질문을 불러오지 못했습니다."}
+                {question ? `"${question}"` : "표시할 질문이 없습니다."}
               </p>
-
-              {/* 상태 배지 (완료/미완료 컬러 구분) */}
-              <div
-                className="absolute top-1
-               right-3"
-              >
-                {submitted ? (
-                  <Badge
-                    variant="secondary"
-                    className="gap-2 border-green-300 bg-green-50 text-green-800"
-                  >
-                    <CheckCircle2 className="h-4 w-4" />
-                    <span className="font-medium">답변 완료</span>
-                  </Badge>
-                ) : (
-                  <Badge
-                    variant="secondary"
-                    className="gap-2 border-rose-300 bg-rose-50 text-rose-700"
-                  >
-                    <Ban className="h-4 w-4" />
-                    <span className="font-medium">답변 미제출</span>
-                  </Badge>
-                )}
-              </div>
 
               <Separator />
 
-              {/* 하트 팔레트 */}
+              {/* 이모지 Drop-up */}
               <div className="mx-auto w-full md:w-[80%] lg:w-[70%]">
                 <div className="mb-2 text-xs text-[#6b533b] text-center">
-                  클릭해서 하트 넣기
+                  {canEdit
+                    ? "버튼을 눌러 이모지를 선택하면 현재 커서에 삽입돼요"
+                    : "제출 완료 상태입니다. 수정하려면 아래에서 ‘수정하기’를 누르세요."}
                 </div>
-                <div className="flex flex-wrap justify-center gap-2 overflow-x-auto">
-                  {HEARTS.map((h) => (
-                    <Button
-                      key={h}
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 min-w-8 px-2  hover:cursor-pointer"
-                      onClick={() => insertAtCursor(h)}
-                      title={`${h} 삽입`}
+
+                <div className="relative flex justify-center">
+                  <Button
+                    ref={emojiBtnRef}
+                    type="button"
+                    variant="outline"
+                    className={`gap-2 active:scale-95 transition ${
+                      canEdit ? "hover:cursor-pointer" : "pointer-events-none"
+                    }`}
+                    onClick={() => canEdit && setEmojiOpen((o) => !o)}
+                    aria-expanded={emojiOpen}
+                    aria-haspopup="menu"
+                  >
+                    <Smile className="h-4 w-4" />
+                    이모지 선택
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+
+                  {emojiOpen && (
+                    <div
+                      ref={emojiMenuRef}
+                      role="menu"
+                      className="absolute z-50 bottom-full mb-2 w-[280px] rounded-lg border bg-white p-3 shadow-xl"
                     >
-                      <span className="text-lg leading-none">{h}</span>
-                    </Button>
-                  ))}
+                      <div className="grid grid-cols-5 gap-2">
+                        {EMOJIS_5x5.map((e) => (
+                          <button
+                            key={e}
+                            type="button"
+                            onClick={() => {
+                              insertAtCursor(e);
+                              setEmojiOpen(false);
+                            }}
+                            className="h-10 w-full rounded-md border bg-white hover:bg-amber-50 hover:shadow active:scale-95 transition text-2xl flex items-center justify-center hover:cursor-pointer"
+                            aria-label={`${e} 삽입`}
+                            title={`${e} 삽입`}
+                          >
+                            {e}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* 내 답변 (중앙 정렬, 텍스트/입력칸 확대) */}
-              <div className="mx-auto w-full md:w-[80%] lg:w-[70%] space-y-2 text-center">
+              {/* 내 답변 */}
+              <div className="mx-auto w-full md:w-[80%] lg:w-[70%] x space-y-2 text-center">
                 <Textarea
                   ref={textareaRef}
                   id="answer"
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
-                  onBlur={() => autoSaveIfNeeded("blur")}
+                  readOnly={!canEdit}
                   placeholder={
                     submitted
-                      ? "언제든 수정하면 자동 저장돼요."
+                      ? editing
+                        ? "수정 중입니다. 저장하기를 눌러 반영합니다."
+                        : "제출 완료 상태입니다. 수정하려면 ‘수정하기’를 누르세요."
                       : "이곳에 답변을 입력해주세요..."
                   }
                   className="mx-auto min-h-[220px] md:min-h-[260px] resize-none bg-blue-50 text-base md:text-lg leading-relaxed"
                 />
-
-                {/* 저장 상태 */}
-                <div className="h-5 text-xs text-muted-foreground">
-                  {saveStatus === "saving" && "자동 저장 중..."}
-                  {saveStatus === "saved" && (
-                    <span className="text-emerald-700">저장됨</span>
-                  )}
-                  {saveStatus === "error" && (
-                    <span className="text-rose-600">
-                      저장 실패. 네트워크를 확인해주세요.
-                    </span>
-                  )}
-                </div>
               </div>
             </CardContent>
 
-            {/* 버튼 (중앙) */}
-            <CardFooter className="justify-center pb-8">
-              {!submitted ? (
-                <Button
-                  onClick={handleSubmitAnswer}
-                  disabled={submitting || answer.trim() === ""}
-                  className="min-w-[180px] h-11 text-base hover:cursor-pointer"
-                >
-                  {submitting ? (
+            {/* 단일 버튼: (미제출→저장하기) / (제출완료→수정하기) / (제출완료+편집중→저장하기) */}
+            <CardFooter className="justify-center">
+              <Button
+                onClick={onPrimaryClick}
+                className="min-w-[120px] hover:cursor-pointer active:scale-95 transition"
+              >
+                {submitted ? (
+                  editing ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      제출 중...
+                      <SaveIcon className="mr-2 h-4 w-4" />
+                      저장하기
                     </>
                   ) : (
-                    "답변 제출하기"
-                  )}
-                </Button>
-              ) : (
-                <div className="text-sm text-[#6b533b]">
-                  수정 내용은 자동으로 저장됩니다 ✨
-                </div>
-              )}
+                    <>
+                      <PencilLine className="mr-2 h-4 w-4" />
+                      수정하기
+                    </>
+                  )
+                ) : (
+                  <>
+                    <SaveIcon className="mr-2 h-4 w-4" />
+                    저장하기
+                  </>
+                )}
+              </Button>
             </CardFooter>
           </>
         )}

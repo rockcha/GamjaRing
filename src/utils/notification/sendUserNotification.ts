@@ -12,7 +12,8 @@ type NotificationType =
   | "감자진화"
   | "일정등록"
   | "일정수정"
-  | "일정삭제";
+  | "일정삭제"
+  | "반응추가";
 
 interface SendUserNotificationInput {
   senderId: string;

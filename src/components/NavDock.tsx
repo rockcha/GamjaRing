@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { useToast } from "@/contexts/ToastContext"; // ✅ 토스트 복구
+import { useToast } from "@/contexts/ToastContext";
 import {
   Tooltip,
   TooltipContent,
@@ -35,7 +35,6 @@ type NavDockProps = {
   hrefBase?: string; // 기본 "/tmp" → /tmp/[id]
 };
 
-// 모든 아이콘 동일 처리 (홈 포함)
 const GROUPS: Item[][] = [
   [{ id: "home", label: "홈", icon: Home }],
   [
@@ -50,7 +49,6 @@ const GROUPS: Item[][] = [
   [{ id: "scheduler", label: "스케쥴러", icon: CalendarClock }],
 ];
 
-/** 메뉴 접근 가드 */
 const GUARDS: Record<
   string,
   { requireLogin?: boolean; requireCouple?: boolean }
@@ -64,7 +62,6 @@ const GUARDS: Record<
   scheduler: { requireLogin: true, requireCouple: true },
 };
 
-// body 포털
 function BodyPortal({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -72,7 +69,7 @@ function BodyPortal({ children }: { children: React.ReactNode }) {
   return createPortal(children, document.body);
 }
 
-/** 반응형: width에 따라 Dock 크기/간격 조절 */
+/** 반응형: width에 따라 Dock 크기/간격 조절 (전체 높이 살짝 감소) */
 function useResponsiveDock() {
   const [w, setW] = useState<number>(
     typeof window !== "undefined" ? window.innerWidth : 1280
@@ -86,42 +83,42 @@ function useResponsiveDock() {
 
   if (w < 360)
     return {
-      iconSize: 38,
-      iconMagnification: 76,
-      iconDistance: 132,
+      iconSize: 34, // ↓ 38 → 34
+      iconMagnification: 72, // ↓ 76 → 72
+      iconDistance: 128,
       gap: 8,
-      sepH: 32,
+      sepH: 24, // ↓ 32 → 28
     };
   if (w < 640)
     return {
-      iconSize: 40,
-      iconMagnification: 78,
-      iconDistance: 140,
+      iconSize: 36, // ↓ 40 → 36
+      iconMagnification: 74, // ↓ 78 → 74
+      iconDistance: 136,
       gap: 8,
-      sepH: 36,
+      sepH: 28, // ↓ 36 → 32
     };
   if (w < 768)
     return {
-      iconSize: 44,
-      iconMagnification: 82,
-      iconDistance: 150,
+      iconSize: 40, // ↓ 44 → 40
+      iconMagnification: 78, // ↓ 82 → 78
+      iconDistance: 146,
       gap: 10,
-      sepH: 40,
+      sepH: 32, // ↓ 40 → 36
     };
   if (w < 1024)
     return {
-      iconSize: 48,
-      iconMagnification: 85,
-      iconDistance: 160,
+      iconSize: 44, // ↓ 48 → 44
+      iconMagnification: 81, // ↓ 85 → 81
+      iconDistance: 156,
       gap: 12,
-      sepH: 44,
+      sepH: 36, // ↓ 44 → 40
     };
   return {
-    iconSize: 56,
-    iconMagnification: 90,
-    iconDistance: 180,
+    iconSize: 52, // ↓ 56 → 52
+    iconMagnification: 86, // ↓ 90 → 86
+    iconDistance: 176,
     gap: 12,
-    sepH: 48,
+    sepH: 40, // ↓ 48 → 44
   };
 }
 
@@ -130,21 +127,16 @@ export default function NavDock({
   onNavigate,
   hrefBase = "/tmp",
 }: NavDockProps) {
-  // ✅ useUser에서 user, isCoupled만 사용
   const { user, isCoupled } = useUser();
   const coupled = !!isCoupled;
   const uid = user?.id ?? null;
-
-  // ✅ 토스트 훅은 컴포넌트 내부에서 호출
   const { open } = useToast();
 
   const { iconSize, iconMagnification, iconDistance, gap, sepH } =
     useResponsiveDock();
 
-  /** 접근 가드 + 이동 */
   const go = (id: string) => {
     const guard = GUARDS[id] || {};
-
     if (guard.requireLogin && !uid) {
       open("로그인이 필요해요.");
       return;
@@ -153,13 +145,11 @@ export default function NavDock({
       open("커플 연동이 필요해요.");
       return;
     }
-
     if (onNavigate) return onNavigate(id);
     if (typeof window !== "undefined")
       window.location.assign(`${hrefBase}/${id}`);
   };
 
-  /** 아이템 비활성화(시각 힌트) 여부 */
   const disabledByState = (id: string) => {
     const guard = GUARDS[id] || {};
     if (guard.requireLogin && !uid) return true;
@@ -173,12 +163,12 @@ export default function NavDock({
         <footer
           className={cn(
             "fixed inset-x-0 bottom-0 z-50 border-t",
-            // ✅ 베이지 그라데이션 + 살짝 블러
             "bg-white/90"
           )}
         >
           <div className="mx-auto w-full max-w-screen-md px-4">
-            <div className="flex justify-center py-3 pb-[calc(12px+env(safe-area-inset-bottom))]">
+            {/* ↓ py-3 → py-2 / pb 12px → 8px : 전체 높이 살짝 감소 */}
+            <div className="flex justify-center py-2 pb-[calc(8px+env(safe-area-inset-bottom))]">
               <Dock
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -232,7 +222,6 @@ export default function NavDock({
                       );
                     })}
 
-                    {/* 그룹 구분선 */}
                     {gi < GROUPS.length - 1 && (
                       <div
                         className="w-[1px] mx-2 rounded-xl bg-neutral-400/70"

@@ -17,10 +17,8 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
-  CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -38,7 +36,6 @@ type Notification = {
 };
 
 const TABLE = "user_notification";
-const PAGE_SIZE = 5;
 
 export default function NotificationPage() {
   const { user } = useUser();
@@ -50,19 +47,8 @@ export default function NotificationPage() {
   const [busy, setBusy] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [nicknameMap, setNicknameMap] = useState<Record<string, string>>({});
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-
-  // paging
-  const [page, setPage] = useState(1);
-  const clampPage = useCallback((len: number) => {
-    const total = Math.max(1, Math.ceil(len / PAGE_SIZE));
-    setPage((p) => Math.min(Math.max(1, p), total));
-  }, []);
 
   // helpers
-  const isSelectable = (n: Notification) =>
-    !(n.is_request && n.type === "커플요청");
-
   const rtf = useMemo(
     () => new Intl.RelativeTimeFormat("ko", { numeric: "auto" }),
     []
@@ -115,30 +101,18 @@ export default function NotificationPage() {
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
       setNotifications(list);
-      setPage(1);
 
       const missing = Array.from(
-        new Set(
-          list.map((n) => n.sender_id).filter((id) => !!id && !nicknameMap[id])
-        )
+        new Set(list.map((n) => n.sender_id).filter((id) => !!id))
       ) as string[];
       if (missing.length) {
         const map = await fetchNicknamesByIds(missing);
         setNicknameMap((prev) => ({ ...prev, ...map }));
       }
-
-      setSelectedIds((prev) => {
-        const next = new Set<string>();
-        for (const id of prev)
-          if (list.some((n) => n.id === id && isSelectable(n))) next.add(id);
-        return next;
-      });
-
-      clampPage(list.length);
     } finally {
       setLoading(false);
     }
-  }, [user?.id, nicknameMap, fetchNicknamesByIds, clampPage]);
+  }, [user?.id, fetchNicknamesByIds]);
 
   useEffect(() => {
     fetchInitial();
@@ -162,12 +136,19 @@ export default function NotificationPage() {
 
           if (eventType === "INSERT") {
             const n = payload.new as Notification;
-            setNotifications((prev) => [n, ...prev]);
+            setNotifications((prev) => {
+              const next = [n, ...prev];
+              next.sort(
+                (a, b) =>
+                  new Date(b.created_at).getTime() -
+                  new Date(a.created_at).getTime()
+              );
+              return next;
+            });
             if (n.sender_id && !nicknameMap[n.sender_id]) {
               const map = await fetchNicknamesByIds([n.sender_id]);
               setNicknameMap((prev) => ({ ...prev, ...map }));
             }
-            clampPage(notifications.length + 1);
           }
           if (eventType === "UPDATE") {
             const n = payload.new as Notification;
@@ -178,12 +159,6 @@ export default function NotificationPage() {
           if (eventType === "DELETE") {
             const oldRow = payload.old as Notification;
             setNotifications((prev) => prev.filter((x) => x.id !== oldRow.id));
-            setSelectedIds((prev) => {
-              const next = new Set(prev);
-              next.delete(oldRow.id);
-              return next;
-            });
-            clampPage(notifications.length - 1);
           }
         }
       )
@@ -192,24 +167,7 @@ export default function NotificationPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [
-    user?.id,
-    nicknameMap,
-    fetchNicknamesByIds,
-    clampPage,
-    notifications.length,
-  ]);
-
-  // selects
-  const toggleSelect = (n: Notification) => {
-    if (!isSelectable(n)) return;
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(n.id)) next.delete(n.id);
-      else next.add(n.id);
-      return next;
-    });
-  };
+  }, [user?.id, nicknameMap, fetchNicknamesByIds]);
 
   const sorted = useMemo(() => {
     const arr = [...notifications];
@@ -220,54 +178,7 @@ export default function NotificationPage() {
     return arr;
   }, [notifications]);
 
-  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
-  const start = (page - 1) * PAGE_SIZE;
-  const pageItems = sorted.slice(start, start + PAGE_SIZE);
-
-  const selectableCountOnPage = pageItems.filter(isSelectable).length;
-  const selectedOnPageCount = pageItems.filter(
-    (n) => isSelectable(n) && selectedIds.has(n.id)
-  ).length;
-
-  const toggleSelectAll = () => {
-    const idsOnPage = pageItems.filter(isSelectable).map((n) => n.id);
-    if (idsOnPage.length === 0) {
-      setSelectedIds(
-        (prev) => new Set([...prev].filter((id) => !idsOnPage.includes(id)))
-      );
-      return;
-    }
-    const allSelected = idsOnPage.every((id) => selectedIds.has(id));
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (allSelected) idsOnPage.forEach((id) => next.delete(id));
-      else idsOnPage.forEach((id) => next.add(id));
-      return next;
-    });
-  };
-
-  const deleteSelected = async () => {
-    const ids = pageItems
-      .filter(isSelectable)
-      .map((n) => n.id)
-      .filter((id) => selectedIds.has(id));
-    if (ids.length === 0) return;
-    setBusy(true);
-    try {
-      await Promise.all(ids.map((id) => deleteUserNotification(id)));
-      setNotifications((prev) => prev.filter((n) => !ids.includes(n.id)));
-      setSelectedIds((prev) => {
-        const next = new Set(prev);
-        ids.forEach((id) => next.delete(id));
-        return next;
-      });
-      open("알람이 삭제되었습니다");
-      setTimeout(() => clampPage(sorted.length - ids.length), 0);
-    } finally {
-      setBusy(false);
-    }
-  };
-
+  // actions
   const handleAccept = async (n: Notification) => {
     setBusy(true);
     try {
@@ -275,12 +186,6 @@ export default function NotificationPage() {
       if (error) console.log(error);
       await deleteUserNotification(n.id);
       setNotifications((prev) => prev.filter((x) => x.id !== n.id));
-      setSelectedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(n.id);
-        return next;
-      });
-      clampPage(sorted.length - 1);
     } finally {
       setBusy(false);
     }
@@ -292,30 +197,16 @@ export default function NotificationPage() {
       await rejectRequest(n.id);
       await deleteUserNotification(n.id);
       setNotifications((prev) => prev.filter((x) => x.id !== n.id));
-      setSelectedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(n.id);
-        return next;
-      });
-      clampPage(sorted.length - 1);
     } finally {
       setBusy(false);
     }
   };
 
-  const all =
-    selectableCountOnPage > 0 && selectedOnPageCount === selectableCountOnPage;
-  const some = selectedOnPageCount > 0 && !all;
-  const headerChecked: boolean | "indeterminate" = some ? "indeterminate" : all;
-
   return (
-    <main className="mx-auto w-1/2 max-w-screen-lg px-4 md:px-6 ">
-      {/* 제목 + 보충설명 */}
-
-      {/* 콘텐츠 카드 */}
+    <main className="mx-auto w-1/2 max-w-screen-lg px-4 md:px-6">
       <Card className="bg-white border shadow-sm">
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between ">
+          <div className="flex items-center justify-between">
             <CardDescription className="text-center">
               알림은 생성 시점으로부터 24시간 후 자동으로 삭제됩니다.
             </CardDescription>
@@ -324,37 +215,36 @@ export default function NotificationPage() {
 
         <CardContent className="p-0">
           {loading ? (
-            <div className="min-h-[420px] grid place-items-center text-muted-foreground">
+            <div className="h-[60vh] grid place-items-center text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 불러오는 중…
               </div>
             </div>
           ) : sorted.length === 0 ? (
-            <div className="min-h-[420px] grid place-items-center text-muted-foreground">
+            <div className="h-[60vh] grid place-items-center text-muted-foreground">
               새 알림이 없어요
             </div>
           ) : (
-            <ScrollArea className="min-h-[500px] max-h-[65svh]">
-              <ul className="p-3 space-y-2">
-                {pageItems.map((n) => {
-                  const selectable = isSelectable(n);
-                  const checked = selectedIds.has(n.id);
+            // ⬇️ 고정 높이 70vh, 내용 많으면 스크롤
+            <ScrollArea className="h-[60vh] pr-2">
+              <ul className="p-3 space-y-1 ">
+                {sorted.map((n) => {
                   const nickname = nicknameMap[n.sender_id] ?? "알 수 없음";
-                  const isRequest = !selectable;
+                  const isRequest = n.is_request && n.type === "커플요청";
 
                   return (
                     <li
                       key={n.id}
-                      className="rounded-xl border bg-sky-50 p-3  transition "
+                      className="rounded-xl border bg-sky-50 p-3 transition min-h-[10.5vh] flex "
                     >
-                      <div className="flex pl-4 items-start gap-3 ">
+                      <div className="flex pl-4 items-start gap-2 w-full">
                         {/* 본문 */}
-                        <div className="min-w-0 flex-1 ">
+                        <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 min-w-0">
-                              <div className="w-7 h-7 rounded-full bg-muted grid place-items-center">
-                                <User className="w-4 h-4 text-foreground" />
+                              <div className="w-7 h-7 rounded-full bg-white border grid place-items-center">
+                                <User className="w-4 h-4 text-foreground " />
                               </div>
                               <div className="min-w-0">
                                 <div className="text-sm font-semibold truncate">
@@ -370,8 +260,8 @@ export default function NotificationPage() {
                             </div>
 
                             <Badge
-                              variant="outline"
-                              className="shrink-0 text-[11px]"
+                              variant="default"
+                              className="shrink-0 text-[11px] bg-amber-600 hover:bg-amber-600"
                             >
                               {n.type}
                             </Badge>
@@ -413,23 +303,6 @@ export default function NotificationPage() {
           )}
         </CardContent>
       </Card>
-
-      {/* ✅ 페이지네이션: 카드 바깥, 중앙 정렬 */}
-      {totalPages > 1 && (
-        <nav className="mt-4 flex items-center justify-center gap-2">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <Button
-              key={p}
-              size="sm"
-              variant={p === page ? "default" : "outline"}
-              onClick={() => setPage(p)}
-              className="hover:cursor-pointer"
-            >
-              {p}
-            </Button>
-          ))}
-        </nav>
-      )}
     </main>
   );
 }
