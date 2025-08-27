@@ -1,6 +1,7 @@
+// UserGreetingSection.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useToast } from "@/contexts/ToastContext";
 import { useUser } from "@/contexts/UserContext";
 
@@ -27,7 +28,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "./ui/separator";
-import { avatarSrc } from "@/features/localAvatar";
+
+// 🔸 로컬 아바타 유틸 (네가 제공한 것)
+import { avatarSrc } from "@/features/localAvatar"; // export function avatarSrc(id?: number|null) { ... }
 
 type Item = {
   id: string;
@@ -62,7 +65,6 @@ const GUARDS: Record<
   scheduler: { requireLogin: true, requireCouple: true },
 };
 
-// 폴백 라우트
 const FALLBACK_ROUTE: Record<string, string> = {
   home: "/main",
   info: "/info",
@@ -80,37 +82,28 @@ export default function UserGreetingSection({
 }: Props) {
   const { open } = useToast();
   const { user, isCoupled } = useUser();
-  const coupled = !!isCoupled;
+
   const uid = user?.id ?? null;
+  const coupled = !!isCoupled;
 
-  // ✅ 아바타 URL 상태
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [avatarLoading, setAvatarLoading] = useState(false);
-
-  // 아바타 불러오기
-  useEffect(() => {
-    const run = async () => {
-      if (!uid) {
-        setAvatarUrl(null);
-        return;
-      }
-      setAvatarLoading(true);
-      try {
-        const url = await LocalAvatarSrc(uid);
-        setAvatarUrl(url);
-      } catch {
-        setAvatarUrl(null);
-      } finally {
-        setAvatarLoading(false);
-      }
-    };
-    run();
-  }, [uid]);
-
+  // ✅ 닉네임 이니셜
   const initial = useMemo(() => {
     const nk = user?.nickname?.trim() ?? "";
     return nk ? nk[0] : "🙂";
   }, [user?.nickname]);
+
+  // ✅ avatar_id → 정수 변환(스키마가 string일 수도 있으니 대비)
+  const avatarId: number | null =
+    user?.avatar_id == null
+      ? null
+      : typeof user.avatar_id === "number"
+      ? user.avatar_id
+      : Number.isFinite(Number(user.avatar_id))
+      ? Number(user.avatar_id)
+      : null;
+
+  // ✅ 로컬 아바타 경로
+  const imgUrl = avatarSrc(avatarId); // null이면 이미지 미사용
 
   const disabledByState = (id: string) => {
     const guard = GUARDS[id] || {};
@@ -129,7 +122,6 @@ export default function UserGreetingSection({
       open("커플 연동이 필요해요.");
       return;
     }
-
     const item = NAV_ITEMS.find((x) => x.id === id);
     const header = headerById?.[id] ?? item?.label ?? "";
 
@@ -140,14 +132,12 @@ export default function UserGreetingSection({
       );
     } catch {}
 
-    if (onNavigate) {
-      const url = FALLBACK_ROUTE[id] ?? `/${id}`;
-      onNavigate(id, { url, header });
-      return;
-    }
-
     const url = FALLBACK_ROUTE[id] ?? `/${id}`;
-    if (typeof window !== "undefined") window.location.assign(url);
+    if (onNavigate) {
+      onNavigate(id, { url, header });
+    } else if (typeof window !== "undefined") {
+      window.location.assign(url);
+    }
   };
 
   return (
@@ -160,26 +150,24 @@ export default function UserGreetingSection({
 
           <Sheet>
             <SheetTrigger asChild>
-              {/* ✅ 프로필: 이미지가 있으면 이미지, 없으면 이니셜 */}
+              {/* 프로필: avatar_id가 있으면 이미지, 없으면 이니셜 */}
               <button
                 aria-label={`${user.nickname ?? "사용자"} 메뉴 열기`}
                 className={cn(
-                  "h-9 w-9 rounded-full border bg-white text-sm font-semibold",
+                  "h-11 w-11 rounded-full border bg-white text-sm font-semibold",
                   "flex items-center justify-center overflow-hidden",
                   "hover:bg-amber-50 active:scale-95 transition"
                 )}
                 title={user.nickname ?? "사용자"}
               >
-                {avatarUrl && !avatarLoading ? (
-                  // 아바타 이미지
+                {imgUrl ? (
                   <img
-                    src={avatarUrl}
+                    src={imgUrl}
                     alt="프로필 이미지"
                     className="h-full w-full object-cover"
                     loading="lazy"
                   />
                 ) : (
-                  // 이니셜
                   <span>{initial}</span>
                 )}
               </button>

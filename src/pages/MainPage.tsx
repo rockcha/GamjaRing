@@ -30,14 +30,14 @@ export default function MainPage() {
         className="
     grid gap-4 items-start
     grid-cols-1
-    md:[grid-template-columns:minmax(220px,.9fr)_minmax(0,1.1fr)]
-    lg:[grid-template-columns:minmax(240px,.8fr)_minmax(0,1.6fr)_minmax(0,1fr)]   
+    md:[grid-template-columns:minmax(220px,.9fr)_minmax(0,0.9fr)]
+    lg:[grid-template-columns:minmax(240px,.8fr)_minmax(0,1.4fr)_minmax(0,1fr)]   
   "
       >
         {/* 왼쪽: 포크 버튼 + 감자 진행 카드 (상대적으로 좁은 컬럼) */}
         <div className="flex flex-col gap-4 min-w-0">
           {isCoupled ? (
-            <PotatoPokeButton className="w-full" />
+            <PotatoPokeButton />
           ) : (
             <SadPotatoGuard className="w-full" />
           )}
@@ -50,7 +50,7 @@ export default function MainPage() {
             className="
               w-full
               /* 이미지 프레임/이미지 높이 보정: 화면 커질수록 더 크게 */
-              [&_img]:h-[520px]
+              [&_img]:h-[620px]
       
             "
           />

@@ -6,6 +6,7 @@ import { sendUserNotification } from "@/utils/notification/sendUserNotification"
 import { useToast } from "@/contexts/ToastContext";
 import supabase from "@/lib/supabase";
 import { avatarSrc } from "@/features/localAvatar";
+import { Separator } from "../ui/separator";
 
 interface Props {
   className?: string;
@@ -22,7 +23,7 @@ export default function PotatoPokeButton({
   onSent,
   onError,
   title = "감자 콕 찌르기",
-  subtitle = "감자를 찔러 연인에게 알림을 보내세요.",
+  subtitle = "연인의 아바타를 찔러주세요.",
 }: Props) {
   const { user } = useUser();
   const { open } = useToast();
@@ -99,9 +100,11 @@ export default function PotatoPokeButton({
   };
 
   return (
-    <div className={`w-full flex flex-col items-center ${className}`}>
-      <div className="text-center mb-3">
-        <h3 className="text-lg font-bold text-[#3d2b1f]">{title}</h3>
+    <div
+      className={`w-full flex flex-col items-center ${className} py-4 rounded-lg bg-white`}
+    >
+      <div className="text-center w-full border-b py-1 pb-3">
+        <h3 className="text-lg font-bold text-[#3d2b1f]">{`${user?.nickname} 콕 찌르기`}</h3>
         <p className="text-sm text-[#6b533b]">{subtitle}</p>
       </div>
 
@@ -131,25 +134,12 @@ export default function PotatoPokeButton({
           alt={`${partnerNickname} 콕 찌르기`}
           className={
             partnerAvatarId
-              ? "w-40 h-40 rounded-full object-cover border shadow-sm" // 아바타면 동그랗게
+              ? "w-32 h-32 rounded-full object-cover  shadow-lg bg-white" // 아바타면 동그랗게
               : "w-48 h-32 object-contain" // 폴백 이미지면 기존 사이즈
           }
           draggable={false}
           loading="lazy"
         />
-
-        <div
-          className="
-            absolute bottom-14 left-1/2 -translate-x-1/2 z-20
-            px-2 py-1 text-xs rounded-md
-            bg-black/60 text-white
-            opacity-0 translate-y-1
-            transition-all duration-200
-            group-hover:opacity-100 group-hover:translate-y-0
-          "
-        >
-          {partnerNickname}에게 찌르기
-        </div>
 
         {loading && (
           <div className="absolute inset-0 z-30 flex items-center justify-center rounded-xl">
