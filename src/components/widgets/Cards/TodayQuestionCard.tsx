@@ -148,7 +148,7 @@ export default function TodayQuestionCard({
     return (
       <Card className={cn("bg-white", className)}>
         <CardHeader className="pb-2">
-          <CardTitle className="text-[#3d2b1f]">⏰ 오늘의 질문</CardTitle>
+          <CardTitle className="text-[#3d2b1f]"> 💭 오늘의 질문</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
@@ -161,7 +161,7 @@ export default function TodayQuestionCard({
 
   const StatusBadge = ({ completed }: { completed: boolean }) =>
     completed ? (
-      <div className="flex p-2 gap-1.5 rounded-xl text-xs bg-emerald-100 text-emerald-800 border">
+      <div className="flex p-2 gap-1.5 rounded-xl text-xs bg-emerald-100 text-emerald-800 ">
         작성 완료
       </div>
     ) : (

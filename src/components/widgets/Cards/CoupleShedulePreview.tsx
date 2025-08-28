@@ -20,9 +20,9 @@ interface Props {
 }
 
 const TYPE_BADGE: Record<ScheduleType, string> = {
-  데이트: "bg-pink-100 border border-pink-200 text-pink-900",
-  기념일: "bg-amber-100 border border-amber-200 text-amber-900",
-  "기타 일정": "bg-blue-100 border border-blue-200 text-blue-900",
+  데이트: "bg-pink-100  text-pink-900",
+  기념일: "bg-amber-100  text-amber-900",
+  "기타 일정": "bg-blue-100  text-blue-900",
 };
 
 // KST 기준 YYYY-MM-DD
@@ -100,12 +100,12 @@ export default function CoupleSchedulePreview({
   return (
     <Card className={cn("relative overflow-hidden", className)}>
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-center">
           <CardTitle className="text-[#3d2b1f] text-xl">
             ⏰ 일정 미리보기
           </CardTitle>
         </div>
-        <p className="pl-1 text-sm text-amber-800 mt-1">
+        <p className="pl-1 text-sm text-amber-800 mt-1 text-center">
           다가오는 일정을 확인해보세요
         </p>
       </CardHeader>
@@ -133,7 +133,7 @@ export default function CoupleSchedulePreview({
               const d = dday(it.schedule_date);
               const dLabel = d === 0 ? "D-Day" : `D-${d}`;
               const badgeClass =
-                TYPE_BADGE[it.type] ?? "bg-neutral-100 border text-neutral-800";
+                TYPE_BADGE[it.type] ?? "bg-neutral-100  text-neutral-800";
 
               return (
                 <div key={it.id} className="py-2">
@@ -141,7 +141,7 @@ export default function CoupleSchedulePreview({
                     <Badge
                       variant="outline"
                       className={cn(
-                        "inline-flex items-center gap-1.5 shrink-0",
+                        "inline-flex items-center gap-1.5 shrink-0 border-0",
                         badgeClass
                       )}
                     >
