@@ -105,7 +105,7 @@ export default function PotatoPokeButton({
       className={`w-full flex flex-col items-center ${className} py-4 rounded-lg bg-white`}
     >
       <div className="text-center w-full border-b py-1 pb-3">
-        <h3 className="text-lg font-bold text-[#3d2b1f]">{`${user?.nickname} 👉콕 찌르기`}</h3>
+        <h3 className="text-lg font-bold text-[#3d2b1f]">{`${partnerNickname} 👉콕 찌르기`}</h3>
         <p className="text-sm text-[#6b533b]">{subtitle}</p>
       </div>
 
