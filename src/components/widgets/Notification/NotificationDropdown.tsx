@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { useUser } from "@/contexts/UserContext";
 import { useNotifications } from "./useNotifications";
 import { useRelativeTime } from "./useRelativeTime";
-
 import { Badge } from "@/components/ui/badge";
 import {
   Popover,
@@ -14,10 +13,11 @@ import {
 } from "@/components/ui/popover";
 import { BellButton } from "./BellButton";
 import { NotificationList } from "./NotificationList";
+
 export default function NotificationDropdown({
   onUnreadChange,
 }: {
-  onUnreadChange?: (count: number) => void; // 외부(예: Nav, AppBar)에서 뱃지 표시용
+  onUnreadChange?: (count: number) => void;
 }) {
   const { user } = useUser();
   const uid = user?.id ?? null;
@@ -27,17 +27,13 @@ export default function NotificationDropdown({
     useNotifications(uid);
   const { format } = useRelativeTime();
 
-  // 외부에 unread 변화 알려주기
   useEffect(() => {
     onUnreadChange?.(unreadCount);
   }, [unreadCount, onUnreadChange]);
 
   const handleOpenChange = async (v: boolean) => {
     setOpen(v);
-    if (v) {
-      // 열릴 때 읽음 처리
-      await markAllRead();
-    }
+    if (v) await markAllRead();
   };
 
   return (
@@ -49,7 +45,7 @@ export default function NotificationDropdown({
       <PopoverContent
         side="bottom"
         align="end"
-        className="w-[360px] p-0 shadow-lg"
+        className="w-[24rem] p-0 shadow-lg"
       >
         {/* 헤더 */}
         <div className="flex items-center justify-between px-3 py-2 border-b">
@@ -66,17 +62,21 @@ export default function NotificationDropdown({
           )}
         </div>
 
-        {/* 본문 */}
+        {/* 본문 (리스트만 스크롤) */}
         {loading ? (
-          <div className="h-[280px] grid place-items-center text-muted-foreground">
+          <div className="h-[24rem] grid place-items-center text-muted-foreground">
             불러오는 중…
           </div>
         ) : (
-          <NotificationList
-            items={notifications}
-            formatTime={format}
-            height={360}
-          />
+          <div
+            className="
+              max-h-[24rem]        /* 약 5~7개 높이 */
+              overflow-y-auto
+              scrollbar-thin scrollbar-thumb-muted-foreground/30 scrollbar-track-transparent
+            "
+          >
+            <NotificationList items={notifications} formatTime={format} />
+          </div>
         )}
       </PopoverContent>
     </Popover>
