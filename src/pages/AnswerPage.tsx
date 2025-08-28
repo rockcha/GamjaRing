@@ -9,6 +9,9 @@ import MyAnswersCard from "@/components/MyAnswersCard";
 import MyPartnerAnswersCard from "@/components/MyPartnerAnswersCard";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
+// ✅ 추가
+import AvatarWidget from "@/components/widgets/AvatarWidget";
+
 export default function AnswersPage() {
   const { user } = useUser();
   const [partnerNickname, setPartnerNickname] = useState<string | null>(null);
@@ -31,26 +34,27 @@ export default function AnswersPage() {
     fetchPartnerNickname();
   }, [user?.partner_id]);
 
-  const myTitle = user?.nickname ? `${user.nickname}의 답변` : "내 답변";
-  const partnerTitle = partnerNickname
-    ? `${partnerNickname}의 답변`
-    : "연인의 답변";
-
   return (
     <main className="mx-auto w-full max-w-screen-lg px-4 md:px-6 py-6">
       <section className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+        {/* 내 답변 */}
         <Card className="bg-white border shadow-sm">
-          <CardHeader>
-            <CardTitle className="pl-8">{myTitle}</CardTitle>
+          <CardHeader className="flex jutify-center items-center ">
+            {/* 👇 내 아바타 */}
+
+            <AvatarWidget type="user" size="sm" />
           </CardHeader>
           <CardContent>
             <MyAnswersCard />
           </CardContent>
         </Card>
 
-        <Card className=" bg-white border shadow-sm">
-          <CardHeader>
-            <CardTitle className="pl-8">{partnerTitle}</CardTitle>
+        {/* 파트너 답변 */}
+        <Card className="bg-white border shadow-sm">
+          <CardHeader className="flex justify-center items-center ">
+            {/* 👇 파트너 아바타 */}
+
+            <AvatarWidget type="partner" size="sm" />
           </CardHeader>
           <CardContent>
             <MyPartnerAnswersCard />

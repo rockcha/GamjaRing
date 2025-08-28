@@ -72,7 +72,7 @@ export default function DaysTogetherBadge() {
         strokeWidth={1.5}
         animationDuration={ANIM_MS}
         iterations={ITERS}
-        padding={3}
+        padding={5}
         multiline={false}
         isView={false}
       >

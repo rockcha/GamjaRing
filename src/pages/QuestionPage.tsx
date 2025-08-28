@@ -21,6 +21,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 
+// ✅ 추가: 파트너 아바타 위젯
+import AvatarWidget from "@/components/widgets/AvatarWidget";
+
 // icons
 import {
   Loader2,
@@ -32,32 +35,37 @@ import {
   Save as SaveIcon,
 } from "lucide-react";
 
-const EMOJIS_5x5 = [
+const EMOJIS_5x6 = [
+  "😀", // 기본 웃음
+  "😁",
+  "😂",
+  "🤣",
+  "😄",
+  "😅",
+  "😆",
+  "😉",
+  "😊",
+  "😋",
+  "😎",
+  "😍",
+  "🥰",
+  "😘",
+  "😗",
+  "😙",
+  "😚",
+  "🙂",
+  "🤗",
+  "🤩",
+  "🤔",
+  "😏",
+  "😮",
+  "😢",
+  "🥺",
   "❤️",
   "🧡",
   "💛",
   "💚",
   "💙",
-  "💜",
-  "🤎",
-  "🖤",
-  "🤍",
-  "✨",
-  "⭐",
-  "🔥",
-  "😀",
-  "😊",
-  "😎",
-  "🥳",
-  "👍",
-  "👏",
-  "🙏",
-  "👌",
-  "🌸",
-  "🌈",
-  "☀️",
-  "🍀",
-  "☕",
 ] as const;
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -90,7 +98,7 @@ export default function QuestionPage() {
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // 이모지 drop-up
+  // 이모지 dropdown
   const [emojiOpen, setEmojiOpen] = useState(false);
   const emojiBtnRef = useRef<HTMLButtonElement | null>(null);
   const emojiMenuRef = useRef<HTMLDivElement | null>(null);
@@ -131,7 +139,7 @@ export default function QuestionPage() {
     setAnswer(myAns ?? "");
   }, [questionId, submitted, loadQuestionText, loadMyAnswer]);
 
-  // 초기 로드: 오늘 id/제출여부 가져오고, 표시용 콘텐츠 로드
+  // 초기 로드
   useEffect(() => {
     const fetchQuestion = async () => {
       if (!user) return;
@@ -151,7 +159,6 @@ export default function QuestionPage() {
       setSubmitted(data.completed);
       setEditing(false);
 
-      // 표시용 로드
       const displayId = getDisplayId(data.question_id, data.completed);
       if (displayId == null) {
         setQuestion("표시할 이전 질문이 없습니다.");
@@ -242,14 +249,12 @@ export default function QuestionPage() {
 
   // 단일 버튼 동작
   const onPrimaryClick = useCallback(async () => {
-    // 제출 완료 + 편집 아님 → 편집 시작
     if (submitted && !editing) {
       setEditing(true);
       requestAnimationFrame(() => textareaRef.current?.focus());
       return;
     }
 
-    // 저장하기
     const trimmed = answer.trim();
     if (!trimmed) return;
 
@@ -257,7 +262,6 @@ export default function QuestionPage() {
     if (!ok) return;
 
     if (!submitted) {
-      // 첫 저장 = 제출
       if (user?.partner_id) {
         await sendUserNotification({
           senderId: user.id,
@@ -270,12 +274,9 @@ export default function QuestionPage() {
       await completeTask().catch(() => {});
       setSubmitted(true);
       setEditing(false);
-      // ✅ 제출 직후, 화면을 "이전 질문"으로 전환
       await refreshDisplayContent();
     } else {
-      // 수정 저장 완료 → 편집 종료
       setEditing(false);
-      // 같은 표시용 질문 내용을 다시 반영
       await refreshDisplayContent();
     }
   }, [
@@ -321,21 +322,37 @@ export default function QuestionPage() {
             <CardHeader className=" text-center items-center" />
 
             <CardContent className="space-y-5">
-              {/* 질문 본문 (완료 상태면 이전 질문 내용이 로드됨) */}
+              {/* 질문 본문 */}
               <p className="text-lg md:text-xl text-[#5b3d1d] whitespace-pre-line text-center leading-relaxed">
                 {question ? `"${question}"` : "표시할 질문이 없습니다."}
               </p>
 
               <Separator />
 
-              {/* 이모지 Drop-up */}
+              {/* 안내줄 + 파트너 감시(?) 위젯 */}
               <div className="mx-auto w-full md:w-[80%] lg:w-[70%]">
-                <div className="mb-2 text-xs text-[#6b533b] text-center">
-                  {canEdit
-                    ? "버튼을 눌러 이모지를 선택하면 현재 커서에 삽입돼요"
-                    : "제출 완료 상태입니다. 수정하려면 아래에서 ‘수정하기’를 누르세요."}
+                <div className="mb-2 flex items-center justify-center">
+                  <div className="text-xs text-[#6b533b] pr-12">
+                    {canEdit ? (
+                      <>버튼을 눌러 이모지를 선택하면 현재 커서에 삽입돼요</>
+                    ) : (
+                      <>
+                        제출 완료 상태입니다. 수정하려면 아래에서 ‘수정하기’를
+                        누르세요.
+                      </>
+                    )}
+                  </div>
+
+                  {/* 오른쪽: 파트너 아바타 + 말풍선 */}
+                  <div className="hidden sm:flex items-center gap-2">
+                    <AvatarWidget type="partner" size="sm" />
+                    <span className="text-[12px] font-semibold    ">
+                      잘 써조!
+                    </span>
+                  </div>
                 </div>
 
+                {/* 이모지 Drop-down (⬇️ 아래로 펼쳐짐) */}
                 <div className="relative flex justify-center">
                   <Button
                     ref={emojiBtnRef}
@@ -357,10 +374,10 @@ export default function QuestionPage() {
                     <div
                       ref={emojiMenuRef}
                       role="menu"
-                      className="absolute z-50 bottom-full mb-2 w-[280px] rounded-lg border bg-white p-3 shadow-xl"
+                      className="absolute z-50 top-full mt-2 w-[280px] rounded-lg border bg-white p-3 shadow-xl"
                     >
                       <div className="grid grid-cols-5 gap-2">
-                        {EMOJIS_5x5.map((e) => (
+                        {EMOJIS_5x6.map((e) => (
                           <button
                             key={e}
                             type="button"
@@ -382,7 +399,7 @@ export default function QuestionPage() {
               </div>
 
               {/* 내 답변 */}
-              <div className="mx-auto w-full md:w-[80%] lg:w-[70%] x space-y-2 text-center">
+              <div className="mx-auto w-full md:w-[80%] lg:w-[70%] space-y-2 text-center">
                 <Textarea
                   ref={textareaRef}
                   id="answer"
@@ -401,7 +418,7 @@ export default function QuestionPage() {
               </div>
             </CardContent>
 
-            {/* 단일 버튼: (미제출→저장하기) / (제출완료→수정하기) / (제출완료+편집중→저장하기) */}
+            {/* 단일 버튼 */}
             <CardFooter className="justify-center">
               <Button
                 onClick={onPrimaryClick}
