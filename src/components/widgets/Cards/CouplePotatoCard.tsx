@@ -104,9 +104,6 @@ export default function CouplePotatoCard({
   // --- 뷰 ---
   return (
     <Card className={cn("bg-white", className)}>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-[#3d2b1f]">🥔 우리의 감자</CardTitle>
-      </CardHeader>
       <Separator />
       <CardContent className="pt-2">
         {loading ? (
@@ -118,7 +115,7 @@ export default function CouplePotatoCard({
         ) : (
           <div className="flex flex-col items-center gap-4">
             {/* 원형 링 + 감자 이미지 */}
-            <div className="relative aspect-square w-full max-w-[360px]">
+            <div className="relative aspect-square w-full max-w-[320px]">
               <svg
                 viewBox="0 0 100 100"
                 className="absolute inset-0 w-full h-full rotate-[-90deg] z-10"

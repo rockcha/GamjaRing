@@ -355,12 +355,12 @@ export default function CoupleSchedulerPage() {
                       {date ? date.getDate() : ""}
                     </div>
 
-                    <div className="mt-1 flex-1 min-h-0">
+                    <div className=" flex-1 min-h-0">
                       <div
                         className={[
                           "h-full w-full max-w-full min-w-0",
                           "overflow-y-auto overflow-x-hidden",
-                          "pr-1 space-y-1.5",
+                          " space-y-px",
                           "[scrollbar-gutter:stable]",
                           "[&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/40",
                         ].join(" ")}
@@ -371,8 +371,8 @@ export default function CoupleSchedulerPage() {
                             onClick={() => handleOpenDetail(it)}
                             title={it.title}
                             className={[
-                              "w-full truncate text-left",
-                              "h-6 px-2 rounded-md text-[11px] sm:text-[12px] font-medium leading-5",
+                              "w-full truncate text-center",
+                              "h-5 px-2 border-0 rounded-md text-[11px] sm:text-[11px] font-medium leading-5",
                               "cursor-pointer transition",
                               typePillClass[it.type],
                             ].join(" ")}
@@ -496,10 +496,7 @@ export default function CoupleSchedulerPage() {
                   <span className="font-medium text-foreground">날짜:</span>{" "}
                   {selected.schedule_date}
                 </div>
-                <div>
-                  <span className="font-medium text-foreground">작성자:</span>{" "}
-                  {selected.writer_nickname}
-                </div>
+
                 <div>
                   <span className="font-medium text-foreground">유형:</span>{" "}
                   {selected.type}
@@ -507,7 +504,7 @@ export default function CoupleSchedulerPage() {
               </div>
               <Separator />
               <p className="whitespace-pre-wrap text-[15px]">
-                {selected.description}
+                {selected.description?.trim() || "내용 없음."}
               </p>
 
               {/* ✅ 아이콘 전용 버튼을 모달 우하단에 고정 */}
