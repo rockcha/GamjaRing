@@ -37,10 +37,7 @@ export default function App() {
 
               {/* 공통 레이아웃(헤더 + NavDock) */}
               <Route element={<PageLayout />}>
-                {/* index를 메인으로 라우팅 */}
-                <Route index element={<Navigate to="main" replace />} />
-
-                {/* ✅ 상대 경로 사용 */}
+                {/* ⛔ index 리다이렉트 삭제 */}
                 <Route path="main" element={<MainPage />} />
                 <Route path="info" element={<InfoPage />} />
                 <Route path="settings" element={<SettingPage />} />

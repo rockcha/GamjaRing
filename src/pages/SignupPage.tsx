@@ -1,11 +1,25 @@
 // src/pages/SignupPage.tsx
+"use client";
+
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import BoorishHeader from "@/components/SubHeader";
 import { useUser } from "@/contexts/UserContext";
-import PotatoButton from "@/components/widgets/PotatoButton";
-import Popup from "@/components/widgets/Popup";
 import supabase from "@/lib/supabase";
+
+// shadcn/ui
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  CardFooter,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2 } from "lucide-react";
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
@@ -76,151 +90,113 @@ export default function SignupPage() {
   };
 
   return (
-    <div
-      className="
-        relative min-h-dvh
-        flex items-center justify-center
-        bg-gradient-to-b from-[#e9d8c8] to-[#d8bca3]
-        px-4 py-8 sm:py-12
-      "
-    >
-      <div className="w-full max-w-md bg-white shadow-lg rounded-2xl p-5 sm:p-6">
-        <BoorishHeader title="가입하기" />
+    <div className="min-h-dvh flex items-center justify-center bg-gradient-to-b from-[#e9d8c8] to-[#d8bca3] px-4 py-8 sm:py-12">
+      <Card className="w-full max-w-md shadow-lg border border-amber-200/40">
+        <CardHeader className="space-y-1 text-center">
+          <CardTitle className="text-2xl font-bold text-[#5b3d1d]">
+            회원가입
+          </CardTitle>
+          <CardDescription className="text-[#8a6b50]">
+            감자링과 함께해요
+          </CardDescription>
+        </CardHeader>
 
-        {/* Enter 제출 가능 + 모바일 키보드 안정화 */}
         <form
-          className="flex flex-col items-stretch gap-6 sm:gap-8 mb-8"
           onSubmit={(e) => {
             e.preventDefault();
             if (!loading) handleSignup();
           }}
         >
-          {/* 닉네임 */}
-          <label className="w-full">
-            <span className="sr-only">닉네임</span>
-            <div className="flex items-center gap-2 w-full">
-              <span aria-hidden className="text-xl">
-                🥔
-              </span>
-              <input
+          <CardContent className="flex flex-col gap-6">
+            {/* 닉네임 */}
+            <div className="grid gap-2">
+              <Label htmlFor="nickname">닉네임</Label>
+              <Input
+                id="nickname"
                 type="text"
                 autoComplete="nickname"
-                placeholder="닉네임을 입력해주세요!"
+                placeholder="닉네임을 입력해주세요"
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
-                className="
-                  w-full min-w-0 px-4 py-3 text-base
-                  border border-[#e6ddd3] rounded-md
-                  bg-white
-                  focus:outline-none focus:ring-2 focus:ring-[#d7b89c]
-                "
+                disabled={loading}
               />
             </div>
-          </label>
 
-          {/* 이메일 */}
-          <label className="w-full">
-            <span className="sr-only">이메일</span>
-            <div className="flex items-center gap-2 w-full">
-              <span aria-hidden className="text-xl">
-                🥔
-              </span>
-              <input
+            {/* 이메일 */}
+            <div className="grid gap-2">
+              <Label htmlFor="email">이메일</Label>
+              <Input
+                id="email"
                 type="email"
                 inputMode="email"
                 autoComplete="email"
-                placeholder="이메일을 입력해주세요!"
+                placeholder="이메일을 입력해주세요"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="
-                  w-full min-w-0 px-4 py-3 text-base
-                  border border-[#e6ddd3] rounded-md
-                  bg-white
-                  focus:outline-none focus:ring-2 focus:ring-[#d7b89c]
-                "
+                disabled={loading}
               />
             </div>
-          </label>
 
-          {/* 비밀번호 */}
-          <label className="w-full">
-            <span className="sr-only">비밀번호</span>
-            <div className="flex items-center gap-2 w-full">
-              <span aria-hidden className="text-xl">
-                🥔
-              </span>
-              <input
+            {/* 비밀번호 */}
+            <div className="grid gap-2">
+              <Label htmlFor="password">비밀번호</Label>
+              <Input
+                id="password"
                 type="password"
                 autoComplete="new-password"
-                placeholder="비밀번호를 입력해주세요! (6자 이상)"
+                placeholder="비밀번호를 입력해주세요 (6자 이상)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="
-                  w-full min-w-0 px-4 py-3 text-base
-                  border border-[#e6ddd3] rounded-md
-                  bg-white
-                  focus:outline-none focus:ring-2 focus:ring-[#d7b89c]
-                "
+                disabled={loading}
               />
             </div>
-          </label>
 
-          {/* 비밀번호 확인 */}
-          <label className="w-full">
-            <span className="sr-only">비밀번호 확인</span>
-            <div className="flex items-center gap-2 w-full">
-              <span aria-hidden className="text-xl">
-                🥔
-              </span>
-              <input
+            {/* 비밀번호 확인 */}
+            <div className="grid gap-2">
+              <Label htmlFor="confirmPassword">비밀번호 확인</Label>
+              <Input
+                id="confirmPassword"
                 type="password"
                 autoComplete="new-password"
                 placeholder="비밀번호 확인"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="
-                  w-full min-w-0 px-4 py-3 text-base
-                  border border-[#e6ddd3] rounded-md
-                  bg-white
-                  focus:outline-none focus:ring-2 focus:ring-[#d7b89c]
-                "
+                disabled={loading}
               />
             </div>
-          </label>
 
-          {/* 에러 팝업 */}
-          {errorMsg && (
-            <div className="w-full">
-              <Popup
-                message={errorMsg}
-                show={!!errorMsg}
-                onClose={() => setErrorMsg("")}
-              />
+            {/* 에러 메시지 */}
+            {errorMsg && (
+              <Alert variant="destructive">
+                <AlertDescription>{errorMsg}</AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+
+          <CardFooter className="flex flex-col gap-4">
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  가입 중...
+                </>
+              ) : (
+                "회원가입"
+              )}
+            </Button>
+
+            <div className="text-sm text-center text-[#8a6b50]">
+              이미 계정이 있으신가요?{" "}
+              <Link
+                to="/login"
+                className="underline font-semibold hover:text-[#6b4e2d]"
+              >
+                로그인하러 가기
+              </Link>
             </div>
-          )}
-
-          {/* 가입 버튼 */}
-          <div className="pt-2 flex justify-center">
-            <PotatoButton
-              text="회원가입"
-              emoji="✅"
-              onClick={handleSignup}
-              disabled={loading}
-              loading={loading}
-            />
-          </div>
+          </CardFooter>
         </form>
-
-        <div className="text-sm text-center text-[#8a6b50]">
-          이미 계정이 있으신가요?{" "}
-          <Link
-            to="/login"
-            className="underline font-semibold hover:text-[#6b4e2d]"
-          >
-            로그인하러 가기
-          </Link>
-        </div>
-      </div>
+      </Card>
     </div>
   );
 }

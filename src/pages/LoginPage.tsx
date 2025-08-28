@@ -1,13 +1,26 @@
 // src/pages/LoginPage.tsx
+"use client";
+
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import SubHeader from "@/components/SubHeader";
 import { useUser } from "@/contexts/UserContext";
-import PotatoButton from "@/components/widgets/PotatoButton";
-import Popup from "@/components/widgets/Popup";
-import PotatoLoading from "@/components/PotatoLoading";
 import { runDataIntegrityCheck } from "@/utils/DataIntegrityCheck";
 import supabase from "@/lib/supabase";
+
+// shadcn/ui
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  CardFooter,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2 } from "lucide-react";
 
 const errorMessageMap: Record<string, string> = {
   "Invalid login credentials": "이메일 또는 비밀번호가 잘못되었습니다.",
@@ -42,7 +55,7 @@ export default function LoginPage() {
     }
 
     setChecking(true);
-    // 필요한 경우 데이터 정합성 체크 로직 복원
+    // (선택) 데이터 정합성 체크
     // try {
     //   const fetchedUser = await fetchUser();
     //   const userId = (fetchedUser as { id?: string } | null | undefined)?.id ?? user?.id;
@@ -95,125 +108,96 @@ export default function LoginPage() {
   };
 
   return (
-    <div
-      className="
-        relative min-h-dvh
-        flex items-center justify-center
-        bg-gradient-to-b from-[#e9d8c8] to-[#d8bca3]
-        px-4 py-8 sm:py-12
-      "
-    >
-      {checking && (
-        <div className="fixed inset-0 z-50">
-          <PotatoLoading />
-        </div>
-      )}
+    <div className="min-h-dvh flex items-center justify-center bg-gradient-to-b from-[#e9d8c8] to-[#d8bca3] px-4 py-8 sm:py-12">
+      <Card className="w-full max-w-md shadow-lg border border-amber-200/40">
+        <CardHeader className="space-y-1 text-center">
+          <CardTitle className="text-2xl font-bold text-[#5b3d1d]">
+            로그인
+          </CardTitle>
+          <CardDescription className="text-[#8a6b50]">
+            감자링을 시작해보세요
+          </CardDescription>
+        </CardHeader>
 
-      {/* 카드: 모바일 전체폭에 가깝게, md에서 고정폭 */}
-      <div className="w-full max-w-md bg-white shadow-lg rounded-2xl p-5 sm:p-6">
-        <SubHeader title="로그인하기" />
-
-        {/* 폼으로 감싸서 Enter 제출 가능 + 모바일 키보드 대응 */}
         <form
-          className="flex flex-col items-stretch gap-6 sm:gap-8 mb-8"
           onSubmit={(e) => {
             e.preventDefault();
             handleLogin();
           }}
         >
-          {/* 이메일 */}
-          <label className="w-full">
-            <span className="sr-only">이메일</span>
-            <div className="flex items-center gap-2 w-full">
-              <span aria-hidden className="text-xl">
-                🥔
-              </span>
-              <input
+          <CardContent className="flex flex-col gap-6">
+            {/* 이메일 */}
+            <div className="grid gap-2">
+              <Label htmlFor="email">이메일</Label>
+              <Input
+                id="email"
                 type="email"
                 inputMode="email"
                 autoComplete="email"
-                placeholder="이메일을 입력해주세요!"
+                placeholder="이메일을 입력해주세요"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="
-                  flex-1 px-4 py-3 text-base
-                  border border-[#e6ddd3] rounded-md
-                  bg-white
-                  focus:outline-none focus:ring-2 focus:ring-[#d7b89c]
-                "
+                disabled={loading || checking}
               />
             </div>
-          </label>
 
-          {/* 비밀번호 */}
-          <label className="w-full">
-            <span className="sr-only">비밀번호</span>
-            <div className="flex items-center gap-2 w-full">
-              <span aria-hidden className="text-xl">
-                🥔
-              </span>
-              <input
+            {/* 비밀번호 */}
+            <div className="grid gap-2">
+              <Label htmlFor="password">비밀번호</Label>
+              <Input
+                id="password"
                 type="password"
                 autoComplete="current-password"
-                placeholder="비밀번호를 입력해주세요!"
+                placeholder="비밀번호를 입력해주세요"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="
-                  flex-1 px-4 py-3 text-base
-                  border border-[#e6ddd3] rounded-md
-                  bg-white
-                  focus:outline-none focus:ring-2 focus:ring-[#d7b89c]
-                "
+                disabled={loading || checking}
               />
+              <button
+                type="button"
+                onClick={handleSendReset}
+                className="text-sm underline text-[#8a6b50] hover:text-[#6b4e2d] self-end"
+              >
+                비밀번호를 잊으셨나요?
+              </button>
             </div>
-          </label>
 
-          {/* 비밀번호 재설정 */}
-          <div className="w-full -mt-2 text-right">
-            <button
-              type="button"
-              onClick={handleSendReset}
-              className="mt-1 text-sm underline text-[#8a6b50] hover:text-[#6b4e2d]"
-            >
-              비밀번호를 잊으셨나요?
-            </button>
-          </div>
+            {/* 알림 */}
+            {(errorMsg || infoMsg) && (
+              <Alert variant={errorMsg ? "destructive" : "default"}>
+                <AlertDescription>{errorMsg || infoMsg}</AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
 
-          {(errorMsg || infoMsg) && (
-            <div className="w-full">
-              <Popup
-                message={errorMsg || infoMsg}
-                show={!!(errorMsg || infoMsg)}
-                onClose={() => {
-                  setErrorMsg("");
-                  setInfoMsg("");
-                }}
-              />
-            </div>
-          )}
-
-          {/* 로그인 버튼: 모바일 여백 확보 */}
-          <div className="flex justify-center pt-2">
-            <PotatoButton
-              text="로그인"
-              emoji="✅"
-              onClick={handleLogin}
+          <CardFooter className="flex flex-col gap-4">
+            <Button
+              type="submit"
+              className="w-full"
               disabled={loading || checking}
-              loading={loading || checking}
-            />
-          </div>
-        </form>
+            >
+              {loading || checking ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  로그인 중...
+                </>
+              ) : (
+                "로그인"
+              )}
+            </Button>
 
-        <div className="text-sm text-center text-[#8a6b50]">
-          계정이 없으신가요?{" "}
-          <Link
-            to="/signup"
-            className="underline font-semibold hover:text-[#6b4e2d]"
-          >
-            회원가입하러 가기
-          </Link>
-        </div>
-      </div>
+            <div className="text-sm text-center text-[#8a6b50]">
+              계정이 없으신가요?{" "}
+              <Link
+                to="/signup"
+                className="underline font-semibold hover:text-[#6b4e2d]"
+              >
+                회원가입하러 가기
+              </Link>
+            </div>
+          </CardFooter>
+        </form>
+      </Card>
     </div>
   );
 }
