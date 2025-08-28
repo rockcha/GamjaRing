@@ -269,40 +269,53 @@ export default function MyPartnerAnswersCard() {
           )}
         </CardContent>
 
-        <CardFooter className="justify-between gap-2 pb-6">
+        <CardFooter className="justify-between gap-2 flex-wrap">
+          {/* Prev */}
           <Button
             variant="outline"
             size="sm"
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
+            className="px-3 h-8 shrink-0"
           >
             <ChevronLeft className="h-4 w-4 mr-1" />
             Prev
           </Button>
 
-          <div className="flex items-center gap-2">
-            {Array.from({ length: totalPages }, (_, i) => {
-              const page = i + 1;
-              const active = currentPage === page;
-              return (
-                <Button
-                  key={page}
-                  size="sm"
-                  variant={active ? "secondary" : "outline"}
-                  onClick={() => setCurrentPage(page)}
-                  className={active ? "font-bold" : ""}
-                >
-                  {page}
-                </Button>
-              );
-            })}
+          {/* 가운데: 모바일은 간단 표기, 데스크톱은 페이지 버튼 나열 */}
+          <div className="order-last w-full flex justify-center sm:order-none sm:w-auto">
+            {/* 데스크톱: 번호 버튼 */}
+            <div className="hidden sm:flex items-center gap-1 overflow-x-auto max-w-[70vw] px-1">
+              {Array.from({ length: totalPages }, (_, i) => {
+                const page = i + 1;
+                const active = currentPage === page;
+                return (
+                  <Button
+                    key={page}
+                    size="sm"
+                    variant={active ? "secondary" : "outline"}
+                    onClick={() => setCurrentPage(page)}
+                    className={`h-8 px-3 shrink-0 ${active ? "font-bold" : ""}`}
+                  >
+                    {page}
+                  </Button>
+                );
+              })}
+            </div>
+
+            {/* 모바일: 컴팩트 표기 */}
+            <div className="sm:hidden text-xs text-muted-foreground">
+              {currentPage} / {totalPages}
+            </div>
           </div>
 
+          {/* Next */}
           <Button
             variant="outline"
             size="sm"
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
+            className="px-3 h-8 shrink-0"
           >
             Next
             <ChevronRight className="h-4 w-4 ml-1" />

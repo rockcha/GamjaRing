@@ -423,163 +423,149 @@ export default function CoupleImageCard({
   };
 
   return (
-    <Card className={cn("bg-white", className)}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-[#3d2b1f] text-xl">
-            📸 우리의 모습
-          </CardTitle>
-        </div>
-      </CardHeader>
-
+    <Card className={cn(className)}>
       <Separator />
 
-      <CardContent className="pt-4">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleChangeFile}
-          disabled={isDisabled}
-        />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleChangeFile}
+        disabled={isDisabled}
+      />
 
-        {initialLoading ? (
-          <div className="space-y-2">
-            <div className="rounded-lg w-full" style={ratioBoxStyle}>
-              <Skeleton className="w-full h-full rounded-lg" />
-            </div>
-            <Skeleton className="h-6 w-24 rounded-md" />
+      {initialLoading ? (
+        <div className="space-y-2">
+          <div className="rounded-lg w-full" style={ratioBoxStyle}>
+            <Skeleton className="w-full h-full rounded-lg" />
           </div>
-        ) : (
-          <div
-            className="relative"
-            onMouseEnter={pause}
-            onMouseLeave={resume}
-            onFocusCapture={pause}
-            onBlurCapture={resume}
+          <Skeleton className="h-6 w-24 rounded-md" />
+        </div>
+      ) : (
+        <div
+          className="relative"
+          onMouseEnter={pause}
+          onMouseLeave={resume}
+          onFocusCapture={pause}
+          onBlurCapture={resume}
+        >
+          <Carousel
+            setApi={setCarouselApi}
+            className="w-full"
+            opts={{ loop: true }}
           >
-            <Carousel
-              setApi={setCarouselApi}
-              className="w-full"
-              opts={{ loop: true }}
-            >
-              <CarouselContent>
-                {slots.map((s, idx) => {
-                  const visibleIdx = [
-                    activeIdx,
-                    (activeIdx + 1) % MAX_SLOTS,
-                    (activeIdx - 1 + MAX_SLOTS) % MAX_SLOTS,
-                  ];
-                  const shouldLoad = visibleIdx.includes(idx);
-                  const hasImg = !!s.path && !!s.url && shouldLoad;
+            <CarouselContent>
+              {slots.map((s, idx) => {
+                const visibleIdx = [
+                  activeIdx,
+                  (activeIdx + 1) % MAX_SLOTS,
+                  (activeIdx - 1 + MAX_SLOTS) % MAX_SLOTS,
+                ];
+                const shouldLoad = visibleIdx.includes(idx);
+                const hasImg = !!s.path && !!s.url && shouldLoad;
 
-                  return (
-                    <CarouselItem key={idx}>
-                      <div>
-                        <Card className="overflow-hidden">
-                          <div
-                            className="relative w-full"
-                            style={ratioBoxStyle}
-                          >
-                            {s.path && shouldLoad ? (
-                              hasImg ? (
-                                <img
-                                  src={s.url!}
-                                  alt={`커플 이미지 ${idx + 1}`}
-                                  className="w-full h-full object-cover scale-60 rounded-md transition-transform duration-300"
-                                  draggable={false}
-                                  loading={idx === activeIdx ? "eager" : "lazy"}
-                                  decoding="async"
-                                  fetchPriority={
-                                    idx === activeIdx ? "high" : "low"
-                                  }
-                                />
-                              ) : (
-                                <div className="w-full h-full grid place-items-center">
-                                  <Skeleton className="w-full h-full rounded-md" />
-                                </div>
-                              )
+                return (
+                  <CarouselItem key={idx} className=" bg-transparent border-0">
+                    <div>
+                      <Card className="overflow-hidden ">
+                        <div className="relative w-full" style={ratioBoxStyle}>
+                          {s.path && shouldLoad ? (
+                            hasImg ? (
+                              <img
+                                src={s.url!}
+                                alt={`커플 이미지 ${idx + 1}`}
+                                className="w-full h-full object-cover scale-60 rounded-md transition-transform duration-300"
+                                draggable={false}
+                                loading={idx === activeIdx ? "eager" : "lazy"}
+                                decoding="async"
+                                fetchPriority={
+                                  idx === activeIdx ? "high" : "low"
+                                }
+                              />
                             ) : (
-                              <button
-                                type="button"
-                                disabled={isDisabled || s.uploading}
-                                onClick={() => openPickerFor(idx)}
-                                className={cn(
-                                  "w-full h-full flex flex-col items-center justify-center gap-2",
-                                  "border-2 border-dashed rounded-md",
-                                  isDisabled
-                                    ? "cursor-not-allowed opacity-70"
-                                    : "hover:bg-amber-50"
-                                )}
-                              >
-                                {s.uploading ? (
-                                  <Loader2 className="h-6 w-6 animate-spin" />
-                                ) : (
-                                  <ImageUp className="h-6 w-6" />
-                                )}
-                                <span className="text-sm text-[#3d2b1f] font-medium">
-                                  {isDisabled
-                                    ? "이미지를 올리는 칸입니다."
-                                    : "이미지 추가"}
-                                </span>
-                              </button>
-                            )}
-
-                            {(s.uploading || s.deleting) && (
-                              <div className="absolute inset-0 grid place-items-center bg-black/10">
+                              <div className="w-full h-full grid place-items-center">
+                                <Skeleton className="w-full h-full rounded-md" />
+                              </div>
+                            )
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={isDisabled || s.uploading}
+                              onClick={() => openPickerFor(idx)}
+                              className={cn(
+                                "w-full h-full flex flex-col items-center justify-center gap-2",
+                                "border-2 border-dashed rounded-md",
+                                isDisabled
+                                  ? "cursor-not-allowed opacity-70"
+                                  : "hover:bg-amber-50"
+                              )}
+                            >
+                              {s.uploading ? (
                                 <Loader2 className="h-6 w-6 animate-spin" />
-                              </div>
-                            )}
-
-                            {s.path && !isDisabled && (
-                              <div className="absolute right-2 top-2 flex items-center gap-1">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => openPickerFor(idx)}
-                                  disabled={s.uploading || s.deleting}
-                                  title="이미지 교체"
-                                  className="bg-white/70 backdrop-blur-sm hover:cursor-pointer"
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleDelete(idx)}
-                                  disabled={s.uploading || s.deleting}
-                                  title="이미지 삭제"
-                                  className="bg-white/70 backdrop-blur-sm hover:cursor-pointer"
-                                >
-                                  <Trash2 className="h-4 w-4 text-rose-600" />
-                                </Button>
-                              </div>
-                            )}
-
-                            <div className="absolute bottom-2 right-2">
-                              <span className="px-2 py-1 text-xs rounded-md bg-white/95 shadow-sm border">
-                                {idx + 1} / {MAX_SLOTS}
+                              ) : (
+                                <ImageUp className="h-6 w-6" />
+                              )}
+                              <span className="text-sm text-[#3d2b1f] font-medium">
+                                {isDisabled
+                                  ? "이미지를 올리는 칸입니다."
+                                  : "이미지 추가"}
                               </span>
+                            </button>
+                          )}
+
+                          {(s.uploading || s.deleting) && (
+                            <div className="absolute inset-0 grid place-items-center bg-black/10">
+                              <Loader2 className="h-6 w-6 animate-spin" />
                             </div>
+                          )}
+
+                          {s.path && !isDisabled && (
+                            <div className="absolute right-2 top-2 flex items-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => openPickerFor(idx)}
+                                disabled={s.uploading || s.deleting}
+                                title="이미지 교체"
+                                className="bg-white/70 backdrop-blur-sm hover:cursor-pointer"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDelete(idx)}
+                                disabled={s.uploading || s.deleting}
+                                title="이미지 삭제"
+                                className="bg-white/90  hover:cursor-pointer"
+                              >
+                                <Trash2 className="h-4 w-4 text-rose-600" />
+                              </Button>
+                            </div>
+                          )}
+
+                          <div className="absolute bottom-2 right-2">
+                            <span className="px-2 py-1 text-xs rounded-md bg-white/95 shadow-sm border">
+                              {idx + 1} / {MAX_SLOTS}
+                            </span>
                           </div>
-                        </Card>
-                      </div>
-                    </CarouselItem>
-                  );
-                })}
-              </CarouselContent>
+                        </div>
+                      </Card>
+                    </div>
+                  </CarouselItem>
+                );
+              })}
+            </CarouselContent>
 
-              <CarouselPrevious className="left-1 top-1/2 -translate-y-1/2 z-10 hover:cursor-pointer" />
-              <CarouselNext className="right-1 top-1/2 -translate-y-1/2 z-10 hover:cursor-pointer" />
-            </Carousel>
-          </div>
-        )}
+            <CarouselPrevious className="left-1 top-1/2 -translate-y-1/2 z-10 hover:cursor-pointer" />
+            <CarouselNext className="right-1 top-1/2 -translate-y-1/2 z-10 hover:cursor-pointer" />
+          </Carousel>
+        </div>
+      )}
 
-        {error && <p className="mt-2 text-sm text-red-600">오류: {error}</p>}
-      </CardContent>
-
-      <CardFooter className="justify-end" />
+      {error && <p className="mt-2 text-sm text-red-600">오류: {error}</p>}
+      <CardFooter className="hidden" />
     </Card>
   );
 }

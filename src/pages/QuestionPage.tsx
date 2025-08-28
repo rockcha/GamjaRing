@@ -331,70 +331,70 @@ export default function QuestionPage() {
 
               {/* 안내줄 + 파트너 감시(?) 위젯 */}
               <div className="mx-auto w-full md:w-[80%] lg:w-[70%]">
-                <div className="mb-2 flex items-center justify-center">
-                  <div className="text-xs text-[#6b533b] pr-12">
-                    {canEdit ? (
-                      <>버튼을 눌러 이모지를 선택하면 현재 커서에 삽입돼요</>
-                    ) : (
-                      <>
-                        제출 완료 상태입니다. 수정하려면 아래에서 ‘수정하기’를
-                        누르세요.
-                      </>
+                {/* 중앙 정렬 안내 텍스트 */}
+                <div className="mb-2 text-center text-xs text-[#6b533b]">
+                  {canEdit ? (
+                    <>버튼을 눌러 이모지를 선택하면 현재 커서에 삽입돼요</>
+                  ) : (
+                    <>
+                      제출 완료 상태입니다. 수정하려면 아래에서 ‘수정하기’를
+                      누르세요.
+                    </>
+                  )}
+                </div>
+
+                {/* 이모지 버튼 + (오른쪽) 파트너 위젯 */}
+                <div className="flex items-center justify-center">
+                  {/* 버튼 + 드롭다운을 위한 상대 컨테이너 */}
+                  <div className="relative">
+                    <Button
+                      ref={emojiBtnRef}
+                      type="button"
+                      variant="outline"
+                      className={`active:scale-95 transition mr-2 ${
+                        canEdit ? "hover:cursor-pointer" : "pointer-events-none"
+                      }`}
+                      onClick={() => canEdit && setEmojiOpen((o) => !o)}
+                      aria-expanded={emojiOpen}
+                      aria-haspopup="menu"
+                    >
+                      <Smile className="h-4 w-4" />
+                      이모지 선택
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+
+                    {emojiOpen && (
+                      <div
+                        ref={emojiMenuRef}
+                        role="menu"
+                        className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-2  w-[280px] rounded-lg border bg-white p-3 shadow-xl"
+                      >
+                        <div className="grid grid-cols-5 gap-2">
+                          {EMOJIS_5x6.map((e) => (
+                            <button
+                              key={e}
+                              type="button"
+                              onClick={() => {
+                                insertAtCursor(e);
+                                setEmojiOpen(false);
+                              }}
+                              className="h-10 w-full rounded-md border bg-white hover:bg-amber-50 hover:shadow active:scale-95 transition text-2xl flex items-center justify-center hover:cursor-pointer"
+                              aria-label={`${e} 삽입`}
+                              title={`${e} 삽입`}
+                            >
+                              {e}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
 
-                  {/* 오른쪽: 파트너 아바타 + 말풍선 */}
-                  <div className="hidden sm:flex items-center gap-2">
+                  {/* 버튼 오른쪽에 붙는 파트너 아바타 + 말풍선 */}
+                  <div className="hidden sm:flex items-center gap-2 ml-3">
                     <AvatarWidget type="partner" size="sm" />
-                    <span className="text-[12px] font-semibold    ">
-                      잘 써조!
-                    </span>
+                    <span className="text-[12px] font-semibold">잘 써조!</span>
                   </div>
-                </div>
-
-                {/* 이모지 Drop-down (⬇️ 아래로 펼쳐짐) */}
-                <div className="relative flex justify-center">
-                  <Button
-                    ref={emojiBtnRef}
-                    type="button"
-                    variant="outline"
-                    className={`gap-2 active:scale-95 transition ${
-                      canEdit ? "hover:cursor-pointer" : "pointer-events-none"
-                    }`}
-                    onClick={() => canEdit && setEmojiOpen((o) => !o)}
-                    aria-expanded={emojiOpen}
-                    aria-haspopup="menu"
-                  >
-                    <Smile className="h-4 w-4" />
-                    이모지 선택
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-
-                  {emojiOpen && (
-                    <div
-                      ref={emojiMenuRef}
-                      role="menu"
-                      className="absolute z-50 top-full mt-2 w-[280px] rounded-lg border bg-white p-3 shadow-xl"
-                    >
-                      <div className="grid grid-cols-5 gap-2">
-                        {EMOJIS_5x6.map((e) => (
-                          <button
-                            key={e}
-                            type="button"
-                            onClick={() => {
-                              insertAtCursor(e);
-                              setEmojiOpen(false);
-                            }}
-                            className="h-10 w-full rounded-md border bg-white hover:bg-amber-50 hover:shadow active:scale-95 transition text-2xl flex items-center justify-center hover:cursor-pointer"
-                            aria-label={`${e} 삽입`}
-                            title={`${e} 삽입`}
-                          >
-                            {e}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
 

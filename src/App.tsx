@@ -10,7 +10,7 @@ import IntroPage from "@/pages/IntroPage";
 import LoginPage from "@/pages/LoginPage";
 import SignupPage from "@/pages/SignupPage";
 import MainPage from "./pages/MainPage";
-import ResetPasswordPage from "@/pages/ResetPasswardPage";
+import ResetPasswardPage from "./pages/ResetPasswardPage";
 import InfoPage from "./pages/InfoPage";
 import SettingPage from "./pages/SettingPage";
 import NotificationPage from "./pages/NotificationPage";
@@ -33,7 +33,7 @@ export default function App() {
               <Route path="/intro" element={<IntroPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignupPage />} />
-              <Route path="/auth/reset" element={<ResetPasswordPage />} />
+              <Route path="/auth/reset" element={<ResetPasswardPage />} />
 
               {/* 공통 레이아웃(헤더 + NavDock) */}
               <Route element={<PageLayout />}>

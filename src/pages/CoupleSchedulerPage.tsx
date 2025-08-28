@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/select";
 import {
   Dialog,
-  DialogContent, // 전역 오버레이
+  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -41,9 +41,12 @@ import { Separator } from "@/components/ui/separator";
 // icons
 import { ChevronLeft, ChevronRight, Loader2, Plus } from "lucide-react";
 
+// ✅ 추가: 작성자 표시용
+import AvatarWidget from "@/components/widgets/AvatarWidget";
+
 const TYPE_OPTIONS: ScheduleType[] = ["데이트", "기념일", "기타 일정"];
 
-// 타입별 pill 색상 (참고 팔레트)
+// 타입별 pill 색상
 const typePillClass: Record<ScheduleType, string> = {
   데이트:
     "bg-pink-100 border border-pink-200 text-pink-900 hover:bg-pink-100/90",
@@ -255,7 +258,7 @@ export default function CoupleSchedulerPage() {
 
   if (!isCoupled || !coupleId) {
     return (
-      <main className="mx-auto  w-full max-w-screen-lg px-4 md:px-6 py-6">
+      <main className="mx-auto w-full max-w-screen-lg px-4 md:px-6 py-6">
         <SadPotatoGuard
           showRequestButton
           onRequestClick={() => console.log("요청 보내기")}
@@ -272,8 +275,8 @@ export default function CoupleSchedulerPage() {
     date.getDate() === today.getDate();
 
   return (
-    <main className="mx-auto w-full max-w-screen-lg px-4 md:px-6  ">
-      {/* 카드 (FAB는 카드 안쪽 우상단) */}
+    <main className="mx-auto w-full max-w-screen-lg px-4 md:px-6">
+      {/* 카드 (우상단 FAB) */}
       <Card className="relative bg-white border shadow-sm pt-4">
         <Button
           onClick={() => handleOpenCreate()}
@@ -284,19 +287,18 @@ export default function CoupleSchedulerPage() {
           <Plus className="h-5 w-5" />
         </Button>
 
-        <div className=" flex justify-center items-center gap-1 ">
+        {/* 월 이동 */}
+        <div className="flex justify-center items-center gap-1">
           <Button
             variant="ghost"
             onClick={goPrevMonth}
-            className=" hover:cursor-pointer"
+            className="hover:cursor-pointer"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-
           <CardTitle className="text-base md:text-lg">
             {cursor.getFullYear()}년 {cursor.getMonth() + 1}월
           </CardTitle>
-
           <Button
             variant="ghost"
             onClick={goNextMonth}
@@ -306,9 +308,9 @@ export default function CoupleSchedulerPage() {
           </Button>
         </div>
 
-        <CardContent className="p-4 sm:p-6">
+        <CardContent className="p-3 sm:p-5">
           {/* 요일 헤더 */}
-          <div className="mb-2 grid grid-cols-7 text-center text-sm font-medium text-muted-foreground">
+          <div className="mb-2 grid grid-cols-7 text-center text-xs sm:text-sm font-medium text-muted-foreground">
             {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
               <div key={d} className="py-2">
                 {d}
@@ -316,8 +318,8 @@ export default function CoupleSchedulerPage() {
             ))}
           </div>
 
-          {/* 달력 그리드 — 각 칸은 고정 높이, 내부 리스트만 스크롤 */}
-          <div className="grid grid-cols-7 gap-1">
+          {/* 달력 그리드 */}
+          <div className="grid grid-cols-7 gap-[6px] sm:gap-2">
             {daysInMonth.map(({ date }, idx) => {
               const key = date ? formatYMD(date) : `blank-${idx}`;
               const dayItems = date
@@ -326,54 +328,55 @@ export default function CoupleSchedulerPage() {
 
               return (
                 <div
+                  key={key}
                   className={[
-                    "grid grid-rows-[auto_minmax(0,1fr)]",
-                    "h-[90px] sm:h-[82px] md:h-[100px]",
-                    "rounded-lg border bg-white p-2",
-                    "min-w-0 overflow-hidden", // 🔵 추가
-                    !date && "opacity-60",
+                    // ✅ 고정 높이 제거, 비율 기반
+                    "aspect-[5/6] sm:aspect-[4/3] lg:aspect-[16/10]",
+                    "rounded-lg border bg-white",
+                    "min-w-0 overflow-hidden", // 가로 넘침 방지
                   ].join(" ")}
                 >
-                  {/* 날짜 */}
-                  <div
-                    className={[
-                      "mb-1 text-xs font-semibold",
-                      isToday(date)
-                        ? "text-foreground"
-                        : "text-muted-foreground",
-                    ].join(" ")}
-                  >
-                    {date ? date.getDate() : ""}
-                  </div>
-
-                  {/* 리스트 영역(남은 공간 전부) */}
-                  <div className="min-h-0 min-w-0">
-                    {/* ✅ 한 번에 최대 2개 보이도록 높이 고정 + 내부 스크롤 */}
+                  {/* 칸 내부는 꽉 채우고, 리스트는 칸 안에서만 스크롤 */}
+                  <div className="h-full flex flex-col p-2">
+                    {/* 날짜 */}
                     <div
                       className={[
-                        "h-14",
-                        "w-full max-w-full min-w-0", // 🔵 추가
-                        "overflow-y-auto overflow-x-hidden", // 🔵 가로 스크롤 방지
-                        "[scrollbar-gutter:stable]", // 🔹(선택) 스크롤바 자리 미리 확보
-                        "pr-1 space-y-1.5",
-                        "[&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/40",
+                        "text-xs font-semibold",
+                        isToday(date)
+                          ? "text-foreground"
+                          : "text-muted-foreground",
                       ].join(" ")}
                     >
-                      {dayItems.map((it) => (
-                        <button
-                          key={it.id}
-                          onClick={() => handleOpenDetail(it)}
-                          title={it.title}
-                          className={[
-                            "w-full truncate text-left",
-                            "h-6 px-2 rounded-md text-[12px] font-medium leading-5",
-                            "cursor-pointer transition",
-                            typePillClass[it.type],
-                          ].join(" ")}
-                        >
-                          {it.title}
-                        </button>
-                      ))}
+                      {date ? date.getDate() : ""}
+                    </div>
+
+                    {/* 리스트 영역 */}
+                    <div className="mt-1 flex-1 min-h-0">
+                      <div
+                        className={[
+                          "h-full w-full max-w-full min-w-0",
+                          "overflow-y-auto overflow-x-hidden",
+                          "pr-1 space-y-1.5",
+                          "[scrollbar-gutter:stable]",
+                          "[&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/40",
+                        ].join(" ")}
+                      >
+                        {dayItems.map((it) => (
+                          <button
+                            key={it.id}
+                            onClick={() => handleOpenDetail(it)}
+                            title={it.title}
+                            className={[
+                              "w-full truncate text-left",
+                              "h-6 px-2 rounded-md text-[11px] sm:text-[12px] font-medium leading-5",
+                              "cursor-pointer transition",
+                              typePillClass[it.type],
+                            ].join(" ")}
+                          >
+                            {it.title}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -451,10 +454,40 @@ export default function CoupleSchedulerPage() {
       </Dialog>
 
       <Dialog open={openDetail} onOpenChange={setOpenDetail}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-xl">
           {!editMode && selected ? (
             <div className="space-y-3">
-              <div className="text-lg font-semibold">{selected.title}</div>
+              {/* ✅ 작성자 기준 AvatarWidget + 제목 */}
+              <DialogHeader>
+                <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
+                  {/* 왼쪽 아바타 */}
+                  {(() => {
+                    const writerId = (selected as any)?.writer_id as
+                      | string
+                      | undefined;
+                    const authorIsMe = writerId
+                      ? writerId === user?.id
+                      : selected.writer_nickname === user?.nickname; // fallback
+                    return (
+                      <AvatarWidget
+                        type={authorIsMe ? "user" : "partner"}
+                        size="sm"
+                      />
+                    );
+                  })()}
+
+                  {/* 가운데 제목 (정중앙 정렬) */}
+                  <DialogTitle className="text-center truncate">
+                    {selected.title}
+                  </DialogTitle>
+
+                  {/* 오른쪽 스페이서: 아바타와 동일 폭 확보 → 제목이 정확히 중앙 */}
+                  <div className="h-10 w-10" aria-hidden />
+                  {/* AvatarWidget size="sm"이 h-10 w-10라면 이렇게. 
+        size가 바뀔 수 있으면 아래 대안 참고 */}
+                </div>
+              </DialogHeader>
+
               <Separator />
               <div className="space-y-1 text-sm text-muted-foreground">
                 <div>
@@ -494,6 +527,7 @@ export default function CoupleSchedulerPage() {
           ) : (
             selected && (
               <div className="grid gap-3">
+                {/* 수정 제목 */}
                 <Input
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}

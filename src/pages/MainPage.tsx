@@ -45,7 +45,7 @@ export default function MainPage() {
         </div>
 
         {/* 가운데: 커플 이미지(메인 비중 가장 크게) */}
-        <div className="min-w-0">
+        <div>
           <CoupleImageCard
             className="
               w-full
