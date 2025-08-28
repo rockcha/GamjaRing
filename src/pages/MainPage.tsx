@@ -28,14 +28,14 @@ export default function MainPage() {
       */}
       <div
         className="
-    grid gap-4 items-start
+    grid gap-2 items-start
     grid-cols-1
     md:[grid-template-columns:minmax(220px,.9fr)_minmax(0,0.9fr)]
     lg:[grid-template-columns:minmax(240px,.8fr)_minmax(0,1.4fr)_minmax(0,1fr)]   
   "
       >
         {/* 왼쪽: 포크 버튼 + 감자 진행 카드 (상대적으로 좁은 컬럼) */}
-        <div className="flex flex-col gap-4 min-w-0">
+        <div className="flex flex-col gap-2 min-w-0">
           {isCoupled ? (
             <PotatoPokeButton />
           ) : (
@@ -45,7 +45,7 @@ export default function MainPage() {
         </div>
 
         {/* 가운데: 커플 이미지(메인 비중 가장 크게) */}
-        <div>
+        <div className="min-w-0">
           <CoupleImageCard
             className="
               w-full
@@ -57,7 +57,7 @@ export default function MainPage() {
         </div>
 
         {/* 오른쪽: 오늘의 질문 + 일정 미리보기 (xl 이상에서 독립 컬럼) */}
-        <div className="flex flex-col gap-4 min-w-0">
+        <div className="flex flex-col gap-2 min-w-0">
           <CoupleSchedulePreview limit={5} className="w-full h-fit" />
           <TodayQuestionCard className="w-full h-fit" />
         </div>
