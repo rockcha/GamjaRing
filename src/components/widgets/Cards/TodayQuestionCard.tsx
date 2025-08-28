@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ✅ magicui TypingAnimation 그대로 사용 (수정 X)
@@ -243,10 +244,11 @@ export default function TodayQuestionCard({
           <Button
             variant="ghost"
             onClick={onClickGoAnswer}
-            className="mt-1 hover:cursor-pointer"
+            className="mt-1 hover:cursor-pointer flex items-center gap-1.5"
             title={task.completed ? "작성 열기" : "작성하기"}
           >
-            {task.completed ? "📝" : "✍️"}
+            {task.completed ? "수정하러가기" : "작성하러가기"}
+            <ArrowRight className="h-4 w-4" />
           </Button>
         )}
       </CardFooter>

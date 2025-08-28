@@ -6,13 +6,14 @@ import { sendUserNotification } from "@/utils/notification/sendUserNotification"
 import { useToast } from "@/contexts/ToastContext";
 import supabase from "@/lib/supabase";
 import { avatarSrc } from "@/features/localAvatar";
-// shadcn avatar
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { CoolMode } from "../magicui/cool-mode";
 
 interface Props {
-  className?: string;
+  className?: string; // 추가 커스텀 클래스(선택)
   onSent?: () => void;
   onError?: (err: Error) => void;
+  // 아래 props는 더 이상 UI엔 쓰지 않지만, 외부 API 유지용
   title?: string;
   subtitle?: string;
 }
@@ -23,8 +24,6 @@ export default function PotatoPokeButton({
   className = "",
   onSent,
   onError,
-  title = "감자 콕 찌르기",
-  subtitle = "연인의 아바타를 찔러주세요.",
 }: Props) {
   const { user } = useUser();
   const { open } = useToast();
@@ -75,7 +74,6 @@ export default function PotatoPokeButton({
 
     try {
       setLoading(true);
-
       const description = `${user?.nickname ?? "상대"}님이 콕 찔렀어요! 🥔✨`;
 
       const { error } = await sendUserNotification({
@@ -100,45 +98,35 @@ export default function PotatoPokeButton({
     }
   };
 
-  return (
-    <div
-      className={`w-full flex flex-col items-center ${className} py-4 rounded-lg border-2 bg-white`}
-    >
-      <div className="text-center w-full border-b py-1 pb-3">
-        <h3 className="text-lg font-bold text-[#3d2b1f]">{`${partnerNickname} 👉콕 찌르기`}</h3>
-      </div>
+  // 고정 위치: 좌하단 + 안전영역 고려
+  const fixedClasses =
+    "fixed left-4 bottom-[calc(env(safe-area-inset-bottom,0)+1rem)] z-50";
 
+  return (
+    <CoolMode options={{ particle: "🥔", particleCount: 3, size: 4 }}>
       <motion.button
         type="button"
         onClick={handleClick}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.97 }}
+        whileHover={{ scale: 1.06 }}
+        whileTap={{ scale: 0.96 }}
         disabled={loading}
         aria-busy={loading}
+        aria-label={`${partnerNickname} 콕 찌르기`}
         className={[
-          "relative group rounded-xl select-none",
-          "focus:outline-none",
+          fixedClasses,
+          "rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300",
           loading ? "opacity-70 cursor-not-allowed" : "cursor-pointer",
+          className,
         ].join(" ")}
       >
-        {/* ▶ shadcn Avatar로 통일 */}
-        <Avatar className="w-32 h-32 border shadow-sm bg-white mt-4 ">
+        <Avatar className="w-14 h-14 md:w-16 md:h-16 border shadow-lg bg-white ring-2 ring-rose-200">
           <AvatarImage
             src={partnerAvatarUrl}
-            alt={`${partnerNickname} 콕 찌르기`}
-            // 로드 실패 시 Fallback이 자연스럽게 노출됨
+            alt={`${partnerNickname} 아바타`}
           />
           <AvatarFallback className="text-xl">🥔</AvatarFallback>
         </Avatar>
-
-        {loading && (
-          <div className="absolute inset-0 z-30 flex items-center justify-center rounded-xl">
-            <span className="animate-pulse text-[#5b3d1d] text-sm">
-              보내는 중…
-            </span>
-          </div>
-        )}
       </motion.button>
-    </div>
+    </CoolMode>
   );
 }

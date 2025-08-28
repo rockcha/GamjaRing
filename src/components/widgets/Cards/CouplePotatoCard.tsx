@@ -1,23 +1,22 @@
 // src/features/couple/CouplePotatoCard.tsx
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import supabase from "@/lib/supabase";
 import { useUser } from "@/contexts/UserContext";
 import { potatoLevels } from "@/constants/Potatolevels";
 
 // shadcn/ui
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { Separator } from "@/components/ui/separator";
 
 type CouplePoints = { level: number; point: number };
 
 // ---- 원형 진행 링 상수(viewBox=0~100 기준) ----
-const RING_RADIUS = 35;
-const RING_STROKE = 8;
-const OUTLINE_STROKE = 1.6;
+const RING_RADIUS = 30; // 🔽 35 → 30
+const RING_STROKE = 6; // 🔽 8 → 6
+const OUTLINE_STROKE = 1.4; // 🔽 1.6 → 1.4
 const OUTLINE_RADIUS = RING_RADIUS + RING_STROKE / 2 + OUTLINE_STROKE / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
@@ -71,7 +70,7 @@ export default function CouplePotatoCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.couple_id]);
 
-  // --- 진행도 애니메이션(0~100%) ---
+  // --- 진행도 애니메이션 ---
   useEffect(() => {
     if (!data) return;
     const current = data.point % 10;
@@ -101,21 +100,20 @@ export default function CouplePotatoCard({
   const isMax = level >= 5;
   const remain = isMax ? 0 : 10 - currentProgress;
 
-  // --- 뷰 ---
   return (
-    <Card className={cn("bg-white", className)}>
-      <Separator />
+    <Card className={cn("bg-white p-3", className)}>
       <CardContent className="pt-2">
         {loading ? (
-          <div className="space-y-3">
-            <Skeleton className="h-[280px] rounded-xl" />
-            <Skeleton className="h-6 w-1/2" />
+          <div className="space-y-2">
+            <Skeleton className="h-[220px] rounded-lg" /> {/* 🔽 280 → 220 */}
+            <Skeleton className="h-5 w-1/2" />
             <Skeleton className="h-2 w-full" />
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-4">
+          <div className="flex flex-col items-center gap-3">
             {/* 원형 링 + 감자 이미지 */}
-            <div className="relative aspect-square w-full max-w-[320px]">
+            <div className="relative aspect-square w-full max-w-[240px]">
+              {/* 🔽 max-w 320 → 240 */}
               <svg
                 viewBox="0 0 100 100"
                 className="absolute inset-0 w-full h-full rotate-[-90deg] z-10"
@@ -166,22 +164,23 @@ export default function CouplePotatoCard({
               <img
                 src={info?.image}
                 alt={info?.name}
-                className="absolute z-20 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[56%] h-[56%] object-contain"
+                className="absolute z-20 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[50%] h-[50%] object-contain"
+                // 🔽 56% → 50%
               />
             </div>
 
             {/* 현재 상태 */}
             <div className="w-full text-center">
-              <div className="text-[clamp(1.1rem,2.6vw,1.5rem)] font-extrabold text-[#b75e20]">
+              <div className="text-[clamp(1rem,2.2vw,1.25rem)] font-extrabold text-[#b75e20]">
                 {info?.name ?? "감자"}
               </div>
               {info?.description && (
-                <div className="mt-1 text-sm text-[#6b533b]">
-                  — {info.description}
+                <div className="mt-1 text-xs text-[#6b533b]">
+                  {/* 🔽 text-sm → text-xs */}— {info.description}
                 </div>
               )}
               {!isMax ? (
-                <div className="mt-2 text-sm text-[#6b533b]">
+                <div className="mt-1 text-xs text-[#6b533b]">
                   다음 단계{" "}
                   <span className="text-orange-600 font-semibold">
                     {nextInfo?.name}
@@ -191,7 +190,7 @@ export default function CouplePotatoCard({
                   포인트
                 </div>
               ) : (
-                <div className="mt-2 text-sm font-semibold text-green-700">
+                <div className="mt-1 text-xs font-semibold text-green-700">
                   모든 단계를 완료했어요! 🎉
                 </div>
               )}

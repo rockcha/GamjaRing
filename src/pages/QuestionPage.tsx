@@ -21,7 +21,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 
+import { CoolMode } from "@/components/magicui/cool-mode";
 // ✅ 추가: 파트너 아바타 위젯
+
 import AvatarWidget from "@/components/widgets/AvatarWidget";
 
 // icons
@@ -420,29 +422,32 @@ export default function QuestionPage() {
 
             {/* 단일 버튼 */}
             <CardFooter className="justify-center">
-              <Button
-                onClick={onPrimaryClick}
-                className="min-w-[120px] hover:cursor-pointer active:scale-95 transition"
-              >
-                {submitted ? (
-                  editing ? (
+              <CoolMode options={{ particle: "💙", particleCount: 3, size: 4 }}>
+                {" "}
+                <Button
+                  onClick={onPrimaryClick}
+                  className="min-w-[120px] hover:cursor-pointer active:scale-95 transition"
+                >
+                  {submitted ? (
+                    editing ? (
+                      <>
+                        <SaveIcon className="mr-2 h-4 w-4" />
+                        저장하기
+                      </>
+                    ) : (
+                      <>
+                        <PencilLine className="mr-2 h-4 w-4" />
+                        수정하기
+                      </>
+                    )
+                  ) : (
                     <>
                       <SaveIcon className="mr-2 h-4 w-4" />
                       저장하기
                     </>
-                  ) : (
-                    <>
-                      <PencilLine className="mr-2 h-4 w-4" />
-                      수정하기
-                    </>
-                  )
-                ) : (
-                  <>
-                    <SaveIcon className="mr-2 h-4 w-4" />
-                    저장하기
-                  </>
-                )}
-              </Button>
+                  )}
+                </Button>
+              </CoolMode>
             </CardFooter>
           </>
         )}

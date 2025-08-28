@@ -48,7 +48,7 @@ export default function App() {
               </Route>
 
               {/* 그 외 → 인트로 */}
-              <Route path="*" element={<Navigate to="/intro" replace />} />
+              {/* <Route path="*" element={<Navigate to="/intro" replace />} /> */}
             </Routes>
           </BrowserRouter>
         </CoupleProvider>

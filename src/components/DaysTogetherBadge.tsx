@@ -35,7 +35,7 @@ export default function DaysTogetherBadge() {
   // 액션 회전 타이머
   const ANIM_MS = 2800;
   const ITERS = 2;
-  const GAP_MS = 4000;
+  const GAP_MS = 3000;
   useEffect(() => {
     if (!couple?.started_at) return;
     const h = window.setTimeout(() => {
