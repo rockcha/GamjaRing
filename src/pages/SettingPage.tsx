@@ -4,37 +4,27 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import supabase from "@/lib/supabase";
 import { useUser } from "@/contexts/UserContext";
-import { useCoupleContext } from "@/contexts/CoupleContext";
 import Popup from "@/components/widgets/Popup";
+import UnlinkButton from "@/components/tests/UnlinkButton";
 
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui//input";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-
-import {
-  PencilLine,
-  Save,
-  X,
-  UserRound,
-  HeartHandshake,
-  Image as ImageIcon,
-  Link2Off,
-  UserX2,
-} from "lucide-react";
+import { PencilLine, Save, X, UserRound, HeartHandshake } from "lucide-react";
 
 import AvatarPicker from "@/features/AvatarPicker";
 import { avatarSrc } from "@/features/localAvatar";
+// ✅ shadcn Avatar
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 type CoupleRow = {
   id: string;
@@ -45,8 +35,7 @@ type CoupleRow = {
 };
 
 export default function SettingPage() {
-  const { user, fetchUser, updateAvatarId } = useUser();
-  const { disconnectCouple } = useCoupleContext();
+  const { user, fetchUser } = useUser();
   const [loading, setLoading] = useState(true);
 
   // toast
@@ -78,18 +67,10 @@ export default function SettingPage() {
   const [ddayInput, setDdayInput] = useState(""); // yyyy-mm-dd
   const [savingDday, setSavingDday] = useState(false);
 
-  // 아바타 id(내)
+  // 아바타 id
   const [myAvatarId, setMyAvatarId] = useState<number | null>(
     user?.avatar_id ?? null
   );
-
-  // 아바타 설정 모달
-  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
-
-  // user가 바뀌면 로컬 상태도 동기화
-  useEffect(() => {
-    setMyAvatarId(user?.avatar_id ?? null);
-  }, [user?.avatar_id]);
 
   const myAvatarUrl = avatarSrc(myAvatarId ?? undefined);
   const partnerAvatarUrl = avatarSrc(partnerAvatarId ?? undefined);
@@ -99,17 +80,20 @@ export default function SettingPage() {
     return nk ? nk[0] : "🙂";
   }, [user?.nickname]);
 
-  // ✅ 내 아바타 저장
+  // 내 아바타 저장
   const saveAvatarId = async (id: number) => {
-    const { error } = await updateAvatarId(id);
+    if (!user?.id) return;
+    const { error } = await supabase
+      .from("users")
+      .update({ avatar_id: id })
+      .eq("id", user.id);
     if (error) {
       openToast(`아바타 저장 실패: ${error.message}`);
       return;
     }
-    setMyAvatarId(id); // 즉시 미리보기 반영
+    setMyAvatarId(id);
     openToast("아바타가 저장되었습니다.");
-    setAvatarDialogOpen(false);
-    await fetchUser?.(); // 선택
+    await fetchUser?.();
   };
 
   useEffect(() => {
@@ -117,23 +101,22 @@ export default function SettingPage() {
       if (!user?.id) return;
       setLoading(true);
 
-      // 내 정보(가입일 등)
+      // 내 정보
       const { data } = await supabase.auth.getUser();
       const createdAt = data.user?.created_at ?? null;
       if (createdAt) setSignupDate(createdAt.slice(0, 10));
 
-      // users 최신 닉네임/아바타 확인 (방어적)
+      // users에서 avatar_id 최신값 보정
       const { data: me } = await supabase
         .from("users")
-        .select("nickname, avatar_id, couple_id")
+        .select("nickname, avatar_id")
         .eq("id", user.id)
         .maybeSingle();
-
       setNickInput(me?.nickname ?? user.nickname ?? "");
-      setMyAvatarId((me?.avatar_id as number | null) ?? user.avatar_id ?? null);
+      setMyAvatarId(me?.avatar_id ?? null);
 
-      // 커플/파트너
-      if ((me?.couple_id ?? user.couple_id) && user.couple_id) {
+      // 커플
+      if (isCoupled && user.couple_id) {
         const { data: cRow } = await supabase
           .from("couples")
           .select("id, user1_id, user2_id, started_at, created_at")
@@ -171,7 +154,17 @@ export default function SettingPage() {
     };
 
     init();
-  }, [user?.id, user?.couple_id, user?.partner_id, fetchUser]);
+  }, [user?.id, user?.couple_id, user?.partner_id, isCoupled, fetchUser]);
+
+  const ddayText = useMemo(() => {
+    if (!couple?.started_at) return "-";
+    const start = new Date(couple.started_at);
+    const today = new Date();
+    const start0 = new Date(start.toDateString()).getTime();
+    const today0 = new Date(today.toDateString()).getTime();
+    const diffDays = Math.floor((today0 - start0) / 86400000);
+    return `D+${Math.max(0, diffDays)}`;
+  }, [couple?.started_at]);
 
   const saveNickname = async () => {
     if (!user?.id) return;
@@ -215,18 +208,6 @@ export default function SettingPage() {
     setCouple((prev) => (prev ? { ...prev, started_at: ddayInput } : prev));
   };
 
-  const onDisconnect = async () => {
-    const ok = window.confirm("정말 커플을 끊을까요?");
-    if (!ok) return;
-    const { error } = await disconnectCouple();
-    if (error) openToast(`끊기 실패: ${error.message}`);
-  };
-
-  const onDeleteAccount = async () => {
-    // 실제 탈퇴 로직이 없다면 안내만
-    openToast("회원탈퇴는 추후 구현 예정입니다.");
-  };
-
   if (loading) {
     return (
       <main className="w-full max-w-3xl mx-auto px-4 md:px-6 py-6 space-y-8">
@@ -262,62 +243,34 @@ export default function SettingPage() {
   }
 
   return (
-    <main className="w-full max-w-3xl mx-auto px-4 md:px-6 py-6 space-y-8 pb-28">
+    <main className="w-full max-w-3xl mx-auto px-4 md:px-6 py-6 space-y-8">
       {/* 내 정보 */}
       <Card className="bg-white shadow-base">
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-[#b75e20]">
             <UserRound className="h-5 w-5" />내 정보
           </CardTitle>
         </CardHeader>
         <Separator />
-        <CardContent className="pt-5">
-          <div className="grid grid-cols-1 sm:grid-cols-[220px_1fr] gap-8 items-start">
-            {/* 왼쪽: 아바타 & 작은 버튼 */}
-            <div className="flex flex-col items-center sm:items-start gap-3">
-              <div className="h-28 w-28 rounded-full overflow-hidden border bg-white grid place-items-center shadow-sm">
-                {myAvatarUrl ? (
-                  <img
-                    src={myAvatarUrl}
-                    alt="내 아바타"
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <span className="text-2xl">{myInitial}</span>
-                )}
+        <CardContent className="pt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-[220px_1fr] gap-6 items-start">
+            {/* 왼쪽: 아바타 & 버튼 */}
+            <div className="flex flex-col gap-3">
+              <Avatar className="h-28 w-28 border bg-white">
+                <AvatarImage src={myAvatarUrl ?? undefined} alt="내 아바타" />
+                <AvatarFallback className="text-2xl">
+                  {myInitial}
+                </AvatarFallback>
+              </Avatar>
+
+              {/* ⬇️ AvatarPicker 너비 제한 */}
+              <div className="w-full max-w-[180px]">
+                <AvatarPicker value={myAvatarId} onSave={saveAvatarId} />
               </div>
-
-              <Dialog
-                open={avatarDialogOpen}
-                onOpenChange={setAvatarDialogOpen}
-              >
-                <DialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1 hover:cursor-pointer"
-                  >
-                    <ImageIcon className="h-4 w-4" />
-                    아바타 설정
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[520px]">
-                  <DialogHeader>
-                    <DialogTitle>아바타 선택</DialogTitle>
-                    <DialogDescription>
-                      마음에 드는 감자 아바타를 골라주세요 🍟
-                    </DialogDescription>
-                  </DialogHeader>
-
-                  <div className="mt-2">
-                    <AvatarPicker value={myAvatarId} onSave={saveAvatarId} />
-                  </div>
-                </DialogContent>
-              </Dialog>
             </div>
 
-            {/* 오른쪽: 프로필 필드 */}
-            <div className="space-y-6">
+            {/* 오른쪽 */}
+            <div className="space-y-5">
               <FieldRow label="닉네임">
                 {editingNick ? (
                   <div className="flex w-full items-center gap-2">
@@ -373,42 +326,48 @@ export default function SettingPage() {
             </div>
           </div>
         </CardContent>
+
+        {/* ✅ 액션 배치 통일: 오른쪽 정렬 */}
+        <CardFooter className="justify-end gap-2">
+          <Button
+            variant="destructive"
+            onClick={() => openToast("회원탈퇴는 추후 구현 예정입니다.")}
+            className="gap-1"
+          >
+            회원탈퇴
+          </Button>
+        </CardFooter>
       </Card>
 
       {/* 커플 정보 */}
       <Card className="bg-white shadow-base">
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-[#b75e20]">
             <HeartHandshake className="h-5 w-5" />
             커플 정보
           </CardTitle>
         </CardHeader>
         <Separator />
-        <CardContent className="pt-5">
+        <CardContent className="pt-4">
           {!isCoupled || !couple ? (
             <p className="text-sm text-[#6b533b]">
               아직 연결된 커플이 없어요 💫
             </p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] gap-8 items-start">
-              <div className="flex flex-col items-center sm:items-start gap-2">
-                <div className="h-24 w-24 rounded-full overflow-hidden border bg-white grid place-items-center shadow-sm">
-                  {partnerAvatarUrl ? (
-                    <img
-                      src={partnerAvatarUrl}
-                      alt="연인 아바타"
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <span className="text-sm text-muted-foreground">
-                      아바타 없음
-                    </span>
-                  )}
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] gap-6 items-start">
+              <div className="flex flex-col items-center gap-2">
+                <Avatar className="h-28 w-28 border bg-white">
+                  <AvatarImage
+                    src={partnerAvatarUrl ?? undefined}
+                    alt="연인 아바타"
+                  />
+                  <AvatarFallback className="text-sm text-muted-foreground">
+                    아바타 없음
+                  </AvatarFallback>
+                </Avatar>
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-5">
                 <FieldRow label="커플 닉네임">
                   <span className="text-sm sm:text-base">
                     {partnerNickname || "-"}
@@ -432,29 +391,15 @@ export default function SettingPage() {
             </div>
           )}
         </CardContent>
-      </Card>
 
-      {/* 오른쪽 하단 고정 액션영역 */}
-      <div className="fixed left-6 bottom-6 z-40">
-        <div className="bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border shadow-md rounded-xl p-3 flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={onDisconnect}
-            className="gap-1 hover:cursor-pointer"
-          >
-            <Link2Off className="h-4 w-4" />
-            커플 끊기
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={onDeleteAccount}
-            className="gap-1 hover:cursor-pointer"
-          >
-            <UserX2 className="h-4 w-4" />
-            회원탈퇴
-          </Button>
-        </div>
-      </div>
+        {/* ✅ 액션 배치 통일: 오른쪽 정렬 */}
+        <CardFooter className="justify-end gap-2">
+          {/* UnlinkButton이 className 받지 않아도, 컨테이너 정렬로 위치 통일 */}
+          <div className="inline-flex">
+            <UnlinkButton />
+          </div>
+        </CardFooter>
+      </Card>
 
       <Popup
         show={toast.show}

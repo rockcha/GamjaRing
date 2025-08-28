@@ -29,6 +29,9 @@ import {
 import { cn } from "@/lib/utils";
 import { Separator } from "./ui/separator";
 
+// ✅ shadcn/ui Avatar
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+
 // 🔸 로컬 아바타 유틸 (네가 제공한 것)
 import { avatarSrc } from "@/features/localAvatar"; // export function avatarSrc(id?: number|null) { ... }
 
@@ -150,26 +153,29 @@ export default function UserGreetingSection({
 
           <Sheet>
             <SheetTrigger asChild>
-              {/* 프로필: avatar_id가 있으면 이미지, 없으면 이니셜 */}
+              {/* 버튼 접근성 + Avatar 외형 */}
               <button
+                type="button"
                 aria-label={`${user.nickname ?? "사용자"} 메뉴 열기`}
-                className={cn(
-                  "h-11 w-11 rounded-full border bg-white text-sm font-semibold",
-                  "flex items-center justify-center overflow-hidden",
-                  "hover:bg-amber-50 active:scale-95 transition"
-                )}
                 title={user.nickname ?? "사용자"}
-              >
-                {imgUrl ? (
-                  <img
-                    src={imgUrl}
-                    alt="프로필 이미지"
-                    className="h-full w-full object-cover"
-                    loading="lazy"
-                  />
-                ) : (
-                  <span>{initial}</span>
+                className={cn(
+                  "relative inline-flex items-center justify-center",
+                  "h-11 w-11 rounded-full outline-none",
+                  "transition active:scale-95",
+                  "ring-offset-background hover:ring-2 hover:ring-amber-300 hover:ring-offset-2 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2"
                 )}
+              >
+                <Avatar className="h-11 w-11">
+                  {/* src가 없거나 로드 실패하면 Fallback */}
+                  <AvatarImage src={imgUrl ?? undefined} alt="프로필 이미지" />
+                  <AvatarFallback className="text-sm font-semibold">
+                    {initial}
+                  </AvatarFallback>
+                </Avatar>
+
+                {/* 🔸 필요하면 상태 배지 (예: 온라인/알림 등)
+                <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white" />
+                */}
               </button>
             </SheetTrigger>
 
