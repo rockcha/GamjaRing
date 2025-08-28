@@ -39,7 +39,14 @@ import {
 import { Separator } from "@/components/ui/separator";
 
 // icons
-import { ChevronLeft, ChevronRight, Loader2, Plus } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  PencilLine,
+  Trash2,
+  CalendarPlus,
+} from "lucide-react";
 
 // ✅ 추가: 작성자 표시용
 import AvatarWidget from "@/components/widgets/AvatarWidget";
@@ -283,8 +290,9 @@ export default function CoupleSchedulerPage() {
           size="icon"
           className="absolute top-2 right-2 h-9 w-9 rounded-xl shadow-md hover:cursor-pointer bg-[#6b533b] text-white hover:bg-[#5d452e]"
           title="일정 추가"
+          aria-label="일정 추가"
         >
-          <Plus className="h-5 w-5" />
+          <CalendarPlus className="h-5 w-5" />
         </Button>
 
         {/* 월 이동 */}
@@ -330,15 +338,12 @@ export default function CoupleSchedulerPage() {
                 <div
                   key={key}
                   className={[
-                    // ✅ 고정 높이 제거, 비율 기반
                     "aspect-[5/6] sm:aspect-[4/3] lg:aspect-[16/10]",
                     "rounded-lg border bg-white",
-                    "min-w-0 overflow-hidden", // 가로 넘침 방지
+                    "min-w-0 overflow-hidden",
                   ].join(" ")}
                 >
-                  {/* 칸 내부는 꽉 채우고, 리스트는 칸 안에서만 스크롤 */}
                   <div className="h-full flex flex-col p-2">
-                    {/* 날짜 */}
                     <div
                       className={[
                         "text-xs font-semibold",
@@ -350,7 +355,6 @@ export default function CoupleSchedulerPage() {
                       {date ? date.getDate() : ""}
                     </div>
 
-                    {/* 리스트 영역 */}
                     <div className="mt-1 flex-1 min-h-0">
                       <div
                         className={[
@@ -395,9 +399,12 @@ export default function CoupleSchedulerPage() {
 
       {/* 전역 오버레이 모달들 */}
       <Dialog open={openCreate} onOpenChange={setOpenCreate}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="fixed  sm:max-w-xl left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
           <DialogHeader>
-            <DialogTitle className="mb-2">일정 등록</DialogTitle>
+            {/* 타이틀 하단 잘림 방지 */}
+            <DialogTitle className="mb-2 leading-snug pb-1">
+              일정 등록
+            </DialogTitle>
           </DialogHeader>
 
           <div className="grid gap-3">
@@ -454,20 +461,20 @@ export default function CoupleSchedulerPage() {
       </Dialog>
 
       <Dialog open={openDetail} onOpenChange={setOpenDetail}>
-        <DialogContent className="sm:max-w-xl">
+        {/* 아이콘 버튼을 우하단에 고정해야 하므로 relative + padding-bottom 확보 */}
+        <DialogContent className="fixed sm:max-w-xl  left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
           {!editMode && selected ? (
             <div className="space-y-3">
-              {/* ✅ 작성자 기준 AvatarWidget + 제목 */}
+              {/* 헤더: 아바타 + 중앙정렬 타이틀 */}
               <DialogHeader>
                 <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
-                  {/* 왼쪽 아바타 */}
                   {(() => {
                     const writerId = (selected as any)?.writer_id as
                       | string
                       | undefined;
                     const authorIsMe = writerId
                       ? writerId === user?.id
-                      : selected.writer_nickname === user?.nickname; // fallback
+                      : selected.writer_nickname === user?.nickname;
                     return (
                       <AvatarWidget
                         type={authorIsMe ? "user" : "partner"}
@@ -475,16 +482,11 @@ export default function CoupleSchedulerPage() {
                       />
                     );
                   })()}
-
-                  {/* 가운데 제목 (정중앙 정렬) */}
-                  <DialogTitle className="text-center truncate">
+                  <DialogTitle className="text-center truncate leading-snug pb-1">
                     {selected.title}
                   </DialogTitle>
-
-                  {/* 오른쪽 스페이서: 아바타와 동일 폭 확보 → 제목이 정확히 중앙 */}
+                  {/* 우측 스페이서(타이틀 정확 중앙 정렬을 위한 더미) */}
                   <div className="h-10 w-10" aria-hidden />
-                  {/* AvatarWidget size="sm"이 h-10 w-10라면 이렇게. 
-        size가 바뀔 수 있으면 아래 대안 참고 */}
                 </div>
               </DialogHeader>
 
@@ -507,27 +509,34 @@ export default function CoupleSchedulerPage() {
               <p className="whitespace-pre-wrap text-[15px]">
                 {selected.description}
               </p>
-              <div className="flex justify-end gap-2 pt-2">
+
+              {/* ✅ 아이콘 전용 버튼을 모달 우하단에 고정 */}
+              <div className="absolute right-3 bottom-3 flex items-center gap-2">
                 <Button
-                  variant="outline"
+                  variant="secondary"
+                  size="icon"
+                  aria-label="수정"
+                  title="수정"
+                  className="hover:cursor-pointer active:scale-95 transition"
                   onClick={() => setEditMode(true)}
-                  className="hover:cursor-pointer"
                 >
-                  수정
+                  <PencilLine className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="destructive"
+                  size="icon"
+                  aria-label="삭제"
+                  title="삭제"
+                  className="hover:cursor-pointer active:scale-95 transition"
                   onClick={handleDelete}
-                  className="hover:cursor-pointer"
                 >
-                  삭제
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
             </div>
           ) : (
             selected && (
               <div className="grid gap-3">
-                {/* 수정 제목 */}
                 <Input
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
@@ -566,6 +575,7 @@ export default function CoupleSchedulerPage() {
                   placeholder="설명"
                   rows={4}
                 />
+
                 <div className="flex justify-end gap-2">
                   <Button
                     onClick={handleSaveEdit}

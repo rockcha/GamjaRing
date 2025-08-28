@@ -1,17 +1,20 @@
-// src/pages/ResetPasswordPage.tsx
+// src/pages/LoginPage.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useUser } from "@/contexts/UserContext";
+import { runDataIntegrityCheck } from "@/utils/DataIntegrityCheck";
 import supabase from "@/lib/supabase";
 
+// shadcn/ui
 import {
   Card,
   CardHeader,
-  CardTitle,
-  CardDescription,
   CardContent,
   CardFooter,
+  CardTitle,
+  CardDescription,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,151 +22,181 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
 
-export default function ResetPasswordPage() {
+const errorMessageMap: Record<string, string> = {
+  "Invalid login credentials": "이메일 또는 비밀번호가 잘못되었습니다.",
+  "User already registered": "이미 가입된 이메일입니다.",
+  "Email not confirmed": "이메일 인증이 완료되지 않았습니다.",
+  "Signup requires a valid email": "유효한 이메일을 입력해주세요.",
+  "Password should be at least 6 characters":
+    "비밀번호는 최소 6자 이상이어야 합니다.",
+};
+
+export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [infoMsg, setInfoMsg] = useState("");
+  const [checking, setChecking] = useState(false);
+
   const navigate = useNavigate();
-  const location = useLocation();
+  const { login, user, loading, fetchUser } = useUser();
 
-  const [pwd1, setPwd1] = useState("");
-  const [pwd2, setPwd2] = useState("");
-  const [busy, setBusy] = useState(true); // 초기 링크 확인/세션 교환
-  const [saving, setSaving] = useState(false); // 비번 업데이트
-  const [error, setError] = useState<string | null>(null);
-  const [msg, setMsg] = useState<string | null>(null);
+  const translateError = (msg: string): string =>
+    errorMessageMap[msg] || "문제가 발생했습니다. 다시 시도해주세요.";
 
-  useEffect(() => {
-    (async () => {
-      try {
-        // 1) PKCE(code) 링크 처리
-        const url = new URL(window.location.href);
-        const code = url.searchParams.get("code");
-        if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(
-            window.location.href
-          );
-          if (error) throw error;
-          // 주소창 정리(토큰 파라미터 제거)
-          window.history.replaceState({}, document.title, "/auth/reset");
-        }
+  const handleLogin = async () => {
+    setErrorMsg("");
+    setInfoMsg("");
 
-        // 2) 세션 확인 (hash 방식 포함)
-        const { data } = await supabase.auth.getSession();
-        if (!data.session) {
-          setError(
-            "유효하지 않은 링크이거나 만료되었습니다. 다시 시도해주세요."
-          );
-        }
-      } catch (e) {
-        setError(
-          e instanceof Error ? e.message : "링크 처리 중 문제가 발생했습니다."
-        );
-      } finally {
-        setBusy(false);
-      }
-    })();
-    // location.key를 deps에 두면 동일 경로 재방문 시에도 1회 더 체크 가능
-  }, [location.key]);
+    const { error } = await login(email, password);
+    if (error) {
+      setErrorMsg(translateError(error.message));
+      return;
+    }
 
-  const onUpdate = async () => {
-    setError(null);
-    setMsg(null);
+    setChecking(true);
+    // (선택) 데이터 정합성 체크
+    // try {
+    //   const fetchedUser = await fetchUser();
+    //   const userId = (fetchedUser as { id?: string } | null | undefined)?.id ?? user?.id;
+    //   if (userId) await runDataIntegrityCheck(userId);
+    // } finally {
+    //   setChecking(false);
+    // }
+    navigate("/main");
+  };
 
-    if (pwd1.length < 6)
-      return setError("비밀번호는 최소 6자 이상이어야 합니다.");
-    if (pwd1 !== pwd2) return setError("비밀번호가 일치하지 않습니다.");
+  const handleSendReset = async (
+    e?: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>
+  ) => {
+    e?.preventDefault();
 
-    setSaving(true);
+    setErrorMsg("");
+    setInfoMsg("");
+
+    const suggested = email.trim();
+    const input = window.prompt(
+      "재설정 링크를 받을 이메일 주소를 입력하세요:",
+      suggested
+    );
+    if (input === null) return;
+
+    const addr = input.trim();
+    if (!addr) {
+      setErrorMsg("이메일을 입력해주세요.");
+      return;
+    }
+
+    const origin = window.location.origin;
+    const redirectTo = `${origin}/auth/reset`;
+
     try {
-      const { error } = await supabase.auth.updateUser({ password: pwd1 });
+      const { error } = await supabase.auth.resetPasswordForEmail(addr, {
+        redirectTo,
+      });
       if (error) throw error;
 
-      setMsg("비밀번호가 변경되었습니다. 다시 로그인해주세요!");
-      await supabase.auth.signOut();
-      navigate("/login", { replace: true });
-    } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "비밀번호 변경에 실패했습니다."
+      if (!email) setEmail(addr);
+      setInfoMsg(
+        "재설정 링크를 메일로 보냈어요. 메일함(스팸함 포함)을 확인해주세요!"
       );
-    } finally {
-      setSaving(false);
+    } catch (e) {
+      const msg =
+        e instanceof Error ? e.message : "재설정 메일 전송에 실패했습니다.";
+      setErrorMsg(translateError(msg));
     }
   };
 
-  if (busy) {
-    return (
-      <div className="min-h-dvh flex items-center justify-center px-4">
-        <Loader2 className="h-6 w-6 animate-spin" />
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-dvh flex items-center justify-center bg-gradient-to-b from-[#e9d8c8] to-[#d8bca3] px-4 py-8">
-      <Card className="w-full max-w-sm shadow-lg border border-amber-200/40">
+    <div className="min-h-dvh flex items-center justify-center bg-gradient-to-b from-[#e9d8c8] to-[#d8bca3] px-4 py-8 sm:py-12">
+      <Card className="w-full max-w-md shadow-lg border border-amber-200/40">
         <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-xl font-bold text-[#5b3d1d]">
-            비밀번호 재설정
+          <CardTitle className="text-2xl font-bold text-[#5b3d1d]">
+            로그인
           </CardTitle>
           <CardDescription className="text-[#8a6b50]">
-            새 비밀번호를 입력한 뒤 확인을 눌러주세요.
+            감자링을 시작해보세요
           </CardDescription>
         </CardHeader>
 
-        <CardContent className="space-y-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-          {msg && (
-            <Alert>
-              <AlertDescription>{msg}</AlertDescription>
-            </Alert>
-          )}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleLogin();
+          }}
+        >
+          <CardContent className="flex flex-col gap-6">
+            {/* 이메일 */}
+            <div className="grid gap-2">
+              <Label htmlFor="email">이메일</Label>
+              <Input
+                id="email"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                placeholder="이메일을 입력해주세요"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading || checking}
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="pwd1">새 비밀번호</Label>
-            <Input
-              id="pwd1"
-              type="password"
-              placeholder="6자 이상"
-              value={pwd1}
-              onChange={(e) => setPwd1(e.target.value)}
-              disabled={saving}
-            />
-          </div>
+            {/* 비밀번호 */}
+            <div className="grid gap-2">
+              <Label htmlFor="password">비밀번호</Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                placeholder="비밀번호를 입력해주세요"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading || checking}
+              />
+              <button
+                type="button"
+                onClick={handleSendReset}
+                className="text-sm underline text-[#8a6b50] hover:text-[#6b4e2d] self-end"
+              >
+                비밀번호를 잊으셨나요?
+              </button>
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="pwd2">새 비밀번호 확인</Label>
-            <Input
-              id="pwd2"
-              type="password"
-              placeholder="다시 입력"
-              value={pwd2}
-              onChange={(e) => setPwd2(e.target.value)}
-              disabled={saving}
-            />
-          </div>
-        </CardContent>
-
-        <CardFooter className="flex flex-col gap-3">
-          <Button onClick={onUpdate} disabled={saving}>
-            {saving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                변경 중…
-              </>
-            ) : (
-              "비밀번호 변경"
+            {/* 알림 */}
+            {(errorMsg || infoMsg) && (
+              <Alert variant={errorMsg ? "destructive" : "default"}>
+                <AlertDescription>{errorMsg || infoMsg}</AlertDescription>
+              </Alert>
             )}
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => navigate("/login")}
-            disabled={saving}
-          >
-            로그인 화면으로 돌아가기
-          </Button>
-        </CardFooter>
+          </CardContent>
+
+          <CardFooter className="flex flex-col gap-4">
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={loading || checking}
+            >
+              {loading || checking ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  로그인 중...
+                </>
+              ) : (
+                "로그인"
+              )}
+            </Button>
+
+            <div className="text-sm text-center text-[#8a6b50]">
+              계정이 없으신가요?{" "}
+              <Link
+                to="/signup"
+                className="underline font-semibold hover:text-[#6b4e2d]"
+              >
+                회원가입하러 가기
+              </Link>
+            </div>
+          </CardFooter>
+        </form>
       </Card>
     </div>
   );

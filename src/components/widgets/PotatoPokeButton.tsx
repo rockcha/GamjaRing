@@ -106,7 +106,6 @@ export default function PotatoPokeButton({
     >
       <div className="text-center w-full border-b py-1 pb-3">
         <h3 className="text-lg font-bold text-[#3d2b1f]">{`${partnerNickname} 👉콕 찌르기`}</h3>
-        <p className="text-sm text-[#6b533b]">{subtitle}</p>
       </div>
 
       <motion.button
