@@ -288,7 +288,7 @@ export default function CoupleSchedulerPage() {
         <Button
           onClick={() => handleOpenCreate()}
           size="icon"
-          className="absolute top-2 right-2 h-9 w-9 rounded-xl shadow-md hover:cursor-pointer bg-[#6b533b] text-white hover:bg-[#5d452e]"
+          className="absolute top-4 right-4 h-9 w-9  hover:cursor-pointer   "
           title="일정 추가"
           aria-label="일정 추가"
         >
@@ -316,7 +316,7 @@ export default function CoupleSchedulerPage() {
           </Button>
         </div>
 
-        <CardContent className="p-3 sm:p-5">
+        <CardContent className="p-3 sm:p-4">
           {/* 요일 헤더 */}
           <div className="mb-2 grid grid-cols-7 text-center text-xs sm:text-sm font-medium text-muted-foreground">
             {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
@@ -327,7 +327,7 @@ export default function CoupleSchedulerPage() {
           </div>
 
           {/* 달력 그리드 */}
-          <div className="grid grid-cols-7 gap-[6px] sm:gap-2">
+          <div className="grid grid-cols-7 gap-[6px] sm:gap-1">
             {daysInMonth.map(({ date }, idx) => {
               const key = date ? formatYMD(date) : `blank-${idx}`;
               const dayItems = date
@@ -343,7 +343,7 @@ export default function CoupleSchedulerPage() {
                     "min-w-0 overflow-hidden",
                   ].join(" ")}
                 >
-                  <div className="h-full flex flex-col p-2">
+                  <div className="h-full flex flex-col p-1">
                     <div
                       className={[
                         "text-xs font-semibold",

@@ -138,7 +138,10 @@ export default function PageLayout({
       </header>
 
       {/* 본문 */}
-      <main id="main" className="mx-auto w-full max-w-screen-xl px-4 py-6">
+      <main
+        id="main"
+        className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-screen-xl items-center justify-center px-2"
+      >
         <Outlet />
       </main>
     </div>

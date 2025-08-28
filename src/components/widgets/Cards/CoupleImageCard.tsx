@@ -455,7 +455,7 @@ export default function CoupleImageCard({
             className="w-full"
             opts={{ loop: true }}
           >
-            <CarouselContent>
+            <CarouselContent className="mx-auto">
               {slots.map((s, idx) => {
                 const visibleIdx = [
                   activeIdx,
@@ -466,7 +466,10 @@ export default function CoupleImageCard({
                 const hasImg = !!s.path && !!s.url && shouldLoad;
 
                 return (
-                  <CarouselItem key={idx} className=" bg-transparent border-0">
+                  <CarouselItem
+                    key={idx}
+                    className=" bg-transparent border-0 p-2 "
+                  >
                     <div>
                       <Card className="overflow-hidden ">
                         <div className="relative w-full" style={ratioBoxStyle}>
@@ -521,14 +524,14 @@ export default function CoupleImageCard({
                           )}
 
                           {s.path && !isDisabled && (
-                            <div className="absolute right-2 top-2 flex items-center gap-1">
+                            <div className="absolute right-2 bottom-2 flex items-center gap-1">
                               <Button
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => openPickerFor(idx)}
                                 disabled={s.uploading || s.deleting}
                                 title="이미지 교체"
-                                className="bg-white/70 backdrop-blur-sm hover:cursor-pointer"
+                                className="bg-white hover:cursor-pointer"
                               >
                                 <Pencil className="h-4 w-4" />
                               </Button>
@@ -538,14 +541,14 @@ export default function CoupleImageCard({
                                 onClick={() => handleDelete(idx)}
                                 disabled={s.uploading || s.deleting}
                                 title="이미지 삭제"
-                                className="bg-white/90  hover:cursor-pointer"
+                                className="bg-white  hover:cursor-pointer"
                               >
                                 <Trash2 className="h-4 w-4 text-rose-600" />
                               </Button>
                             </div>
                           )}
 
-                          <div className="absolute bottom-2 right-2">
+                          <div className="absolute bottom-2 left-2">
                             <span className="px-2 py-1 text-xs rounded-md bg-white/95 shadow-sm border">
                               {idx + 1} / {MAX_SLOTS}
                             </span>

@@ -9,6 +9,8 @@ import CouplePotatoCard from "@/components/widgets/Cards/CouplePotatoCard";
 import CoupleImageCard from "@/components/widgets/Cards/CoupleImageCard";
 import TodayQuestionCard from "@/components/widgets/Cards/TodayQuestionCard";
 import CoupleSchedulePreview from "@/components/widgets/Cards/CoupleShedulePreview";
+import CoupleMusicCard from "@/components/widgets/Cards/CoupleMusicCard";
+import DailyFortuneCard from "@/features/fortune/DailyFortuneCard";
 
 export default function MainPage() {
   const { isCoupled } = useUser();
@@ -26,22 +28,25 @@ export default function MainPage() {
         - md: 왼(작게 0.9fr) | 가운데(크게 1.3fr)
         - xl: 왼(0.8fr) | 가운데(2fr) | 오른쪽(1.1fr)
       */}
+
       <div
         className="
     grid gap-2 items-start
     grid-cols-1
-    md:[grid-template-columns:minmax(220px,.9fr)_minmax(0,0.9fr)]
-    lg:[grid-template-columns:minmax(240px,.8fr)_minmax(0,1.4fr)_minmax(0,1fr)]   
+    md:[grid-template-columns:minmax(220px,1fr)_minmax(0,0.9fr)]
+    lg:[grid-template-columns:minmax(260px,0.9fr)_minmax(0,1.4fr)_minmax(0,0.9fr)]
   "
       >
         {/* 왼쪽: 포크 버튼 + 감자 진행 카드 (상대적으로 좁은 컬럼) */}
         <div className="flex flex-col gap-2 min-w-0">
+          <CoupleMusicCard />
+          <DailyFortuneCard />
           {isCoupled ? (
             <PotatoPokeButton />
           ) : (
             <SadPotatoGuard className="w-full" />
           )}
-          <CouplePotatoCard className="w-full" />
+          {/* <CouplePotatoCard className="w-full" /> */}
         </div>
 
         {/* 가운데: 커플 이미지(메인 비중 가장 크게) */}
