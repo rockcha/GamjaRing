@@ -41,11 +41,9 @@ export default function MainPage() {
         <div className="flex flex-col gap-2 min-w-0">
           <CoupleMusicCard />
           <DailyFortuneCard />
-          {isCoupled ? (
-            <PotatoPokeButton />
-          ) : (
-            <SadPotatoGuard className="w-full" />
-          )}
+
+          <PotatoPokeButton />
+
           {/* <CouplePotatoCard className="w-full" /> */}
         </div>
 

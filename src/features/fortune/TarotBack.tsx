@@ -24,11 +24,7 @@ export default function TarotBack({
       />
       <div className="absolute inset-3 rounded-2xl border border-white/70 shadow-inner" />
       <div className="absolute inset-6 rounded-xl border border-white/50" />
-      <div className="absolute inset-0 grid place-items-center">
-        <div className="h-14 w-14 rounded-full bg-white/80 shadow flex items-center justify-center">
-          <Sparkles className="w-6 h-6 text-purple-500" />
-        </div>
-      </div>
+      <div className="absolute inset-0 grid place-items-center"></div>
     </div>
   );
 }

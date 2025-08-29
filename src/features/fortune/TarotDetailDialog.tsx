@@ -8,8 +8,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+
 import { TAROT_CARD_SRC, THEME, ICONS, TAROT_META } from "./theme";
 import type { Fortune } from "./generateFortune";
 
@@ -66,8 +65,6 @@ export default function TarotDetailDialog({
                         </div>
                       </DialogTitle>
                     </div>
-
-                    {/* ⛳️ (이전) 등급 뱃지 위치는 카드 우상단으로 이동 */}
                   </DialogHeader>
 
                   {/* 카드 미리보기 (모달 너비의 1/3, 2:3 비율) */}

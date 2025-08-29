@@ -227,7 +227,7 @@ export default function CoupleMusicCard() {
   const StatusBadge = ({ active }: { active: boolean }) => (
     <span
       className={[
-        "ml-2 inline-flex items-center gap-1.5 rounded-full pl-1.5 pr-2 py-0.5 text-[11px] font-medium",
+        "ml-2 inline-flex items-center gap-1.5 rounded-full pl-1.5 pr-2 py-1 text-[11px] font-medium ",
         active
           ? "bg-emerald-100 text-emerald-800"
           : "bg-rose-100 text-rose-800",
@@ -258,8 +258,7 @@ export default function CoupleMusicCard() {
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-[#3d2b1f]">
-            <Music4 className="h-5 w-5 text-rose-500" />
-            우리의 음악
+            🎧 우리의 음악
             <StatusBadge active={isAudible} />
           </CardTitle>
           <Button
@@ -273,10 +272,10 @@ export default function CoupleMusicCard() {
         </div>
       </CardHeader>
 
-      <CardContent className="pt-3">
+      <CardContent className="pt-2">
         {loading ? (
           <div className="space-y-3">
-            <Skeleton className="h-[200px] sm:h-[100px] rounded-3xl" />
+            <Skeleton className="h-[200px] sm:h-[100px] rounded-xl" />
             <Skeleton className="h-4 w-1/3" />
           </div>
         ) : url && videoId ? (
@@ -285,10 +284,8 @@ export default function CoupleMusicCard() {
               <div className="relative">
                 <div
                   className={[
-                    "relative aspect-video overflow-hidden rounded-3xl border ring-1 ring-black/5 shadow-2xl transition-shadow",
-                    isAudible
-                      ? "ring-2 ring-emerald-300 shadow-emerald-200/40"
-                      : "",
+                    "relative aspect-video overflow-hidden rounded-3xl    shadow-2xl transition-shadow",
+                    isAudible ? " shadow-emerald-200/50" : "",
                   ].join(" ")}
                 >
                   {playerOpen ? (
@@ -296,7 +293,7 @@ export default function CoupleMusicCard() {
                   ) : (
                     <button
                       onClick={() => setPlayerOpen(true)}
-                      className="relative w-full h-full transition-transform duration-300 hover:scale-[1.01]"
+                      className="relative w-full h-full transition-transform duration-300 hover:scale-[1.02]"
                       title="재생"
                       aria-label="재생"
                       type="button"
@@ -335,7 +332,7 @@ export default function CoupleMusicCard() {
       >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>커플 음악 링크 설정</DialogTitle>
+            <DialogTitle>음악 링크 설정</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-3">

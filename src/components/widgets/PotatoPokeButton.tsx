@@ -33,6 +33,9 @@ export default function PotatoPokeButton({
   const [partnerAvatarId, setPartnerAvatarId] = useState<number | null>(null);
   const [partnerNickname, setPartnerNickname] = useState<string>("상대");
 
+  // 커플 여부
+  const isCoupled = Boolean(user?.partner_id);
+
   // 파트너 아바타 URL (없으면 폴백 이미지)
   const partnerAvatarUrl = useMemo(
     () => avatarSrc(partnerAvatarId ?? undefined) ?? POKE_FALLBACK_IMG,
@@ -102,6 +105,9 @@ export default function PotatoPokeButton({
   const fixedClasses =
     "fixed left-4 bottom-[calc(env(safe-area-inset-bottom,0)+1rem)] z-50";
 
+  // 🚫 커플이 아닐 때는 버튼 표시하지 않음
+  if (!isCoupled) return null;
+
   return (
     <CoolMode options={{ particle: "🥔", particleCount: 3, size: 4 }}>
       <motion.button
@@ -114,12 +120,12 @@ export default function PotatoPokeButton({
         aria-label={`${partnerNickname} 콕 찌르기`}
         className={[
           fixedClasses,
-          "rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300",
+          "rounded-full ",
           loading ? "opacity-70 cursor-not-allowed" : "cursor-pointer",
           className,
         ].join(" ")}
       >
-        <Avatar className="w-14 h-14 md:w-16 md:h-16 border shadow-lg bg-white ring-2 ring-rose-200">
+        <Avatar className="w-14 h-14 md:w-16 md:h-16 border shadow-lg bg-white p-1">
           <AvatarImage
             src={partnerAvatarUrl}
             alt={`${partnerNickname} 아바타`}

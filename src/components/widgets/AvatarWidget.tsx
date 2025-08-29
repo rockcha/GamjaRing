@@ -105,7 +105,7 @@ export default function AvatarWidget({
   const initial = nickname.trim()?.[0] || "🙂";
 
   return (
-    <div className={cn("inline-flex flex-col items-center", className)}>
+    <div className={cn("inline-flex flex-col items-center ", className)}>
       <Avatar className={cn(AVATAR_SIZE[size])}>
         {loading ? (
           <AvatarFallback className="text-xs text-gray-400">…</AvatarFallback>
