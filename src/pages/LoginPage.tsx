@@ -4,8 +4,10 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useUser } from "@/contexts/UserContext";
-import { runDataIntegrityCheck } from "@/utils/DataIntegrityCheck";
 import supabase from "@/lib/supabase";
+
+// Icons
+import { HeartHandshake, Loader2 } from "lucide-react";
 
 // shadcn/ui
 import {
@@ -20,7 +22,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2 } from "lucide-react";
 
 const errorMessageMap: Record<string, string> = {
   "Invalid login credentials": "이메일 또는 비밀번호가 잘못되었습니다.",
@@ -39,7 +40,7 @@ export default function LoginPage() {
   const [checking, setChecking] = useState(false);
 
   const navigate = useNavigate();
-  const { login, user, loading, fetchUser } = useUser();
+  const { login, loading } = useUser();
 
   const translateError = (msg: string): string =>
     errorMessageMap[msg] || "문제가 발생했습니다. 다시 시도해주세요.";
@@ -55,14 +56,6 @@ export default function LoginPage() {
     }
 
     setChecking(true);
-    // (선택) 데이터 정합성 체크
-    // try {
-    //   const fetchedUser = await fetchUser();
-    //   const userId = (fetchedUser as { id?: string } | null | undefined)?.id ?? user?.id;
-    //   if (userId) await runDataIntegrityCheck(userId);
-    // } finally {
-    //   setChecking(false);
-    // }
     navigate("/main");
   };
 
@@ -108,12 +101,15 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-dvh flex items-center justify-center bg-gradient-to-b from-[#e9d8c8] to-[#d8bca3] px-4 py-8 sm:py-12">
+    <div className="min-h-dvh flex flex-col items-center justify-center bg-gradient-to-b from-[#e9d8c8] to-[#d8bca3] px-4 py-8 sm:py-12">
+      {/* 브랜드 타이틀 영역 */}
+
       <Card className="w-full max-w-md shadow-lg border border-amber-200/40">
-        <CardHeader className="space-y-1 text-center">
+        <CardHeader className=" pace-y-1 text-center">
           <CardTitle className="text-2xl font-bold text-[#5b3d1d]">
             로그인
           </CardTitle>
+
           <CardDescription className="text-[#8a6b50]">
             감자링을 시작해보세요
           </CardDescription>
@@ -162,7 +158,6 @@ export default function LoginPage() {
               </button>
             </div>
 
-            {/* 알림 */}
             {(errorMsg || infoMsg) && (
               <Alert variant={errorMsg ? "destructive" : "default"}>
                 <AlertDescription>{errorMsg || infoMsg}</AlertDescription>

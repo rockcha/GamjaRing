@@ -199,7 +199,7 @@ export default function CouplePotatoCard({
           onClick={() => setOpen(true)}
           aria-label="우리의 감자 자세히 보기"
           className={cn(
-            "p-0 h-auto hover:bg-transparent focus-visible:ring-0 focus-visible:outline-none",
+            "p-0 h-auto   ",
             "inline-flex flex-col items-center gap-1",
             className
           )}

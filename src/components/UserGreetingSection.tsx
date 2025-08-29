@@ -35,6 +35,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 // 🔸 로컬 아바타 유틸 (네가 제공한 것)
 import { avatarSrc } from "@/features/localAvatar"; // export function avatarSrc(id?: number|null) { ... }
 import AvatarWidget from "./widgets/AvatarWidget";
+import CouplePotatoCard from "./widgets/Cards/CouplePotatoCard";
 
 type Item = {
   id: string;
@@ -151,6 +152,7 @@ export default function UserGreetingSection({
       ) : (
         <>
           <NotificationDropdown onUnreadChange={() => {}} />
+          <CouplePotatoCard />
 
           <Sheet>
             <SheetTrigger asChild>

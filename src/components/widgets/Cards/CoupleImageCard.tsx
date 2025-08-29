@@ -24,7 +24,7 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel";
-
+import PotatoPokeButton from "@/components/widgets/PotatoPokeButton";
 import { Pencil, Loader2, Trash2, ImageUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -473,6 +473,9 @@ export default function CoupleImageCard({
                     <div>
                       <Card className="overflow-hidden ">
                         <div className="relative w-full" style={ratioBoxStyle}>
+                          <div className="absolute left-2 top-2 z-20">
+                            <PotatoPokeButton />
+                          </div>
                           {s.path && shouldLoad ? (
                             hasImg ? (
                               <img
