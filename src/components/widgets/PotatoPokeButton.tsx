@@ -93,9 +93,6 @@ export default function PotatoPokeButton({
     }
   };
 
-  const fixedClasses =
-    "fixed left-4 bottom-[calc(env(safe-area-inset-bottom,0)+1rem)] z-50";
-
   if (!isCoupled) return null;
 
   return (
@@ -109,18 +106,19 @@ export default function PotatoPokeButton({
         aria-busy={loading}
         aria-label={`${partnerNickname} 콕 찌르기`}
         className={[
-          fixedClasses,
           "rounded-full",
           loading ? "opacity-70 cursor-not-allowed" : "cursor-pointer",
           className,
         ].join(" ")}
       >
-        <Avatar className="w-14 h-14 md:w-16 md:h-16 border shadow-lg bg-white p-1">
+        <Avatar className="w-14 h-14 md:w-16 md:h-16 border shadow-lg bg-white p-1 overflow-hidden rounded-full">
           {/* ✅ URL 있을 때만 이미지 렌더 */}
           {partnerAvatarUrl && (
             <AvatarImage
               src={partnerAvatarUrl}
               alt={`${partnerNickname} 아바타`}
+              className="h-full w-full object-cover object-center"
+              loading="lazy"
             />
           )}
           {/* ✅ 아바타 없으면 아이콘으로 표시 */}

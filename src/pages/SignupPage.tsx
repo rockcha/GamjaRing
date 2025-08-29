@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
+import { HeartHandshake } from "lucide-react";
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
@@ -90,7 +91,16 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-dvh flex items-center justify-center bg-gradient-to-b from-[#e9d8c8] to-[#d8bca3] px-4 py-8 sm:py-12">
+    <div className="min-h-dvh flex flex-col items-center justify-center bg-gradient-to-b from-[#e9d8c8] to-[#d8bca3] px-4 py-8 sm:py-12">
+      <div className="mb-6 sm:mb-8 flex items-center gap-2 sm:gap-3">
+        <HeartHandshake
+          className="h-8 w-8 sm:h-10 sm:w-10 text-amber-700"
+          aria-hidden="true"
+        />
+        <span className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#5b3d1d]">
+          감자링
+        </span>
+      </div>
       <Card className="w-full max-w-md shadow-lg border border-amber-200/40">
         <CardHeader className="space-y-1 text-center">
           <CardTitle className="text-2xl font-bold text-[#5b3d1d]">

@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-
+import { Button } from "@/components/ui/button"; // ✅ 닫기 버튼
 import { TAROT_CARD_SRC, THEME, ICONS, TAROT_META } from "./theme";
 import type { Fortune } from "./generateFortune";
 
@@ -23,15 +23,13 @@ export default function TarotDetailDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl p-0 overflow-hidden">
+      {/* ✅ 모바일에서 살짝 더 작게: 가로폭/패딩 조절 */}
+      <DialogContent className="max-w-[92vw] sm:max-w-xl p-0 overflow-hidden">
         {fortune ? (
-          <div className={`p-5 ${THEME[fortune.grade].bg}`}>
-            {/* 등급별 색상 클래스 계산 */}
+          <div className={`p-4 sm:p-5 ${THEME[fortune.grade].bg}`}>
             {(() => {
-              // 예: ring-emerald-300 -> border-emerald-300
               const ringCls = THEME[fortune.grade].ring;
               const borderCls = ringCls.replace("ring-", "border-");
-              // chip에 들어있는 bg-xxx-yyy만 뽑아서 hover 오버레이 색으로 사용
               const chipBg =
                 THEME[fortune.grade].chip
                   .split(" ")
@@ -39,56 +37,56 @@ export default function TarotDetailDialog({
 
               return (
                 <>
-                  {/* 중앙 정렬 헤더: 아이콘 + 영어 카드명 */}
+                  {/* 중앙 정렬 헤더 */}
                   <DialogHeader className="px-1 items-center text-center">
                     <div className="inline-flex items-center justify-center gap-2">
                       {(() => {
                         const Icon = ICONS[fortune.grade];
                         return (
                           <span
-                            className={`inline-flex h-8 w-8 items-center justify-center rounded-full ${borderCls}`}
+                            className={`inline-flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full ${borderCls}`}
                           >
                             <Icon
-                              className={`w-5 h-5 ${THEME[fortune.grade].icon}`}
+                              className={`w-4 h-4 sm:w-5 sm:h-5 ${
+                                THEME[fortune.grade].icon
+                              }`}
                             />
                           </span>
                         );
                       })()}
                       <DialogTitle
-                        className={`text-base sm:text-xl font-semibold ${
+                        className={`text-sm sm:text-xl font-semibold ${
                           THEME[fortune.grade].text
                         }`}
                       >
-                        <div className="flex justify-center gap-2">
+                        <div className="flex justify-center gap-1 sm:gap-2">
                           {TAROT_META[fortune.grade].en}
-                          <p className="text-[12px]"> ({fortune.grade})</p>
+                          <span className="text-[10px] sm:text-[12px]">
+                            ({fortune.grade})
+                          </span>
                         </div>
                       </DialogTitle>
                     </div>
                   </DialogHeader>
 
-                  {/* 카드 미리보기 (모달 너비의 1/3, 2:3 비율) */}
+                  {/* 카드 미리보기 - 📱에서 더 작게 */}
                   <div className="mt-3">
-                    <div className="mx-auto w-1/3 min-w-[220px] max-w-[360px]">
+                    <div className="mx-auto w-1/2 min-w-[140px] max-w-[220px] sm:w-1/3 sm:min-w-[220px] sm:max-w-[360px]">
                       <div
                         className={[
                           "relative group w-full aspect-[2/3] rounded-lg overflow-hidden",
                           THEME[fortune.grade].bg,
-
                           `border-none ${ringCls} ${borderCls}`,
                         ].join(" ")}
                       >
-                        {/* 이미지 */}
                         <img
                           src={TAROT_CARD_SRC[fortune.grade]}
                           alt={`${fortune.grade} 타로카드`}
                           className="absolute inset-0 w-full h-full object-cover"
                           loading="lazy"
                         />
-
-                        {/* hover 색 오버레이(아주 옅게) */}
                         <div
-                          className={`pointer-events-none absolute inset-0 opacity-0  transition ${chipBg}`}
+                          className={`pointer-events-none absolute inset-0 opacity-0 transition ${chipBg}`}
                           style={{ mixBlendMode: "screen" }}
                         />
                       </div>
@@ -96,25 +94,26 @@ export default function TarotDetailDialog({
                   </div>
 
                   {/* 텍스트 섹션 */}
-                  <div className="mt-4 space-y-3">
-                    <div
-                      className={`text-sm font-semibold ${
-                        THEME[fortune.grade].text
-                      }`}
-                    >
-                      {fortune.title}
+                  <div className="mt-2 space-y-3 ">
+                    <div className="flex flex-col items-center justify-center mb-6">
+                      <div
+                        className={`text-base font-semibold  ${
+                          THEME[fortune.grade].text
+                        }`}
+                      >
+                        {fortune.title}
+                      </div>
+                      <p className="text-sm text-neutral-800/80">
+                        {fortune.summary}
+                      </p>
                     </div>
-                    <p className="text-sm text-neutral-800/80">
-                      {fortune.summary}
-                    </p>
 
-                    {/* 연애 / 일·공부 / 건강 : 보더와 타이틀을 등급 색으로 */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm ">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[13px] sm:text-sm">
                       <div
                         className={`rounded-xl border ${borderCls} bg-white/85 p-3`}
                       >
                         <div
-                          className={`text-xs font-semibold ${
+                          className={`text-[11px] sm:text-xs font-semibold ${
                             THEME[fortune.grade].text
                           }`}
                         >
@@ -128,7 +127,7 @@ export default function TarotDetailDialog({
                         className={`rounded-xl border ${borderCls} bg-white/85 p-3`}
                       >
                         <div
-                          className={`text-xs font-semibold ${
+                          className={`text-[11px] sm:text-xs font-semibold ${
                             THEME[fortune.grade].text
                           }`}
                         >
@@ -142,7 +141,7 @@ export default function TarotDetailDialog({
                         className={`rounded-xl border ${borderCls} bg-white/85 p-3`}
                       >
                         <div
-                          className={`text-xs font-semibold ${
+                          className={`text-[11px] sm:text-xs font-semibold ${
                             THEME[fortune.grade].text
                           }`}
                         >
@@ -154,8 +153,7 @@ export default function TarotDetailDialog({
                       </div>
                     </div>
 
-                    {/* 라벨은 중립, 값은 등급 색상으로 강조 */}
-                    <div className="flex flex-wrap gap-2 text-xs justify-center">
+                    <div className="flex flex-wrap gap-2 text-[11px] sm:text-xs justify-center">
                       <span
                         className={`rounded-full border px-2 py-1 bg-white/85 ${borderCls}`}
                       >
@@ -199,7 +197,7 @@ export default function TarotDetailDialog({
                         {fortune.keywords.map((k, i) => (
                           <span
                             key={i}
-                            className={`text-[11px] px-2 py-1 rounded-full border ${
+                            className={`text-[10px] sm:text-[11px] px-2 py-1 rounded-full border ${
                               THEME[fortune.grade].chip
                             }`}
                           >
@@ -209,6 +207,17 @@ export default function TarotDetailDialog({
                       </div>
                     )}
                   </div>
+
+                  {/* ✅ 하단 닫기 버튼 (모바일은 꽉 차게) */}
+                  <DialogFooter className="mt-4">
+                    <Button
+                      className="w-full sm:w-auto"
+                      variant="outline"
+                      onClick={() => onOpenChange(false)}
+                    >
+                      닫기
+                    </Button>
+                  </DialogFooter>
                 </>
               );
             })()}

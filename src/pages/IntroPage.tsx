@@ -8,21 +8,35 @@ export default function IntroPage() {
   const navigate = useNavigate();
   const prefersReducedMotion = useReducedMotion();
 
-  useEffect(() => {
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
+  // 진행바/인트로 최소 노출 시간(애니메이션 길이와 동일)
+  const DURATION_SEC = prefersReducedMotion ? 0.8 : 2.6;
+  const MIN_SPLASH_MS = Math.round(DURATION_SEC * 1000);
 
-      if (data.session) {
-        // 세션 있으면 /main
-        navigate("/main", { replace: true });
-      } else {
-        // 세션 없으면 /login
-        navigate("/login", { replace: true });
-      }
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      // 병렬로 시작
+      const sessionPromise = supabase.auth.getSession();
+      const timerPromise = new Promise<void>((res) =>
+        setTimeout(res, MIN_SPLASH_MS)
+      );
+
+      // 각자 기다리기 (타입 안전)
+      const sessionRes = await sessionPromise;
+      await timerPromise;
+
+      if (cancelled) return;
+      const hasSession = Boolean(sessionRes.data.session);
+      navigate(hasSession ? "/main" : "/login", { replace: true });
     };
 
-    checkSession();
-  }, [navigate]);
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate, MIN_SPLASH_MS]);
+
   return (
     <div
       className={[
@@ -32,10 +46,7 @@ export default function IntroPage() {
         "px-4",
       ].join(" ")}
     >
-      {/* 소프트 비네팅 */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(800px_400px_at_50%_30%,transparent,rgba(0,0,0,0.04))]" />
-
-      {/* 은은한 그레인 */}
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.045] mix-blend-multiply"
         style={{
@@ -44,7 +55,6 @@ export default function IntroPage() {
         }}
       />
 
-      {/* 떠다니는 이모지 (감자/하트) */}
       {!prefersReducedMotion && (
         <>
           <FloatingEmoji emoji="🥔" x="12%" delay={0.0} />
@@ -54,7 +64,6 @@ export default function IntroPage() {
         </>
       )}
 
-      {/* 로고/콘텐츠 카드 느낌 */}
       <motion.div
         initial={{ opacity: 0, y: 16, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -62,7 +71,6 @@ export default function IntroPage() {
         className="relative z-10 w-full max-w-md"
       >
         <div className="rounded-3xl border border-[#6b4e2d]/10 bg-white/70 backdrop-blur-sm shadow-[0_15px_40px_rgba(107,78,45,0.15)] px-6 py-8 text-center">
-          {/* 상단 감자 GIF + 글로우 */}
           <div className="relative mx-auto mb-3 w-28 h-28 sm:w-32 sm:h-32">
             <motion.div
               className="absolute inset-0 rounded-full blur-2xl"
@@ -81,7 +89,6 @@ export default function IntroPage() {
             />
           </div>
 
-          {/* 멘트 */}
           <motion.p
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -91,7 +98,6 @@ export default function IntroPage() {
             함께한 추억, 감자처럼 싹을 틔워요
           </motion.p>
 
-          {/* 브랜드 네임 */}
           <motion.h1
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -107,7 +113,6 @@ export default function IntroPage() {
             </span>
           </motion.h1>
 
-          {/* 슬로건 보조 문구 */}
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 0.85 }}
@@ -117,14 +122,14 @@ export default function IntroPage() {
             우리만의 기록이 자라나는 공간
           </motion.p>
 
-          {/* 진행 바 */}
+          {/* 진행 바: 애니메이션 길이를 DURATION_SEC에 맞춤 */}
           <div className="mt-6">
             <div className="h-1.5 w-full rounded-full bg-[#6b4e2d]/10 overflow-hidden">
               <motion.div
                 className="h-full rounded-full bg-[#6b4e2d]"
                 initial={{ width: 0 }}
                 animate={{ width: "100%" }}
-                transition={{ duration: 2.6, ease: "easeInOut" }}
+                transition={{ duration: DURATION_SEC, ease: "easeInOut" }}
               />
             </div>
             <p className="mt-2 text-xs text-[#6b4e2d]/70">곧 시작할게요…</p>
@@ -135,7 +140,6 @@ export default function IntroPage() {
   );
 }
 
-/** 떠다니는 이모지 컴포넌트 */
 function FloatingEmoji({
   emoji,
   x,

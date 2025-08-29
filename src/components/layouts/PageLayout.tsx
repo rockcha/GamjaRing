@@ -1,12 +1,9 @@
 // src/layouts/PageLayout.tsx
 import * as React from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import DaysTogetherBadge from "../DaysTogetherBadge";
-import UserGreetingSection from "../UserGreetingSection";
-import FloatingHomeButton from "../widgets/FloatingHomeButton";
 
-import { HeartHandshake } from "lucide-react"; // ← 추가
-import CouplePotatoCard from "../widgets/Cards/CouplePotatoCard";
+import FloatingHomeButton from "../widgets/FloatingHomeButton";
+import AppHeader from "./AppHeader";
 
 type PageLayoutProps = {
   /** 명시적으로 넘기면 이 값이 최우선. 없으면 현재 경로로 타이틀 계산 */
@@ -98,49 +95,9 @@ export default function PageLayout({
   };
 
   return (
-    <div className="min-h-[100svh] bg-gradient-to-b from-[#FAF5EB] via-[#EFE5D7] to-[#E6D5C3] text-[#3d2b1f]">
+    <div className="min-h-[100svh] max-w-screen-2xl mx-auto bg-gradient-to-b from-[#FAF5EB] via-[#EFE5D7] to-[#E6D5C3] text-[#3d2b1f]">
       {/* 고정 헤더 */}
-      <header className="sticky top-0 z-40 border-b bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60">
-        <div className="mx-auto max-w-screen-xl px-4 py-2">
-          {/* 상단 바: 좌-중-우 */}
-          <div className="flex h-14 items-center  ">
-            {/* 좌: 타이틀 */}
-
-            <HeartHandshake className="h-6 w-6" />
-            <h1 className="min-w-0 flex-1 truncate pl-1 text-2xl font-extrabold tracking-tight">
-              {routeTitle}
-            </h1>
-            <CouplePotatoCard />
-            {/* 중: md 이상에서만 표시 */}
-            <div className="hidden md:block">
-              <DaysTogetherBadge />
-            </div>
-
-            {/* 우: 유저 섹션 */}
-            <div className="flex flex-1 justify-end">
-              <UserGreetingSection
-                onNavigate={handleNavigate}
-                headerById={{
-                  home: "감자링",
-                  info: "감자링이란?",
-                  settings: "마이페이지",
-                  notifications: "알림페이지",
-                  questions: "오늘의 질문",
-                  bundle: "답변꾸러미",
-                  scheduler: "커플 스케쥴러",
-                }}
-              />
-            </div>
-          </div>
-
-          {/* 모바일 전용 배지 (헤더 아래 한 줄) */}
-          <div className="block py-2 md:hidden">
-            <div className="flex justify-center">
-              <DaysTogetherBadge />
-            </div>
-          </div>
-        </div>
-      </header>
+      <AppHeader routeTitle={routeTitle} onNavigate={handleNavigate} />
 
       {/* 본문 */}
       <main
