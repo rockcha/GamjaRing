@@ -478,7 +478,7 @@ export default function CoupleImageCard({
                               <img
                                 src={s.url!}
                                 alt={`커플 이미지 ${idx + 1}`}
-                                className="w-full h-full object-cover scale-60 rounded-md transition-transform duration-300"
+                                className="w-full h-full object-contain scale-60 rounded-md transition-transform duration-300"
                                 draggable={false}
                                 loading={idx === activeIdx ? "eager" : "lazy"}
                                 decoding="async"
@@ -504,11 +504,9 @@ export default function CoupleImageCard({
                                   : "hover:bg-amber-50"
                               )}
                             >
-                              {s.uploading ? (
-                                <Loader2 className="h-6 w-6 animate-spin" />
-                              ) : (
+                              {!s.uploading ? (
                                 <ImageUp className="h-6 w-6" />
-                              )}
+                              ) : null}
                               <span className="text-sm text-[#3d2b1f] font-medium">
                                 {isDisabled
                                   ? "이미지를 올리는 칸입니다."

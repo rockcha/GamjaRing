@@ -3,9 +3,10 @@ import { useEffect } from "react";
 import { useUser } from "@/contexts/UserContext";
 import { useToast } from "@/contexts/ToastContext";
 
+import SoloUserCard from "@/components/widgets/Cards/SoloUserCard";
+
 import PotatoPokeButton from "@/components/widgets/PotatoPokeButton";
-import SadPotatoGuard from "@/components/SadPotatoGuard";
-import CouplePotatoCard from "@/components/widgets/Cards/CouplePotatoCard";
+
 import CoupleImageCard from "@/components/widgets/Cards/CoupleImageCard";
 import TodayQuestionCard from "@/components/widgets/Cards/TodayQuestionCard";
 import CoupleSchedulePreview from "@/components/widgets/Cards/CoupleShedulePreview";
@@ -20,46 +21,47 @@ export default function MainPage() {
     open("환영합니다! 🥔 감자링에 오신 걸 환영해요.");
   }, [open]);
 
+  // ✅ 솔로면 SoloUserCard만 표시
+  if (!isCoupled) {
+    return (
+      <div className="w-full">
+        <div className=" mx-auto ">
+          <SoloUserCard />
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ 커플이면 기존 메인 레이아웃
   return (
     <div className="w-full">
-      {/* 
-        반응형 컬럼 비율
-        - 모바일: 1열
-        - md: 왼(작게 0.9fr) | 가운데(크게 1.3fr)
-        - xl: 왼(0.8fr) | 가운데(2fr) | 오른쪽(1.1fr)
-      */}
-
       <div
         className="
-    grid gap-2 items-start
-    grid-cols-1
-    md:[grid-template-columns:minmax(220px,1fr)_minmax(0,0.9fr)]
-    lg:[grid-template-columns:minmax(260px,0.9fr)_minmax(0,1.4fr)_minmax(0,0.9fr)]
-  "
+          grid gap-2 items-start
+          grid-cols-1
+          md:[grid-template-columns:minmax(220px,1fr)_minmax(0,0.9fr)]
+          lg:[grid-template-columns:minmax(260px,0.9fr)_minmax(0,1.1fr)_minmax(0,0.9fr)]
+        "
       >
-        {/* 왼쪽: 포크 버튼 + 감자 진행 카드 (상대적으로 좁은 컬럼) */}
+        {/* 왼쪽 */}
         <div className="flex flex-col gap-2 min-w-0">
           <CoupleMusicCard />
           <DailyFortuneCard />
-
           <PotatoPokeButton />
-
           {/* <CouplePotatoCard className="w-full" /> */}
         </div>
 
-        {/* 가운데: 커플 이미지(메인 비중 가장 크게) */}
+        {/* 가운데: 커플 이미지 */}
         <div className="min-w-0">
           <CoupleImageCard
             className="
               w-full
-              /* 이미지 프레임/이미지 높이 보정: 화면 커질수록 더 크게 */
               [&_img]:h-[620px]
-      
             "
           />
         </div>
 
-        {/* 오른쪽: 오늘의 질문 + 일정 미리보기 (xl 이상에서 독립 컬럼) */}
+        {/* 오른쪽: 질문 + 일정 */}
         <div className="flex flex-col gap-2 min-w-0">
           <CoupleSchedulePreview limit={5} className="w-full h-fit" />
           <TodayQuestionCard className="w-full h-fit" />

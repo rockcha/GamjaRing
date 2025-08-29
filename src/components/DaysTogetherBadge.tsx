@@ -48,11 +48,7 @@ export default function DaysTogetherBadge() {
   const COLOR = "#F5D9B8";
 
   if (!couple) {
-    return (
-      <div className="text-gray-500 text-base">
-        로그아웃 상태거나 함께하는 사람이 없어요 😢
-      </div>
-    );
+    return <div></div>;
   }
 
   if (!couple.started_at || daysTogether == null) {

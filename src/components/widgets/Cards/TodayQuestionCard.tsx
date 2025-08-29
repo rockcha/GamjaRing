@@ -209,7 +209,7 @@ export default function TodayQuestionCard({
         {!loading && !error && task && (
           <>
             {/* 🔁 무한 반복 + 커서 깜빡임 (TypingAnimation은 수정하지 않음) */}
-            <p className="text-[15px] leading-relaxed text-[#3d2b1f]">
+            <p className="text-[15px] leading-[1.6] min-h-[3.2em] text-[#3d2b1f]">
               <TypingAnimation
                 key={loopKey} // key가 바뀔 때마다 재마운트 → 다시 타이핑
                 as="span" // 줄바꿈 방지

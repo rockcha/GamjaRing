@@ -2,9 +2,9 @@
 "use client";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { NotificationRow } from "./types";
-import { NotificationItem } from "./NotificationItem";
 
+import { NotificationItem } from "./NotificationItem";
+import type { NotificationRow } from "./types";
 export function NotificationList({
   items,
   formatTime,
