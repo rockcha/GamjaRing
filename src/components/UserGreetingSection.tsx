@@ -34,6 +34,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 // 🔸 로컬 아바타 유틸 (네가 제공한 것)
 import { avatarSrc } from "@/features/localAvatar"; // export function avatarSrc(id?: number|null) { ... }
+import AvatarWidget from "./widgets/AvatarWidget";
 
 type Item = {
   id: string;
@@ -161,17 +162,10 @@ export default function UserGreetingSection({
                 className={cn(
                   "relative inline-flex items-center justify-center",
                   "h-11 w-11 rounded-full outline-none",
-                  "transition active:scale-95",
-                  "ring-offset-background hover:ring-2 hover:ring-amber-300 hover:ring-offset-2 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2"
+                  "transition active:scale-95"
                 )}
               >
-                <Avatar className="h-11 w-11">
-                  {/* src가 없거나 로드 실패하면 Fallback */}
-                  <AvatarImage src={imgUrl ?? undefined} alt="프로필 이미지" />
-                  <AvatarFallback className="text-sm font-semibold">
-                    {initial}
-                  </AvatarFallback>
-                </Avatar>
+                <AvatarWidget size="sm" />
 
                 {/* 🔸 필요하면 상태 배지 (예: 온라인/알림 등)
                 <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white" />

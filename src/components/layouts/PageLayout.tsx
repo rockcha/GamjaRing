@@ -3,6 +3,7 @@ import * as React from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import DaysTogetherBadge from "../DaysTogetherBadge";
 import UserGreetingSection from "../UserGreetingSection";
+import { Separator } from "../ui/separator";
 
 type PageLayoutProps = {
   /** 명시적으로 넘기면 이 값이 최우선. 없으면 현재 경로로 타이틀 계산 */
