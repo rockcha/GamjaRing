@@ -2,18 +2,27 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
+import supabase from "@/lib/supabase";
 
 export default function IntroPage() {
   const navigate = useNavigate();
   const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      navigate("/main");
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [navigate]);
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
 
+      if (data.session) {
+        // 세션 있으면 /main
+        navigate("/main", { replace: true });
+      } else {
+        // 세션 없으면 /login
+        navigate("/login", { replace: true });
+      }
+    };
+
+    checkSession();
+  }, [navigate]);
   return (
     <div
       className={[

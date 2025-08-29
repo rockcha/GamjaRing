@@ -33,6 +33,7 @@ import {
   Save as SaveIcon,
   XCircle,
 } from "lucide-react";
+import FloatingHomeButton from "@/components/widgets/FloatingHomeButton";
 
 const EMOJIS_5x6 = [
   "😀",
