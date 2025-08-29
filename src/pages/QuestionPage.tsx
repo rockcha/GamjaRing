@@ -19,26 +19,23 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
 
 import { CoolMode } from "@/components/magicui/cool-mode";
-// ✅ 추가: 파트너 아바타 위젯
-
 import AvatarWidget from "@/components/widgets/AvatarWidget";
 
 // icons
 import {
   Loader2,
   CheckCircle2,
-  Ban,
   Smile,
   ChevronDown,
   PencilLine,
   Save as SaveIcon,
+  XCircle,
 } from "lucide-react";
 
 const EMOJIS_5x6 = [
-  "😀", // 기본 웃음
+  "😀",
   "😁",
   "😂",
   "🤣",
@@ -72,7 +69,7 @@ const EMOJIS_5x6 = [
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
-// ✅ 표시용 질문 ID 계산: 완료면 이전 질문, 아니면 오늘 질문
+// 표시용 질문 ID 계산: 완료면 이전 질문, 아니면 오늘 질문
 const getDisplayId = (currentId: number | null, completed: boolean) => {
   if (currentId == null) return null;
   if (!completed) return currentId;
@@ -203,9 +200,9 @@ export default function QuestionPage() {
     };
   }, [emojiOpen]);
 
-  // 저장(버튼 클릭 시만)
+  // 저장(버튼 클릭 시만) — ✅ 성공 시 toast “저장했습니다/수정했습니다”
   const persistAnswer = useCallback(
-    async (content: string) => {
+    async (content: string, isEdit = false) => {
       if (!user) return false;
       const displayId = getDisplayId(questionId, submitted);
       if (displayId == null) return false;
@@ -230,6 +227,8 @@ export default function QuestionPage() {
         }
 
         setSaveStatus("saved");
+        open(isEdit ? "수정했습니다. ✏️" : "저장했습니다. 💾");
+
         if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
         saveTimerRef.current = window.setTimeout(
           () => setSaveStatus("idle"),
@@ -246,7 +245,7 @@ export default function QuestionPage() {
         return false;
       }
     },
-    [user, questionId, submitted]
+    [user, questionId, submitted, open]
   );
 
   // 단일 버튼 동작
@@ -260,7 +259,8 @@ export default function QuestionPage() {
     const trimmed = answer.trim();
     if (!trimmed) return;
 
-    const ok = await persistAnswer(trimmed);
+    const isEdit = submitted; // 신규 저장/수정 구분
+    const ok = await persistAnswer(trimmed, isEdit);
     if (!ok) return;
 
     if (!submitted) {
@@ -331,7 +331,7 @@ export default function QuestionPage() {
 
               <Separator />
 
-              {/* 안내줄 + 파트너 감시(?) 위젯 */}
+              {/* 안내줄 + 파트너 위젯 */}
               <div className="mx-auto w-full md:w-[80%] lg:w-[70%]">
                 {/* 중앙 정렬 안내 텍스트 */}
                 <div className="mb-2 text-center text-xs text-[#6b533b]">
@@ -407,7 +407,7 @@ export default function QuestionPage() {
                   id="answer"
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
-                  readOnly={!canEdit}
+                  readOnly={!canEdit || saveStatus === "saving"}
                   placeholder={
                     submitted
                       ? editing
@@ -420,15 +420,20 @@ export default function QuestionPage() {
               </div>
             </CardContent>
 
-            {/* 단일 버튼 */}
-            <CardFooter className="justify-center">
+            {/* 단일 버튼 + 상태 피드백 라인 */}
+            <CardFooter className="flex flex-col items-center gap-2">
               <CoolMode options={{ particle: "💙", particleCount: 3, size: 4 }}>
-                {" "}
                 <Button
                   onClick={onPrimaryClick}
-                  className="min-w-[120px] hover:cursor-pointer active:scale-95 transition"
+                  className="min-w-[140px] hover:cursor-pointer active:scale-95 transition"
+                  disabled={saveStatus === "saving"}
                 >
-                  {submitted ? (
+                  {saveStatus === "saving" ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      저장 중…
+                    </>
+                  ) : submitted ? (
                     editing ? (
                       <>
                         <SaveIcon className="mr-2 h-4 w-4" />
@@ -448,6 +453,32 @@ export default function QuestionPage() {
                   )}
                 </Button>
               </CoolMode>
+
+              {/* 하단 상태 라벨 */}
+              <div
+                aria-live="polite"
+                className="min-h-[22px] text-xs flex items-center gap-2 text-muted-foreground"
+              >
+                {editing && saveStatus !== "saving" && (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium">
+                    수정 중…
+                  </span>
+                )}
+
+                {saveStatus === "saved" && (
+                  <span className="flex items-center gap-1 text-emerald-600">
+                    <CheckCircle2 className="h-4 w-4" />
+                    저장됨
+                  </span>
+                )}
+
+                {saveStatus === "error" && (
+                  <span className="flex items-center gap-1 text-red-600">
+                    <XCircle className="h-4 w-4" />
+                    저장 실패 — 잠시 후 다시 시도해 주세요
+                  </span>
+                )}
+              </div>
             </CardFooter>
           </>
         )}
