@@ -5,6 +5,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import supabase from "@/lib/supabase";
 import { useUser } from "@/contexts/UserContext";
 
+import { sendUserNotification } from "@/utils/notification/sendUserNotification";
+
 // shadcn/ui
 import {
   Card,
@@ -141,6 +143,20 @@ export default function CoupleMusicCard() {
         .update({ couple_music_url: next })
         .eq("id", coupleId);
       if (error) throw error;
+
+      try {
+        if (next && user?.partner_id) {
+          await sendUserNotification({
+            senderId: user.id,
+            receiverId: user.partner_id,
+            type: "음악등록", //
+            senderNickname: user.nickname, //
+          });
+        }
+      } catch {
+        /* 알림 실패는 UI 막지 않음 */
+      }
+
       setUrl(next);
       setPlayerOpen(false); // 저장 후 썸네일로
       setOpen(false);
@@ -274,9 +290,15 @@ export default function CoupleMusicCard() {
 
       <CardContent className="pt-2">
         {loading ? (
-          <div className="space-y-3">
-            <Skeleton className="h-[200px] sm:h-[100px] rounded-xl" />
-            <Skeleton className="h-4 w-1/3" />
+          <div className="flex flex-col items-center">
+            <div className="w-full max-w-5xl md:max-w-6xl">
+              <div className="relative">
+                <div className="relative aspect-video overflow-hidden rounded-3xl ">
+                  {/* 프레임 전체 */}
+                  <Skeleton className="absolute inset-0 rounded-3xl" />
+                </div>
+              </div>
+            </div>
           </div>
         ) : url && videoId ? (
           <div className="flex flex-col items-center">

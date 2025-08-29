@@ -17,7 +17,7 @@ export default function LogoutButton() {
     try {
       setLoading(true);
       await logout(); // ✅ 로그아웃 처리
-      window.location.replace("/main");
+      window.location.replace("/login");
     } catch (error) {
       console.error("로그아웃 실패:", error);
     } finally {

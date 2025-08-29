@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import { CoolMode } from "@/components/magicui/cool-mode";
 import AvatarWidget from "@/components/widgets/AvatarWidget";
@@ -316,10 +317,43 @@ export default function QuestionPage() {
     <main className="mx-auto w-full max-w-screen-lg px-4 md:px-6 ">
       <Card className="relative mx-auto bg-white border shadow-sm max-w-3xl">
         {loading ? (
-          <CardContent className="p-10 flex items-center justify-center text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin mr-2" />
-            로딩 중...
-          </CardContent>
+          <>
+            {/* 헤더 영역 스켈레톤(높이 안정화) */}
+            <CardHeader className="items-center">
+              <Skeleton className="h-5 w-72 rounded-md" />
+            </CardHeader>
+
+            <CardContent className="space-y-5">
+              <Separator />
+
+              {/* 이모지 버튼 + 파트너 위젯 라인 */}
+              <div className="mx-auto w-full md:w-[80%] lg:w-[70%]">
+                <div className="mb-2 text-center">
+                  <Skeleton className="h-4 w-72 mx-auto rounded-md" />
+                </div>
+
+                <div className="flex items-center justify-center">
+                  {/* 이모지 버튼 자리 */}
+                  <Skeleton className="h-9 w-[130px] rounded-md mr-2" />
+                  {/* 파트너 아바타/텍스트 자리 */}
+                  <div className="hidden sm:flex items-center gap-2 ml-3">
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                    <Skeleton className="h-3 w-12 rounded-md" />
+                  </div>
+                </div>
+              </div>
+
+              {/* 답변 textarea 자리 */}
+              <div className="mx-auto w-full md:w-[80%] lg:w-[70%]">
+                <Skeleton className="h-[220px] md:h-[260px] w-full rounded-xl" />
+              </div>
+            </CardContent>
+
+            {/* 하단 버튼/상태 라인 */}
+            <CardFooter className="flex flex-col items-center gap-2">
+              <Skeleton className="h-10 w-[140px] rounded-md" />
+            </CardFooter>
+          </>
         ) : (
           <>
             <CardHeader className=" text-center items-center" />

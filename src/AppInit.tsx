@@ -2,50 +2,36 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import supabase from "./lib/supabase";
+import supabase from "@/lib/supabase";
 import { runDataIntegrityCheck } from "./utils/DataIntegrityCheck";
 
 export default function AppInit() {
-  // 라우트 전환·중복 마운트로 인해 여러 번 실행되는 것 방지
+  // StrictMode의 이중 마운트/라우트 재마운트 방지
   const ranRef = useRef(false);
 
   useEffect(() => {
     if (ranRef.current) return;
     ranRef.current = true;
 
-    let unsub: (() => void) | undefined;
+    // 이 탭 세션에서 단 1회만 실행 (새로고침 시 sessionStorage 초기화되어 다시 1회 실행)
+    const BOOT_KEY = "dic:booted";
+    if (sessionStorage.getItem(BOOT_KEY)) return;
+    sessionStorage.setItem(BOOT_KEY, "1");
 
     (async () => {
-      // ✅ 새로고침/새 탭에서도 현재 로그인된 유저를 바로 확인
+      // 현재 로그인 유저 확인 (복원 완료되었으면 바로 나옴)
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
       if (user?.id) {
-        // (선택) 탭 당 1회만 실행하고 싶으면 sessionStorage 스로틀
-        const key = `dic:${user.id}:${new Date().toISOString().slice(0, 10)}`;
-        if (!sessionStorage.getItem(key)) {
-          sessionStorage.setItem(key, "1");
-          void runDataIntegrityCheck(user.id);
-        }
+        // 검진 실행 (결과 로그는 함수 내부에서)
+        await runDataIntegrityCheck(user.id);
       }
-
-      // ✅ 로그인 이벤트에도 그대로 수행 (이미 하셨다면 유지)
-      const {
-        data: { subscription },
-      } = supabase.auth.onAuthStateChange((_event, session) => {
-        if (session?.user?.id) {
-          void runDataIntegrityCheck(session.user.id);
-        }
-      });
-
-      unsub = () => subscription.unsubscribe();
+      // 로그인 안 된 상태면 ‘초기 접속 1회’ 정책 상 여기서 더 이상 실행하지 않음.
+      // (같은 탭에서 나중에 로그인해도 재실행 안 함)
     })();
-
-    return () => {
-      if (unsub) unsub();
-    };
   }, []);
 
-  return null; // UI 출력 없음
+  return null;
 }

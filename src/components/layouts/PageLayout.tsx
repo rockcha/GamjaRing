@@ -5,6 +5,9 @@ import DaysTogetherBadge from "../DaysTogetherBadge";
 import UserGreetingSection from "../UserGreetingSection";
 import FloatingHomeButton from "../widgets/FloatingHomeButton";
 
+import { HeartHandshake } from "lucide-react"; // ← 추가
+import CouplePotatoCard from "../widgets/Cards/CouplePotatoCard";
+
 type PageLayoutProps = {
   /** 명시적으로 넘기면 이 값이 최우선. 없으면 현재 경로로 타이틀 계산 */
   title?: string;
@@ -100,13 +103,14 @@ export default function PageLayout({
       <header className="sticky top-0 z-40 border-b bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60">
         <div className="mx-auto max-w-screen-xl px-4 py-2">
           {/* 상단 바: 좌-중-우 */}
-          <div className="flex h-14 items-center gap-3 ">
+          <div className="flex h-14 items-center  ">
             {/* 좌: 타이틀 */}
 
-            <h1 className="min-w-0 flex-1 truncate pl-5 text-2xl font-extrabold tracking-tight">
+            <HeartHandshake className="h-6 w-6" />
+            <h1 className="min-w-0 flex-1 truncate pl-1 text-2xl font-extrabold tracking-tight">
               {routeTitle}
             </h1>
-
+            <CouplePotatoCard />
             {/* 중: md 이상에서만 표시 */}
             <div className="hidden md:block">
               <DaysTogetherBadge />
