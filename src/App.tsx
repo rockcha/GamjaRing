@@ -29,15 +29,14 @@ export default function App() {
               {/* 루트 → 인트로로 */}
               <Route path="/" element={<Navigate to="/intro" replace />} />
 
-              {/* 퍼블릭(헤더/도크 없음) */}
+              {/* 퍼블릭(헤더) */}
               <Route path="/intro" element={<IntroPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignupPage />} />
               <Route path="/auth/reset" element={<ResetPasswardPage />} />
 
-              {/* 공통 레이아웃(헤더 + NavDock) */}
+              {/* 공통 레이아웃(헤더 ) */}
               <Route element={<PageLayout />}>
-                {/* ⛔ index 리다이렉트 삭제 */}
                 <Route path="main" element={<MainPage />} />
                 <Route path="info" element={<InfoPage />} />
                 <Route path="settings" element={<SettingPage />} />
@@ -46,9 +45,6 @@ export default function App() {
                 <Route path="scheduler" element={<CoupleSchedulerPage />} />
                 <Route path="questions" element={<QuestionPage />} />
               </Route>
-
-              {/* 그 외 → 인트로 */}
-              {/* <Route path="*" element={<Navigate to="/intro" replace />} /> */}
             </Routes>
           </BrowserRouter>
         </CoupleProvider>

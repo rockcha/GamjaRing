@@ -3,7 +3,7 @@ import * as React from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import DaysTogetherBadge from "../DaysTogetherBadge";
 import UserGreetingSection from "../UserGreetingSection";
-import { Separator } from "../ui/separator";
+import FloatingHomeButton from "../widgets/FloatingHomeButton";
 
 type PageLayoutProps = {
   /** 명시적으로 넘기면 이 값이 최우선. 없으면 현재 경로로 타이틀 계산 */
@@ -143,6 +143,7 @@ export default function PageLayout({
         id="main"
         className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-screen-xl items-center justify-center px-2"
       >
+        <FloatingHomeButton />
         <Outlet />
       </main>
     </div>
