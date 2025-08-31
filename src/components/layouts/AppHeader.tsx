@@ -6,14 +6,18 @@ import DaysTogetherBadge from "../DaysTogetherBadge";
 import UserGreetingSection from "../UserGreetingSection";
 import { cn } from "@/lib/utils";
 
-// 객체/문자열 모두 허용
+import CouplePotatoCard from "../widgets/Cards/CouplePotatoCard";
+import WeatherCard from "../widgets/WeatherCard";
+import PotatoPokeButton from "../widgets/PotatoPokeButton";
+import { Separator } from "../ui/separator";
+
 type HeaderMeta = { url: string; header?: string };
 type HeaderMapLike = Record<string, string | HeaderMeta>;
 
 interface AppHeaderProps {
   routeTitle: string;
-  onNavigate?: (id: string) => void; // 부모는 id만 받으면 됨
-  headerById?: HeaderMapLike; // 문자열 or 객체 모두 허용
+  onNavigate?: (id: string) => void;
+  headerById?: HeaderMapLike;
   className?: string;
 }
 
@@ -27,7 +31,6 @@ const DEFAULT_HEADER_BY_ID: HeaderMapLike = {
   scheduler: { url: "/scheduler", header: "커플 스케쥴러" },
 };
 
-// ✅ UserGreetingSection 이 기대하는 형태(Record<string, string>)로 변환
 function toLabelMap(m: HeaderMapLike): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(m)) {
@@ -51,29 +54,51 @@ export default function AppHeader({
         className
       )}
     >
-      <div className="mx-auto px-4 py-2">
-        <div className="flex h-14 items-center">
-          <HeartHandshake className="h-6 w-6" />
-          <h1 className="min-w-0 flex-1 truncate pl-1 text-2xl font-extrabold tracking-tight">
-            {routeTitle}
-          </h1>
+      <div className="mx-auto px-4 py-3">
+        {/* 4섹션 그리드 */}
+        <div
+          className="
+            grid items-stretch gap-3
+            grid-cols-1
+            md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto]
+          "
+        >
+          {/* 섹션 1: 로고 + 감자링 멘트 */}
+          <div className="pl-3 flex flex-col md:grid md:grid-rows-[auto_auto] ">
+            {/* 로고/타이틀 + 멘트 (모바일에서는 한 줄, 데스크탑은 세로 배치) */}
+            <div className="flex items-center md:items-start ">
+              <HeartHandshake className="h-8 w-8 mr-2 shrink-0" />
+              <h1 className="truncate text-2xl md:text-3xl font-extrabold tracking-tight">
+                {routeTitle}
+              </h1>
+              {/* 모바일에서는 로고 오른쪽에 멘트 */}
+              <p className="ml-2 text-sm font-medium text-neutral-700 truncate md:hidden ">
+                우리를 잇는 따뜻한 고리,{" "}
+                <span className="font-semibold text-amber-600">감자링🥔</span>
+              </p>
+            </div>
 
-          <div className="hidden md:block">
+            {/* 데스크탑 전용: 로고 아래에 멘트 */}
+            <div className="hidden md:flex min-h-[42px] items-center ">
+              <p className="text-base font-medium text-neutral-700 truncate">
+                우리를 잇는 따뜻한 고리,{" "}
+                <span className="font-semibold text-amber-600">감자링🥔</span>
+              </p>
+            </div>
+          </div>
+
+          {/* 섹션 2: DaysTogetherBadge (중앙) */}
+          <div className="flex items-center justify-center">
             <DaysTogetherBadge />
           </div>
 
-          <div className="flex flex-1 justify-end">
-            <UserGreetingSection
-              // UserGreetingSection 이 (id: string)만 요구한다면 그대로 전달
-              onNavigate={(id: string) => onNavigate?.(id)}
-              headerById={labelMap}
-            />
-          </div>
-        </div>
-
-        <div className="block py-2 md:hidden">
-          <div className="flex justify-center">
-            <DaysTogetherBadge />
+          {/* 섹션 3: 위젯 섹션 (가운데-오른쪽) */}
+          <div className="flex items-center gap-3 md:justify-center">
+            <WeatherCard />
+            <Separator orientation="vertical" className="h-6 my-auto" />
+            <CouplePotatoCard />
+            <Separator orientation="vertical" className="h-6 my-auto" />
+            <PotatoPokeButton />
           </div>
         </div>
       </div>

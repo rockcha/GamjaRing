@@ -199,17 +199,31 @@ export default function CouplePotatoCard({
           onClick={() => setOpen(true)}
           aria-label="우리의 감자 자세히 보기"
           className={cn(
-            "p-0 h-auto   ",
-            "inline-flex flex-col items-center gap-1",
+            // 기존
+            "p-0 h-auto inline-flex flex-col items-center gap-1",
+            // ✨ 호버 효과 추가
+            "group rounded-md transition-all duration-200 ease-out",
+            "hover:-translate-y-0.5 hover:shadow-sm hover:bg-amber-50/60",
+            "active:translate-y-0",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60 focus-visible:ring-offset-2",
             className
           )}
         >
           <img
             src={info?.image}
             alt={info?.name}
-            className="h-8 w-8 object-contain"
+            className="
+        h-8 w-8 object-contain
+        transition-transform duration-200 drop-shadow-sm
+        group-hover:scale-110 group-active:scale-95
+      "
           />
-          <span className="text-xs font-medium text-[#b75e20]">
+          <span
+            className="
+        text-xs font-medium text-[#b75e20]
+        transition-colors group-hover:text-[#8a3f12]
+      "
+          >
             {info?.name ?? "감자"}
           </span>
         </Button>

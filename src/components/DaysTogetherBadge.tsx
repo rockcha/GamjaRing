@@ -8,7 +8,6 @@ import CoupleHeartWidget from "@/components/widgets/CoupleHeartWidget";
 
 type AnnotationAction =
   | "highlight"
-  | "underline"
   | "box"
   | "circle"
   | "strike-through"
@@ -17,9 +16,12 @@ type AnnotationAction =
 export default function DaysTogetherBadge() {
   const { couple } = useCoupleContext();
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   // 하이라이트 회전 인덱스
   const [idx, setIdx] = useState(0);
-  const ACTIONS = ["circle", "box", "highlight", "underline"] as const;
+  const ACTIONS = ["circle", "box", "highlight"] as const;
 
   // 함께한 일수 계산
   const daysTogether = useMemo(() => {
@@ -56,31 +58,33 @@ export default function DaysTogetherBadge() {
   }
 
   return (
-    <div className="w-full flex items-center gap-6">
+    <div className="w-full flex items-center gap-6 ">
       {/* 왼쪽: 커플 아바타 위젯 */}
-      <CoupleHeartWidget size="sm" />
+      <CoupleHeartWidget size="md" />
 
       {/* 오른쪽: D+일 */}
-      <Highlighter
-        key={currentAction}
-        action={currentAction}
-        color={COLOR}
-        strokeWidth={1.5}
-        animationDuration={ANIM_MS}
-        iterations={ITERS}
-        padding={5}
-        multiline={false}
-        isView={false}
-      >
-        <p className="text-left text-[20px] font-semibold text-[#5b3d1d]">
-          함께한지{" "}
-          <span className="font-extrabold text-[26px] text-[#b75e20]">
-            {" "}
-            {daysTogether}
-          </span>
-          일
-        </p>
-      </Highlighter>
+      {mounted && (
+        <Highlighter
+          key={currentAction}
+          action={currentAction}
+          color={COLOR}
+          strokeWidth={1.7}
+          animationDuration={ANIM_MS}
+          iterations={ITERS}
+          padding={10}
+          multiline={false}
+          isView={false}
+        >
+          <p className="text-left text-[20px] font-semibold text-[#5b3d1d]">
+            함께한지{" "}
+            <span className="font-extrabold text-[26px] text-[#b75e20]">
+              {" "}
+              {daysTogether}
+            </span>
+            일
+          </p>
+        </Highlighter>
+      )}
     </div>
   );
 }
