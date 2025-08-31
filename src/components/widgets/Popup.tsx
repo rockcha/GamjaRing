@@ -16,7 +16,7 @@ export default function Popup({ message, show, onClose }: PopupProps) {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
           transition={{ duration: 0.3 }}
-          className="fixed bottom-4 right-4 border-2 z-[10000] border-[#bfa07e] bg-[#fdf6ec] px-4 py-3 rounded-lg shadow-lg font-semibold text-sm  flex items-center gap-2 text-[#5b3d1d]"
+          className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2  border-2 z-[10000] border-[#bfa07e] bg-[#fdf6ec] px-4 py-3 rounded-lg shadow-lg font-semibold text-sm  flex items-center gap-2 text-[#5b3d1d]"
         >
           <span> {message}</span>
           {onClose && (

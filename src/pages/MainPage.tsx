@@ -4,13 +4,14 @@ import { useUser } from "@/contexts/UserContext";
 import { useToast } from "@/contexts/ToastContext";
 
 import SoloUserCard from "@/components/widgets/Cards/SoloUserCard";
-import PotatoPokeButton from "@/components/widgets/PotatoPokeButton";
+
 import CoupleImageCard from "@/components/widgets/Cards/CoupleImageCard";
 import TodayQuestionCard from "@/components/widgets/Cards/TodayQuestionCard";
 import CoupleSchedulePreview from "@/components/widgets/Cards/CoupleShedulePreview";
 import CoupleMusicCard from "@/components/widgets/Cards/CoupleMusicCard";
 import DailyFortuneCard from "@/features/fortune/DailyFortuneCard";
 import { Skeleton } from "@/components/ui/skeleton";
+import WeatherCard from "@/components/widgets/WeatherCard";
 
 export default function MainPage() {
   const { isCoupled, loading } = useUser(); // ✅ loading 가져오기

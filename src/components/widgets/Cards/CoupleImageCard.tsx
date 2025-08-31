@@ -24,7 +24,7 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel";
-import PotatoPokeButton from "@/components/widgets/PotatoPokeButton";
+
 import { Pencil, Loader2, Trash2, ImageUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -33,13 +33,11 @@ const MAX_SLOTS = 5;
 const ASPECT_RATIO = "3 / 2";
 
 // ===== egress 최적화 상수 =====
-const SIGNED_TTL_SEC = 60 * 60 * 24 * 7; // 7일
+// 새로고침 안정성을 위해 TTL을 넉넉히(권장 14~30일). 필요시 줄여도 동작은 동일.
+const SIGNED_TTL_SEC = 60 * 60 * 24 * 30; // 30일
 const RENEW_BEFORE_SEC = 60 * 5; // 만료 5분 전이면 갱신
-// 구버전 타입과 런타임 모두 안전: format/resizer 옵션 없이 width/quality만 사용
-const TRANSFORM = {
-  width: 1280,
-  quality: 70,
-};
+// transform은 width/quality만 사용 (안전)
+const TRANSFORM = { width: 1280, quality: 70 };
 
 // localStorage 키
 const URL_CACHE_KEY = `sb-url-cache:${BUCKET}:v1`;
@@ -78,6 +76,10 @@ function writeCache(map: Record<string, CacheEntry>) {
     localStorage.setItem(URL_CACHE_KEY, JSON.stringify(map));
   } catch {}
 }
+
+// ===== 시간/만료 헬퍼 =====
+const nowSec = () => Math.floor(Date.now() / 1000);
+const isFresh = (exp: number) => exp - RENEW_BEFORE_SEC > nowSec();
 
 export default function CoupleImageCard({
   className,
@@ -119,7 +121,7 @@ export default function CoupleImageCard({
   const getSignedUrlCached = useCallback(
     async (path: string): Promise<string> => {
       if (!path) throw new Error("invalid path");
-      const now = Math.floor(Date.now() / 1000);
+      const now = nowSec();
 
       // 실패 쿨다운
       if (failRef.current[path] && failRef.current[path] > now) {
@@ -127,7 +129,7 @@ export default function CoupleImageCard({
       }
 
       const c = cacheRef.current[path];
-      if (c && c.exp - RENEW_BEFORE_SEC > now) {
+      if (c && isFresh(c.exp)) {
         return c.url; // 아직 유효 → 그대로 사용
       }
 
@@ -149,7 +151,7 @@ export default function CoupleImageCard({
     []
   );
 
-  // ===== 기존 파일 목록 로드 (path만 세팅) + 캐시된 URL 즉시 주입 =====
+  // ===== 기존 파일 목록 로드 (path만 세팅) + 캐시된 URL "만료 검사" 후 주입 =====
   const loadExisting = useCallback(async () => {
     if (!coupleId || !isCoupled) {
       setSlots(Array.from({ length: MAX_SLOTS }, emptySlot));
@@ -184,12 +186,18 @@ export default function CoupleImageCard({
         next[i]!.path = `${coupleId}/${name}`;
       }
 
-      // 캐시에서 URL 즉시 주입 → 첫 렌더부터 이미지 보여주기(깜빡임 제거)
+      // 캐시에서 URL 주입하되, 만료 임박이면 주입하지 않음
       const cached = cacheRef.current;
       const hydrated = next.map((s) => {
         if (!s.path) return s;
-        const entry = cached[s.path]; // <- 한 번만 꺼내서 좁히기
-        return entry ? { ...s, url: entry.url } : s;
+        const entry = cached[s.path];
+        if (entry && isFresh(entry.exp)) return { ...s, url: entry.url };
+        // 만료/임박 → 캐시에서 제거하고 url은 null로 유지 (이후 ensureUrlFor가 갱신)
+        if (entry && !isFresh(entry.exp)) {
+          delete cached[s.path];
+          writeCache(cached);
+        }
+        return s;
       });
 
       setSlots(hydrated);
@@ -222,7 +230,7 @@ export default function CoupleImageCard({
       if (!inRange(idx)) return;
       const s = slots[idx];
       if (!s?.path) return;
-      if (s.url) return;
+      if (s.url) return; // 이미 있음
       try {
         const signed = await getSignedUrlCached(s.path);
         // 선로드 후 교체(깜빡임 방지)
@@ -241,54 +249,20 @@ export default function CoupleImageCard({
     [slots, getSignedUrlCached]
   );
 
+  // activeIdx가 바뀔 때 보이는 영역 보장
   useEffect(() => {
     void ensureUrlFor(activeIdx);
     void ensureUrlFor((activeIdx + 1) % MAX_SLOTS);
     void ensureUrlFor((activeIdx - 1 + MAX_SLOTS) % MAX_SLOTS);
   }, [activeIdx, ensureUrlFor]);
 
-  // 오토플레이
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const isPausedRef = useRef(false);
-  const clearTimer = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  };
-  const imageCount = useMemo(
-    () => slots.filter((s) => !!s.path).length,
-    [slots]
-  );
-  const startTimer = useCallback(() => {
-    clearTimer();
-    if (!carouselApi) return;
-    if (imageCount < 2) return;
-    timerRef.current = setInterval(() => {
-      if (isPausedRef.current) return;
-      carouselApi.scrollNext();
-    }, 4500);
-  }, [carouselApi, imageCount]);
-  const pause = () => {
-    isPausedRef.current = true;
-    clearTimer();
-  };
-  const resume = () => {
-    isPausedRef.current = false;
-    startTimer();
-  };
+  // ✅ 새로고침 직후 slots가 세팅되면 한 번 더 보장 로드 (carouselApi 준비 이전 케이스 대비)
   useEffect(() => {
-    startTimer();
-    return clearTimer;
-  }, [startTimer]);
-  useEffect(() => {
-    const handler = () => {
-      if (document.hidden) pause();
-      else resume();
-    };
-    document.addEventListener("visibilitychange", handler);
-    return () => document.removeEventListener("visibilitychange", handler);
-  }, []);
+    if (!slots.length) return;
+    void ensureUrlFor(activeIdx);
+    void ensureUrlFor((activeIdx + 1) % MAX_SLOTS);
+    void ensureUrlFor((activeIdx - 1 + MAX_SLOTS) % MAX_SLOTS);
+  }, [slots, activeIdx, ensureUrlFor]);
 
   // 업로드/교체
   const openPickerFor = (idx: number) => {
@@ -422,6 +396,19 @@ export default function CoupleImageCard({
     maxHeight: "550px",
   };
 
+  // ✅ onError 시 즉시 재발급하여 깨짐 복구
+  const handleImgError = useCallback(
+    async (idx: number, path: string) => {
+      try {
+        const fresh = await getSignedUrlCached(path);
+        updateSlot(idx, (prev) => ({ ...prev, url: fresh }));
+      } catch {
+        // 무시: 다음 인터랙션에서 재시도
+      }
+    },
+    [getSignedUrlCached]
+  );
+
   return (
     <Card className={cn(className)}>
       <Separator />
@@ -443,13 +430,7 @@ export default function CoupleImageCard({
           <Skeleton className="h-6 w-24 rounded-md" />
         </div>
       ) : (
-        <div
-          className="relative"
-          onMouseEnter={pause}
-          onMouseLeave={resume}
-          onFocusCapture={pause}
-          onBlurCapture={resume}
-        >
+        <div className="relative">
           <Carousel
             setApi={setCarouselApi}
             className="w-full"
@@ -465,28 +446,32 @@ export default function CoupleImageCard({
                 const shouldLoad = visibleIdx.includes(idx);
                 const hasImg = !!s.path && !!s.url && shouldLoad;
 
+                // 잔상 방지: 슬롯/파일 기준 고유 키
+                const itemKey = `${idx}-${s.path ?? "empty"}`;
+
                 return (
                   <CarouselItem
-                    key={idx}
-                    className=" bg-transparent border-0 p-2 "
+                    key={itemKey}
+                    className="bg-transparent border-0 p-2"
                   >
                     <div>
-                      <Card className="overflow-hidden ">
+                      <Card className="overflow-hidden">
                         <div className="relative w-full" style={ratioBoxStyle}>
-                          <div className="absolute left-2 top-2 z-20">
-                            <PotatoPokeButton />
-                          </div>
                           {s.path && shouldLoad ? (
                             hasImg ? (
                               <img
+                                key={s.path ?? `img-${idx}`}
                                 src={s.url!}
                                 alt={`커플 이미지 ${idx + 1}`}
-                                className="w-full h-full object-contain scale-60 rounded-md transition-transform duration-300"
+                                className="w-full h-full object-contain rounded-md transition-opacity duration-200"
                                 draggable={false}
                                 loading={idx === activeIdx ? "eager" : "lazy"}
                                 decoding="async"
                                 fetchPriority={
                                   idx === activeIdx ? "high" : "low"
+                                }
+                                onError={() =>
+                                  s.path && handleImgError(idx, s.path)
                                 }
                               />
                             ) : (
@@ -542,7 +527,7 @@ export default function CoupleImageCard({
                                 onClick={() => handleDelete(idx)}
                                 disabled={s.uploading || s.deleting}
                                 title="이미지 삭제"
-                                className="bg-white  hover:cursor-pointer"
+                                className="bg-white hover:cursor-pointer"
                               >
                                 <Trash2 className="h-4 w-4 text-rose-600" />
                               </Button>
