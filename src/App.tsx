@@ -17,6 +17,7 @@ import NotificationPage from "./pages/NotificationPage";
 import CoupleSchedulerPage from "./pages/CoupleSchedulerPage";
 import AnswersPage from "./pages/AnswerPage";
 import QuestionPage from "./pages/QuestionPage";
+import CookingPage from "./pages/CookingPage";
 
 export default function App() {
   return (
@@ -44,6 +45,7 @@ export default function App() {
                 <Route path="bundle" element={<AnswersPage />} />
                 <Route path="scheduler" element={<CoupleSchedulerPage />} />
                 <Route path="questions" element={<QuestionPage />} />
+                <Route path="kitchen" element={<CookingPage />} />
               </Route>
             </Routes>
           </BrowserRouter>

@@ -14,7 +14,8 @@ type NotificationType =
   | "일정수정"
   | "일정삭제"
   | "반응추가"
-  | "음악등록";
+  | "음악등록"
+  | "음식공유";
 
 interface SendUserNotificationInput {
   senderId: string;
@@ -26,10 +27,13 @@ interface SendUserNotificationInput {
   description?: string;
   /** 기본은 false지만, '커플요청'은 자동 true */
   isRequest?: boolean;
+
+  /** '음식공유'일 때 표시할 음식 이름 */
+  foodName?: string;
 }
 
-// 타입별 액션 문구
-const ACTION_BY_TYPE: Record<NotificationType, string> = {
+// '음식공유'는 별도 처리 (🍽️ 이모지 고정)
+const ACTION_BY_TYPE: Record<Exclude<NotificationType, "음식공유">, string> = {
   커플요청: "커플 요청을 보냈어요 💌",
   커플수락: "커플 요청을 수락했어요! 💘",
   커플거절: "커플 요청을 거절했어요 🙅",
@@ -49,15 +53,14 @@ export const sendUserNotification = async ({
   senderId,
   receiverId,
   type,
-
-  description, // ❌ 무시
   isRequest,
+  foodName, // ← 음식공유용
 }: SendUserNotificationInput) => {
   if (senderId === receiverId) {
     return { error: new Error("자기 자신에게 알림을 보낼 수 없습니다.") };
   }
 
-  // 1) 보낸 사람 닉네임을 DB에서 조회
+  // 1) 보낸 사람 닉네임 조회
   let nickname = "상대방";
   try {
     const { data: userRow, error: userErr } = await supabase
@@ -70,15 +73,23 @@ export const sendUserNotification = async ({
       nickname = userRow.nickname.trim() || nickname;
     }
   } catch (e) {
-    // 조회 실패 시 fallback 그대로 사용
     console.warn("[sendUserNotification] nickname 조회 실패:", e);
   }
 
   // 2) 고정 문구 생성
-  const action = ACTION_BY_TYPE[type] ?? String(type);
+  let action: string;
+  if (type === "음식공유") {
+    const name = (foodName ?? "").trim();
+    const base = "음식을 공유했어요 🍽️";
+    action = name ? `${base} ${name}` : base;
+  } else {
+    action =
+      ACTION_BY_TYPE[type as Exclude<NotificationType, "음식공유">] ??
+      String(type);
+  }
   const fixedDescription = `${nickname}님이 ${action}`;
 
-  // 3) '커플요청'은 자동으로 요청 플래그 true
+  // 3) '커플요청'은 자동 true
   const finalIsRequest = type === "커플요청" ? true : Boolean(isRequest);
 
   // 4) 저장

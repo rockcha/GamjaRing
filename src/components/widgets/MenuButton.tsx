@@ -11,8 +11,8 @@ import {
   MessageSquareText,
   Package,
   CalendarClock,
-  FlaskConical,
   Menu as MenuIcon,
+  ChefHat, // 🔄 NEW: 부엌 아이콘
 } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -34,7 +34,8 @@ const NAV_ITEMS: Item[] = [
   { id: "questions", label: "오늘의 질문", icon: MessageSquareText },
   { id: "bundle", label: "답변꾸러미", icon: Package },
   { id: "scheduler", label: "커플 스케쥴러", icon: CalendarClock },
-  { id: "labs", label: "실험실", icon: FlaskConical },
+  // 🔄 labs → kitchen(부엌)
+  { id: "kitchen", label: "부엌", icon: ChefHat },
 ];
 
 const GUARDS: Record<
@@ -47,7 +48,8 @@ const GUARDS: Record<
   questions: { requireLogin: true, requireCouple: true },
   bundle: { requireLogin: true, requireCouple: true },
   scheduler: { requireLogin: true, requireCouple: true },
-  labs: { requireLogin: true },
+  // 부엌 접근 정책: 필요하면 true로 바꿔줘
+  kitchen: {}, // 공개로 두었어. 로그인 필요하게 하려면 { requireLogin: true }
 };
 
 const FALLBACK_ROUTE: Record<string, string> = {
@@ -58,7 +60,8 @@ const FALLBACK_ROUTE: Record<string, string> = {
   questions: "/questions",
   bundle: "/bundle",
   scheduler: "/scheduler",
-  labs: "/labs",
+  // 🔄 부엌은 CookingPage로
+  kitchen: "/kitchen",
 };
 
 export default function MenuButton() {
@@ -96,23 +99,20 @@ export default function MenuButton() {
           </Button>
         </SheetTrigger>
 
-        {/* 상단: 아바타 → 구분선 → 로그인/로그아웃 → 메뉴 목록 */}
         <SheetContent
           side="right"
           className="w-64 sm:max-w-sm p-0"
           showClose={false}
         >
-          {/* Avatar 영역 */}
-          <div className="pt-4 flex flex-col items-center  ">
+          {/* Avatar + 로그인/로그아웃 */}
+          <div className="pt-4 flex flex-col items-center">
             <AvatarWidget size="md" />
           </div>
-
-          <div className="flex justify-end mb-2">
-            {/* 로그인/로그아웃 버튼 */}
-
+          <div className="flex justify-end mb-2 px-3">
             {user ? <LogoutButton /> : <LoginButton />}
           </div>
           <Separator />
+
           {/* 메뉴 목록 */}
           <div className="px-3 pb-3">
             <nav className="mt-2 flex flex-col gap-1">
