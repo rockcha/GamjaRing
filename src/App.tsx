@@ -18,6 +18,7 @@ import CoupleSchedulerPage from "./pages/CoupleSchedulerPage";
 import AnswersPage from "./pages/AnswerPage";
 import QuestionPage from "./pages/QuestionPage";
 import CookingPage from "./pages/CookingPage";
+import AquariumPage from "./pages/AquariumPage";
 
 export default function App() {
   return (
@@ -46,6 +47,7 @@ export default function App() {
                 <Route path="scheduler" element={<CoupleSchedulerPage />} />
                 <Route path="questions" element={<QuestionPage />} />
                 <Route path="kitchen" element={<CookingPage />} />
+                <Route path="aquarium" element={<AquariumPage />} />
               </Route>
             </Routes>
           </BrowserRouter>
