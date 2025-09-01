@@ -25,6 +25,8 @@ import {
   type IngredientItem,
 } from "@/features/cooking/utils";
 
+import CookingFX from "@/features/cooking/CookingFX";
+
 // ✅ 추가: 알림 전송 & 유저 컨텍스트, 토스트
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 import { useUser } from "@/contexts/UserContext";
@@ -120,44 +122,48 @@ export default function CookingPage() {
               >
                 재료 추가하기
               </Button>
-              <Button onClick={handleMake}>만들기</Button>
+              <Button onClick={handleMake}>요리 시작!</Button>
             </div>
           </CardContent>
         </Card>
       </div>
-
       {/* 결과 모달 */}
+
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>랜덤 요리</DialogTitle>
+            <DialogTitle>요리 완성!</DialogTitle>
           </DialogHeader>
 
-          {cooking ? (
-            <div className="py-10 grid place-items-center">
-              <div className="relative">
-                <div className="h-14 w-14 rounded-full border-4 border-amber-300 border-t-transparent animate-spin" />
-                <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex gap-1">
-                  <span className="animate-bounce">♨️</span>
-                  <span className="animate-bounce [animation-delay:.15s]">
-                    ♨️
-                  </span>
-                  <span className="animate-bounce [animation-delay:.30s]">
-                    ♨️
-                  </span>
+          {/* 배경 FX를 깔 컨테이너 */}
+          <div className="relative">
+            {/* ✅ 로딩 중일 때만 FX 표시 (카드 배경) */}
+            {cooking && (
+              <CookingFX
+                {...(items.length
+                  ? { emojis: items.map((it) => getEmoji(it.name)) }
+                  : {})}
+                intensity={0.9}
+                count={14}
+                sparks={18}
+                bubbles={12}
+              />
+            )}
+
+            {cooking ? (
+              <div className="py-10 grid place-items-center relative z-10">
+                <div className="mt-6 text-3xl md:text-5xl font-extrabold tracking-tight animate-pulse">
+                  요리중…
                 </div>
               </div>
-              <div className="mt-6 text-3xl md:text-4xl font-extrabold tracking-tight animate-pulse">
-                요리중…
+            ) : (
+              <div className="py-2 relative z-10">
+                <h3 className="text-xl font-bold break-words leading-relaxed">
+                  {resultName}
+                </h3>
               </div>
-            </div>
-          ) : (
-            <div className="py-2">
-              <h3 className="text-xl font-bold break-words leading-relaxed">
-                {resultName}
-              </h3>
-            </div>
-          )}
+            )}
+          </div>
 
           <DialogFooter className="gap-2">
             {!cooking && (
