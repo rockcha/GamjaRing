@@ -436,23 +436,37 @@ export default function QuestionPage() {
               </div>
 
               {/* 내 답변 */}
-              <div className="mx-auto w-full md:w-[80%] lg:w-[70%] space-y-2 text-center">
-                <Textarea
-                  ref={textareaRef}
-                  id="answer"
-                  value={answer}
-                  onChange={(e) => setAnswer(e.target.value)}
-                  readOnly={!canEdit || saveStatus === "saving"}
-                  placeholder={
-                    submitted
-                      ? editing
+              {submitted && !editing ? (
+                // ✅ 제출 완료 & 편집 중 아님: 보기 전용 카드
+                <div className="mx-auto w-full md:w-[80%] lg:w-[70%]">
+                  <div className="rounded-xl border bg-amber-50/70 ring-1 ring-amber-200 p-4 md:p-5">
+                    <div className="mb-2 flex items-center gap-2 text-xs font-medium text-amber-800">
+                      <CheckCircle2 className="h-4 w-4" />
+                      제출 완료 — 아래 내용은 읽기 전용입니다
+                    </div>
+                    <div className="whitespace-pre-wrap break-words text-[15px] md:text-base leading-relaxed text-neutral-800">
+                      {answer || "작성 내용이 없습니다."}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                // ✍️ 신규 작성 중이거나, '수정하기' 눌러 편집 모드일 때: 입력 가능
+                <div className="mx-auto w-full md:w-[80%] lg:w-[70%] space-y-2 text-center">
+                  <Textarea
+                    ref={textareaRef}
+                    id="answer"
+                    value={answer}
+                    onChange={(e) => setAnswer(e.target.value)}
+                    readOnly={saveStatus === "saving"} // 저장 중엔 잠깐 막기
+                    placeholder={
+                      submitted
                         ? "수정 중입니다. 저장하기를 눌러 반영합니다."
-                        : "제출 완료 상태입니다. 수정하려면 ‘수정하기’를 누르세요."
-                      : "이곳에 답변을 입력해주세요..."
-                  }
-                  className="mx-auto min-h-[220px] md:min-h-[260px] resize-none bg-blue-50 text-base md:text-lg leading-relaxed"
-                />
-              </div>
+                        : "이곳에 답변을 입력해주세요..."
+                    }
+                    className="mx-auto min-h-[220px] md:min-h-[260px] resize-none bg-blue-50 text-base md:text-lg leading-relaxed"
+                  />
+                </div>
+              )}
             </CardContent>
 
             {/* 단일 버튼 + 상태 피드백 라인 */}
