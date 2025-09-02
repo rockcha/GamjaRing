@@ -4,7 +4,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useUser } from "@/contexts/UserContext";
 import { useCoupleContext } from "@/contexts/CoupleContext";
-import { useToast } from "@/contexts/ToastContext";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,7 +15,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 import {
@@ -45,7 +44,6 @@ type Props = { className?: string };
 export default function SoloUserCard({ className }: Props) {
   const { user } = useUser();
   const { isCoupled, requestCouple } = useCoupleContext();
-  const { open: toast } = useToast();
 
   if (isCoupled) return null;
 
@@ -101,7 +99,7 @@ export default function SoloUserCard({ className }: Props) {
   );
 
   const handleOpen = () => {
-    if (!isLoggedIn) return toast("로그인이 필요합니다.");
+    if (!isLoggedIn) return toast.info("로그인이 필요합니다.");
     setDlgOpen(true);
   };
 
@@ -110,9 +108,10 @@ export default function SoloUserCard({ className }: Props) {
     setSending(true);
     try {
       const { error } = await requestCouple(nickname.trim());
-      if (error) toast(error.message || "요청 전송 중 오류가 발생했습니다.");
+      if (error)
+        toast.error(error.message || "요청 전송 중 오류가 발생했습니다.");
       else {
-        toast("커플 요청을 전송했습니다 💌");
+        toast.success("커플 요청을 전송했습니다 💌");
         setDlgOpen(false);
         setNickname("");
       }

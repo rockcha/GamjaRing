@@ -7,13 +7,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 import supabase from "@/lib/supabase";
 import { useUser } from "@/contexts/UserContext";
-import { useToast } from "@/contexts/ToastContext";
+import { toast } from "sonner";
 import ScratchToReveal from "@/components/magicui/scratch-to-reveal";
 
 import { generateFortune, type Fortune } from "./generateFortune";
 import TarotBack from "./TarotBack";
 import TarotDetailDialog from "./TarotDetailDialog";
 import TarotPreviewCard from "./TarotPreviewCard";
+
+/* ✅ 추가 */
+import { useCoupleContext } from "@/contexts/CoupleContext";
 
 /* 날짜 헬퍼 (KST, yyyy-MM-dd) */
 function todayKST(): string {
@@ -33,8 +36,11 @@ function todayKST(): string {
 
 export default function DailyFortuneCard() {
   const { user } = useUser();
-  const { open: toast } = useToast();
+
   const userId = user?.id ?? null;
+
+  /* ✅ 추가: addGold */
+  const { addGold } = useCoupleContext();
 
   // 렌더 시점의 오늘 날짜 (state 아님)
   const d = todayKST();
@@ -75,15 +81,31 @@ export default function DailyFortuneCard() {
     })();
   }, [userId, d]);
 
+  /* ✅ 중복 지급 방지 가드 */
+  const goldGivenRef = useRef(false);
+
   // 스크래치 완료 → 모달 즉시 오픈 / DB 저장은 백그라운드
   const handleScratchComplete = async () => {
     if (!userId) return;
+
+    // 이미 오늘 운세가 있었으면(이론상 호출 안 되지만) 가드
+    if (fortune || goldGivenRef.current) return;
+
     const nowD = todayKST();
     const f = generateFortune(`${userId}:${nowD}`);
     setFortune(f);
-
-    // 모달을 바로 열기
     setModalOpen(true);
+
+    // ✅ 골드 5 지급 (최초 공개시에만)
+    try {
+      goldGivenRef.current = true; // 먼저 잠금
+      await addGold(5);
+      toast.success(`골드를 획득했어요 +5`);
+    } catch (e) {
+      goldGivenRef.current = false; // 실패시 잠금 해제
+      console.error("골드 지급 실패:", e);
+      toast.error("골드 지급에 실패했어요. 잠시 후 다시 시도해 주세요.");
+    }
 
     // DB 저장(백그라운드)
     const { error } = await supabase.from("daily_fortune").upsert({
@@ -92,7 +114,7 @@ export default function DailyFortuneCard() {
       fortune: f,
     });
     if (error) {
-      toast("서버 저장에 실패했지만, 다시 시도해 주세요.");
+      toast.error("서버 저장에 실패했지만, 다시 시도해 주세요.");
     }
   };
 
@@ -102,7 +124,6 @@ export default function DailyFortuneCard() {
         <CardTitle className="flex items-center gap-2">
           🍀 오늘의 운세
         </CardTitle>
-        {/* ✅ 프리뷰 카드 '아래쪽'에 중앙 정렬로 title · grade 표시 */}
         {fortune && (
           <div className="mt-1 text-center">
             <span className="inline-block rounded-md bg-black/40 px-2 py-1 text-xs font-medium text-white">

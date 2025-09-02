@@ -17,7 +17,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Separator } from "./ui/separator";
-import { useToast } from "@/contexts/ToastContext";
+
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 
 interface AnswerItem {
@@ -36,7 +36,6 @@ const ITEMS_PER_PAGE = 4;
 
 export default function MyPartnerAnswersCard() {
   const { user } = useUser();
-  const { open } = useToast();
 
   const [answers, setAnswers] = useState<AnswerWithQuestion[]>([]);
   const [loading, setLoading] = useState(true);

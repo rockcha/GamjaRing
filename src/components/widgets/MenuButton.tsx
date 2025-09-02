@@ -16,7 +16,7 @@ import {
   Fish, // 🐟 아쿠아리움 아이콘
 } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
-import { useToast } from "@/contexts/ToastContext";
+
 import { cn } from "@/lib/utils";
 import LoginButton from "@/components/LoginButton";
 import LogoutButton from "@/components/LogoutButton";
@@ -70,7 +70,6 @@ const FALLBACK_ROUTE: Record<string, string> = {
 
 export default function MenuButton() {
   const { user, isCoupled } = useUser();
-  const { open } = useToast();
 
   const uid = user?.id ?? null;
   const coupled = !!isCoupled;

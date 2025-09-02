@@ -2,7 +2,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { UserProvider } from "@/contexts/UserContext";
 import { CoupleProvider } from "@/contexts/CoupleContext";
-import { ToastProvider } from "@/contexts/ToastContext";
+
+import { Toaster } from "./components/ui/sonner";
 
 import PageLayout from "./components/layouts/PageLayout";
 import AppInit from "./AppInit";
@@ -13,7 +14,7 @@ import MainPage from "./pages/MainPage";
 import ResetPasswardPage from "./pages/ResetPasswardPage";
 import InfoPage from "./pages/InfoPage";
 import SettingPage from "./pages/SettingPage";
-import NotificationPage from "./pages/NotificationPage";
+
 import CoupleSchedulerPage from "./pages/CoupleSchedulerPage";
 import AnswersPage from "./pages/AnswerPage";
 import QuestionPage from "./pages/QuestionPage";
@@ -22,37 +23,37 @@ import AquariumPage from "./pages/AquariumPage";
 
 export default function App() {
   return (
-    <ToastProvider>
-      <UserProvider>
-        <CoupleProvider>
-          <BrowserRouter>
-            <AppInit />
-            <Routes>
-              {/* 루트 → 인트로로 */}
-              <Route path="/" element={<Navigate to="/intro" replace />} />
+    <UserProvider>
+      <CoupleProvider>
+        <BrowserRouter>
+          <AppInit />
 
-              {/* 퍼블릭(헤더) */}
-              <Route path="/intro" element={<IntroPage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/signup" element={<SignupPage />} />
-              <Route path="/auth/reset" element={<ResetPasswardPage />} />
+          <Routes>
+            <Route path="/" element={<Navigate to="/intro" replace />} />
 
-              {/* 공통 레이아웃(헤더 ) */}
-              <Route element={<PageLayout />}>
-                <Route path="main" element={<MainPage />} />
-                <Route path="info" element={<InfoPage />} />
-                <Route path="settings" element={<SettingPage />} />
-                <Route path="notifications" element={<NotificationPage />} />
-                <Route path="bundle" element={<AnswersPage />} />
-                <Route path="scheduler" element={<CoupleSchedulerPage />} />
-                <Route path="questions" element={<QuestionPage />} />
-                <Route path="kitchen" element={<CookingPage />} />
-                <Route path="aquarium" element={<AquariumPage />} />
-              </Route>
-            </Routes>
-          </BrowserRouter>
-        </CoupleProvider>
-      </UserProvider>
-    </ToastProvider>
+            {/* 퍼블릭 */}
+            <Route path="/intro" element={<IntroPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/auth/reset" element={<ResetPasswardPage />} />
+
+            {/* 공통 레이아웃 */}
+            <Route element={<PageLayout />}>
+              <Route path="main" element={<MainPage />} />
+              <Route path="info" element={<InfoPage />} />
+              <Route path="settings" element={<SettingPage />} />
+              <Route path="bundle" element={<AnswersPage />} />
+              <Route path="scheduler" element={<CoupleSchedulerPage />} />
+              <Route path="questions" element={<QuestionPage />} />
+              <Route path="kitchen" element={<CookingPage />} />
+              <Route path="aquarium" element={<AquariumPage />} />
+            </Route>
+          </Routes>
+
+          {/* ✅ 여기! Routes 바깥에 전역으로 한 번만 */}
+          <Toaster position="top-center" richColors />
+        </BrowserRouter>
+      </CoupleProvider>
+    </UserProvider>
   );
 }

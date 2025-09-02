@@ -4,7 +4,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useUser } from "@/contexts/UserContext";
 import { useCoupleContext } from "@/contexts/CoupleContext";
-import SadPotatoGuard from "@/components/SadPotatoGuard";
 
 import {
   createCoupleSchedule,
@@ -262,18 +261,6 @@ export default function CoupleSchedulerPage() {
     setOpenDetail(false);
     setSelected(null);
   };
-
-  if (!isCoupled || !coupleId) {
-    return (
-      <main className="mx-auto w-full max-w-screen-lg px-4 md:px-6 py-6">
-        <SadPotatoGuard
-          showRequestButton
-          onRequestClick={() => console.log("요청 보내기")}
-          hint="상대 닉네임으로 커플 요청을 먼저 완료해주세요."
-        />
-      </main>
-    );
-  }
 
   const isToday = (date?: Date | null) =>
     !!date &&

@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { GetQuestionById } from "@/utils/GetQuestionById";
 import { useUser } from "@/contexts/UserContext";
 import { useCompleteTask } from "@/utils/tasks/CompleteTask";
-import { useToast } from "@/contexts/ToastContext";
+
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 import supabase from "@/lib/supabase";
 
@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-
+import { toast } from "sonner";
 import { CoolMode } from "@/components/magicui/cool-mode";
 import AvatarWidget from "@/components/widgets/AvatarWidget";
 
@@ -82,7 +82,6 @@ const getDisplayId = (currentId: number | null, completed: boolean) => {
 export default function QuestionPage() {
   const { user } = useUser();
   const { completeTask } = useCompleteTask();
-  const { open } = useToast();
 
   const [question, setQuestion] = useState<string | null>(null);
   const [questionId, setQuestionId] = useState<number | null>(null); // 오늘의 id
@@ -229,7 +228,7 @@ export default function QuestionPage() {
         }
 
         setSaveStatus("saved");
-        open(isEdit ? "수정했습니다. ✏️" : "저장했습니다. 💾");
+        toast.info(isEdit ? "수정했습니다. " : "저장했습니다.");
 
         if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
         saveTimerRef.current = window.setTimeout(

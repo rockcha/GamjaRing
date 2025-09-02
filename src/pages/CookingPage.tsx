@@ -16,7 +16,6 @@ import {
 import IngredientPicker from "@/features/cooking/IngredientPicker";
 import IngredientList from "@/features/cooking/IngredientList";
 import CookingPot from "@/features/cooking/CookingPot";
-
 import { useIngredientList } from "@/features/cooking/useIngredientList";
 import {
   getEmoji,
@@ -24,13 +23,27 @@ import {
   normalize,
   type IngredientItem,
 } from "@/features/cooking/utils";
-
 import CookingFX from "@/features/cooking/CookingFX";
 
-// ✅ 추가: 알림 전송 & 유저 컨텍스트, 토스트
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 import { useUser } from "@/contexts/UserContext";
 import { toast } from "sonner";
+
+/* ✅ 추가: 골드 변경용 */
+import { useCoupleContext } from "@/contexts/CoupleContext";
+
+/* ✅ 추가: -5~+5 삼각분포(0 중심, 끝값일수록 낮은 확률) */
+function pickTriangularDelta(): number {
+  const values = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5];
+  const weights = [1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1]; // 합=36, 0이 가장 높음
+  const total = 36;
+  let r = Math.random() * total;
+  for (let i = 0; i < values.length; i++) {
+    r -= weights[i]!;
+    if (r < 0) return values[i]!;
+  }
+  return 0;
+}
 
 export default function CookingPage() {
   const { items, add, removeAt, clear } = useIngredientList();
@@ -40,13 +53,14 @@ export default function CookingPage() {
   const [open, setOpen] = useState(false);
   const [cooking, setCooking] = useState(false);
   const [resultName, setResultName] = useState<string | null>(null);
-
   const [burst, setBurst] = useState<{ emoji: string; key: number } | null>(
     null
   );
 
-  // ✅ 추가: 유저 정보
   const { user } = useUser();
+
+  /* ✅ 추가: CoupleContext에서 addGold 사용 */
+  const { addGold } = useCoupleContext();
 
   const handleAdd = () => {
     const customVal = normalize(custom);
@@ -54,7 +68,7 @@ export default function CookingPage() {
     const name = customVal || pickVal;
     if (!name) return;
     const source: IngredientItem["source"] = customVal ? "custom" : "preset";
-    add(name, source); // 중복 허용: 확률 ↑
+    add(name, source);
     setBurst({ emoji: getEmoji(name), key: Date.now() });
     window.setTimeout(() => setBurst(null), 900);
     setCustom("");
@@ -64,31 +78,54 @@ export default function CookingPage() {
     setOpen(true);
     setCooking(true);
     setResultName(null);
-    const wait = 2000 + Math.floor(Math.random() * 800); // 2~2.8s
+    const wait = 2000 + Math.floor(Math.random() * 800);
     window.setTimeout(() => {
       setResultName(makeRecipeName(items));
       setCooking(false);
     }, wait);
   };
 
-  // ✅ 추가: 공유하기 핸들러
+  // ✅ 변경: 공유하기 = 알림 + 골드 가감(삼각분포) + 토스트
   const handleShare = async () => {
     if (!resultName) return;
     if (!user?.partner_id) {
       toast.error("커플 연결부터 해주세요");
       return;
     }
-    const { error } = await sendUserNotification({
-      senderId: user.id,
-      receiverId: user.partner_id,
-      type: "음식공유",
-      foodName: resultName, // 🍽️ 이모지는 유틸에서 고정 처리
-    });
-    if (error) {
-      toast.error("공유에 실패했어요. 잠시 후 다시 시도해주세요.");
-    } else {
-      toast.success("연인에게 공유했어요! 🍽️");
-      setOpen(false);
+
+    // 1) 골드 델타 추첨 (-5 ~ +5, 0 중심)
+    const delta = pickTriangularDelta();
+    const deltaText = delta >= 0 ? `+${delta}` : `${delta}`;
+    console.warn(delta);
+    try {
+      // 2) 실제 골드 반영
+      await addGold(delta);
+
+      // 3) 토스트: 정해진 골드 표시
+      //    (요청 예시: "골드를 획득했어요 -5") → 그대로 표현
+      if (delta >= 0) {
+        toast.success(`골드를 획득했어요 ${deltaText}`);
+      } else toast.error(`골드를 잃었어요 ${deltaText}`);
+
+      // 4) 알림 전송 시에도 같은 문구로 전달
+      const { error } = await sendUserNotification({
+        senderId: user.id,
+        receiverId: user.partner_id,
+        type: "음식공유",
+        foodName: resultName,
+        gold: delta,
+      });
+
+      if (error) {
+        // 알림 실패는 사용자에게만 안내 (골드 반영은 유지)
+        toast.error("알림 전송에 실패했어요. 잠시 후 다시 시도해주세요.");
+      } else {
+        setOpen(false);
+      }
+    } catch (e) {
+      // addGold 실패 시 사용자 안내
+      toast.error("골드 반영에 실패했어요. 잠시 후 다시 시도해주세요.");
+      console.error(e);
     }
   };
 

@@ -10,6 +10,7 @@ import CouplePotatoCard from "../widgets/Cards/CouplePotatoCard";
 import WeatherCard from "../widgets/WeatherCard";
 import PotatoPokeButton from "../widgets/PotatoPokeButton";
 import { Separator } from "../ui/separator";
+import GoldDisplay from "@/features/aquarium/GoldDisplay";
 
 type HeaderMeta = { url: string; header?: string };
 type HeaderMapLike = Record<string, string | HeaderMeta>;
@@ -99,6 +100,8 @@ export default function AppHeader({
             <CouplePotatoCard />
             <Separator orientation="vertical" className="h-6 my-auto" />
             <PotatoPokeButton />
+            <Separator orientation="vertical" className="h-6 my-auto" />
+            <GoldDisplay />
           </div>
         </div>
       </div>

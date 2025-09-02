@@ -1,14 +1,29 @@
-import { useTheme } from "next-themes"
-import { Toaster as Sonner } from "sonner"
+// src/components/ui/sonner.tsx
+"use client";
 
-type ToasterProps = React.ComponentProps<typeof Sonner>
+import { Toaster as Sonner } from "sonner";
+import { useTheme } from "next-themes";
+
+type ToasterProps = React.ComponentProps<typeof Sonner>;
+
+// Sonner가 허용하는 theme 문자열 판별 (undefined 차단)
+function isSonnerTheme(v: unknown): v is NonNullable<ToasterProps["theme"]> {
+  return v === "light" || v === "dark" || v === "system";
+}
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
+  const { theme, resolvedTheme } = useTheme();
+
+  // 실제 적용 중인 테마 우선(resolvedTheme), 없으면 theme
+  const candidate = resolvedTheme ?? theme;
+  const themeProp = isSonnerTheme(candidate) ? candidate : undefined;
 
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      // ✅ theme이 유효할 때만 전달 (undefined 방지)
+      {...(themeProp
+        ? ({ theme: themeProp } as Pick<ToasterProps, "theme">)
+        : {})}
       className="toaster group"
       toastOptions={{
         classNames: {
@@ -23,7 +38,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }}
       {...props}
     />
-  )
-}
+  );
+};
 
-export { Toaster }
+export { Toaster };

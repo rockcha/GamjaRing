@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useUser } from "@/contexts/UserContext";
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
-import { useToast } from "@/contexts/ToastContext";
+
 import supabase from "@/lib/supabase";
 import { CoolMode } from "../magicui/cool-mode";
 
@@ -19,7 +19,7 @@ export default function PotatoPokeButton({
   onError?: (err: Error) => void;
 }) {
   const { user } = useUser();
-  const { open } = useToast();
+
   const [loading, setLoading] = useState(false);
   const [partnerNickname, setPartnerNickname] = useState("상대");
 

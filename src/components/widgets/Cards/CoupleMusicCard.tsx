@@ -25,7 +25,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/contexts/ToastContext";
+import { toast } from "sonner";
 
 // icons
 import { PencilLine, Check, X, Music4 } from "lucide-react";
@@ -77,7 +77,7 @@ async function ensureYouTubeApi() {
 
 export default function CoupleMusicCard() {
   const { user } = useUser();
-  const { open: toast } = useToast();
+
   const coupleId = user?.couple_id ?? null;
 
   const [loading, setLoading] = useState(true);
@@ -132,7 +132,7 @@ export default function CoupleMusicCard() {
   const onSave = async () => {
     if (!coupleId) return;
     if (draft.trim() && !draftId) {
-      toast("유효한 YouTube 링크(ID)를 입력해 주세요.");
+      toast.warning("유효한 YouTube 링크(ID)를 입력해 주세요.");
       return;
     }
     try {
@@ -160,11 +160,11 @@ export default function CoupleMusicCard() {
       setUrl(next);
       setPlayerOpen(false); // 저장 후 썸네일로
       setOpen(false);
-      toast(
+      toast.success(
         next ? "커플 음악을 업데이트했어요 🎵" : "커플 음악 링크를 비웠어요."
       );
     } catch (e: any) {
-      toast(e?.message ?? "저장 중 오류가 발생했어요.");
+      toast.error(e?.message ?? "저장 중 오류가 발생했어요.");
     } finally {
       setSaving(false);
     }

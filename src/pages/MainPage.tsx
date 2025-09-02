@@ -1,7 +1,7 @@
 // src/pages/MainPages/MainPage.tsx
 import { useEffect } from "react";
 import { useUser } from "@/contexts/UserContext";
-import { useToast } from "@/contexts/ToastContext";
+import { toast } from "sonner";
 
 import SoloUserCard from "@/components/widgets/Cards/SoloUserCard";
 
@@ -11,15 +11,9 @@ import CoupleSchedulePreview from "@/components/widgets/Cards/CoupleShedulePrevi
 import CoupleMusicCard from "@/components/widgets/Cards/CoupleMusicCard";
 import DailyFortuneCard from "@/features/fortune/DailyFortuneCard";
 import { Skeleton } from "@/components/ui/skeleton";
-import WeatherCard from "@/components/widgets/WeatherCard";
 
 export default function MainPage() {
   const { isCoupled, loading } = useUser(); // ✅ loading 가져오기
-  const { open } = useToast();
-
-  useEffect(() => {
-    open("환영합니다! 🥔 감자링에 오신 걸 환영해요.");
-  }, [open]);
 
   // ✅ 로딩 중에는 솔로/커플 여부를 렌더링하지 않고 스켈레톤만 표기
   if (loading) {

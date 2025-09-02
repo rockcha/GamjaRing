@@ -6,12 +6,11 @@ import { sendUserNotification } from "@/utils/notification/sendUserNotification"
 
 export function useCompleteTask() {
   const { user } = useUser();
-  const { couple } = useCoupleContext();
+  const { couple, addGold } = useCoupleContext(); // ✅ addGold 가져오기
 
   const completeTask = async () => {
     const today = new Date().toLocaleDateString("sv-SE");
 
-    // 🔒 유효성 검사
     if (!user?.id) {
       console.warn("❌ 유저 정보가 없습니다.");
       return;
@@ -27,7 +26,6 @@ export function useCompleteTask() {
       .from("daily_task")
       .select("completed, question_id")
       .eq("user_id", user.id)
-
       .maybeSingle();
 
     if (fetchError) {
@@ -45,10 +43,9 @@ export function useCompleteTask() {
       return;
     }
 
-    // 다음 질문 번호 설정
     const nextQuestionId = ((task.question_id ?? 0) + 1) % 400;
 
-    // 2. task 완료 처리 + 질문 번호 올리기
+    // 2. task 완료 처리
     const { error: updateError } = await supabase
       .from("daily_task")
       .update({ completed: true, question_id: nextQuestionId, date: today })
@@ -59,22 +56,30 @@ export function useCompleteTask() {
       return;
     }
 
-    // 커플 포인트 증가 (✅ couple_points 테이블 기반)
+    // 커플 포인트 증가
     await increaseCouplePoint(couple.id);
 
-    //파트너 id 유효확인 -> receiver_id 가 string만 허용
-    if (!user?.partner_id) {
+    // 알림 전송
+    if (user?.partner_id) {
+      const { error: notificationError } = await sendUserNotification({
+        senderId: user.id,
+        receiverId: user.partner_id,
+        type: "답변등록",
+        isRequest: false,
+      });
+      if (notificationError) {
+        console.error("❌ 알림 전송 실패:", notificationError.message);
+      }
+    } else {
       console.warn("❌ 파트너 ID가 없습니다. 알림 전송 중단");
-      return;
     }
 
-    const { error } = await sendUserNotification({
-      senderId: user.id,
-      receiverId: user.partner_id, // 상대방의 Supabase UUID
-      type: "답변등록",
-      description: `${user.nickname}님이 오늘의 질문에 답변했어요! 📝`,
-      isRequest: false,
-    });
+    // ✅ 골드 15 추가
+    try {
+      await addGold(15);
+    } catch (e) {
+      console.error("❌ 골드 지급 실패:", e);
+    }
   };
 
   return { completeTask };

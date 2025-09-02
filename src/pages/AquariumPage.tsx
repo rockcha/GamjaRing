@@ -1,13 +1,21 @@
+// src/pages/AquariumPage.tsx (파일 경로는 사용 중인 구조에 맞춰 유지)
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import AquariumBox from "@/features/aquarium/AquariumBox";
-import GoldDisplay from "@/features/aquarium/GoldDisplay";
+
 import ShopModal from "@/features/aquarium/ShopModal";
 import TankFrame from "@/features/aquarium/TankFrame";
+
+import { toast } from "sonner";
 import supabase from "@/lib/supabase";
 import { useCoupleContext } from "@/contexts/CoupleContext";
+import { sendUserNotification } from "@/utils/notification/sendUserNotification";
+
+import { useUser } from "@/contexts/UserContext";
+import { FISH_BY_ID } from "@/features/aquarium/fishes";
 
 export default function AquariumPage() {
+  const { user } = useUser();
   const { couple, gold, spendGold, fetchCoupleData } = useCoupleContext();
 
   const [fishIds, setFishIds] = useState<string[]>([]);
@@ -48,7 +56,7 @@ export default function AquariumPage() {
           if (mounted) setFishIds([]);
           return;
         }
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from("couples")
           .select("aquarium_fishes")
           .eq("id", coupleId)
@@ -56,14 +64,10 @@ export default function AquariumPage() {
 
         if (!mounted) return;
 
-        if (!error && data) {
-          const arr = Array.isArray(data.aquarium_fishes)
-            ? (data.aquarium_fishes as string[])
-            : [];
-          setFishIds(arr);
-        } else {
-          setFishIds([]);
-        }
+        const arr = Array.isArray(data?.aquarium_fishes)
+          ? (data!.aquarium_fishes as string[])
+          : [];
+        setFishIds(arr);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -85,13 +89,13 @@ export default function AquariumPage() {
       return;
     }
     if (gold < cost) {
-      alert("골드가 부족합니다!");
+      toast.warning("골드가 부족합니다!");
       return;
     }
 
     const { error: spendErr } = await spendGold(cost);
     if (spendErr) {
-      alert(spendErr.message);
+      toast.warning(spendErr.message);
       return;
     }
 
@@ -104,16 +108,33 @@ export default function AquariumPage() {
       .eq("id", coupleId);
 
     if (upErr) {
-      alert(`구매 저장 실패: ${upErr.message}`);
+      toast.warning(`구매 저장 실패: ${upErr.message}`);
       setFishIds(fishIds);
       await fetchCoupleData();
       return;
     }
 
     setGoldDelta(-cost);
+
+    try {
+      // 수정
+      const itemName = (FISH_BY_ID[fishId]?.labelKo ?? fishId).toString();
+
+      if (user?.id && user?.partner_id) {
+        await sendUserNotification({
+          senderId: user.id,
+          receiverId: user.partner_id,
+          type: "물품구매",
+          itemName, // ← 전달 (없으면 기본 문구로 처리)
+        });
+      }
+    } catch (e) {
+      console.warn("알림 전송 실패(무시 가능):", e);
+    }
+
+    toast.success("구매 완료!");
   };
 
-  // ✅ 판매 처리 (최소 변경)
   const handleSell = async ({
     index,
     fishId,
@@ -125,18 +146,14 @@ export default function AquariumPage() {
   }) => {
     if (!coupleId) return;
 
-    // 1) 인덱스 방어
     if (index < 0 || index >= fishIds.length || fishIds[index] !== fishId) {
-      // 혹시 꼬였으면 뒤에서부터 같은 id 하나 제거
       index = fishIds.lastIndexOf(fishId);
       if (index === -1) return;
     }
 
-    // 2) 낙관적 업데이트: 물고기 제거
     const next = fishIds.slice(0, index).concat(fishIds.slice(index + 1));
     setFishIds(next);
 
-    // 3) DB 업데이트: 어항 물고기 배열 저장
     const { error: upErr1 } = await supabase
       .from("couples")
       .update({ aquarium_fishes: next })
@@ -147,7 +164,6 @@ export default function AquariumPage() {
       return;
     }
 
-    // 4) 골드 증가: DB 업데이트 후 동기화
     const newGold = gold + sellPrice;
     const { error: upErr2 } = await supabase
       .from("couples")
@@ -156,12 +172,12 @@ export default function AquariumPage() {
     if (upErr2) {
       console.warn("골드 지급 실패:", upErr2.message);
     } else {
-      setGoldDelta(sellPrice); // 필요하면 +XX 표시용으로 사용
+      setGoldDelta(sellPrice);
     }
-    await fetchCoupleData(); // 컨텍스트 gold 동기화
+    await fetchCoupleData();
   };
 
-  const currentLoadingText: string = useMemo(() => {
+  const currentLoadingText = useMemo(() => {
     if (loadingMessages.length === 0) return "🫧 어항 청소중 …";
     const i =
       ((loadingMsgIndex % loadingMessages.length) + loadingMessages.length) %
@@ -182,7 +198,9 @@ export default function AquariumPage() {
             <span>마리</span>
           </span>
         </h1>
-        <GoldDisplay gold={gold} />
+        <div className="pb-2">
+          <ShopModal gold={gold} onBuy={handleBuy} />
+        </div>
       </div>
 
       <TankFrame>
@@ -190,13 +208,9 @@ export default function AquariumPage() {
           fishIds={fishIds}
           isLoading={loading}
           loadingText={currentLoadingText}
-          onSell={handleSell} // ✅ 추가
+          onSell={handleSell}
         />
       </TankFrame>
-
-      <div className="pt-2">
-        <ShopModal gold={gold} onBuy={handleBuy} />
-      </div>
     </div>
   );
 }

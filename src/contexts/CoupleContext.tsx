@@ -2,7 +2,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import supabase from "@/lib/supabase";
 import { useUser } from "./UserContext";
-import { useToast } from "./ToastContext";
 
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 import { deleteUserNotification } from "@/utils/notification/deleteUserNotification";
@@ -55,7 +54,6 @@ const CoupleContext = createContext<CoupleContextType | undefined>(undefined);
 
 export const CoupleProvider = ({ children }: { children: React.ReactNode }) => {
   const { user, fetchUser } = useUser();
-  const { open } = useToast();
 
   const [couple, setCouple] = useState<Couple | null>(null);
 
@@ -166,17 +164,20 @@ export const CoupleProvider = ({ children }: { children: React.ReactNode }) => {
   const addGold = async (amount: number) => {
     try {
       if (!couple?.id) return { error: new Error("커플 정보가 없습니다.") };
-      if (amount <= 0)
-        return { error: new Error("양수만 추가할 수 있습니다.") };
 
       const prev = couple.gold ?? 0;
-      const next = prev + amount;
+      let next = prev + amount;
+
+      // ✅ 음수 방지 (최소 0)
+      if (next < 0) next = 0;
 
       // 낙관적 업데이트
       setCouple({ ...couple, gold: next });
+
       const { error } = await updateGoldOnServer(couple.id, next);
       if (error) {
-        setCouple({ ...couple, gold: prev }); // 롤백
+        // 롤백
+        setCouple({ ...couple, gold: prev });
         return { error: new Error(error.message) };
       }
       return { error: null };

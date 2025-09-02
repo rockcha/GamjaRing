@@ -15,7 +15,8 @@ type NotificationType =
   | "일정삭제"
   | "반응추가"
   | "음악등록"
-  | "음식공유";
+  | "음식공유"
+  | "물품구매";
 
 interface SendUserNotificationInput {
   senderId: string;
@@ -30,10 +31,19 @@ interface SendUserNotificationInput {
 
   /** '음식공유'일 때 표시할 음식 이름 */
   foodName?: string;
+
+  /** '음식공유'일 때 실제 변경된 골드(음수/양수) */
+  gold?: number;
+
+  /** '물품구매'일 때 물품(예: 물고기) 이름 — 선택값(없어도 안전) */
+  itemName?: string;
 }
 
-// '음식공유'는 별도 처리 (🍽️ 이모지 고정)
-const ACTION_BY_TYPE: Record<Exclude<NotificationType, "음식공유">, string> = {
+// '음식공유'와 '물품구매'는 별도 처리
+const ACTION_BY_TYPE: Record<
+  Exclude<NotificationType, "음식공유" | "물품구매">,
+  string
+> = {
   커플요청: "커플 요청을 보냈어요 💌",
   커플수락: "커플 요청을 수락했어요! 💘",
   커플거절: "커플 요청을 거절했어요 🙅",
@@ -49,12 +59,23 @@ const ACTION_BY_TYPE: Record<Exclude<NotificationType, "음식공유">, string> 
   음악등록: "음악을 등록했어요 🎵",
 };
 
+// 간단한 조사 처리(을/를)
+function withObjectJosa(name: string) {
+  const ch = name.charCodeAt(name.length - 1);
+  const isHangul = ch >= 0xac00 && ch <= 0xd7a3;
+  if (!isHangul) return `${name}를`;
+  const jong = (ch - 0xac00) % 28;
+  return `${name}${jong === 0 ? "를" : "을"}`;
+}
+
 export const sendUserNotification = async ({
   senderId,
   receiverId,
   type,
   isRequest,
-  foodName, // ← 음식공유용
+  foodName,
+  gold,
+  itemName, // ✅ 물품구매용
 }: SendUserNotificationInput) => {
   if (senderId === receiverId) {
     return { error: new Error("자기 자신에게 알림을 보낼 수 없습니다.") };
@@ -78,16 +99,29 @@ export const sendUserNotification = async ({
 
   // 2) 고정 문구 생성
   let action: string;
+
   if (type === "음식공유") {
     const name = (foodName ?? "").trim();
     const base = "음식을 공유했어요 🍽️";
-    action = name ? `${base} ${name}` : base;
+    const hasDelta = typeof gold === "number" && Number.isFinite(gold);
+    const sign = hasDelta && gold! >= 0 ? "+" : "";
+    const goldSuffix = hasDelta ? ` 🪙 ${sign}${Math.trunc(gold!)} ` : "";
+    action = name ? `${base} ${name}${goldSuffix}` : `${base}${goldSuffix}`;
+  } else if (type === "물품구매") {
+    // ✅ 물품 이름이 있으면: "OOO을/를 구매했습니다 🛒"
+    //    없으면 기본 문구: "물품을 구매했어요 🛒"
+    const name = (itemName ?? "").trim();
+    action = name
+      ? `${withObjectJosa(name)} 구매했습니다 🛒`
+      : "물품을 구매했어요 🛒";
   } else {
     action =
-      ACTION_BY_TYPE[type as Exclude<NotificationType, "음식공유">] ??
-      String(type);
+      ACTION_BY_TYPE[
+        type as Exclude<NotificationType, "음식공유" | "물품구매">
+      ] ?? String(type);
   }
-  const fixedDescription = `${nickname}님이 ${action}`;
+
+  const fixedDescription = `${nickname}님이 ${action}`.trim();
 
   // 3) '커플요청'은 자동 true
   const finalIsRequest = type === "커플요청" ? true : Boolean(isRequest);

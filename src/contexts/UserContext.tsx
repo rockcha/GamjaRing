@@ -1,8 +1,9 @@
 // src/contexts/UserContext.tsx
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { useToast } from "./ToastContext";
+
 import supabase from "@/lib/supabase";
+import { toast } from "sonner";
 
 interface UserData {
   id: string;
@@ -44,7 +45,6 @@ function toAvatarId(val: unknown): number | null {
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
-  const { open } = useToast();
 
   const fetchUser = async (): Promise<UserData | null> => {
     setLoading(true);
@@ -127,7 +127,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
 
     await fetchUser();
-    open("회원가입 성공");
+    toast.success("회원가입 성공");
     return { error: null };
   };
 
@@ -136,7 +136,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       await supabase.auth.signOut();
       setUser(null);
-      open("로그아웃되었습니다");
+      toast.info("로그아웃되었습니다");
     } catch (error) {
       console.error("로그아웃 실패:", error);
     } finally {
