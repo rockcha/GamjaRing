@@ -1,19 +1,23 @@
+// src/features/aquarium/fishes.ts
 export type FishInfo = {
   id: string;
   labelKo: string;
   cost: number;
   image: string;
   size: number; // 1.0 = 기본, >1 = 크게, <1 = 작게
+  swimY: [number, number]; // 수영 높이 범위 (%): 0=수면, 100=바닥
+  breedProb: number; // 교배 확률 (0~1) — 정적 할당
 };
 
 export const FISHES: FishInfo[] = [
-  // 기존 🐟nautilusanglerfishhumpbackwhale
   {
     id: "scalare",
     labelKo: "스칼라 물고기",
     cost: 40,
     image: "/aquarium/scalare.png",
     size: 0.8,
+    swimY: [30, 65],
+    breedProb: 0.28,
   },
   {
     id: "goldfish",
@@ -21,14 +25,17 @@ export const FISHES: FishInfo[] = [
     cost: 40,
     image: "/aquarium/goldfish.png",
     size: 0.8,
+    swimY: [25, 55],
+    breedProb: 0.3,
   },
-
   {
     id: "anglerfish",
     labelKo: "아귀",
     cost: 105,
     image: "/aquarium/anglerfish.png",
     size: 1.3,
+    swimY: [70, 95],
+    breedProb: 0.1,
   },
   {
     id: "nautilus",
@@ -36,6 +43,8 @@ export const FISHES: FishInfo[] = [
     cost: 85,
     image: "/aquarium/nautilus.png",
     size: 1.0,
+    swimY: [65, 95],
+    breedProb: 0.14,
   },
   {
     id: "cardinalfish",
@@ -43,6 +52,8 @@ export const FISHES: FishInfo[] = [
     cost: 65,
     image: "/aquarium/cardinalfish.png",
     size: 0.8,
+    swimY: [35, 65],
+    breedProb: 0.2,
   },
   {
     id: "mackerel",
@@ -50,6 +61,8 @@ export const FISHES: FishInfo[] = [
     cost: 70,
     image: "/aquarium/mackerel.png",
     size: 1.4,
+    swimY: [20, 60],
+    breedProb: 0.18,
   },
   {
     id: "guppy",
@@ -57,21 +70,26 @@ export const FISHES: FishInfo[] = [
     cost: 35,
     image: "/aquarium/guppy.png",
     size: 0.5,
+    swimY: [30, 70],
+    breedProb: 0.35,
   },
-
   {
     id: "stripedfish",
     labelKo: "줄무늬 물고기",
     cost: 40,
     image: "/aquarium/stripedfish.png",
     size: 0.8,
+    swimY: [35, 65],
+    breedProb: 0.28,
   },
   {
     id: "shellfish",
     labelKo: "조개",
-    cost: 40,
+    cost: 20,
     image: "/aquarium/shellfish.png",
     size: 0.8,
+    swimY: [85, 100],
+    breedProb: 0.35,
   },
   {
     id: "seaeel",
@@ -79,6 +97,8 @@ export const FISHES: FishInfo[] = [
     cost: 75,
     image: "/aquarium/seaeel.png",
     size: 1.3,
+    swimY: [60, 95],
+    breedProb: 0.16,
   },
   {
     id: "shrimp",
@@ -86,6 +106,8 @@ export const FISHES: FishInfo[] = [
     cost: 40,
     image: "/aquarium/shrimp.png",
     size: 0.5,
+    swimY: [75, 95],
+    breedProb: 0.22,
   },
   {
     id: "clownfish",
@@ -93,6 +115,8 @@ export const FISHES: FishInfo[] = [
     cost: 50,
     image: "/aquarium/clownfish.png",
     size: 0.9,
+    swimY: [35, 65],
+    breedProb: 0.24,
   },
   {
     id: "squid",
@@ -100,6 +124,8 @@ export const FISHES: FishInfo[] = [
     cost: 55,
     image: "/aquarium/squid.png",
     size: 1.2,
+    swimY: [45, 85],
+    breedProb: 0.22,
   },
   {
     id: "turtle",
@@ -107,6 +133,8 @@ export const FISHES: FishInfo[] = [
     cost: 65,
     image: "/aquarium/turtle.png",
     size: 1.3,
+    swimY: [25, 65],
+    breedProb: 0.16,
   },
   {
     id: "jellyfish",
@@ -114,6 +142,8 @@ export const FISHES: FishInfo[] = [
     cost: 65,
     image: "/aquarium/jellyfish.png",
     size: 1.1,
+    swimY: [20, 70],
+    breedProb: 0.14,
   },
   {
     id: "dolphin",
@@ -121,15 +151,17 @@ export const FISHES: FishInfo[] = [
     cost: 105,
     image: "/aquarium/dolphin.png",
     size: 2.5,
+    swimY: [10, 50],
+    breedProb: 0.08,
   },
-
-  // 추가 🐠🐡🦈
   {
     id: "seahorse",
     labelKo: "해마",
     cost: 55,
     image: "/aquarium/seahorse.png",
     size: 0.6,
+    swimY: [40, 85],
+    breedProb: 0.26,
   },
   {
     id: "pufferfish",
@@ -137,6 +169,8 @@ export const FISHES: FishInfo[] = [
     cost: 75,
     image: "/aquarium/pufferfish.png",
     size: 1.0,
+    swimY: [30, 70],
+    breedProb: 0.16,
   },
   {
     id: "stingray",
@@ -144,6 +178,8 @@ export const FISHES: FishInfo[] = [
     cost: 85,
     image: "/aquarium/stingray.png",
     size: 1.2,
+    swimY: [60, 95],
+    breedProb: 0.12,
   },
   {
     id: "lobster",
@@ -151,6 +187,8 @@ export const FISHES: FishInfo[] = [
     cost: 75,
     image: "/aquarium/lobster.png",
     size: 0.8,
+    swimY: [75, 98],
+    breedProb: 0.15,
   },
   {
     id: "shark",
@@ -158,13 +196,17 @@ export const FISHES: FishInfo[] = [
     cost: 160,
     image: "/aquarium/shark.png",
     size: 2.5,
+    swimY: [20, 80],
+    breedProb: 0.06,
   },
   {
     id: "whale",
     labelKo: "고래",
     cost: 185,
     image: "/aquarium/whale.png",
-    size: 6.0,
+    size: 5.0,
+    swimY: [50, 55],
+    breedProb: 0.03,
   },
   {
     id: "swordfish",
@@ -172,6 +214,8 @@ export const FISHES: FishInfo[] = [
     cost: 105,
     image: "/aquarium/swordfish.png",
     size: 1.5,
+    swimY: [20, 55],
+    breedProb: 0.09,
   },
   {
     id: "crab",
@@ -179,6 +223,8 @@ export const FISHES: FishInfo[] = [
     cost: 38,
     image: "/aquarium/crab.png",
     size: 0.5,
+    swimY: [75, 85],
+    breedProb: 0.26,
   },
 ];
 

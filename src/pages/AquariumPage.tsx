@@ -1,8 +1,8 @@
-// src/pages/AquariumPage.tsx (파일 경로는 사용 중인 구조에 맞춰 유지)
+// src/pages/AquariumPage.tsx
 "use client";
+
 import { useEffect, useMemo, useState } from "react";
 import AquariumBox from "@/features/aquarium/AquariumBox";
-
 import ShopModal from "@/features/aquarium/ShopModal";
 import TankFrame from "@/features/aquarium/TankFrame";
 
@@ -10,9 +10,28 @@ import { toast } from "sonner";
 import supabase from "@/lib/supabase";
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
-
 import { useUser } from "@/contexts/UserContext";
 import { FISH_BY_ID } from "@/features/aquarium/fishes";
+
+// ✅ 로딩 스켈레톤 (AquariumBox가 렌더되기 전 단계에서만 사용)
+function TankSkeleton({ text }: { text: string }) {
+  return (
+    <div className="mx-auto w-full px-2" style={{ maxWidth: 1100 }}>
+      <div
+        className="relative w-full rounded-xl overflow-hidden"
+        style={{ aspectRatio: "800 / 420" }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-sky-200 to-sky-300 animate-pulse" />
+        <div className="absolute inset-0 opacity-30 bg-[url('/aquarium/water.jpg')] bg-cover" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="px-4 py-2 rounded-lg bg-white/70 text-slate-700 font-medium shadow">
+            {text}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function AquariumPage() {
   const { user } = useUser();
@@ -47,6 +66,7 @@ export default function AquariumPage() {
     return () => clearInterval(itv);
   }, [loading, loadingMessages.length]);
 
+  // ✅ couple_aquarium에서 물고기 가져오기 (없으면 행 생성)
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -56,18 +76,30 @@ export default function AquariumPage() {
           if (mounted) setFishIds([]);
           return;
         }
-        const { data } = await supabase
-          .from("couples")
+
+        const { data, error } = await supabase
+          .from("couple_aquarium")
           .select("aquarium_fishes")
-          .eq("id", coupleId)
+          .eq("couple_id", coupleId)
           .maybeSingle();
 
         if (!mounted) return;
 
-        const arr = Array.isArray(data?.aquarium_fishes)
-          ? (data!.aquarium_fishes as string[])
-          : [];
-        setFishIds(arr);
+        if (error || !data) {
+          await supabase.from("couple_aquarium").upsert(
+            {
+              couple_id: coupleId,
+              aquarium_fishes: [],
+            },
+            { onConflict: "couple_id" }
+          );
+          setFishIds([]);
+        } else {
+          const arr = Array.isArray(data.aquarium_fishes)
+            ? (data.aquarium_fishes as string[])
+            : [];
+          setFishIds(arr);
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -103,9 +135,11 @@ export default function AquariumPage() {
     setFishIds(nextFishIds);
 
     const { error: upErr } = await supabase
-      .from("couples")
-      .update({ aquarium_fishes: nextFishIds })
-      .eq("id", coupleId);
+      .from("couple_aquarium")
+      .upsert(
+        { couple_id: coupleId, aquarium_fishes: nextFishIds },
+        { onConflict: "couple_id" }
+      );
 
     if (upErr) {
       toast.warning(`구매 저장 실패: ${upErr.message}`);
@@ -117,16 +151,14 @@ export default function AquariumPage() {
     setGoldDelta(-cost);
 
     try {
-      // 수정
       const itemName = (FISH_BY_ID[fishId]?.labelKo ?? fishId).toString();
-
       if (user?.id && user?.partner_id) {
         await sendUserNotification({
           senderId: user.id,
           receiverId: user.partner_id,
           type: "물품구매",
-          itemName, // ← 전달 (없으면 기본 문구로 처리)
-        });
+          itemName,
+        } as any);
       }
     } catch (e) {
       console.warn("알림 전송 실패(무시 가능):", e);
@@ -155,11 +187,15 @@ export default function AquariumPage() {
     setFishIds(next);
 
     const { error: upErr1 } = await supabase
-      .from("couples")
-      .update({ aquarium_fishes: next })
-      .eq("id", coupleId);
+      .from("couple_aquarium")
+      .upsert(
+        { couple_id: coupleId, aquarium_fishes: next },
+        { onConflict: "couple_id" }
+      );
+
     if (upErr1) {
       alert(`판매 저장 실패: ${upErr1.message}`);
+      setFishIds(fishIds);
       await fetchCoupleData();
       return;
     }
@@ -169,6 +205,7 @@ export default function AquariumPage() {
       .from("couples")
       .update({ gold: newGold })
       .eq("id", coupleId);
+
     if (upErr2) {
       console.warn("골드 지급 실패:", upErr2.message);
     } else {
@@ -188,29 +225,33 @@ export default function AquariumPage() {
   const fishCount = fishIds.length;
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="relative flex items-center justify-between">
-        <h1 className="text-2xl font-bold flex items-center gap-3">
-          아쿠아리움 🐟
-          <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 text-sky-800 border border-sky-200 px-3 py-1 text-sm">
-            <span>보유</span>
+    <div className="w-full p-6">
+      <div className="mx-auto w-full max-w-[1100px] px-2 space-y-3">
+        {/* 어항 폭 기준 좌↔우 끝에 배치 */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 text-sky-800 border border-sky-200 pr-4 px-3 py-1 text-sm">
+            <span>🐟</span>
             <b className="tabular-nums">{fishCount}</b>
-            <span>마리</span>
           </span>
-        </h1>
-        <div className="pb-2">
-          <ShopModal gold={gold} onBuy={handleBuy} />
+          <div className="pb-2">
+            <ShopModal gold={gold} onBuy={handleBuy} />
+          </div>
         </div>
-      </div>
 
-      <TankFrame>
-        <AquariumBox
-          fishIds={fishIds}
-          isLoading={loading}
-          loadingText={currentLoadingText}
-          onSell={handleSell}
-        />
-      </TankFrame>
+        <TankFrame>
+          {/* ✅ 로딩일 때는 AquariumBox를 아예 렌더하지 않고 스켈레톤만 보여줌 */}
+          {loading ? (
+            <TankSkeleton text={currentLoadingText} />
+          ) : (
+            <AquariumBox
+              fishIds={fishIds}
+              isLoading={false} // 이미 페이지에서 로딩 분기 처리
+              loadingText={currentLoadingText}
+              onSell={handleSell}
+            />
+          )}
+        </TankFrame>
+      </div>
     </div>
   );
 }

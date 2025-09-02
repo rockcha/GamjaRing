@@ -28,16 +28,16 @@ import CookingFX from "@/features/cooking/CookingFX";
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 import { useUser } from "@/contexts/UserContext";
 import { toast } from "sonner";
-
-/* ✅ 추가: 골드 변경용 */
 import { useCoupleContext } from "@/contexts/CoupleContext";
 
-/* ✅ 추가: -5~+5 삼각분포(0 중심, 끝값일수록 낮은 확률) */
+/* 🧩 lucide-react 아이콘들 */
+import { ChefHat, Sparkles, Timer, Share2, Plus, Flame } from "lucide-react";
+
+/* ✅ -5~+5 삼각분포 (0 중심) */
 function pickTriangularDelta(): number {
   const values = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5];
-  const weights = [1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1]; // 합=36, 0이 가장 높음
-  const total = 36;
-  let r = Math.random() * total;
+  const weights = [1, 2, 3, 4, 5, 6, 6, 5, 4, 3, 1]; // 합=40
+  let r = Math.random() * 40;
   for (let i = 0; i < values.length; i++) {
     r -= weights[i]!;
     if (r < 0) return values[i]!;
@@ -58,8 +58,6 @@ export default function CookingPage() {
   );
 
   const { user } = useUser();
-
-  /* ✅ 추가: CoupleContext에서 addGold 사용 */
   const { addGold } = useCoupleContext();
 
   const handleAdd = () => {
@@ -85,29 +83,21 @@ export default function CookingPage() {
     }, wait);
   };
 
-  // ✅ 변경: 공유하기 = 알림 + 골드 가감(삼각분포) + 토스트
+  // ✅ 공유: 알림 + 골드 가감 + 토스트
   const handleShare = async () => {
     if (!resultName) return;
     if (!user?.partner_id) {
       toast.error("커플 연결부터 해주세요");
       return;
     }
-
-    // 1) 골드 델타 추첨 (-5 ~ +5, 0 중심)
     const delta = pickTriangularDelta();
     const deltaText = delta >= 0 ? `+${delta}` : `${delta}`;
-    console.warn(delta);
+
     try {
-      // 2) 실제 골드 반영
       await addGold(delta);
+      if (delta >= 0) toast.success(`골드를 획득했어요 ${deltaText}`);
+      else toast.error(`골드를 잃었어요 ${deltaText}`);
 
-      // 3) 토스트: 정해진 골드 표시
-      //    (요청 예시: "골드를 획득했어요 -5") → 그대로 표현
-      if (delta >= 0) {
-        toast.success(`골드를 획득했어요 ${deltaText}`);
-      } else toast.error(`골드를 잃었어요 ${deltaText}`);
-
-      // 4) 알림 전송 시에도 같은 문구로 전달
       const { error } = await sendUserNotification({
         senderId: user.id,
         receiverId: user.partner_id,
@@ -117,20 +107,19 @@ export default function CookingPage() {
       });
 
       if (error) {
-        // 알림 실패는 사용자에게만 안내 (골드 반영은 유지)
         toast.error("알림 전송에 실패했어요. 잠시 후 다시 시도해주세요.");
       } else {
         setOpen(false);
       }
-    } catch (e) {
-      // addGold 실패 시 사용자 안내
+    } catch {
       toast.error("골드 반영에 실패했어요. 잠시 후 다시 시도해주세요.");
-      console.error(e);
     }
   };
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-6">
+      {/* 상단 섹션 타이틀 */}
+
       {/* 3컬럼: 左 현재 재료 / 中 이미지 / 右 재료 추가 */}
       <div className="grid gap-6 md:grid-cols-[1fr_minmax(280px,420px)_1fr] items-start">
         {/* Left – 현재 재료 */}
@@ -142,7 +131,10 @@ export default function CookingPage() {
         {/* Right – 재료 추가 */}
         <Card className="shadow-sm">
           <CardHeader className="py-3">
-            <CardTitle className="text-base">재료 추가</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Plus className="h-4 w-4 text-amber-700" />
+              재료 추가
+            </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
             <IngredientPicker
@@ -157,50 +149,70 @@ export default function CookingPage() {
                 onClick={handleAdd}
                 className="bg-amber-700 hover:bg-amber-600"
               >
+                <Plus className="h-4 w-4 mr-1.5" />
                 재료 추가하기
               </Button>
-              <Button onClick={handleMake}>요리 시작!</Button>
+              <Button onClick={handleMake}>
+                <Flame className="h-4 w-4 mr-1.5" />
+                요리 시작!
+              </Button>
             </div>
           </CardContent>
         </Card>
       </div>
-      {/* 결과 모달 */}
 
+      {/* 결과 모달 */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>요리 완성!</DialogTitle>
+          {/* ⛳️ 제목/내용 구분: Header + Separator + Content */}
+          <DialogHeader className="pb-2">
+            <DialogTitle className="flex items-center gap-2">
+              {cooking ? (
+                <>
+                  <ChefHat className="h-5 w-5 text-amber-700" />
+                  요리 진행중
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-5 w-5 text-amber-700" />
+                  요리 완성!
+                </>
+              )}
+            </DialogTitle>
+            <div className="text-xs text-muted-foreground">
+              {cooking
+                ? "맛있는 결과를 기대해요"
+                : "오늘의 한 그릇이 완성되었어요"}
+            </div>
           </DialogHeader>
 
-          {/* 배경 FX를 깔 컨테이너 */}
-          <div className="relative">
-            {/* ✅ 로딩 중일 때만 FX 표시 (카드 배경) */}
-            {cooking && (
-              <CookingFX
-                {...(items.length
-                  ? { emojis: items.map((it) => getEmoji(it.name)) }
-                  : {})}
-                intensity={0.9}
-                count={14}
-                sparks={18}
-                bubbles={12}
-              />
-            )}
+          <Separator />
 
-            {cooking ? (
-              <div className="py-10 grid place-items-center relative z-10">
-                <div className="mt-6 text-3xl md:text-5xl font-extrabold tracking-tight animate-pulse">
-                  요리중…
-                </div>
+          {/* 내용 섹션 */}
+          {cooking ? (
+            // ✅ 요리 중: 전체 GIF/FX + 어두운 배경
+            <div className="relative mt-3 rounded-lg overflow-hidden bg-zinc-900/60 min-h-[220px]">
+              <CookingFX
+                durationMs={2000}
+                onDone={() => {
+                  setCooking(false);
+                }}
+              />
+              <div className="absolute inset-0 grid place-items-center z-10 text-white">
+                {/* 필요하면 진행중 텍스트/아이콘 */}
+                {/* <Timer className="h-6 w-6 mr-2" /> 요리중… */}
               </div>
-            ) : (
-              <div className="py-2 relative z-10">
-                <h3 className="text-xl font-bold break-words leading-relaxed">
-                  {resultName}
-                </h3>
-              </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            // ✅ 요리 완료: 배경/FX 없이 결과 텍스트만
+            <div className="mt-4">
+              <h3 className="text-2xl md:text-3xl font-extrabold leading-tight text-amber-700 break-words">
+                {resultName}
+              </h3>
+            </div>
+          )}
+
+          <Separator className="mt-2" />
 
           <DialogFooter className="gap-2">
             {!cooking && (
@@ -209,10 +221,13 @@ export default function CookingPage() {
                 disabled={!resultName}
                 className="bg-amber-700 hover:bg-amber-600"
               >
+                <Share2 className="h-4 w-4 mr-1.5" />
                 공유하기
               </Button>
             )}
-            <Button onClick={() => setOpen(false)}>닫기</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              닫기
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

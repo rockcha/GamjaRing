@@ -17,7 +17,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Separator } from "./ui/separator";
-
+import { toast } from "sonner";
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 
 interface AnswerItem {
@@ -415,7 +415,7 @@ export default function MyPartnerAnswersCard() {
                             isRequest: false,
                           });
 
-                          open(`반응을 추가했어요: ${e.char}`);
+                          toast.success(`반응을 추가했어요: ${e.char}`);
                           setEmojiOpen(false);
                         }}
                       >

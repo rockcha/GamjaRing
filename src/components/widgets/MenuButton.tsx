@@ -38,7 +38,7 @@ const NAV_ITEMS: Item[] = [
 
   // 🎮 게임들
   { id: "aquarium", label: "아쿠아리움", icon: Fish }, // ⬅️ 교체
-  { id: "kitchen", label: "부엌", icon: ChefHat },
+  { id: "kitchen", label: "조리실", icon: ChefHat },
 ];
 
 const GUARDS: Record<
@@ -52,8 +52,8 @@ const GUARDS: Record<
   bundle: { requireLogin: true, requireCouple: true },
   scheduler: { requireLogin: true, requireCouple: true },
 
-  aquarium: {}, // 공개 (로그인 필수로 바꾸려면 { requireLogin: true })
-  kitchen: {},
+  aquarium: { requireLogin: true, requireCouple: true }, // 공개 (로그인 필수로 바꾸려면 { requireLogin: true })
+  kitchen: { requireLogin: true, requireCouple: true },
 };
 
 const FALLBACK_ROUTE: Record<string, string> = {

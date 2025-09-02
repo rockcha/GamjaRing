@@ -30,6 +30,8 @@ export default function PageLayout({
     "/bundle": "답변꾸러미",
     "/scheduler": "커플 스케쥴러",
     "/questions": "오늘의 질문",
+    "/aquarium": "아쿠아리움",
+    "/kitchen": "조리실",
   };
 
   // 경로 정규화(뒤 슬래시 제거)
@@ -81,25 +83,10 @@ export default function PageLayout({
     document.title = routeTitle;
   }, [routeTitle]);
 
-  // id → 라우트 매핑 (UserGreetingSection에 전달)
-  const idToRoute: Record<string, string> = {
-    home: "/main",
-    info: "/info",
-    settings: "/settings",
-    notifications: "/notifications",
-    questions: "/questions",
-    bundle: "/bundle",
-    scheduler: "/scheduler",
-  };
-
-  const handleNavigate = (id: string) => {
-    navigate(idToRoute[id] ?? `/${id}`);
-  };
-
   return (
     <div className="min-h-[100svh] max-w-screen-2xl mx-auto bg-gradient-to-b from-[#FAF5EB] via-[#EFE5D7] to-[#E6D5C3] text-[#3d2b1f]">
       {/* 고정 헤더 */}
-      <AppHeader routeTitle={routeTitle} onNavigate={handleNavigate} />
+      <AppHeader routeTitle={routeTitle} />
 
       {/* 본문 */}
       <main

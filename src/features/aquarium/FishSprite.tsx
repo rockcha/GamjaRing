@@ -1,5 +1,6 @@
+// src/features/aquarium/FishSprite.tsx
 "use client";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { FishInfo } from "./fishes";
 
 /** keyframes 1회 주입 */
@@ -31,7 +32,7 @@ export default function FishSprite({
   fish,
   overridePos,
   popIn = false,
-  isHovered = false, // ✅ 이미지에만 scale 주기 위해 추가
+  isHovered = false,
 }: {
   fish: FishInfo;
   overridePos: { leftPct: number; topPct: number };
@@ -46,8 +47,26 @@ export default function FishSprite({
     return { travel, speedSec, delay, bobPx };
   }, []);
 
+  // ✅ 좌우 방향(얼굴) 확률적으로 토글
+  const [facingLeft, setFacingLeft] = useState(() => Math.random() < 0.5);
+  const flipEvery = useMemo(() => 2400 + Math.random() * 2400, []);
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      // 0.22(22%) 확률로 방향 전환 (원하면 수치만 조절)
+      if (Math.random() < 0.22) setFacingLeft((v) => !v);
+    }, flipEvery);
+    return () => clearInterval(id);
+  }, [flipEvery]);
+
   const baseSize = 64;
   const widthPx = baseSize * (fish.size ?? 1);
+
+  const basePxMin = 28; // 최소 크기(모바일)
+  const baseVw = 6; // 뷰포트 비율
+  const basePxMax = 92; // 최대 크기(데스크톱)
+  const widthCss = `clamp(${basePxMin * (fish.size ?? 1)}px, ${
+    baseVw * (fish.size ?? 1)
+  }vw, ${basePxMax * (fish.size ?? 1)}px)`;
 
   return (
     <div
@@ -55,14 +74,12 @@ export default function FishSprite({
       style={{
         left: `${overridePos.leftPct}%`,
         top: `${overridePos.topPct}%`,
-        // 좌우 수영은 래퍼에서 (translateX만)
         animation: `swim-x ${motion.speedSec}s ease-in-out ${
           motion.delay
         }s infinite alternate${popIn ? ", popIn 600ms ease-out" : ""}`,
         ["--travel" as any]: `${motion.travel}%`,
       }}
     >
-      {/* 상하 출렁임은 내부 래퍼에서 */}
       <div
         className="will-change-transform transform-gpu"
         style={{
@@ -73,15 +90,14 @@ export default function FishSprite({
           ["--bob" as any]: `${motion.bobPx}px`,
         }}
       >
-        {/* ✅ 스케일은 이미지에만 적용 → transform 충돌/깜빡임 방지 */}
         <img
           src={fish.image}
           alt={fish.labelKo}
           className="pointer-events-none select-none will-change-transform transform-gpu hover:cursor-pointer"
           style={{
-            width: `${widthPx}px`,
+            width: widthCss, // ← 숫자(px) 대신 clamp()로 반응형
             height: "auto",
-            transform: `scale(${isHovered ? 1.08 : 1}) `,
+            transform: `scale(${isHovered ? 1.08 : 1})`,
             transition: "transform 180ms ease-out",
             filter: "drop-shadow(0 2px 2px rgba(0,0,0,.25))",
           }}
