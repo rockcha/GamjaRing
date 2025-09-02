@@ -32,6 +32,7 @@ export default function PageLayout({
     "/questions": "오늘의 질문",
     "/aquarium": "아쿠아리움",
     "/kitchen": "조리실",
+    "/potatoField": "감자밭",
   };
 
   // 경로 정규화(뒤 슬래시 제거)

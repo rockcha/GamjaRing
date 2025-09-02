@@ -13,7 +13,8 @@ import {
   CalendarClock,
   Menu as MenuIcon,
   ChefHat, // 부엌
-  Fish, // 🐟 아쿠아리움 아이콘
+  Fish, // 아쿠아리움
+  Sprout, // 🌱 감자밭
 } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 
@@ -37,8 +38,9 @@ const NAV_ITEMS: Item[] = [
   { id: "scheduler", label: "커플 스케쥴러", icon: CalendarClock },
 
   // 🎮 게임들
-  { id: "aquarium", label: "아쿠아리움", icon: Fish }, // ⬅️ 교체
+  { id: "aquarium", label: "아쿠아리움", icon: Fish },
   { id: "kitchen", label: "조리실", icon: ChefHat },
+  { id: "potatoField", label: "감자밭", icon: Sprout }, // ✅ 추가
 ];
 
 const GUARDS: Record<
@@ -52,8 +54,9 @@ const GUARDS: Record<
   bundle: { requireLogin: true, requireCouple: true },
   scheduler: { requireLogin: true, requireCouple: true },
 
-  aquarium: { requireLogin: true, requireCouple: true }, // 공개 (로그인 필수로 바꾸려면 { requireLogin: true })
+  aquarium: { requireLogin: true, requireCouple: true },
   kitchen: { requireLogin: true, requireCouple: true },
+  potatoField: { requireLogin: true, requireCouple: true }, // ✅ 추가
 };
 
 const FALLBACK_ROUTE: Record<string, string> = {
@@ -64,8 +67,9 @@ const FALLBACK_ROUTE: Record<string, string> = {
   questions: "/questions",
   bundle: "/bundle",
   scheduler: "/scheduler",
-  aquarium: "/aquarium", // ⬅️ 교체
+  aquarium: "/aquarium",
   kitchen: "/kitchen",
+  potatoField: "/potatoField", // ✅ 추가
 };
 
 export default function MenuButton() {

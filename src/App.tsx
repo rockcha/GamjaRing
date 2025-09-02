@@ -20,6 +20,7 @@ import AnswersPage from "./pages/AnswerPage";
 import QuestionPage from "./pages/QuestionPage";
 import CookingPage from "./pages/CookingPage";
 import AquariumPage from "./pages/AquariumPage";
+import PotatoFieldPage from "./pages/PotatoFieldPage";
 
 export default function App() {
   return (
@@ -47,6 +48,7 @@ export default function App() {
               <Route path="questions" element={<QuestionPage />} />
               <Route path="kitchen" element={<CookingPage />} />
               <Route path="aquarium" element={<AquariumPage />} />
+              <Route path="potatoField" element={<PotatoFieldPage />} />
             </Route>
           </Routes>
 

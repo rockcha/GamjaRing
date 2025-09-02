@@ -1,6 +1,6 @@
 // src/features/aquarium/FishSprite.tsx
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FishInfo } from "./fishes";
 
 /** keyframes 1회 주입 */
@@ -28,6 +28,27 @@ function injectKeyframesOnce() {
 }
 injectKeyframesOnce();
 
+/** ── 난수 유틸: 토큰 기반 PRNG (mulberry32) ───────────────────────────── */
+function makeToken(): number {
+  try {
+    if (typeof crypto !== "undefined" && "getRandomValues" in crypto) {
+      const arr = new Uint32Array(1);
+      crypto.getRandomValues(arr);
+      return arr[0] || Math.floor(Math.random() * 2 ** 32);
+    }
+  } catch {}
+  return Math.floor(Math.random() * 2 ** 32);
+}
+function mulberry32(seed: number) {
+  let t = seed >>> 0;
+  return function rand() {
+    t += 0x6d2b79f5;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 export default function FishSprite({
   fish,
   overridePos,
@@ -39,34 +60,39 @@ export default function FishSprite({
   popIn?: boolean;
   isHovered?: boolean;
 }) {
-  const motion = useMemo(() => {
-    const travel = Math.random() * 80 + 45;
-    const speedSec = Math.random() * 6 + 6;
-    const delay = Math.random() * 2;
-    const bobPx = Math.round(Math.random() * 12 + 6);
-    return { travel, speedSec, delay, bobPx };
-  }, []);
+  /** 개체별 토큰(고정) → PRNG */
+  const tokenRef = useRef<number>(makeToken());
+  const rand = useMemo(() => mulberry32(tokenRef.current), []);
 
-  // ✅ 좌우 방향(얼굴) 확률적으로 토글
-  const [facingLeft, setFacingLeft] = useState(() => Math.random() < 0.5);
-  const flipEvery = useMemo(() => 2400 + Math.random() * 2400, []);
+  const motion = useMemo(() => {
+    const travel = rand() * 80 + 45; // 45 ~ 125 %
+    const speedSec = rand() * 6 + 6; // 6 ~ 12 s
+    const delay = rand() * 2; // 0 ~ 2 s
+    const bobPx = Math.round(rand() * 12 + 6); // 6 ~ 18 px
+    return { travel, speedSec, delay, bobPx };
+  }, [rand]);
+
+  // ✅ 좌우 방향(얼굴) 토글 (X축 반전만 유지)
+  const [facingLeft, setFacingLeft] = useState(() => rand() < 0.5);
+  const flipEveryX = useMemo(() => 2400 + rand() * 2400, [rand]); // 2.4 ~ 4.8s
   useEffect(() => {
     const id = window.setInterval(() => {
-      // 0.22(22%) 확률로 방향 전환 (원하면 수치만 조절)
-      if (Math.random() < 0.22) setFacingLeft((v) => !v);
-    }, flipEvery);
+      // 낮은 확률로 가끔 반전 (원하면 0.1~0.3 사이로 조절)
+      if (rand() < 0.15) setFacingLeft((v) => !v);
+    }, flipEveryX);
     return () => clearInterval(id);
-  }, [flipEvery]);
+  }, [flipEveryX, rand]);
 
-  const baseSize = 64;
-  const widthPx = baseSize * (fish.size ?? 1);
+  // 반응형 너비
+  const sizeMul = fish.size ?? 1;
+  const widthCss = `clamp(${28 * sizeMul}px, ${6 * sizeMul}vw, ${
+    92 * sizeMul
+  }px)`;
 
-  const basePxMin = 28; // 최소 크기(모바일)
-  const baseVw = 6; // 뷰포트 비율
-  const basePxMax = 92; // 최대 크기(데스크톱)
-  const widthCss = `clamp(${basePxMin * (fish.size ?? 1)}px, ${
-    baseVw * (fish.size ?? 1)
-  }vw, ${basePxMax * (fish.size ?? 1)}px)`;
+  // transform 합성: scale(sx, sy) 한 번으로
+  const hoverScale = isHovered ? 1.08 : 1;
+  const sx = hoverScale * (facingLeft ? -1 : 1); // 좌우 반전 + hover
+  const sy = hoverScale; // 세로는 반전 없이 hover만
 
   return (
     <div
@@ -95,10 +121,11 @@ export default function FishSprite({
           alt={fish.labelKo}
           className="pointer-events-none select-none will-change-transform transform-gpu hover:cursor-pointer"
           style={{
-            width: widthCss, // ← 숫자(px) 대신 clamp()로 반응형
+            width: widthCss,
             height: "auto",
-            transform: `scale(${isHovered ? 1.08 : 1})`,
-            transition: "transform 180ms ease-out",
+            transform: `scale(${sx}, ${sy})`, // ← X만 가끔 반전
+            transition: "transform 240ms ease-out",
+            transformOrigin: "50% 50%",
             filter: "drop-shadow(0 2px 2px rgba(0,0,0,.25))",
           }}
         />
