@@ -7,7 +7,7 @@ export type PlotState = "empty" | "growing" | "ready";
 export type PotatoFieldRow = {
   couple_id: string;
   harvested_count: number;
-  tool: string | null;
+
   plots_planted_at: (string | null)[] | null; // ISO 문자열 or null
   created_at?: string | null;
   updated_at?: string | null;

@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 import {
   ensureRow,
   computePlotsInfo,
@@ -39,10 +38,10 @@ export default function PotatoFieldGrid({
   onCountChange?: (n: number) => void;
 }) {
   const [plots, setPlots] = useState<PlotInfo[]>([]);
-  const [isBusyIdx, setIsBusyIdx] = useState<number | null>(null); // 2초 연출
-  const [rev, setRev] = useState(0); // 강제 리프레시 트리거
+  const [busy, setBusy] = useState<Set<number>>(new Set());
+  const [rev, setRev] = useState(0);
 
-  // 초기 로드 + 행 보장
+  // 초기 로드
   useEffect(() => {
     if (!coupleId) return;
     (async () => {
@@ -52,7 +51,6 @@ export default function PotatoFieldGrid({
         computePlotsInfo({
           couple_id: coupleId,
           harvested_count: 0,
-          tool: null,
           plots_planted_at: arr,
         })
       );
@@ -61,16 +59,15 @@ export default function PotatoFieldGrid({
     })();
   }, [coupleId, onCountChange, rev]);
 
-  // 1초 간격으로 남은 시간 갱신(프론트 표시용)
+  // 1초 타이머
   useEffect(() => {
     const t = setInterval(() => {
       setPlots((prev) =>
         prev.map((p) => {
           if (p.state !== "growing" || !p.plantedAt) return p;
           const elapsed = Date.now() - p.plantedAt.getTime();
-          if (elapsed >= MATURE_MS) {
+          if (elapsed >= MATURE_MS)
             return { ...p, state: "ready", remainMs: 0 };
-          }
           return { ...p, remainMs: Math.max(0, MATURE_MS - elapsed) };
         })
       );
@@ -78,59 +75,60 @@ export default function PotatoFieldGrid({
     return () => clearInterval(t);
   }, []);
 
-  // 클릭 핸들러
+  // 클릭
   async function onClickCell(p: PlotInfo) {
-    if (isBusyIdx !== null) return;
-    if (p.state === "growing") return; // 클릭 무시
-    setIsBusyIdx(p.idx);
+    if (p.state === "growing") return; // 성장 중 클릭 무시
+    if (busy.has(p.idx)) return;
+
+    setBusy((prev) => new Set(prev).add(p.idx));
 
     if (p.state === "empty") {
-      // 씨앗 심는 연출(2초)
-      toast.message("씨앗 심는 중… ⏳");
+      // 씨앗 심기(연출 2초)
       await new Promise((r) => setTimeout(r, 2000));
       try {
         await plantSeed(coupleId, p.idx);
-        toast.success("씨앗을 심었습니다 🌱");
-      } catch (e) {
-        console.error(e);
-        toast.error("씨앗 심기에 실패했어요");
+      } finally {
+        // noop
       }
     } else if (p.state === "ready") {
-      // 수확 연출(2초)
-      toast.message("수확 중… 🪓");
+      // 수확(연출 2초)
       await new Promise((r) => setTimeout(r, 2000));
       try {
         const row = await harvestPlot(coupleId, p.idx);
-        toast.success("수확 완료! 🥔 +1");
         onCountChange?.(row.harvested_count ?? 0);
-      } catch (e) {
-        console.error(e);
-        toast.error("수확에 실패했어요");
+      } finally {
+        // noop
       }
     }
 
-    setIsBusyIdx(null);
-    setRev((n) => n + 1); // 새로고침
+    setBusy((prev) => {
+      const next = new Set(prev);
+      next.delete(p.idx);
+      return next;
+    });
+    setRev((n) => n + 1); // 상태 새로고침 → 페이드로 자연 전환
   }
 
-  // 셀 렌더
+  // 셀
   function renderCell(p: PlotInfo) {
-    const isBusy = isBusyIdx === p.idx;
+    const isBusy = busy.has(p.idx);
 
-    let content = null;
+    // 상태별 PNG (항상 표시; busy여도 숨기지 않음)
+    let mainSrc = "";
+    let mainAlt = "";
     let tip = "";
-    let hoverClass =
-      "hover:scale-[1.02] hover:shadow-inner hover:shadow-black/10 transition-transform";
 
     if (p.state === "empty") {
-      content = <span className="text-2xl">　</span>;
+      mainSrc = "/potato_field/empty.png";
+      mainAlt = "빈 밭";
       tip = isBusy ? "씨앗 심는 중…" : "씨앗 심기";
     } else if (p.state === "growing") {
-      content = <span className="text-2xl">🌱</span>;
+      mainSrc = "/potato_field/growing.png";
+      mainAlt = "성장 중";
       tip = `수확까지 ${fmtRemain(p.remainMs)}`;
-      hoverClass = "opacity-90"; // 클릭 불가
     } else {
-      content = <span className="text-2xl">🥔</span>;
+      mainSrc = "/potato_field/ready.png";
+      mainAlt = "수확 가능";
       tip = isBusy ? "수확 중…" : "수확하기";
     }
 
@@ -141,24 +139,25 @@ export default function PotatoFieldGrid({
             disabled={p.state === "growing" || isBusy}
             onClick={() => onClickCell(p)}
             className={cn(
-              "relative grid place-items-center rounded-lg border border-amber-700/40 bg-amber-100/50 aspect-square",
-              "outline-none focus:ring-2 ring-amber-400/80",
-              p.state === "empty" && "bg-amber-50",
-              p.state === "growing" && "bg-green-100/50",
-              p.state === "ready" && "bg-amber-200/60",
-              hoverClass
+              "relative aspect-square rounded-xl overflow-hidden grid place-items-center",
+              "focus:outline-none hover:scale-[1.01] transition-transform"
             )}
+            style={{ minWidth: 128, minHeight: 128 }}
           >
-            {/* 땅 텍스처 느낌 */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(0,0,0,.03),transparent_40%),radial-gradient(circle_at_70%_60%,rgba(0,0,0,.03),transparent_45%)] rounded-lg" />
-            {/* 상태 아이콘 */}
-            <div className="relative z-10">{content}</div>
+            {/* 메인 PNG: 셀 꽉 채움 + 상태 변경 시 부드럽게 페이드 */}
+            <img
+              key={mainSrc} // 상태 바뀌면 새 이미지로 교체 → 페이드 애니메이션 트리거
+              src={mainSrc}
+              alt={mainAlt}
+              className="absolute inset-0 h-full w-full object-cover animate-[fadeIn_220ms_ease-out_forwards]"
+              draggable={false}
+            />
 
-            {/* 2초 연출 오버레이 */}
+            {/* 진행 중 오버레이: 기존 PNG 유지 + 라벨만 표시 */}
             {isBusy && (
-              <div className="absolute inset-0 grid place-items-center bg-black/10 backdrop-blur-[1px] rounded-lg">
-                <span className="text-2xl animate-pulse">
-                  {p.state === "empty" ? "⏳" : "🪓"}
+              <div className="absolute inset-0 grid place-items-end p-2 pointer-events-none">
+                <span className="inline-flex items-center gap-1 rounded-md bg-black/55 px-2 py-1 text-white text-xs">
+                  ⏳ {p.state === "empty" ? "씨앗 심는 중…" : "수확 중…"}
                 </span>
               </div>
             )}
@@ -171,18 +170,21 @@ export default function PotatoFieldGrid({
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="mx-auto w-full max-w-md">
+      <div className="mx-auto w-full">
         <div
-          className="grid gap-2"
-          style={{
-            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-          }}
+          className="grid gap-3"
+          style={{ gridTemplateColumns: "repeat(3, minmax(128px, 1fr))" }}
         >
           {Array.from({ length: PLOT_COUNT }).map((_, i) =>
             renderCell(plots[i] ?? { idx: i, state: "empty", plantedAt: null })
           )}
         </div>
       </div>
+
+      {/* 페이드 인 키프레임 (상태 전환 시 부드럽게) */}
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+      `}</style>
     </TooltipProvider>
   );
 }

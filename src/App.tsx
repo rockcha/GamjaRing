@@ -21,6 +21,7 @@ import QuestionPage from "./pages/QuestionPage";
 import CookingPage from "./pages/CookingPage";
 import AquariumPage from "./pages/AquariumPage";
 import PotatoFieldPage from "./pages/PotatoFieldPage";
+import KitchenPage from "./pages/KitchenPage";
 
 export default function App() {
   return (
@@ -46,7 +47,7 @@ export default function App() {
               <Route path="bundle" element={<AnswersPage />} />
               <Route path="scheduler" element={<CoupleSchedulerPage />} />
               <Route path="questions" element={<QuestionPage />} />
-              <Route path="kitchen" element={<CookingPage />} />
+              <Route path="kitchen" element={<KitchenPage />} />
               <Route path="aquarium" element={<AquariumPage />} />
               <Route path="potatoField" element={<PotatoFieldPage />} />
             </Route>
