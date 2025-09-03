@@ -41,7 +41,7 @@ export async function ensureRow(coupleId: string): Promise<PotatoFieldRow> {
   const { data, error } = await supabase
     .from("couple_potato_field")
     .select(
-      "couple_id, harvested_count, tool, plots_planted_at, created_at, updated_at"
+      "couple_id, harvested_count,  plots_planted_at, created_at, updated_at"
     )
     .eq("couple_id", coupleId)
     .maybeSingle();
@@ -55,7 +55,7 @@ export async function ensureRow(coupleId: string): Promise<PotatoFieldRow> {
       create table if not exists public.couple_potato_field (
         couple_id uuid primary key references public.couples(id) on delete cascade,
         harvested_count integer not null default 0,
-        tool text,
+ 
         plots_planted_at timestamptz[9] default (array[null,null,null,null,null,null,null,null,null])::timestamptz[],
         created_at timestamptz not null default now(),
         updated_at timestamptz not null default now(),
@@ -81,7 +81,7 @@ export async function ensureRow(coupleId: string): Promise<PotatoFieldRow> {
     .insert({
       couple_id: coupleId,
       harvested_count: 0,
-      tool: null,
+
       plots_planted_at: empty,
     })
     .select()

@@ -1,0 +1,135 @@
+// src/features/kitchen/kitchenApi.ts
+"use client";
+
+import supabase from "@/lib/supabase";
+import {
+  INGREDIENT_TITLES,
+  type IngredientTitle,
+  RECIPES,
+  type Recipe,
+} from "./type";
+
+export type IngredientRow = { title: string; num: number };
+export type FoodRow = { name: string; num: number };
+
+type KitchenRow = {
+  couple_id: string;
+  ingredients: IngredientRow[];
+  foods: FoodRow[];
+};
+
+const DEFAULT_INGREDIENTS: IngredientRow[] = INGREDIENT_TITLES.map((t) => ({
+  title: t,
+  num: 0,
+}));
+const DEFAULT_FOODS: FoodRow[] = RECIPES.map((r) => ({ name: r.name, num: 0 }));
+
+/** couple_kitchen 행 보장 (DB RPC 사용) */
+export async function ensureKitchenRow(coupleId: string): Promise<void> {
+  const { error } = await supabase.rpc("initialize_couple_kitchen", {
+    p_couple_id: coupleId,
+  });
+  if (error) throw error;
+}
+
+/** 인벤토리 조회 */
+export async function fetchKitchen(coupleId: string): Promise<KitchenRow> {
+  await ensureKitchenRow(coupleId);
+  const { data, error } = await supabase
+    .from("couple_kitchen")
+    .select("couple_id, ingredients, foods")
+    .eq("couple_id", coupleId)
+    .single();
+  if (error) throw error;
+
+  // 방어적 기본값 (혹시 DB에 구행이 남았을 때)
+  const normIng: IngredientRow[] = Array.isArray(data.ingredients)
+    ? data.ingredients
+    : DEFAULT_INGREDIENTS;
+  const normFoods: FoodRow[] = Array.isArray(data.foods)
+    ? data.foods
+    : DEFAULT_FOODS;
+
+  return { couple_id: coupleId, ingredients: normIng, foods: normFoods };
+}
+
+/** 재료 차감(need: {title: 수량}) */
+export async function consumeIngredients(
+  coupleId: string,
+  need: Record<IngredientTitle, number>
+) {
+  const cur = await fetchKitchen(coupleId);
+  const next = cur.ingredients.map((it) =>
+    need[it.title as IngredientTitle]
+      ? { ...it, num: Math.max(0, it.num - need[it.title as IngredientTitle]) }
+      : it
+  );
+  const { error } = await supabase
+    .from("couple_kitchen")
+    .update({ ingredients: next })
+    .eq("couple_id", coupleId);
+  if (error) throw error;
+}
+
+/** 완성 요리 +delta (foods 배열에서 name으로 증가) */
+export async function addCookedFood(coupleId: string, name: string, delta = 1) {
+  const cur = await fetchKitchen(coupleId);
+  const next = cur.foods.map((f) =>
+    f.name === name ? { ...f, num: f.num + delta } : f
+  );
+  const { error } = await supabase
+    .from("couple_kitchen")
+    .update({ foods: next })
+    .eq("couple_id", coupleId);
+  if (error) throw error;
+}
+
+/** 감자 개수 조회 */
+export async function getPotatoCount(coupleId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from("couple_potato_field")
+    .select("harvested_count")
+    .eq("couple_id", coupleId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data?.harvested_count ?? 0) as number;
+}
+
+/** 감자 차감 (요리 시) */
+export async function usePotatoes(
+  coupleId: string,
+  delta: number
+): Promise<void> {
+  if (delta <= 0) return;
+  const { data, error } = await supabase
+    .from("couple_potato_field")
+    .select("harvested_count")
+    .eq("couple_id", coupleId)
+    .maybeSingle();
+  if (error) throw error;
+  const current = data?.harvested_count ?? 0;
+  const next = Math.max(0, current - delta);
+  const { error: e2 } = await supabase
+    .from("couple_potato_field")
+    .update({ harvested_count: next })
+    .eq("couple_id", coupleId);
+  if (e2) throw e2;
+}
+
+/** 현재 냄비 재료 조합이 어떤 레시피와 '정확히' 일치하는지 */
+export function matchRecipe(
+  potMap: Record<IngredientTitle, number>
+): Recipe | null {
+  const keys = Object.entries(potMap)
+    .filter(([, n]) => n > 0)
+    .map(([k]) => k as IngredientTitle);
+  const unique = keys.length;
+  for (const r of RECIPES) {
+    if (r.ingredients.length !== unique) continue;
+    const ok =
+      r.ingredients.every((t) => (potMap[t] ?? 0) >= 1) &&
+      keys.every((t) => r.ingredients.includes(t));
+    if (ok) return r;
+  }
+  return null;
+}
