@@ -466,8 +466,8 @@ export const FISHES: FishInfo[] = [
     description: "육식 본능이 강한 날렵한 포식자예요.",
   },
   {
-    id: "ing-bacon-goby",
-    labelKo: "베이컨 고비",
+    id: "ing-bacon-eel",
+    labelKo: "베이컨 뱀장어",
     cost: 85,
     image: "/aquarium/ing-bacon-goby.png",
     size: 1.0,
@@ -476,7 +476,7 @@ export const FISHES: FishInfo[] = [
     isWild: true,
     ingredient: "베이컨",
     rarity: "에픽",
-    description: "줄무늬가 바삭한 베이컨을 닮았어요.",
+    description: "베이컨 향으로 유인하고 작은 물고기들을 잡아먹어요.",
   },
   {
     id: "ing-honey-snapper",
