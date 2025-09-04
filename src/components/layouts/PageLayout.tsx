@@ -32,7 +32,7 @@ export default function PageLayout({
     "/questions": "오늘의 질문",
     "/aquarium": "아쿠아리움",
     "/kitchen": "조리실",
-    "/potatoField": "감자밭",
+    "/potatoField": "농장",
   };
 
   // 경로 정규화(뒤 슬래시 제거)
@@ -96,7 +96,7 @@ export default function PageLayout({
       >
         {/* <FloatingHomeButton /> */}
         <MenuButton />
-        <NotificationDropdown />
+
         <Outlet />
       </main>
     </div>

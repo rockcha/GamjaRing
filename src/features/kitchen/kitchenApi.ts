@@ -42,7 +42,7 @@ export async function fetchKitchen(coupleId: string): Promise<KitchenRow> {
     .single();
   if (error) throw error;
 
-  // 방어적 기본값 (혹시 DB에 구행이 남았을 때)
+  // 방어적 기본값
   const normIng: IngredientRow[] = Array.isArray(data.ingredients)
     ? data.ingredients
     : DEFAULT_INGREDIENTS;
@@ -51,6 +51,36 @@ export async function fetchKitchen(coupleId: string): Promise<KitchenRow> {
     : DEFAULT_FOODS;
 
   return { couple_id: coupleId, ingredients: normIng, foods: normFoods };
+}
+
+/** 재료 '여러 개' 추가: items 배열의 각 재료를 +1 */
+export async function addIngredients(
+  coupleId: string,
+  items: IngredientTitle[]
+): Promise<void> {
+  if (!coupleId || !items || items.length === 0) return;
+
+  // 현재 인벤토리
+  const cur = await fetchKitchen(coupleId);
+
+  // 재료별 집계
+  const tally = items.reduce<Record<IngredientTitle, number>>((acc, t) => {
+    acc[t] = (acc[t] ?? 0) + 1;
+    return acc;
+  }, {} as Record<IngredientTitle, number>);
+
+  // 증가 반영
+  const nextIngredients = cur.ingredients.map((row) => {
+    const title = row.title as IngredientTitle;
+    const inc = tally[title] ?? 0;
+    return inc > 0 ? { ...row, num: row.num + inc } : row;
+  });
+
+  const { error } = await supabase
+    .from("couple_kitchen")
+    .update({ ingredients: nextIngredients })
+    .eq("couple_id", coupleId);
+  if (error) throw error;
 }
 
 /** 재료 차감(need: {title: 수량}) */

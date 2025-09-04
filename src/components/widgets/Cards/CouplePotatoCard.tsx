@@ -224,7 +224,7 @@ export default function CouplePotatoCard({
         transition-colors group-hover:text-[#8a3f12]
       "
           >
-            {info?.name ?? "감자"}
+            우리의 감자
           </span>
         </Button>
       )}

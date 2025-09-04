@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import AquariumBox from "@/features/aquarium/AquariumBox";
-import ShopModal from "@/features/aquarium/ShopModal";
+import MarineDexModal from "@/features/aquarium/MarineDexModal";
 import TankFrame from "@/features/aquarium/TankFrame";
 
 import { toast } from "sonner";
@@ -12,6 +12,7 @@ import { useCoupleContext } from "@/contexts/CoupleContext";
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 import { useUser } from "@/contexts/UserContext";
 import { FISH_BY_ID } from "@/features/aquarium/fishes";
+import IngredientGachaCard from "@/features/aquarium/GachaCard";
 
 // ✅ 로딩 스켈레톤 (AquariumBox가 렌더되기 전 단계에서만 사용)
 function TankSkeleton({ text }: { text: string }) {
@@ -234,7 +235,7 @@ export default function AquariumPage() {
             <b className="tabular-nums">{fishCount}</b>
           </span>
           <div className="pb-2">
-            <ShopModal gold={gold} onBuy={handleBuy} />
+            <MarineDexModal gold={gold} onBuy={handleBuy} />
           </div>
         </div>
 
@@ -252,6 +253,7 @@ export default function AquariumPage() {
           )}
         </TankFrame>
       </div>
+      <IngredientGachaCard />
     </div>
   );
 }

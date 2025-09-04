@@ -50,7 +50,7 @@ function codeToEmoji(code?: number | null) {
   return "🌡️";
 }
 
-// KR 우선 + 대안 키워드로 재시도 (천안 등)
+// KR 우선 + 대안 키워드로 재시도
 async function geocodeSmart(name: string): Promise<GeoResult | null> {
   const trials = [
     { q: name, country: "KR" },
@@ -99,7 +99,6 @@ async function fetchCurrent(
 
 // ▼ 콤보박스용 지역 목록 (한글 라벨 고정)
 const REGIONS: string[] = [
-  // 광역시/도·특별시/특별자치시·도청소재지 위주 + 주요 도시
   "서울",
   "부산",
   "대구",
@@ -230,13 +229,12 @@ export default function WeatherCard({ defaultRegion = "서울" }: Props) {
         setErr("날씨 정보를 불러올 수 없어요");
         return;
       }
-      // 저장 및 UI 반영: 한글 라벨 유지, '대한민국' 미표시
       const clean = labelKo.trim();
       setRegion(clean);
       if (typeof window !== "undefined") {
         localStorage.setItem("weather_region", clean);
       }
-      setCity(clean); // ← r.name 대신 사용자가 고른 '한글 라벨' 고정
+      setCity(clean); // 사용자 선택 라벨 고정
       setTemp(Math.round(cw.temperature_2m));
       setCode(cw.weather_code);
       setOpenDialog(false);
@@ -255,17 +253,15 @@ export default function WeatherCard({ defaultRegion = "서울" }: Props) {
         : null;
     if (saved) {
       setSelected(saved);
-      // 조용히 로드
-      saveAndLoad(saved);
+      saveAndLoad(saved); // 조용히 로드
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Enter로 저장 (콤보박스 열려 있으면 먼저 선택 → 다시 Enter로 저장)
+  // Enter로 저장
   const handleEnterSave = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !loading) {
       e.preventDefault();
-      // 콤보박스가 열려 있으면 우선 닫고(선택 확정)
       if (openCombo) {
         setOpenCombo(false);
         return;
@@ -274,9 +270,13 @@ export default function WeatherCard({ defaultRegion = "서울" }: Props) {
     }
   };
 
+  // ▼ 아래줄 텍스트(지역 · 온도) 구성
+  const label =
+    city && temp != null ? `${city} · ${temp}°` : city || "날씨카드";
+
   return (
     <>
-      {/* ▼ 최소 UI 카드: 이모지 + "날씨카드" (테두리/배경 없음) */}
+      {/* ▼ 최소 UI: 이모지(위) + 아래 줄에 "지역 · 온도" */}
       <button
         type="button"
         onClick={() => {
@@ -284,30 +284,29 @@ export default function WeatherCard({ defaultRegion = "서울" }: Props) {
           setErr("");
           setOpenDialog(true);
         }}
-        className="
-    group relative inline-flex items-center gap-2
-    px-2 py-1 rounded-md
-    transition-all duration-200
-    hover:bg-neutral-50  hover:-translate-y-0.5
-    active:translate-y-0
-    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60 focus-visible:ring-offset-2
-  "
+        className={cn(
+          "group inline-flex flex-col items-center gap-2",
+          "p-0 h-auto rounded-md transition-all duration-200",
+          "hover:-translate-y-0.5 ",
+          "active:translate-y-0",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60 focus-visible:ring-offset-2"
+        )}
         aria-label="날씨카드 설정"
       >
-        <span className="text-xl transition-transform duration-200 group-hover:scale-110 group-active:scale-95">
+        <span
+          className="text-2xl leading-none transition-transform duration-200
+                     group-hover:scale-110 group-active:scale-95"
+        >
           {emoji}
         </span>
-        <span className="text-sm font-medium text-neutral-700 transition-colors group-hover:text-neutral-900">
-          {city && temp != null ? `${city} · ${temp}°` : "날씨카드"}
+        <span className="text-xs font-medium text-neutral-700 group-hover:text-neutral-900">
+          {label}
         </span>
       </button>
 
       {/* ▼ 지역 선택 모달 (Combobox = Popover + Command) */}
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-        <DialogContent
-          className="sm:max-w-md"
-          onKeyDown={handleEnterSave} // ⏎ 저장
-        >
+        <DialogContent className="sm:max-w-md" onKeyDown={handleEnterSave}>
           <DialogHeader>
             <DialogTitle>지역 선택</DialogTitle>
           </DialogHeader>
@@ -331,7 +330,7 @@ export default function WeatherCard({ defaultRegion = "서울" }: Props) {
               </PopoverTrigger>
               <PopoverContent
                 className="w-[var(--radix-popover-trigger-width)] p-0"
-                onWheel={(e) => e.stopPropagation()} // 내부 스크롤에 휠 할당
+                onWheel={(e) => e.stopPropagation()}
               >
                 <Command>
                   <CommandInput placeholder="예: 서울, 천안, 파주…" />
@@ -344,7 +343,6 @@ export default function WeatherCard({ defaultRegion = "서울" }: Props) {
                           value={label}
                           onSelect={(v) => {
                             setSelected(v);
-                            // 선택 후 유지(바로 저장은 버튼/엔터로)
                           }}
                         >
                           <Check
@@ -366,14 +364,14 @@ export default function WeatherCard({ defaultRegion = "서울" }: Props) {
           </div>
 
           <DialogFooter className="gap-2">
-            <Button variant="secondary" onClick={() => setOpenDialog(false)}>
-              닫기
-            </Button>
             <Button
               onClick={() => saveAndLoad(selected)}
               disabled={loading || !selected}
             >
               {loading ? "저장 중…" : "저장"}
+            </Button>
+            <Button variant="secondary" onClick={() => setOpenDialog(false)}>
+              닫기
             </Button>
           </DialogFooter>
         </DialogContent>

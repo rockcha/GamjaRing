@@ -24,8 +24,6 @@ export default function PotatoPokeButton({
   const [loading, setLoading] = useState(false);
   const [partnerNickname, setPartnerNickname] = useState("상대");
 
-  const isCoupled = Boolean(user?.partner_id);
-
   useEffect(() => {
     const run = async () => {
       if (!user?.partner_id) {
@@ -72,8 +70,6 @@ export default function PotatoPokeButton({
       setLoading(false);
     }
   };
-
-  if (!isCoupled) return null;
 
   return (
     <CoolMode options={{ particle: "👉", particleCount: 3, size: 4 }}>

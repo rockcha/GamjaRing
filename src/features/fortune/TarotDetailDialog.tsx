@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button"; // ✅ 닫기 버튼
+import { Button } from "@/components/ui/button";
 import { TAROT_CARD_SRC, THEME, ICONS, TAROT_META } from "./theme";
 import type { Fortune } from "./generateFortune";
 
@@ -16,16 +16,18 @@ export default function TarotDetailDialog({
   open,
   onOpenChange,
   fortune,
+  loadingMessage, // ✅ 추가
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   fortune: Fortune | null;
+  loadingMessage?: string;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {/* ✅ 모바일에서 살짝 더 작게: 가로폭/패딩 조절 */}
       <DialogContent className="max-w-[92vw] sm:max-w-xl p-0 overflow-hidden">
         {fortune ? (
+          /* — 기존 결과 뷰 그대로 — */
           <div className={`p-4 sm:p-5 ${THEME[fortune.grade].bg}`}>
             {(() => {
               const ringCls = THEME[fortune.grade].ring;
@@ -37,7 +39,6 @@ export default function TarotDetailDialog({
 
               return (
                 <>
-                  {/* 중앙 정렬 헤더 */}
                   <DialogHeader className="px-1 items-center text-center">
                     <div className="inline-flex items-center justify-center gap-2">
                       {(() => {
@@ -69,7 +70,6 @@ export default function TarotDetailDialog({
                     </div>
                   </DialogHeader>
 
-                  {/* 카드 미리보기 - 📱에서 더 작게 */}
                   <div className="mt-3">
                     <div className="mx-auto w-1/2 min-w-[140px] max-w-[220px] sm:w-1/3 sm:min-w-[220px] sm:max-w-[360px]">
                       <div
@@ -93,11 +93,10 @@ export default function TarotDetailDialog({
                     </div>
                   </div>
 
-                  {/* 텍스트 섹션 */}
                   <div className="mt-2 space-y-3 ">
                     <div className="flex flex-col items-center justify-center mb-6">
                       <div
-                        className={`text-base font-semibold  ${
+                        className={`text-base font-semibold ${
                           THEME[fortune.grade].text
                         }`}
                       >
@@ -152,63 +151,8 @@ export default function TarotDetailDialog({
                         </p>
                       </div>
                     </div>
-
-                    <div className="flex flex-wrap gap-2 text-[11px] sm:text-xs justify-center">
-                      <span
-                        className={`rounded-full border px-2 py-1 bg-white/85 ${borderCls}`}
-                      >
-                        <span className="text-neutral-600">행운의 색:</span>{" "}
-                        <span
-                          className={`${
-                            THEME[fortune.grade].text
-                          } font-semibold`}
-                        >
-                          {fortune.luckyColor}
-                        </span>
-                      </span>
-                      <span
-                        className={`rounded-full border px-2 py-1 bg-white/85 ${borderCls}`}
-                      >
-                        <span className="text-neutral-600">행운의 숫자:</span>{" "}
-                        <span
-                          className={`${
-                            THEME[fortune.grade].text
-                          } font-semibold`}
-                        >
-                          {fortune.luckyNumber}
-                        </span>
-                      </span>
-                      <span
-                        className={`rounded-full border px-2 py-1 bg-white/85 ${borderCls}`}
-                      >
-                        <span className="text-neutral-600">행운의 아이템:</span>{" "}
-                        <span
-                          className={`${
-                            THEME[fortune.grade].text
-                          } font-semibold`}
-                        >
-                          {fortune.luckyItem}
-                        </span>
-                      </span>
-                    </div>
-
-                    {!!fortune.keywords?.length && (
-                      <div className="pt-1 flex flex-wrap gap-1.5 justify-center">
-                        {fortune.keywords.map((k, i) => (
-                          <span
-                            key={i}
-                            className={`text-[10px] sm:text-[11px] px-2 py-1 rounded-full border ${
-                              THEME[fortune.grade].chip
-                            }`}
-                          >
-                            #{k}
-                          </span>
-                        ))}
-                      </div>
-                    )}
                   </div>
 
-                  {/* ✅ 하단 닫기 버튼 (모바일은 꽉 차게) */}
                   <DialogFooter className="mt-4">
                     <Button
                       className="w-full sm:w-auto"
@@ -223,8 +167,14 @@ export default function TarotDetailDialog({
             })()}
           </div>
         ) : (
-          <div className="p-6">
-            <p className="text-sm text-muted-foreground">결과를 불러오는 중…</p>
+          /* ✅ 로딩 화면 */
+          <div className="p-6 text-center">
+            <div className="text-base font-semibold">타로카드 정리중… ⏳</div>
+            {loadingMessage && (
+              <div className="mt-2 text-sm text-neutral-600 animate-pulse">
+                {loadingMessage}
+              </div>
+            )}
           </div>
         )}
       </DialogContent>

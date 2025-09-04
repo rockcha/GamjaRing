@@ -40,7 +40,7 @@ const NAV_ITEMS: Item[] = [
   // 🎮 게임들
   { id: "aquarium", label: "아쿠아리움", icon: Fish },
   { id: "kitchen", label: "조리실", icon: ChefHat },
-  { id: "potatoField", label: "감자밭", icon: Sprout }, // ✅ 추가
+  { id: "potatoField", label: "농장", icon: Sprout }, // ✅ 추가
 ];
 
 const GUARDS: Record<

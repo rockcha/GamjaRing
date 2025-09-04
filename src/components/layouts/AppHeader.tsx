@@ -3,14 +3,22 @@
 
 import { HeartHandshake } from "lucide-react";
 import DaysTogetherBadge from "../DaysTogetherBadge";
-import UserGreetingSection from "../UserGreetingSection";
+
 import { cn } from "@/lib/utils";
 
 import CouplePotatoCard from "../widgets/Cards/CouplePotatoCard";
 import WeatherCard from "../widgets/WeatherCard";
 import PotatoPokeButton from "../widgets/PotatoPokeButton";
 import { Separator } from "../ui/separator";
-import GoldDisplay from "@/features/aquarium/GoldDisplay";
+
+import DailyFortuneCard from "@/features/fortune/DailyFortuneCard";
+import NotificationDropdown from "../widgets/Notification/NotificationDropdown";
+
+/* ✅ 추가 */
+import { useUser } from "@/contexts/UserContext";
+import { toast } from "sonner";
+/* ✅ 추가: AuthButton */
+import AuthButton from "../widgets/AuthButton";
 
 type HeaderMeta = { url: string; header?: string };
 type HeaderMapLike = Record<string, string | HeaderMeta>;
@@ -48,6 +56,10 @@ export default function AppHeader({
 }: AppHeaderProps) {
   const labelMap = toLabelMap(headerById);
 
+  /* ✅ 커플 여부 */
+  const { user } = useUser();
+  const isCoupled = !!user?.couple_id;
+
   return (
     <header
       className={cn(
@@ -55,7 +67,8 @@ export default function AppHeader({
         className
       )}
     >
-      <div className="mx-auto px-4 py-3">
+      {/* ✅ 모바일에서 AuthButton을 우상단에 고정시키기 위해 relative 부여 */}
+      <div className="mx-auto px-4 py-3 relative">
         {/* 4섹션 그리드 */}
         <div
           className="
@@ -66,20 +79,16 @@ export default function AppHeader({
         >
           {/* 섹션 1: 로고 + 감자링 멘트 */}
           <div className="pl-3 flex flex-col md:grid md:grid-rows-[auto_auto] ">
-            {/* 로고/타이틀 + 멘트 (모바일에서는 한 줄, 데스크탑은 세로 배치) */}
             <div className="flex items-center md:items-start ">
               <HeartHandshake className="h-8 w-8 mr-2 shrink-0" />
               <h1 className="truncate text-2xl md:text-3xl font-extrabold tracking-tight">
                 {routeTitle}
               </h1>
-              {/* 모바일에서는 로고 오른쪽에 멘트 */}
               <p className="ml-2 text-sm font-medium text-neutral-700 truncate md:hidden ">
                 우리를 잇는 따뜻한 고리,{" "}
                 <span className="font-semibold text-amber-600">감자링🥔</span>
               </p>
             </div>
-
-            {/* 데스크탑 전용: 로고 아래에 멘트 */}
             <div className="hidden md:flex min-h-[42px] items-center ">
               <p className="text-base font-medium text-neutral-700 truncate">
                 우리를 잇는 따뜻한 고리,{" "}
@@ -94,15 +103,43 @@ export default function AppHeader({
           </div>
 
           {/* 섹션 3: 위젯 섹션 (가운데-오른쪽) */}
-          <div className="flex items-center gap-3 md:justify-center">
-            <WeatherCard />
-            <Separator orientation="vertical" className="h-6 my-auto" />
-            <CouplePotatoCard />
-            <Separator orientation="vertical" className="h-6 my-auto" />
-            <PotatoPokeButton />
-            <Separator orientation="vertical" className="h-6 my-auto" />
-            <GoldDisplay />
+          <div className="relative self-center">
+            {!isCoupled && (
+              <button
+                type="button"
+                aria-label="커플 연결 필요"
+                className="absolute inset-0 z-10 cursor-not-allowed bg-transparent"
+                onClick={() => toast.warning("커플 연결부터 해주세요")}
+              />
+            )}
+            <div
+              className={cn(
+                "flex items-center gap-3 md:justify-center",
+                !isCoupled && "opacity-60"
+              )}
+              aria-hidden={!isCoupled}
+              tabIndex={isCoupled ? 0 : -1}
+            >
+              <NotificationDropdown />
+              <Separator orientation="vertical" className="h-6 my-auto" />
+              <WeatherCard />
+              <Separator orientation="vertical" className="h-6 my-auto" />
+              <PotatoPokeButton />
+              <Separator orientation="vertical" className="h-6 my-auto" />
+              <DailyFortuneCard />
+              <Separator orientation="vertical" className="h-6 my-auto" />
+            </div>
           </div>
+
+          {/* ✅ 섹션 4: AuthButton - 데스크탑에선 4번째 열, 모바일에선 우상단 고정 */}
+          <div className="hidden md:flex items-center justify-end">
+            <AuthButton />
+          </div>
+        </div>
+
+        {/* ✅ 모바일 전용: 우상단 고정 버튼 (md부터는 grid 아이템이 대신 표시) */}
+        <div className="absolute right-4 top-3 z-10 md:hidden">
+          <AuthButton />
         </div>
       </div>
     </header>

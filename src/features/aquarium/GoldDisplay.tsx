@@ -98,10 +98,8 @@ export default function GoldDisplay({ className = "" }: Props) {
           type="button"
           onClick={() => setOpen(true)}
           className={[
-            "inline-flex items-center gap-2 px-3 py-1.5 rounded-full",
-            "bg-gradient-to-r from-amber-100 to-yellow-100",
-            "shadow-sm transition-all duration-200",
-            "hover:shadow-md hover:from-amber-200 hover:to-yellow-200",
+            "inline-flex items-center gap-2 px-3 py-1.5 ",
+
             "select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70",
             bump ? "scale-[1.03]" : "scale-100",
             className,

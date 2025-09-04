@@ -17,7 +17,7 @@ export const INGREDIENTS = [
   { title: "양파", emoji: "🧅" },
   { title: "밀", emoji: "🌾" },
   { title: "얼음", emoji: "🧊" },
-  { title: "플랫브레드", emoji: "🫓" }, // 또띠야/피타
+  { title: "플랫브레드", emoji: "🫓" },
   { title: "고기", emoji: "🍖" },
   { title: "망고", emoji: "🥭" },
   { title: "케찹", emoji: "🥫" },
