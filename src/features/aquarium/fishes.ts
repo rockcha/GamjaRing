@@ -469,7 +469,7 @@ export const FISHES: FishInfo[] = [
     id: "ing-bacon-eel",
     labelKo: "베이컨 뱀장어",
     cost: 85,
-    image: "/aquarium/ing-bacon-goby.png",
+    image: "/aquarium/ing-bacon-eel.png",
     size: 1.0,
     swimY: [35, 70],
     breedProb: 0.18,
