@@ -22,7 +22,7 @@ export default function FishActionModal({
   fishId,
   index,
   fishCountOfThis,
-  breedCount, // 초기 표시용(즉시 렌더), 이후에는 liveBreedCount 사용
+  breedCount,
   onAfterBreed,
   onSell,
   onAfterSell,
@@ -42,15 +42,13 @@ export default function FishActionModal({
 
   const { user } = useUser();
   const fish = FISH_BY_ID[fishId]!;
-  const sellPrice = Math.floor((fish.cost ?? 0) / 2);
+  const cost = fish.cost ?? 0;
+  const sellPrice = Math.floor(cost / 2);
   const captureBasePct = Math.round(
     RARITY_CAPTURE[fish.rarity as FishRarity] * 100
   );
 
-  // ✅ 실제 DB에서 읽은 오늘 교배 횟수 (모달 열릴 때 로드 & 교배 후 갱신)
   const [liveBreedCount, setLiveBreedCount] = useState<number | null>(null);
-
-  // UI 단계: idle → breeding → result
   const [stage, setStage] = useState<"idle" | "breeding" | "result">("idle");
   const [breedResult, setBreedResult] = useState<boolean | null>(null);
 
@@ -88,12 +86,9 @@ export default function FishActionModal({
     fetchBreed();
   }, [open, coupleId, breedCount]);
 
-  // 버튼/라벨 계산은 항상 DB에서 읽은 값 우선
   const usedBreedCount = Math.min(liveBreedCount ?? breedCount ?? 0, 3);
   const reachedLimit = usedBreedCount >= 3;
   const breedDisabledBase = fishCountOfThis < 2 || reachedLimit || !coupleId;
-
-  // 진행 중에 관계없이 닫기/판매는 활성 (요청사항)
   const breedDisabled = breedDisabledBase || stage === "breeding";
   const breedReason =
     fishCountOfThis < 2
@@ -107,7 +102,6 @@ export default function FishActionModal({
   const breedLabel =
     stage === "breeding" ? "교배중…" : `교배 (${usedBreedCount}/3)`;
 
-  // 이펙트 파티클
   const particles = useMemo(
     () =>
       Array.from({ length: 20 }).map((_, i) => ({
@@ -131,15 +125,11 @@ export default function FishActionModal({
     }
 
     setStage("breeding");
-
-    // 2초 연출
     await new Promise((r) => setTimeout(r, 2000));
 
-    // 확률 판정
     const p = fish?.breedProb ?? 0.1;
     const success = Math.random() < p;
 
-    // ⚠️ 서버 최신값으로 다시 한 번 확인 + 업데이트
     const { data, error } = await supabase
       .from("couple_aquarium")
       .select("aquarium_fishes, breed_count")
@@ -160,10 +150,8 @@ export default function FishActionModal({
       : 0;
 
     if (currentBreed >= 3) {
-      // 서버 기준 초과 방지
       toast.warning("오늘 교배 3/3회를 모두 사용했어요.");
       setStage("idle");
-      // 최신값 반영
       if (mountedRef.current) setLiveBreedCount(currentBreed);
       return;
     }
@@ -182,10 +170,8 @@ export default function FishActionModal({
       return;
     }
 
-    // ✅ 로컬 카운트 즉시 갱신 (UI에 바로 반영)
     if (mountedRef.current) setLiveBreedCount(nextBreed);
 
-    // 알림 전송 (성공/실패)
     try {
       if (user?.id && user?.partner_id) {
         await sendUserNotification({
@@ -215,7 +201,6 @@ export default function FishActionModal({
 
     await onSell({ index, fishId, sellPrice });
 
-    // 판매 알림
     try {
       if (user?.id && user?.partner_id) {
         await sendUserNotification({
@@ -291,35 +276,34 @@ export default function FishActionModal({
   return (
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50"
-      onClick={onClose} // ✅ 언제나 닫기 가능
+      onClick={onClose}
     >
       <div
-        className="w-[500px] max-w-[92vw] rounded-2xl bg-white p-4 shadow-xl relative overflow-hidden"
+        className="w-[520px] max-w-[92vw] rounded-2xl bg-white p-4 shadow-xl relative overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더 */}
         <div className="flex items-start justify-between mb-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
+              {/* ✅ 배경/보더 없는 순수 텍스트 제목 */}
               <h3 className="text-lg font-bold tracking-tight">
-                <span className="inline-block px-2 py-1 rounded-md bg-sky-100 text-sky-900 border border-sky-200">
-                  {fish.labelKo}
-                </span>
+                {fish.labelKo}
               </h3>
               {rarityBadge(fish.rarity as FishRarity)}
             </div>
-            {/* 희귀도 기반 포획 확률 */}
+
+            {/* ✅ “희귀도” 문구 제거 */}
             <div className="mt-1 flex items-center gap-1.5 text-[12px] text-gray-600">
               <Info className="w-4 h-4 text-sky-600" />
               <span>
-                포획 확률(희귀도):{" "}
-                <b className="text-gray-800">{captureBasePct}%</b>
+                포획 확률: <b className="text-gray-800">{captureBasePct}%</b>
               </span>
             </div>
           </div>
 
           <button
-            onClick={onClose} // ✅ 언제나 활성화
+            onClick={onClose}
             className="inline-flex items-center gap-1 text-sm px-2 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200"
           >
             <X className="w-4 h-4" />
@@ -339,27 +323,39 @@ export default function FishActionModal({
                   style={{ animation: "pulseOnce 500ms ease-out" }}
                   draggable={false}
                 />
-                {/* 가격 배지 */}
-                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 translate-y-1">
-                  <span className="inline-flex items-center gap-1 rounded-full border bg-amber-50 text-amber-900 border-amber-200 px-2.5 py-0.5 text-xs">
-                    <BadgeDollarSign className="w-4 h-4" />
-                    원가 {fish.cost.toLocaleString("ko-KR")}
-                  </span>
-                </div>
+                {/* ⛔ 원가 배지(동그라미) 제거됨 */}
               </div>
 
               <div className="flex-1 text-sm">
-                <div className="text-gray-600">
-                  보유: <b className="text-gray-800">{fishCountOfThis}마리</b>
-                </div>
-                <div className="text-rose-600 font-semibold">
-                  교배 확률: {(fish.breedProb * 100).toFixed(1)}%
-                </div>
-                <div className="text-gray-600">
-                  판매가:{" "}
-                  <b className="text-gray-800">
-                    {sellPrice.toLocaleString("ko-KR")} 골드
-                  </b>
+                {/* 정보 블록을 더 또렷하게 정리 */}
+                <div className="grid grid-cols-[88px_1fr] items-center gap-y-1.5">
+                  {/* ✅ ‘보유’ 라벨 강조 */}
+                  <div className="justify-self-start">
+                    <span className="inline-flex items-center rounded-full bg-neutral-100 text-neutral-800 border border-neutral-200 px-2 py-0.5 text-[11px] font-semibold">
+                      보유
+                    </span>
+                  </div>
+                  <div className="text-gray-900 font-semibold">
+                    {fishCountOfThis}마리
+                  </div>
+
+                  <div className="text-gray-500">교배 확률</div>
+                  <div className="text-rose-600 font-semibold">
+                    {(fish.breedProb * 100).toFixed(1)}%
+                  </div>
+
+                  {/* ✅ 판매가: 원가 → 판매가 */}
+                  <div className="text-gray-500 flex items-center gap-1">
+                    <BadgeDollarSign className="w-4 h-4" />
+                    판매가
+                  </div>
+                  <div className="text-gray-900 font-semibold">
+                    {cost.toLocaleString("ko-KR")} →{" "}
+                    <span className="text-amber-700">
+                      {sellPrice.toLocaleString("ko-KR")}
+                    </span>{" "}
+                    골드
+                  </div>
                 </div>
 
                 {/* 오늘 교배 진행도 */}
