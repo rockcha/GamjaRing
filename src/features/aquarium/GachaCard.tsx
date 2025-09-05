@@ -2,7 +2,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { rollFishByIngredient } from "./rollfish";
+import { rollFishByIngredient } from "../fishing/rollfish";
 import { FISH_BY_ID, type FishRarity } from "./fishes";
 import {
   INGREDIENT_EMOJI,

@@ -1,5 +1,5 @@
 // src/components/MyPartnerAnswersCard.tsx
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import supabase from "@/lib/supabase";
 import { useUser } from "@/contexts/UserContext";
 import { GetQuestionById } from "@/utils/GetQuestionById";
@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react";
 import { Separator } from "./ui/separator";
 import { toast } from "sonner";
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
@@ -32,7 +32,18 @@ interface AnswerWithQuestion extends AnswerItem {
 
 type EmojiRow = { id: number; char: string };
 
-const ITEMS_PER_PAGE = 4;
+const ITEMS_PER_PAGE = 5;
+
+/** 페이지 버튼 목록 생성
+ * - 총 페이지 > 5 이면: [1, 2, '...', total-1, total]
+ * - 그 외: [1..total]
+ */
+function getPageItems(totalPages: number): Array<number | "..."> {
+  if (totalPages <= 5) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+  return [1, 2, "...", totalPages - 1, totalPages];
+}
 
 export default function MyPartnerAnswersCard() {
   const { user } = useUser();
@@ -66,7 +77,7 @@ export default function MyPartnerAnswersCard() {
 
       const { data, error } = await supabase
         .from("answer")
-        .select("question_id, content, created_at, emoji_type_id") // ✅ emoji_type_id 함께 조회
+        .select("question_id, content, created_at, emoji_type_id")
         .eq("user_id", user.partner_id)
         .order("created_at", { ascending: false });
 
@@ -171,6 +182,8 @@ export default function MyPartnerAnswersCard() {
     return { isToday, formattedDate };
   };
 
+  const pageItems = useMemo(() => getPageItems(totalPages), [totalPages]);
+
   const refreshSingleEmoji = useCallback(
     async (emojiId: number) => {
       // 저장 직후 바로 맵에 없을 수 있으니 단건 보강
@@ -187,10 +200,10 @@ export default function MyPartnerAnswersCard() {
     [emojiMap]
   );
 
-  // 로딩 스켈레톤
+  // 로딩 스켈레톤 (높이만 ↑)
   if (loading) {
     return (
-      <Card className="h-[420px] flex flex-col">
+      <Card className="h-[540px] flex flex-col">
         <CardContent className="flex-1 space-y-3 overflow-hidden pt-6">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="space-y-2">
@@ -209,7 +222,7 @@ export default function MyPartnerAnswersCard() {
 
   return (
     <>
-      <div className="h-[420px] flex flex-col">
+      <div className="h-[540px] flex flex-col">
         <CardContent className="flex-1 overflow-y-auto space-y-2 ">
           {currentAnswers.length === 0 ? (
             <p className="text-sm text-muted-foreground">
@@ -281,25 +294,33 @@ export default function MyPartnerAnswersCard() {
             Prev
           </Button>
 
-          {/* 가운데: 모바일은 간단 표기, 데스크톱은 페이지 버튼 나열 */}
+          {/* 가운데: 모바일은 간단 표기, 데스크톱은 번호/… */}
           <div className="order-last w-full flex justify-center sm:order-none sm:w-auto">
-            {/* 데스크톱: 번호 버튼 */}
-            <div className="hidden sm:flex items-center gap-1 overflow-x-auto max-w-[70vw] px-1">
-              {Array.from({ length: totalPages }, (_, i) => {
-                const page = i + 1;
-                const active = currentPage === page;
-                return (
-                  <Button
-                    key={page}
-                    size="sm"
-                    variant={active ? "secondary" : "outline"}
-                    onClick={() => setCurrentPage(page)}
-                    className={`h-8 px-3 shrink-0 ${active ? "font-bold" : ""}`}
+            {/* 데스크톱: 번호 + … */}
+            <div className="hidden sm:flex items-center gap-1 px-1">
+              {pageItems.map((p, idx) =>
+                p === "..." ? (
+                  <span
+                    key={`dots-${idx}`}
+                    className="inline-flex h-8 min-w-8 items-center justify-center text-muted-foreground px-2"
+                    aria-hidden
                   >
-                    {page}
+                    <MoreHorizontal className="h-4 w-4" />
+                  </span>
+                ) : (
+                  <Button
+                    key={p}
+                    size="sm"
+                    variant={currentPage === p ? "secondary" : "outline"}
+                    onClick={() => setCurrentPage(p)}
+                    className={`h-8 px-3 shrink-0 ${
+                      currentPage === p ? "font-bold" : ""
+                    }`}
+                  >
+                    {p}
                   </Button>
-                );
-              })}
+                )
+              )}
             </div>
 
             {/* 모바일: 컴팩트 표기 */}
@@ -391,7 +412,7 @@ export default function MyPartnerAnswersCard() {
 
                           if (upErr) {
                             console.error("❌ 반응 저장 실패:", upErr.message);
-                            open("반응 저장에 실패했어요.");
+                            toast.error("반응 저장에 실패했어요.");
                             setEmojiOpen(false);
                             return;
                           }
@@ -411,7 +432,7 @@ export default function MyPartnerAnswersCard() {
                             senderId: user.id,
                             receiverId: user.partner_id,
                             type: "반응추가",
-                            description: `${user.nickname}님이 ${e.char}로 반응했어요`, // 방금 저장한 이모지
+                            description: `${user.nickname}님이 ${e.char}로 반응했어요`,
                             isRequest: false,
                           });
 

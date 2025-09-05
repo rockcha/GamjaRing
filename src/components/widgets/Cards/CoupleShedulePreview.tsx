@@ -25,7 +25,7 @@ interface Props {
 }
 
 const TYPE_BADGE: Record<ScheduleType, string> = {
-  데이트: "bg-pink-100  text-pink-900",
+  데이트: "bg-pink-100  text-rose-900",
   기념일: "bg-amber-100  text-amber-900",
   "기타 일정": "bg-blue-100  text-blue-900",
 };

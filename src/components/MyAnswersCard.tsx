@@ -1,5 +1,5 @@
 // src/components/MyAnswersCard.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import supabase from "@/lib/supabase";
 import { useUser } from "@/contexts/UserContext";
 import { GetQuestionById } from "@/utils/GetQuestionById";
@@ -13,16 +13,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react";
 import { Separator } from "./ui/separator";
 
 interface AnswerItem {
@@ -35,7 +28,18 @@ interface AnswerWithQuestion extends AnswerItem {
   questionText: string;
 }
 
-const ITEMS_PER_PAGE = 4;
+const ITEMS_PER_PAGE = 5;
+
+/** 페이지 버튼 목록 생성
+ * - 총 페이지 > 5 이면: [1, 2, '...', total-1, total]
+ * - 그 외: [1..total]
+ */
+function getPageItems(totalPages: number): Array<number | "..."> {
+  if (totalPages <= 5) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+  return [1, 2, "...", totalPages - 1, totalPages];
+}
 
 export default function MyAnswersCard() {
   const { user } = useUser();
@@ -127,10 +131,12 @@ export default function MyAnswersCard() {
     return { isToday, formattedDate };
   };
 
+  const pageItems = useMemo(() => getPageItems(totalPages), [totalPages]);
+
   // 로딩 스켈레톤
   if (loading) {
     return (
-      <Card className="h-[420px] flex flex-col">
+      <Card className="h-[540px] flex flex-col">
         <CardContent className="flex-1 space-y-3 overflow-hidden">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="space-y-2">
@@ -149,7 +155,7 @@ export default function MyAnswersCard() {
 
   return (
     <>
-      <div className="h-[420px] flex flex-col ">
+      <div className="h-[540px] flex flex-col">
         <CardContent className="flex-1 overflow-y-auto space-y-2">
           {currentAnswers.length === 0 ? (
             <p className="text-sm text-muted-foreground">
@@ -220,25 +226,33 @@ export default function MyAnswersCard() {
             Prev
           </Button>
 
-          {/* 가운데: 모바일은 간단 표기, 데스크톱은 페이지 버튼 나열 */}
+          {/* 가운데: 모바일은 간단 표기, 데스크톱은 번호/… */}
           <div className="order-last w-full flex justify-center sm:order-none sm:w-auto">
-            {/* 데스크톱: 번호 버튼 */}
-            <div className="hidden sm:flex items-center gap-1 overflow-x-auto max-w-[70vw] px-1">
-              {Array.from({ length: totalPages }, (_, i) => {
-                const page = i + 1;
-                const active = currentPage === page;
-                return (
-                  <Button
-                    key={page}
-                    size="sm"
-                    variant={active ? "secondary" : "outline"}
-                    onClick={() => setCurrentPage(page)}
-                    className={`h-8 px-3 shrink-0 ${active ? "font-bold" : ""}`}
+            {/* 데스크톱: 번호 + … */}
+            <div className="hidden sm:flex items-center gap-1 px-1">
+              {pageItems.map((p, idx) =>
+                p === "..." ? (
+                  <span
+                    key={`dots-${idx}`}
+                    className="inline-flex h-8 min-w-8 items-center justify-center text-muted-foreground px-2"
+                    aria-hidden
                   >
-                    {page}
+                    <MoreHorizontal className="h-4 w-4" />
+                  </span>
+                ) : (
+                  <Button
+                    key={p}
+                    size="sm"
+                    variant={currentPage === p ? "secondary" : "outline"}
+                    onClick={() => setCurrentPage(p)}
+                    className={`h-8 px-3 shrink-0 ${
+                      currentPage === p ? "font-bold" : ""
+                    }`}
+                  >
+                    {p}
                   </Button>
-                );
-              })}
+                )
+              )}
             </div>
 
             {/* 모바일: 컴팩트 표기 */}

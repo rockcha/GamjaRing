@@ -14,14 +14,14 @@ import MainPage from "./pages/MainPage";
 import ResetPasswardPage from "./pages/ResetPasswardPage";
 import InfoPage from "./pages/InfoPage";
 import SettingPage from "./pages/SettingPage";
-
+import QuestionPage from "./pages/QuestionPage";
 import CoupleSchedulerPage from "./pages/CoupleSchedulerPage";
 import AnswersPage from "./pages/AnswerPage";
-import QuestionPage from "./pages/QuestionPage";
-import CookingPage from "./pages/CookingPage";
+
 import AquariumPage from "./pages/AquariumPage";
 import PotatoFieldPage from "./pages/PotatoFieldPage";
 import KitchenPage from "./pages/KitchenPage";
+import FishingPage from "./pages/FishingPage";
 
 export default function App() {
   return (
@@ -50,11 +50,12 @@ export default function App() {
               <Route path="kitchen" element={<KitchenPage />} />
               <Route path="aquarium" element={<AquariumPage />} />
               <Route path="potatoField" element={<PotatoFieldPage />} />
+              <Route path="fishing" element={<FishingPage />} />
             </Route>
           </Routes>
 
           {/* ✅ 여기! Routes 바깥에 전역으로 한 번만 */}
-          <Toaster position="top-center" richColors />
+          <Toaster position="bottom-right" richColors />
         </BrowserRouter>
       </CoupleProvider>
     </UserProvider>

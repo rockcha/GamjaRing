@@ -19,9 +19,11 @@ type RarityFilter = "전체" | FishRarity;
 export default function MarineDexModal({
   gold,
   onBuy,
+  isOcean = false, // ✅ 기본값 false
 }: {
   gold?: number;
   onBuy?: (fishId: string, cost: number) => void;
+  isOcean?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [rarity, setRarity] = useState<RarityFilter>("전체");
@@ -46,7 +48,6 @@ export default function MarineDexModal({
 
   const fmt = (n: number) => n.toLocaleString("ko-KR");
 
-  // 등급별 색 유틸
   const rarityChipCls = (r: FishRarity) =>
     r === "일반"
       ? "bg-neutral-100 text-neutral-900 border-neutral-200"
@@ -65,7 +66,6 @@ export default function MarineDexModal({
       ? "bg-violet-50 border-violet-200"
       : "bg-amber-50 border-amber-200";
 
-  // 필터 버튼(등급색)
   const filterBtnCls = (f: RarityFilter, active: boolean) => {
     if (f === "전체")
       return active
@@ -93,14 +93,13 @@ export default function MarineDexModal({
     return active ? map[f].on : map[f].off;
   };
 
-  // 인포바: 단일 등급일 때만 “포획 확률 40%”
   const captureHeader =
     rarity === "전체" ? null : (
       <div className="mb-3 flex items-center gap-2 text-[12px]">
         <Info className="w-4 h-4 text-sky-600" />
         <span className="text-gray-700">
-          포획 확률{" "}
-          <b>{Math.round(RARITY_CAPTURE[rarity as FishRarity] * 100)}%</b>
+          포획 확률 :{" "}
+          <b>{Math.round(RARITY_CAPTURE[rarity as FishRarity] * 100)}% 미만</b>
         </span>
       </div>
     );
@@ -136,10 +135,9 @@ export default function MarineDexModal({
               </button>
             </div>
 
-            {/* 포획 확률 인포바 */}
             {captureHeader}
 
-            {/* 필터 탭: 등급색 적용 */}
+            {/* 필터 탭 */}
             <div className="mb-4 flex flex-wrap items-center gap-2">
               {filters.map((f) => {
                 const active = rarity === f;
@@ -172,12 +170,11 @@ export default function MarineDexModal({
                 return (
                   <div
                     key={f.id}
-                    // ✅ 카드 등급 배경 + 호버효과 제거
                     className={`rounded-xl border p-3 text-left ${rarityCardBg(
                       f.rarity
                     )}`}
                   >
-                    <div className="relative rounded-lg overflow-hidden">
+                    <div className="relative rounded-lg overflow-hidden border">
                       <img
                         src={f.image}
                         alt={f.labelKo}
@@ -186,9 +183,6 @@ export default function MarineDexModal({
                         loading="lazy"
                       />
 
-                      {/* ❌ 등급 뱃지 제거됨 */}
-
-                      {/* ✅ 우상단: 재료 이모지 원형 배지 */}
                       <div
                         className="absolute right-2 top-2 w-10 h-10 rounded-full bg-white/95 border border-gray-200 shadow-sm flex items-center justify-center text-xl"
                         title={`필요 재료: ${f.ingredient}`}
@@ -197,7 +191,6 @@ export default function MarineDexModal({
                         <span className="translate-y-[1px]">{ingEmoji}</span>
                       </div>
 
-                      {/* 우하단: 가격 (야생은 비활성) */}
                       <div className="absolute right-2 bottom-2">
                         <span
                           className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm tabular-nums ${
@@ -222,7 +215,6 @@ export default function MarineDexModal({
 
                     {/* 이름 + 설명 */}
                     <div className="mt-3">
-                      {/* ✅ 제목 배지: 등급색(배경/보더/텍스트) */}
                       <div className="flex items-center gap-2">
                         <span
                           className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-bold ${rarityChipCls(
@@ -232,7 +224,8 @@ export default function MarineDexModal({
                           {f.labelKo}
                         </span>
 
-                        {onBuy && !f.isWild && (
+                        {/* ✅ isOcean === false 일 때만 입양 버튼 노출 */}
+                        {!isOcean && onBuy && !f.isWild && (
                           <button
                             onClick={() => onBuy(f.id, f.cost)}
                             className={`ml-auto px-2.5 py-1 rounded-md text-xs border ${
@@ -256,7 +249,6 @@ export default function MarineDexModal({
               })}
             </div>
 
-            {/* 푸터 메모 */}
             <div className="mt-4 text-[12px] text-gray-500 flex items-center gap-1">
               <Anchor className="w-3.5 h-3.5" />
               야생(포획 대상) 어종은 가격이 비활성화되며, 바다 탐험에서 만날 수

@@ -33,6 +33,7 @@ export default function PageLayout({
     "/aquarium": "아쿠아리움",
     "/kitchen": "조리실",
     "/potatoField": "농장",
+    "/fishing": "바다낚시",
   };
 
   // 경로 정규화(뒤 슬래시 제거)

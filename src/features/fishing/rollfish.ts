@@ -1,5 +1,5 @@
 // src/features/aquarium/rollFish.ts
-import { FISHES, type FishRarity } from "./fishes";
+import { FISHES, type FishRarity } from "../aquarium/fishes";
 import type { IngredientTitle } from "@/features/kitchen/type";
 
 /** 등급/실패 가중치 (합 100) */
@@ -11,21 +11,14 @@ const ROLL_TABLE: Array<{ key: "FAIL" | FishRarity; weight: number }> = [
   { key: "전설", weight: 1 },
 ];
 
-export type RollOptions = {
-  /** 야생 포함 여부 (기본 true) */
-  includeWild?: boolean;
-  /** 테스트/리플레이용 RNG 주입 (기본 Math.random) */
-  rng?: () => number;
-};
-
 export type RollResult =
   | { ok: true; rarity: FishRarity; fishId: string }
   | { ok: false }; // 실패
 
-/** 내부: 가중치 추첨 */
-function rollKey(rng: () => number): "FAIL" | FishRarity {
+/** 내부: 가중치 추첨 (기본 Math.random 사용) */
+function rollKey(): "FAIL" | FishRarity {
   const total = ROLL_TABLE.reduce((s, r) => s + r.weight, 0); // 100
-  let t = rng() * total; // [0, 100)
+  let t = Math.random() * total; // [0, 100)
   for (const row of ROLL_TABLE) {
     if (t < row.weight) return row.key;
     t -= row.weight;
@@ -37,35 +30,29 @@ function rollKey(rng: () => number): "FAIL" | FishRarity {
  * 재료를 넣고 확률 기반으로 물고기 id를 뽑는다.
  * 1) 등급/실패 가챠 → 2) 등급+재료 풀에서 랜덤 선택 → 3) id 반환
  *    ※ 선택 등급에 재료 매칭 풀이 없으면 무조건 실패 처리
+ *    ※ 야생 포함 고정, RNG는 Math.random 고정
  */
-export function rollFishByIngredient(
-  ingredient: IngredientTitle,
-  opts: RollOptions = {}
-): RollResult {
-  const { includeWild = true, rng = Math.random } = opts;
-
-  const key = rollKey(rng);
+export function rollFishByIngredient(ingredient: IngredientTitle): RollResult {
+  const key = rollKey();
   if (key === "FAIL") return { ok: false };
 
-  // (선택된 등급) + (재료 일치) + (야생 포함 옵션)
+  // (선택된 등급) + (재료 일치) + (야생 포함 고정)
   const pool = FISHES.filter(
     (f) =>
-      f.rarity === key &&
-      f.ingredient === ingredient &&
-      (includeWild || !f.isWild)
+      f.rarity === key && f.ingredient === ingredient /* includeWild 고정 */
   );
 
   if (pool.length === 0) return { ok: false };
 
-  const pick = pool[Math.floor(rng() * pool.length)];
+  const idx = Math.floor(Math.random() * pool.length);
+  const pick = pool[idx]!; // pool.length > 0 이므로 안전
   return { ok: true, rarity: key, fishId: pick.id };
 }
 
 /** id만 원하면 이 헬퍼 사용 (실패 시 null) */
 export function rollFishIdByIngredient(
-  ingredient: IngredientTitle,
-  opts?: RollOptions
+  ingredient: IngredientTitle
 ): string | null {
-  const res = rollFishByIngredient(ingredient, opts);
+  const res = rollFishByIngredient(ingredient);
   return res.ok ? res.fishId : null;
 }

@@ -34,6 +34,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Coins } from "lucide-react";
+import GoldDisplay from "@/features/aquarium/GoldDisplay";
 
 // ────────────────────────────────────────────────────────────
 // Types & type guards
@@ -268,7 +269,8 @@ export default function KitchenPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl p-4">
+    <div className="mx-auto max-w-6xl py-4">
+      <GoldDisplay />
       <div className="grid md:grid-cols-3 gap-6 min-h-[560px]">
         <Inventory
           potatoCount={potatoCount}

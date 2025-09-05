@@ -50,7 +50,7 @@ export default function PotBox({
   const statusText = canCook ? "재료 준비가 완료됐어요." : "재료가 부족해요";
 
   return (
-    <div className="relative overflow-hidden rounded-2xl p-4  bg-none shadow-sm">
+    <div className="relative overflow-hidden rounded-2xl p-4  bg-none ">
       {/* 상단 부드러운 헤더 그라디언트 */}
 
       {/* 제목 바 + 상태 텍스트(배경/보더 제거) */}

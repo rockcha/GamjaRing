@@ -15,6 +15,7 @@ import {
   ChefHat, // 부엌
   Fish, // 아쿠아리움
   Sprout, // 🌱 감자밭
+  Waves, // 🌊 바다낚시 (추가 아이콘)
 } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 
@@ -40,7 +41,8 @@ const NAV_ITEMS: Item[] = [
   // 🎮 게임들
   { id: "aquarium", label: "아쿠아리움", icon: Fish },
   { id: "kitchen", label: "조리실", icon: ChefHat },
-  { id: "potatoField", label: "농장", icon: Sprout }, // ✅ 추가
+  { id: "potatoField", label: "농장", icon: Sprout },
+  { id: "fishing", label: "바다낚시", icon: Waves }, // ✅ 추가
 ];
 
 const GUARDS: Record<
@@ -56,7 +58,8 @@ const GUARDS: Record<
 
   aquarium: { requireLogin: true, requireCouple: true },
   kitchen: { requireLogin: true, requireCouple: true },
-  potatoField: { requireLogin: true, requireCouple: true }, // ✅ 추가
+  potatoField: { requireLogin: true, requireCouple: true },
+  fishing: { requireLogin: true, requireCouple: true }, // ✅ 추가
 };
 
 const FALLBACK_ROUTE: Record<string, string> = {
@@ -69,7 +72,8 @@ const FALLBACK_ROUTE: Record<string, string> = {
   scheduler: "/scheduler",
   aquarium: "/aquarium",
   kitchen: "/kitchen",
-  potatoField: "/potatoField", // ✅ 추가
+  potatoField: "/potatoField",
+  fishing: "/fishing", // ✅ 추가
 };
 
 export default function MenuButton() {
