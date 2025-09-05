@@ -502,23 +502,28 @@ export default function FishingPage() {
     [overlay, coupleId, fetchCoupleData, user?.id, user?.partner_id]
   );
 
+  // ✨ 변경 포인트만 발췌
   return (
     <div className="w-full h-[calc(100vh-64px)] max-h-[100svh] grid grid-cols-12 gap-3">
-      {/* 좌측: 재료 (낚시 중에는 드래그 비활성) */}
-      <aside className="col-span-12 md:col-span-3 xl:col-span-3 rounded-2xl border bg-white p-3 flex flex-col gap-3">
+      {/* 좌측: 재료 (항상 4/12 차지, 모바일에서도 사이드바 유지) */}
+      <aside
+        className="col-span-3 rounded-2xl border bg-white p-3 flex flex-col gap-3
+                 overflow-y-auto overscroll-contain"
+      >
         <IngredientFishingSection dragDisabled={overlay} />
       </aside>
 
-      {/* 중앙: 배경 & 드롭존 & 도감 버튼 */}
+      {/* 우측: 낚시터 (항상 8/12 차지) */}
       <main
         className={cn(
-          "relative col-span-12 md:col-span-9 xl:col-span-9 rounded-2xl border overflow-hidden"
+          "relative col-span-9 rounded-2xl border overflow-hidden min-w-0" // ← min-w-0로 이미지/내부요소 줄바꿈 허용
         )}
         onDragOver={onDragOver}
         onDragEnter={onDragEnter}
         onDragLeave={onDragLeave}
         onDrop={onDrop}
       >
+        {/* 배경 이미지 */}
         <img
           src={bg}
           alt="fishing background"
@@ -528,32 +533,35 @@ export default function FishingPage() {
 
         {/* 상단 중앙 시간대 배지 */}
         <div className="relative z-10 h-full pointer-events-none">
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 rounded-full bg-black/35 text-white text-xs px-3 py-1 backdrop-blur-sm">
+          <div
+            className="absolute top-2 left-1/2 -translate-x-1/2 rounded-full
+                        bg-black/35 text-white text-[10px] sm:text-xs px-2.5 py-1
+                        backdrop-blur-sm"
+          >
             현재 시간대: {slotLabel(slot)}
           </div>
         </div>
 
-        {/* 우상단: 도감 아이콘 */}
-        <div className="absolute top-3 right-3 z-20 pointer-events-auto">
+        {/* 우상단: 도감 */}
+        <div className="absolute top-2 right-2 z-20 pointer-events-auto">
           <MarineDexModal isOcean />
         </div>
 
         {/* 드롭 가이드 */}
         {!overlay && (
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
-            <div className="text-xs px-3 py-1 rounded-full border shadow backdrop-blur-sm text-center bg-white/70 border-white/80 text-gray-700">
-              <>
-                재료를 이곳에 드래그해서 <br />
-                낚시를 시작하세요 🎣
-              </>
+            <div
+              className="text-[11px] sm:text-xs px-3 py-1 rounded-full border shadow
+                          backdrop-blur-sm text-center bg-white/70 border-white/80 text-gray-700"
+            >
+              재료를 이곳에 드래그해서 <br />
+              낚시를 시작하세요 🎣
             </div>
           </div>
         )}
 
-        {/* 낚시중 오버레이 (알고 계셨나요?) */}
+        {/* 오버레이/결과 패널 그대로 */}
         <FishingOverlay visible={overlay} />
-
-        {/* 결과 패널 */}
         <ResultPanel
           open={resultOpen}
           result={result}

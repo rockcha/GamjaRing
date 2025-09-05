@@ -192,7 +192,7 @@ export default function IngredientFishingSection({
   };
 
   return (
-    <section className={cn("flex flex-col gap-3", className)}>
+    <section className={cn("flex flex-col gap-3 min-h-0", className)}>
       {/* 헤더 */}
       <div className="flex items-center">
         <span className="inline-flex h-8 w-8 items-center justify-center">
@@ -209,7 +209,11 @@ export default function IngredientFishingSection({
       </div>
 
       {/* 반응형 재료 그리드: auto-fill + 정사각형 칸 */}
-      <div className="grid gap-2 rounded-2xl grid-cols-[repeat(auto-fill,minmax(72px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(80px,1fr))]">
+      <div
+        className="grid gap-2 rounded-2xl
+                  grid-cols-[repeat(auto-fill,minmax(72px,1fr))]
+                  sm:grid-cols-[repeat(auto-fill,minmax(80px,1fr))]"
+      >
         {cells.length === 0 && (
           <div className="col-span-full text-sm text-muted-foreground border rounded-xl p-4 text-center">
             보유한 재료가 없어요.
@@ -270,7 +274,7 @@ export default function IngredientFishingSection({
         </span>
       </div>
 
-      <div className="rounded-2xl border p-3 flex flex-col min-h-[280px] sm:min-h-[280px] lg:min-h-[220px]">
+      <div className="rounded-2xl border p-3 flex flex-col min-h-[240px] sm:min-h-[280px] lg:min-h-[220px] ">
         <div className="mt-3 flex items-center gap-2">
           <span className="text-xs text-amber-700 font-semibold">
             {`${Math.min(capturable.length, MAX_SHOW)}종 / 최대 8종`}
@@ -278,7 +282,7 @@ export default function IngredientFishingSection({
         </div>
 
         {/* 반응형 프리뷰: 2/3/4열 + 정사각형 카드 */}
-        <div className="mt-2 flex-1">
+        <div className="mt-2 flex-1 min-h-0 overflow-y-auto">
           {selected ? (
             capturable.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
