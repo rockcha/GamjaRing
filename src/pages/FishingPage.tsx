@@ -1,7 +1,7 @@
 // src/features/fishing/FishingPage.tsx
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import supabase from "@/lib/supabase";
@@ -69,36 +69,39 @@ function slotLabel(slot: TimeSlot) {
 }
 
 /* =======================
-   낚시중 오버레이 (프로그레스바 포함)
+   알고 계셨나요? (바다 이야기 15가지)
    ======================= */
-const FISHING_TIPS = [
-  "바람 방향 파악 중…",
-  "낚시대 높이 조절 중…",
-  "갈매기 새우깡 주는 중…",
-  "하염없이 기다리는 중…",
-  "파도소리 듣는 중…",
+const OCEAN_TRIVIA = [
+  "옛사람들은 깊은 바다 어딘가에 용왕이 살며 바다의 날씨를 주관한다고 믿었대요.",
+  "용궁 전설 속에는 물고기와 인간이 서로 말을 주고받는 장면이 자주 등장하죠.",
+  "해초 숲은 작은 생물들의 ‘유치원’—수많은 어린 물고기들이 이곳에서 자라요.",
+  "고래의 노래는 아주 먼 거리까지 퍼져 같은 무리끼리 소식을 전한다고 전해요.",
+  "산호는 바위가 아니라 살아있는 동물 군체—폴립들이 모여 거대한 도시를 만들죠.",
+  "옛 항해사들은 별자리뿐 아니라 파도 결을 읽어 항로를 찾기도 했대요.",
+  "바닷속 동굴에는 스스로 빛을 내는 생물들이 있어, 별빛 같은 풍경을 만든대요.",
+  "전설에 따르면 해마는 바다의 전령—사람들의 소원을 용궁까지 전했다고 해요.",
+  "밤의 바다에서는 미세한 플랑크톤이 빛을 내 파도가 반짝이는 듯 보이죠.",
+  "거대한 해류는 바다의 고속도로—생명과 영양분을 전 지구에 실어 나릅니다.",
+  "해달은 조개를 먹을 때 늘 들고 다니는 ‘단골 돌멩이’가 있다고 전해져요.",
+  "용궁의 보물 상자에는 바다의 색을 닮은 진주가 가득했다는 이야기가 있죠.",
+  "고대 어민들은 바다거북이 나타나면 날씨가 바뀐다고 점쳤다고 해요.",
+  "난파선 주변은 작은 생물들의 쉼터—시간이 지나면 새로운 ‘인공 암초’가 돼요.",
+  "깊은 심해에는 태양 대신 지열이 비추는 세계—열수구의 신비가 숨겨져요.",
 ];
 
-function msToSec(ms: number) {
-  return Math.max(0, Math.ceil(ms / 1000));
-}
-
-function FishingOverlay({
-  visible,
-  progress, // 0 ~ 1
-  remainMs,
-}: {
-  visible: boolean;
-  progress: number;
-  remainMs: number;
-}) {
-  const tipRef = useRef<string>("");
+/* =======================
+   낚시중 오버레이 (랜덤 이야기 순환)
+   ======================= */
+function FishingOverlay({ visible }: { visible: boolean }) {
+  const [text, setText] = useState<string>("바다의 숨결을 듣는 중…");
 
   useEffect(() => {
-    if (visible) {
-      const idx = Math.floor(Math.random() * FISHING_TIPS.length);
-      tipRef.current = FISHING_TIPS[idx] ?? "상황 파악 중…";
-    }
+    if (!visible) return;
+    const pick = () =>
+      setText(OCEAN_TRIVIA[Math.floor(Math.random() * OCEAN_TRIVIA.length)]!);
+    pick();
+    const id = window.setInterval(pick, 3000);
+    return () => window.clearInterval(id);
   }, [visible]);
 
   if (!visible) return null;
@@ -107,9 +110,7 @@ function FishingOverlay({
       <div className="w-[min(92vw,520px)] max-h-[80vh] overflow-auto rounded-2xl bg-white backdrop-blur border p-6 text-center shadow-xl">
         <div className="flex items-center justify-center gap-2 text-amber-700 mb-3">
           <FishIcon className="w-5 h-5" />
-          <span className="text-sm font-semibold">
-            {tipRef.current || "상황 파악 중…"}
-          </span>
+          <span className="text-sm font-semibold">낚시 중…</span>
         </div>
 
         <img
@@ -119,25 +120,10 @@ function FishingOverlay({
           draggable={false}
         />
 
-        {/* 진행도 */}
-        <div className="text-xs text-gray-600 mb-1">
-          오래 걸릴수록 희귀한 물고기를 잡기도 해요 ✨
-        </div>
-        <div
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={Math.round(progress * 100)}
-          className="w-full h-3 bg-gray-100 rounded-full border relative overflow-hidden"
-        >
-          <div
-            className="h-full bg-emerald-500 transition-[width] duration-150 ease-linear"
-            style={{ width: `${Math.min(100, Math.max(0, progress * 100))}%` }}
-          />
-        </div>
-        <div className="mt-1 text-xs text-gray-700">
-          남은 시간: <span className="font-semibold">{msToSec(remainMs)}</span>
-          초
+        {/* 중앙 헤딩 + 이야기 */}
+        <div className="mt-1 text-sm text-gray-900 text-center">
+          <div className="font-semibold mb-1">알고 계셨나요?</div>
+          <div className="text-gray-800">{text}</div>
         </div>
       </div>
     </div>
@@ -291,30 +277,24 @@ function ResultPanel({
           {isSuccess && <RarityBurst rarity={(result as any).rarity} />}
 
           {isSuccess ? (
-            <div className="space-y-3 relative z-10">
-              <div className="flex items-center gap-3">
-                <img
-                  src={
-                    (result as any).image || "/aquarium/fish_placeholder.png"
-                  }
-                  alt={(result as any).labelKo}
-                  className="w-20 h-20 object-contain"
-                  draggable={false}
-                />
-                <div>
-                  <div className="text-lg font-bold flex items-center gap-2">
-                    {(result as any).labelKo}
-                    <span className="inline-flex items-center rounded-lg border bg-amber-50 px-2 py-0.5 text-[11px] font-semibold">
-                      {(result as any).rarity}
-                    </span>
-                  </div>
-                  {(result as any).ingredient && (
-                    <p className="text-sm text-gray-600 mt-0.5">
-                      사용 재료: {(result as any).ingredient}
-                    </p>
-                  )}
-                </div>
+            <div className="space-y-3 relative z-10 text-center flex flex-col items-center">
+              <img
+                src={(result as any).image || "/aquarium/fish_placeholder.png"}
+                alt={(result as any).labelKo}
+                className="w-24 h-24 object-contain"
+                draggable={false}
+              />
+              <div className="text-lg font-bold inline-flex items-center gap-2 justify-center">
+                {(result as any).labelKo}
+                <span className="inline-flex items-center rounded-lg border bg-amber-50 px-2 py-0.5 text-[11px] font-semibold">
+                  {(result as any).rarity}
+                </span>
               </div>
+              {(result as any).ingredient && (
+                <p className="text-sm text-gray-600 mt-0.5">
+                  사용 재료: {(result as any).ingredient}
+                </p>
+              )}
               <div className="text-sm text-gray-700">
                 <Sparkles className="inline-block w-4 h-4 mr-1 text-emerald-600" />
                 축하해요! 새로운 해양 생물을 획득했어요.
@@ -369,13 +349,6 @@ export default function FishingPage() {
   const [result, setResult] = useState<FishResult | null>(null);
   const [resultOpen, setResultOpen] = useState(false);
 
-  // 진행 상태
-  const [overlayProgress, setOverlayProgress] = useState(0); // 0~1
-  const [overlayRemainMs, setOverlayRemainMs] = useState(0);
-  const progressTimerRef = useRef<number | null>(null);
-  const overlayStartRef = useRef<number>(0);
-  const overlayDurationRef = useRef<number>(0);
-
   // 드롭 하이라이트
   const [dragOver, setDragOver] = useState(false);
 
@@ -405,41 +378,7 @@ export default function FishingPage() {
     if (rarity === "에픽") return 15_000;
     if (rarity === "레어") return 8_000;
     return 5_000; // 그 외/실패 최소 5초
-    // 필요 시 "언커먼/커먼" 등도 5초로 흡수
   }
-
-  // 진행 타이머 시작/정지
-  const startProgressTimer = useCallback((durationMs: number) => {
-    overlayStartRef.current = performance.now();
-    overlayDurationRef.current = durationMs;
-
-    const tick = () => {
-      const now = performance.now();
-      const elapsed = now - overlayStartRef.current;
-      const remain = Math.max(0, durationMs - elapsed);
-      const p = Math.min(1, elapsed / durationMs);
-      setOverlayProgress(p);
-      setOverlayRemainMs(remain);
-      if (p < 1) {
-        progressTimerRef.current = window.requestAnimationFrame(tick);
-      }
-    };
-    // 초기화
-    setOverlayProgress(0);
-    setOverlayRemainMs(durationMs);
-    if (progressTimerRef.current) {
-      window.cancelAnimationFrame(progressTimerRef.current);
-      progressTimerRef.current = null;
-    }
-    progressTimerRef.current = window.requestAnimationFrame(tick);
-  }, []);
-
-  const stopProgressTimer = useCallback(() => {
-    if (progressTimerRef.current) {
-      window.cancelAnimationFrame(progressTimerRef.current);
-      progressTimerRef.current = null;
-    }
-  }, []);
 
   const onDrop = useCallback(
     async (e: React.DragEvent) => {
@@ -458,7 +397,7 @@ export default function FishingPage() {
       }
       if (!payload) return;
 
-      // 오버레이 시작 (우선 열어두고 실제 duration은 결과 계산 후 결정)
+      // 오버레이 시작
       setOverlay(true);
 
       try {
@@ -498,14 +437,12 @@ export default function FishingPage() {
           }
         }
 
-        // 희귀도에 따른 대기시간 확정 후 진행바 가동
+        // 희귀도에 따른 대기시간만 유지
         const rarity = computed.type === "SUCCESS" ? computed.rarity : null;
         const durationMs = durationByRarity(rarity ?? null);
-        startProgressTimer(durationMs);
 
-        // duration 만큼 대기
+        // 대기
         await new Promise((r) => setTimeout(r, durationMs));
-        stopProgressTimer();
 
         // 오버레이 종료 + 결과 표시
         setOverlay(false);
@@ -558,29 +495,12 @@ export default function FishingPage() {
           }
         }
       } catch (err: any) {
-        stopProgressTimer();
         setOverlay(false);
         toast.error(err?.message ?? "낚시 처리 중 오류가 발생했어요.");
       }
     },
-    [
-      overlay,
-      coupleId,
-      fetchCoupleData,
-      user?.id,
-      user?.partner_id,
-      startProgressTimer,
-      stopProgressTimer,
-    ]
+    [overlay, coupleId, fetchCoupleData, user?.id, user?.partner_id]
   );
-
-  useEffect(() => {
-    return () => {
-      // 언마운트 시 타이머 정리
-      if (progressTimerRef.current)
-        cancelAnimationFrame(progressTimerRef.current);
-    };
-  }, []);
 
   return (
     <div className="w-full h-[calc(100vh-64px)] max-h-[100svh] grid grid-cols-12 gap-3">
@@ -622,24 +542,16 @@ export default function FishingPage() {
         {!overlay && (
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
             <div className="text-xs px-3 py-1 rounded-full border shadow backdrop-blur-sm text-center bg-white/70 border-white/80 text-gray-700">
-              {dragOver ? (
-                <>놓으면 바로 낚시 시작! 🎣</>
-              ) : (
-                <>
-                  재료를 이곳에 드래그해서 <br />
-                  낚시를 시작하세요 🎣
-                </>
-              )}
+              <>
+                재료를 이곳에 드래그해서 <br />
+                낚시를 시작하세요 🎣
+              </>
             </div>
           </div>
         )}
 
-        {/* 낚시중 오버레이 (프로그레스바) */}
-        <FishingOverlay
-          visible={overlay}
-          progress={overlayProgress}
-          remainMs={overlayRemainMs}
-        />
+        {/* 낚시중 오버레이 (알고 계셨나요?) */}
+        <FishingOverlay visible={overlay} />
 
         {/* 결과 패널 */}
         <ResultPanel

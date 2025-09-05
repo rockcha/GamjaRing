@@ -515,6 +515,20 @@ export const FISHES: FishInfo[] = [
      ③ 에픽 (Epic)
      ──────────────────────────────────────────────────────────────── */
   {
+    id: "diver-kuromi",
+    labelKo: "잠수부 쿠로미",
+    cost: 560,
+    image: img("에픽", "diver-kuromi.png"),
+    size: 2.1,
+    swimY: [28, 62],
+    isWild: true,
+    isMovable: true,
+    ingredient: "망고",
+    rarity: "에픽",
+    description:
+      "버블을 뿜으며 유영하는 잠수부 쿠로미! 심해 탐험 장비와 장난기 넘치는 표정이 포인트예요.",
+  },
+  {
     id: "ing-milk-minnow",
     labelKo: "밀크 미노우",
     cost: 460,
