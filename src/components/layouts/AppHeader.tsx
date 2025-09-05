@@ -70,8 +70,7 @@ export default function AppHeader({
         className
       )}
     >
-      {/* ✅ 모바일에서 AuthButton을 우상단에 고정시키기 위해 relative 부여 */}
-      <div className="mx-auto px-4 py-3 relative">
+      <div className="mx-auto px-4 py-3 ">
         {/* 4섹션 그리드 */}
         <div
           className="

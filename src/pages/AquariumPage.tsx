@@ -13,19 +13,33 @@ import { sendUserNotification } from "@/utils/notification/sendUserNotification"
 import { useUser } from "@/contexts/UserContext";
 import { FISH_BY_ID } from "@/features/aquarium/fishes";
 
-// ✅ 로딩 스켈레톤 (AquariumBox가 렌더되기 전 단계에서만 사용)
+/* ------------------------------
+   ✅ TankSkeleton
+   - 로딩 텍스트가 항상 즉시 표시
+   - 물 배경은 약간 늦게(fade-in)
+------------------------------ */
 function TankSkeleton({ text }: { text: string }) {
+  const [showBg, setShowBg] = useState(false);
+
+  useEffect(() => {
+    const id = setTimeout(() => setShowBg(true), 150); // 텍스트 먼저 노출
+    return () => clearTimeout(id);
+  }, []);
+
   return (
-    <div className="w-full px-2">
-      <div
-        className="relative w-full rounded-xl overflow-hidden"
-        style={{ aspectRatio: "800 / 420" }}
-      >
-        <div className="absolute inset-0 opacity-30 bg-[url('/aquarium/water.jpg')] bg-cover" />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="px-4 py-2 rounded-lg bg-white/70 text-slate-700 font-medium shadow">
-            {text}
-          </div>
+    <div
+      className="relative w-full rounded-xl overflow-hidden"
+      style={{ aspectRatio: "800 / 420" }}
+      aria-live="polite"
+      aria-busy="true"
+    >
+      {/* 텍스트 레이어: 항상 즉시 렌더 */}
+      <div className="absolute inset-0 flex items-center justify-center z-10">
+        <div
+          className="px-4 py-2 rounded-lg bg-white/80 text-slate-800 font-medium shadow-sm
+                        [font-family:system-ui,-apple-system,Segoe_UI,Roboto,Apple_Color_Emoji,Segoe_UI_Emoji]"
+        >
+          {text}
         </div>
       </div>
     </div>
@@ -224,30 +238,47 @@ export default function AquariumPage() {
   const fishCount = fishIds.length;
 
   return (
-    <div className="w-full p-6">
-      <div className="w-full px-0 space-y-3">
-        {/* 어항 폭 기준 좌↔우 끝에 배치 */}
-        <div className="flex items-center justify-between gap-2">
-          <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 text-sky-800 border border-sky-200 pr-4 px-3 py-1 text-sm">
-            <span>🐟</span>
-            <b className="tabular-nums">{fishCount}</b>
-          </span>
-          <div className="pb-2">
-            <MarineDexModal gold={gold} onBuy={handleBuy} />
+    // 🔽 헤더 높이를 모를 때: CSS 변수로 반응형 헤더 추정값 제공
+    //    기본 64px, md: 72px, lg: 80px
+    <div
+      className="[--hdr:64px] md:[--hdr:72px] lg:[--hdr:80px] min-h-[calc(100svh-var(--hdr))] w-full
+                    px-4 pt-3 pb-6 -mt-1 flex flex-col"
+    >
+      <div className="w-full space-y-3 flex-1">
+        {/* ✅ 어항 + 상단 고정 오버레이 (로딩/비로딩 공통) */}
+        <div className="relative w-full -mt-1">
+          {/* 탱크 본체 */}
+          {loading ? (
+            <TankSkeleton text={currentLoadingText} />
+          ) : (
+            <AquariumBox
+              fishIds={fishIds}
+              isLoading={false}
+              loadingText={currentLoadingText}
+              onSell={handleSell}
+            />
+          )}
+
+          {/* 🔒 상단-왼쪽 고정 오버레이 */}
+          <div className="absolute left-2 top-2 z-20 flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-full bg-sky-100/90 backdrop-blur-sm text-sky-900 border border-sky-200 px-2.5 py-1 text-xs shadow-sm">
+              <span>🐟</span>
+              <b className="tabular-nums">{fishCount}</b>
+            </span>
+
+            {/* 도감 버튼 (작게) */}
+            <MarineDexModal
+              gold={gold}
+              onBuy={handleBuy}
+              // @ts-expect-error: 내부에서 Button에 스프레드해주는 형태로 적용
+              buttonProps={{
+                size: "sm",
+                className:
+                  "h-7 px-2.5 rounded-full bg-white/85 hover:bg-white text-slate-700 border border-slate-200 shadow-sm backdrop-blur-sm",
+              }}
+            />
           </div>
         </div>
-
-        {/* ✅ 로딩일 때는 AquariumBox를 아예 렌더하지 않고 스켈레톤만 보여줌 */}
-        {loading ? (
-          <TankSkeleton text={currentLoadingText} />
-        ) : (
-          <AquariumBox
-            fishIds={fishIds}
-            isLoading={false} // 이미 페이지에서 로딩 분기 처리
-            loadingText={currentLoadingText}
-            onSell={handleSell}
-          />
-        )}
       </div>
     </div>
   );
