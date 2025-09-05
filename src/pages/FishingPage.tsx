@@ -69,9 +69,8 @@ function slotLabel(slot: TimeSlot) {
 }
 
 /* =======================
-   낚시중 오버레이: 고정 GIF + 랜덤 멘트
+   낚시중 오버레이 (프로그레스바 포함)
    ======================= */
-// 오버레이에 표시할 짧은 랜덤 멘트
 const FISHING_TIPS = [
   "바람 방향 파악 중…",
   "낚시대 높이 조절 중…",
@@ -80,7 +79,19 @@ const FISHING_TIPS = [
   "파도소리 듣는 중…",
 ];
 
-function FishingOverlay({ visible }: { visible: boolean }) {
+function msToSec(ms: number) {
+  return Math.max(0, Math.ceil(ms / 1000));
+}
+
+function FishingOverlay({
+  visible,
+  progress, // 0 ~ 1
+  remainMs,
+}: {
+  visible: boolean;
+  progress: number;
+  remainMs: number;
+}) {
   const tipRef = useRef<string>("");
 
   useEffect(() => {
@@ -92,7 +103,6 @@ function FishingOverlay({ visible }: { visible: boolean }) {
 
   if (!visible) return null;
   return (
-    // ⬇️ absolute -> fixed, z 올림
     <div className="fixed inset-0 z-[1000] grid place-items-center bg-black/25 backdrop-blur-[2px]">
       <div className="w-[min(92vw,520px)] max-h-[80vh] overflow-auto rounded-2xl bg-white backdrop-blur border p-6 text-center shadow-xl">
         <div className="flex items-center justify-center gap-2 text-amber-700 mb-3">
@@ -101,12 +111,34 @@ function FishingOverlay({ visible }: { visible: boolean }) {
             {tipRef.current || "상황 파악 중…"}
           </span>
         </div>
+
         <img
           src="/aquarium/fishing.gif"
           alt="낚시 중 애니메이션"
-          className="mx-auto w-40 h-40 object-contain rounded-md"
+          className="mx-auto w-40 h-40 object-contain rounded-md mb-4"
           draggable={false}
         />
+
+        {/* 진행도 */}
+        <div className="text-xs text-gray-600 mb-1">
+          오래 걸릴수록 희귀한 물고기를 잡기도 해요 ✨
+        </div>
+        <div
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(progress * 100)}
+          className="w-full h-3 bg-gray-100 rounded-full border relative overflow-hidden"
+        >
+          <div
+            className="h-full bg-emerald-500 transition-[width] duration-150 ease-linear"
+            style={{ width: `${Math.min(100, Math.max(0, progress * 100))}%` }}
+          />
+        </div>
+        <div className="mt-1 text-xs text-gray-700">
+          남은 시간: <span className="font-semibold">{msToSec(remainMs)}</span>
+          초
+        </div>
       </div>
     </div>
   );
@@ -190,7 +222,7 @@ function RarityBurst({ rarity }: { rarity: string }) {
 }
 
 /* =======================
-   결과 패널 (성공/실패 배너 간결화)
+   결과 패널
    ======================= */
 type FishResult =
   | { type: "FAIL" }
@@ -223,10 +255,7 @@ function ResultPanel({
 
   if (!open) return null;
 
-  if (!open) return null;
-
   const isSuccess = result?.type === "SUCCESS";
-  // 칩 전용 색상 (글자만큼 배경색)
   const chipCls = isSuccess
     ? "bg-emerald-100 text-emerald-900 border-emerald-200"
     : "bg-rose-100 text-rose-900 border-rose-200";
@@ -242,7 +271,6 @@ function ResultPanel({
           <X className="w-4 h-4" />
         </button>
 
-        {/* ⬇️ 배너 → 중앙 칩(텍스트만큼 배경) */}
         <div className="mb-4 flex items-center justify-center">
           <span
             className={cn(
@@ -261,6 +289,7 @@ function ResultPanel({
 
         <div className="relative">
           {isSuccess && <RarityBurst rarity={(result as any).rarity} />}
+
           {isSuccess ? (
             <div className="space-y-3 relative z-10">
               <div className="flex items-center gap-3">
@@ -298,7 +327,6 @@ function ResultPanel({
           )}
         </div>
 
-        {/* 공유하기: 파랑 / 닫기: 기본 */}
         <div className="mt-4 flex gap-2 justify-end">
           <button
             onClick={() => toast.info("공유하기는 곧 제공될 예정이에요!")}
@@ -341,6 +369,13 @@ export default function FishingPage() {
   const [result, setResult] = useState<FishResult | null>(null);
   const [resultOpen, setResultOpen] = useState(false);
 
+  // 진행 상태
+  const [overlayProgress, setOverlayProgress] = useState(0); // 0~1
+  const [overlayRemainMs, setOverlayRemainMs] = useState(0);
+  const progressTimerRef = useRef<number | null>(null);
+  const overlayStartRef = useRef<number>(0);
+  const overlayDurationRef = useRef<number>(0);
+
   // 드롭 하이라이트
   const [dragOver, setDragOver] = useState(false);
 
@@ -364,6 +399,48 @@ export default function FishingPage() {
   );
   const onDragLeave = useCallback(() => setDragOver(false), []);
 
+  // ⏱️ 희귀도별 대기시간
+  function durationByRarity(rarity: string | null): number {
+    if (rarity === "전설") return 30_000;
+    if (rarity === "에픽") return 15_000;
+    if (rarity === "레어") return 8_000;
+    return 5_000; // 그 외/실패 최소 5초
+    // 필요 시 "언커먼/커먼" 등도 5초로 흡수
+  }
+
+  // 진행 타이머 시작/정지
+  const startProgressTimer = useCallback((durationMs: number) => {
+    overlayStartRef.current = performance.now();
+    overlayDurationRef.current = durationMs;
+
+    const tick = () => {
+      const now = performance.now();
+      const elapsed = now - overlayStartRef.current;
+      const remain = Math.max(0, durationMs - elapsed);
+      const p = Math.min(1, elapsed / durationMs);
+      setOverlayProgress(p);
+      setOverlayRemainMs(remain);
+      if (p < 1) {
+        progressTimerRef.current = window.requestAnimationFrame(tick);
+      }
+    };
+    // 초기화
+    setOverlayProgress(0);
+    setOverlayRemainMs(durationMs);
+    if (progressTimerRef.current) {
+      window.cancelAnimationFrame(progressTimerRef.current);
+      progressTimerRef.current = null;
+    }
+    progressTimerRef.current = window.requestAnimationFrame(tick);
+  }, []);
+
+  const stopProgressTimer = useCallback(() => {
+    if (progressTimerRef.current) {
+      window.cancelAnimationFrame(progressTimerRef.current);
+      progressTimerRef.current = null;
+    }
+  }, []);
+
   const onDrop = useCallback(
     async (e: React.DragEvent) => {
       setDragOver(false);
@@ -381,13 +458,12 @@ export default function FishingPage() {
       }
       if (!payload) return;
 
-      // 오버레이 시작
+      // 오버레이 시작 (우선 열어두고 실제 duration은 결과 계산 후 결정)
       setOverlay(true);
-      const started = performance.now();
 
-      // 재료 차감
-      if (coupleId) {
-        try {
+      try {
+        // 재료 차감
+        if (coupleId) {
           await consumeIngredients(coupleId, { [payload.title]: 1 } as Record<
             IngredientTitle,
             number
@@ -397,96 +473,114 @@ export default function FishingPage() {
               detail: { title: payload.title },
             })
           );
-        } catch (err: any) {
-          setOverlay(false);
-          toast.error(err?.message ?? "재료 차감에 실패했어요.");
-          return;
         }
-      }
 
-      // 결과 계산
-      const res = rollFishByIngredient(payload.title);
-      let computed: FishResult;
-      let fishObj = null as null | (typeof FISHES)[number];
+        // 결과 계산
+        const res = rollFishByIngredient(payload.title);
+        let computed: FishResult;
+        let fishObj: (typeof FISHES)[number] | null = null;
 
-      if (!res.ok) {
-        computed = { type: "FAIL" };
-      } else {
-        fishObj = FISHES.find((f) => f.id === res.fishId) || null;
-        if (!fishObj) {
+        if (!res.ok) {
           computed = { type: "FAIL" };
         } else {
-          computed = {
-            type: "SUCCESS",
-            id: fishObj.id,
-            labelKo: fishObj.labelKo,
-            image: fishObj.image,
-            rarity: fishObj.rarity,
-            ingredient: `${payload.emoji} ${payload.title}`,
-          };
+          fishObj = FISHES.find((f) => f.id === res.fishId) || null;
+          if (!fishObj) {
+            computed = { type: "FAIL" };
+          } else {
+            computed = {
+              type: "SUCCESS",
+              id: fishObj.id,
+              labelKo: fishObj.labelKo,
+              image: fishObj.image,
+              rarity: fishObj.rarity,
+              ingredient: `${payload.emoji} ${payload.title}`,
+            };
+          }
         }
-      }
 
-      // 최소 2.5초 보장
-      const elapsed = performance.now() - started;
-      const rest = Math.max(0, 2500 - elapsed);
-      window.setTimeout(() => {
+        // 희귀도에 따른 대기시간 확정 후 진행바 가동
+        const rarity = computed.type === "SUCCESS" ? computed.rarity : null;
+        const durationMs = durationByRarity(rarity ?? null);
+        startProgressTimer(durationMs);
+
+        // duration 만큼 대기
+        await new Promise((r) => setTimeout(r, durationMs));
+        stopProgressTimer();
+
+        // 오버레이 종료 + 결과 표시
         setOverlay(false);
         setResult(computed);
         setResultOpen(true);
 
-        // 저장/알림은 성공시에만 백그라운드 처리
-        if (computed.type === "SUCCESS" && fishObj) {
-          (async () => {
-            if (!coupleId) return;
-            try {
-              const { data: row, error: selErr } = await supabase
-                .from("couple_aquarium")
-                .select("aquarium_fishes")
-                .eq("couple_id", coupleId)
-                .maybeSingle();
-              if (selErr) throw selErr;
+        // 저장/알림은 성공시에만 처리
+        if (computed.type === "SUCCESS" && fishObj && coupleId) {
+          try {
+            const { data: row, error: selErr } = await supabase
+              .from("couple_aquarium")
+              .select("aquarium_fishes")
+              .eq("couple_id", coupleId)
+              .maybeSingle();
+            if (selErr) throw selErr;
 
-              const prevList: string[] = Array.isArray(row?.aquarium_fishes)
-                ? (row!.aquarium_fishes as string[])
-                : [];
-              const nextFishIds = [...prevList, fishObj.id];
+            const prevList: string[] = Array.isArray(row?.aquarium_fishes)
+              ? (row!.aquarium_fishes as string[])
+              : [];
+            const nextFishIds = [...prevList, fishObj.id];
 
-              const { error: upErr } = await supabase
-                .from("couple_aquarium")
-                .upsert(
-                  { couple_id: coupleId, aquarium_fishes: nextFishIds },
-                  { onConflict: "couple_id" }
-                );
+            const { error: upErr } = await supabase
+              .from("couple_aquarium")
+              .upsert(
+                { couple_id: coupleId, aquarium_fishes: nextFishIds },
+                { onConflict: "couple_id" }
+              );
 
-              if (upErr) {
-                toast.warning(`결과 저장 실패: ${upErr.message}`);
-              } else {
-                try {
-                  const itemName = fishObj.labelKo.toString();
-                  if (user?.id && user?.partner_id) {
-                    await sendUserNotification({
-                      senderId: user.id,
-                      receiverId: user.partner_id,
-                      type: "낚시성공",
-                      itemName,
-                    } as any);
-                  }
-                } catch (e) {
-                  console.warn("알림 전송 실패(무시 가능):", e);
+            if (upErr) {
+              toast.warning(`결과 저장 실패: ${upErr.message}`);
+            } else {
+              try {
+                const itemName = fishObj.labelKo.toString();
+                if (user?.id && user?.partner_id) {
+                  await sendUserNotification({
+                    senderId: user.id,
+                    receiverId: user.partner_id,
+                    type: "낚시성공",
+                    itemName,
+                  } as any);
                 }
-                await fetchCoupleData?.();
+              } catch (e) {
+                console.warn("알림 전송 실패(무시 가능):", e);
               }
-            } catch (e: any) {
-              console.warn("낚시 결과 저장 중 오류:", e?.message ?? e);
-              toast.warning("결과 저장 중 오류가 발생했어요.");
+              await fetchCoupleData?.();
             }
-          })();
+          } catch (e: any) {
+            console.warn("낚시 결과 저장 중 오류:", e?.message ?? e);
+            toast.warning("결과 저장 중 오류가 발생했어요.");
+          }
         }
-      }, rest);
+      } catch (err: any) {
+        stopProgressTimer();
+        setOverlay(false);
+        toast.error(err?.message ?? "낚시 처리 중 오류가 발생했어요.");
+      }
     },
-    [overlay, coupleId, fetchCoupleData, user?.id, user?.partner_id]
+    [
+      overlay,
+      coupleId,
+      fetchCoupleData,
+      user?.id,
+      user?.partner_id,
+      startProgressTimer,
+      stopProgressTimer,
+    ]
   );
+
+  useEffect(() => {
+    return () => {
+      // 언마운트 시 타이머 정리
+      if (progressTimerRef.current)
+        cancelAnimationFrame(progressTimerRef.current);
+    };
+  }, []);
 
   return (
     <div className="w-full h-[calc(100vh-64px)] max-h-[100svh] grid grid-cols-12 gap-3">
@@ -505,7 +599,6 @@ export default function FishingPage() {
         onDragLeave={onDragLeave}
         onDrop={onDrop}
       >
-        {/* 배경 이미지 */}
         <img
           src={bg}
           alt="fishing background"
@@ -525,7 +618,7 @@ export default function FishingPage() {
           <MarineDexModal isOcean />
         </div>
 
-        {/* 드롭 가이드 (중앙) — 배경 색 고정 */}
+        {/* 드롭 가이드 */}
         {!overlay && (
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
             <div className="text-xs px-3 py-1 rounded-full border shadow backdrop-blur-sm text-center bg-white/70 border-white/80 text-gray-700">
@@ -541,8 +634,12 @@ export default function FishingPage() {
           </div>
         )}
 
-        {/* 낚시중 오버레이 (고정 GIF + 랜덤 멘트) */}
-        <FishingOverlay visible={overlay} />
+        {/* 낚시중 오버레이 (프로그레스바) */}
+        <FishingOverlay
+          visible={overlay}
+          progress={overlayProgress}
+          remainMs={overlayRemainMs}
+        />
 
         {/* 결과 패널 */}
         <ResultPanel
