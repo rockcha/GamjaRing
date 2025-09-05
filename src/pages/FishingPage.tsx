@@ -503,20 +503,34 @@ export default function FishingPage() {
   );
 
   // ✨ 변경 포인트만 발췌
+  // ✨ 레이아웃 반환부만 교체
   return (
-    <div className="w-full h-[calc(100vh-64px)] max-h-[100svh] grid grid-cols-12 gap-3">
-      {/* 좌측: 재료 (항상 4/12 차지, 모바일에서도 사이드바 유지) */}
+    <div
+      className={cn(
+        // 전체 높이 유지
+        "w-full h:[calc(100vh-64px)] h-[calc(100vh-64px)] max-h-[100svh]",
+        // 모바일: 1컬럼 + (상단 고정 높이, 하단 가변)
+        "grid grid-cols-1 grid-rows-[minmax(260px,42vh)_1fr] gap-3",
+        // md↑: 12컬럼(3:9) + 단일 로우
+        "md:grid-cols-12 md:grid-rows-1"
+      )}
+    >
+      {/* 상단(모바일) / 좌측(md↑): 재료 */}
       <aside
-        className="col-span-3 rounded-2xl border bg-white p-3 flex flex-col gap-3
-                 overflow-y-auto overscroll-contain"
+        className="order-1 md:order-none
+                 col-span-1 md:col-span-3
+                 rounded-2xl border bg-white p-3 flex flex-col gap-3
+                 overflow-y-auto overscroll-contain min-h-0"
       >
         <IngredientFishingSection dragDisabled={overlay} />
       </aside>
 
-      {/* 우측: 낚시터 (항상 8/12 차지) */}
+      {/* 하단(모바일) / 우측(md↑): 낚시터 */}
       <main
         className={cn(
-          "relative col-span-9 rounded-2xl border overflow-hidden min-w-0" // ← min-w-0로 이미지/내부요소 줄바꿈 허용
+          "order-2 md:order-none",
+          "col-span-1 md:col-span-9",
+          "relative rounded-2xl border overflow-hidden min-w-0 min-h-0"
         )}
         onDragOver={onDragOver}
         onDragEnter={onDragEnter}
@@ -535,8 +549,8 @@ export default function FishingPage() {
         <div className="relative z-10 h-full pointer-events-none">
           <div
             className="absolute top-2 left-1/2 -translate-x-1/2 rounded-full
-                        bg-black/35 text-white text-[10px] sm:text-xs px-2.5 py-1
-                        backdrop-blur-sm"
+                     bg-black/35 text-white text-[10px] sm:text-xs px-2.5 py-1
+                     backdrop-blur-sm"
           >
             현재 시간대: {slotLabel(slot)}
           </div>
@@ -560,7 +574,7 @@ export default function FishingPage() {
           </div>
         )}
 
-        {/* 오버레이/결과 패널 그대로 */}
+        {/* 오버레이 / 결과 패널 */}
         <FishingOverlay visible={overlay} />
         <ResultPanel
           open={resultOpen}

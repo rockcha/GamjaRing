@@ -131,9 +131,9 @@ export const FISHES: FishInfo[] = [
     cost: 20,
     image: img("일반", "shellfish.png"),
     size: 0.8,
-    swimY: [85, 100],
+    swimY: [97, 100],
     isWild: false,
-    isMovable: true,
+    isMovable: false,
     ingredient: "소금",
     rarity: "일반",
     description: "바닥에서 조용히 여과섭식을 하는 친구예요.",
@@ -202,6 +202,86 @@ export const FISHES: FishInfo[] = [
     ingredient: "얼음",
     rarity: "일반",
     description: "유영이 몽환적인 젤리 같은 해양생물이죠.",
+  },
+  {
+    id: "milk-carton",
+    labelKo: "우유곽",
+    cost: 25,
+    image: img("일반", "milk-carton.png"),
+    size: 0.9,
+    swimY: [3, 18], // 수면 근처를 둥둥 떠다니는 높이
+    isWild: true,
+    isMovable: true,
+    ingredient: "우유",
+    rarity: "일반",
+    description: "바다를 떠돌다다니는 종이 우유곽이에요.",
+  },
+  {
+    id: "oyster",
+    labelKo: "굴",
+    cost: 45,
+    image: img("일반", "oyster.png"),
+    size: 0.8,
+    swimY: [88, 98], // 바닥 근처에 고정
+    isWild: false,
+    isMovable: false, // 부착 생활 (이동 없음)
+    ingredient: "우유",
+    rarity: "일반",
+    description:
+      "암반이나 사질 바닥에 붙어 지내는 이매패류예요. 껍질을 열고 닫으며 물을 걸러 먹어요.",
+  },
+  {
+    id: "filefish",
+    labelKo: "쥐치",
+    cost: 70,
+    image: img("일반", "filefish.png"),
+    size: 1.0,
+    swimY: [30, 70],
+    isWild: false,
+    isMovable: true,
+    ingredient: "플랫브레드",
+    rarity: "일반",
+    description: "작은 입으로 암반을 살짝살짝 쪼아 먹는 온순한 어종이에요.",
+  },
+  {
+    id: "sardine",
+    labelKo: "정어리",
+    cost: 40,
+    image: img("일반", "sardine.png"),
+    size: 0.5,
+    swimY: [35, 70],
+    isWild: true,
+    isMovable: true,
+    ingredient: "케찹",
+    rarity: "일반",
+    description:
+      "무리를 지어 반짝이며 헤엄치는 소형 어종이에요. 달큰한 케찹 향에 호기심이 많아요.",
+  },
+  {
+    id: "jjukkumi",
+    labelKo: "쭈꾸미",
+    cost: 35,
+    image: img("일반", "jjukkumi.png"),
+    size: 1.05,
+    swimY: [75, 98], // 바닥 가까이 이동
+    isWild: false,
+    isMovable: true,
+    ingredient: "버터",
+    rarity: "일반",
+    description: "작은 팔로 바닥을 기어 다니듯 유영하는 영리한 두족류예요.",
+  },
+  {
+    id: "starfish", // 그대로
+    labelKo: "불가사리", // ✅ 변경
+    cost: 55,
+    image: img("일반", "starfish.png"), // 그대로 (이미지도 바꾸려면 아래 참고)
+    size: 0.6,
+    swimY: [40, 75],
+    isWild: false,
+    isMovable: false, // ✅ 변경
+    ingredient: "계란", // ✅ 변경
+    rarity: "일반",
+    description: "벽에 붙어 떨어지지 않아요.",
   },
   {
     id: "seahorse",
