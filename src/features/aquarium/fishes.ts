@@ -246,7 +246,7 @@ export const FISHES: FishInfo[] = [
   {
     id: "sardine",
     labelKo: "정어리",
-    cost: 40,
+    cost: 50,
     image: img("일반", "sardine.png"),
     size: 0.5,
     swimY: [35, 70],
@@ -258,10 +258,10 @@ export const FISHES: FishInfo[] = [
       "무리를 지어 반짝이며 헤엄치는 소형 어종이에요. 달큰한 케찹 향에 호기심이 많아요.",
   },
   {
-    id: "jjukkumi",
-    labelKo: "쭈꾸미",
+    id: "octopus",
+    labelKo: "문어",
     cost: 35,
-    image: img("일반", "jjukkumi.png"),
+    image: img("일반", "octopus.png"),
     size: 1.05,
     swimY: [75, 98], // 바닥 가까이 이동
     isWild: false,
@@ -607,6 +607,20 @@ export const FISHES: FishInfo[] = [
     rarity: "에픽",
     description:
       "버블을 뿜으며 유영하는 잠수부 쿠로미! 심해 탐험 장비와 장난기 넘치는 표정이 포인트예요.",
+  },
+  {
+    id: "diver-kkaekooki",
+    labelKo: "잠수부 깨국이",
+    cost: 550,
+    image: img("에픽", "diver-kkaekooki.png"),
+    size: 1.2,
+    swimY: [25, 65], // 중층을 여유롭게 탐험
+    isWild: false,
+    isMovable: true,
+    ingredient: "녹색채소",
+    rarity: "에픽",
+    description:
+      "스노클과 잠수복을 장착한 깨국이가 물속을 탐험해요. 보기만 해도 기분 좋아지는 마스코트!",
   },
   {
     id: "ing-milk-minnow",
