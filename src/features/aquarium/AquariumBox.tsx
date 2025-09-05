@@ -317,10 +317,6 @@ export default function AquariumBox({
           fishId={selectedSlot.id}
           index={Number.isFinite(selectedIndex) ? selectedIndex : -1}
           fishCountOfThis={countsById.get(selectedSlot.id) ?? 0}
-          breedCount={breedCount}
-          onAfterBreed={async () => {
-            await refreshFromDB();
-          }}
           {...(onSell && {
             onSell: async (payload) => {
               await onSell(payload);

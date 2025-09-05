@@ -76,12 +76,6 @@ export default function FishActionModal({
 
   const handleSell = async () => {
     if (!onSell) return;
-    if (
-      !confirm(
-        `정말로 "${fish.labelKo}"를 원가의 절반(${sellPrice} 골드)에 판매할까요?`
-      )
-    )
-      return;
 
     await onSell({ index, fishId, sellPrice });
 

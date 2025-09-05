@@ -12,7 +12,6 @@ import { useCoupleContext } from "@/contexts/CoupleContext";
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 import { useUser } from "@/contexts/UserContext";
 import { FISH_BY_ID } from "@/features/aquarium/fishes";
-import IngredientGachaCard from "@/features/aquarium/GachaCard";
 
 // ✅ 로딩 스켈레톤 (AquariumBox가 렌더되기 전 단계에서만 사용)
 function TankSkeleton({ text }: { text: string }) {
@@ -253,7 +252,6 @@ export default function AquariumPage() {
           )}
         </TankFrame>
       </div>
-      <IngredientGachaCard />
     </div>
   );
 }

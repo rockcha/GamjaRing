@@ -3,14 +3,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import supabase from "@/lib/supabase";
 import { useUser } from "@/contexts/UserContext";
@@ -21,6 +13,7 @@ import IngredientFishingSection from "@/features/fishing/IngredientFishingSectio
 import MarineDexModal from "@/features/aquarium/MarineDexModal";
 import { rollFishByIngredient } from "@/features/fishing/rollfish";
 import { FISHES } from "@/features/aquarium/fishes";
+import { consumeIngredients } from "@/features/kitchen/kitchenApi";
 import type { IngredientTitle } from "@/features/kitchen/type";
 
 import {
@@ -29,7 +22,13 @@ import {
   Share2,
   CheckCircle2,
   XCircle,
+  X,
 } from "lucide-react";
+
+/* =======================
+   DnD MIME
+   ======================= */
+const DND_MIME = "application/x-ingredient";
 
 /* =======================
    시간대별 배경
@@ -70,94 +69,44 @@ function slotLabel(slot: TimeSlot) {
 }
 
 /* =======================
-   오버레이 문구 유틸
+   낚시중 오버레이: 고정 GIF + 랜덤 멘트
    ======================= */
-const OVERLAY_POOL = [
-  "🎣 미끼를 가볍게 던졌어요…",
-  "🌊 물결이 잔잔해요…",
-  "👀 찌를 뚫어져라 보는 중…",
-  "🐟 작은 물고기들이 모여들어요…",
-  "🫧 거품이 살짝 일었어요…",
-  "✨ 운이 좋을지도…?",
-  "🪝 훅 텐션 유지!",
-  "🤫 숨 고르기… 조용히…",
-  "⚓ 라인을 살짝 감아볼까…",
-  "💨 바람 방향 체크 중…",
+// 오버레이에 표시할 짧은 랜덤 멘트
+const FISHING_TIPS = [
+  "바람 방향 파악 중…",
+  "낚시대 높이 조절 중…",
+  "갈매기 새우깡 주는 중…",
+  "하염없이 기다리는 중…",
+  "파도소리 듣는 중…",
 ];
 
-function pick3Random<T>(arr: readonly T[]): T[] {
-  const pool = arr.slice();
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    const ai = pool[i]!;
-    const aj = pool[j]!;
-    pool[i] = aj;
-    pool[j] = ai;
-  }
-  return pool.slice(0, 3) as T[];
-}
-function pickOne<T>(arr: readonly T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)]!;
-}
-
-/* =======================
-   오버레이(랜덤 문구 3개, 1초 간격)
-   ======================= */
-function FishingOverlay({
-  visible,
-  onDone,
-}: {
-  visible: boolean;
-  onDone: () => void;
-}) {
-  const [msgs, setMsgs] = useState<string[]>([]);
-  const [idx, setIdx] = useState(0);
-  const [fadeKey, setFadeKey] = useState(0);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+function FishingOverlay({ visible }: { visible: boolean }) {
+  const tipRef = useRef<string>("");
 
   useEffect(() => {
-    if (!visible) return;
-    setMsgs(pick3Random<string>(OVERLAY_POOL));
-    setIdx(0);
-    setFadeKey((k) => k + 1);
-
-    function schedule(i: number) {
-      if (i < 2) {
-        timerRef.current = setTimeout(() => {
-          setIdx(i + 1);
-          setFadeKey((k) => k + 1);
-          schedule(i + 1);
-        }, 1000);
-      } else {
-        timerRef.current = setTimeout(() => onDone(), 1000);
-      }
+    if (visible) {
+      const idx = Math.floor(Math.random() * FISHING_TIPS.length);
+      tipRef.current = FISHING_TIPS[idx] ?? "상황 파악 중…";
     }
-    schedule(0);
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [visible, onDone]);
+  }, [visible]);
 
   if (!visible) return null;
   return (
-    <div className="absolute inset-0 z-20 grid place-items-center bg-black/30 backdrop-blur-[1px]">
-      <div className="w-[min(92vw,520px)] rounded-2xl bg-white/95 shadow-xl border p-6 text-center">
-        <div className="flex items-center justify-center gap-2 text-amber-700 mb-2">
+    // ⬇️ absolute -> fixed, z 올림
+    <div className="fixed inset-0 z-[1000] grid place-items-center bg-black/25 backdrop-blur-[2px]">
+      <div className="w-[min(92vw,520px)] max-h-[80vh] overflow-auto rounded-2xl bg-white backdrop-blur border p-6 text-center shadow-xl">
+        <div className="flex items-center justify-center gap-2 text-amber-700 mb-3">
           <FishIcon className="w-5 h-5" />
-          <span className="text-sm font-semibold">낚시 중…</span>
+          <span className="text-sm font-semibold">
+            {tipRef.current || "상황 파악 중…"}
+          </span>
         </div>
-        <div
-          key={fadeKey}
-          className={cn(
-            "text-base font-semibold transition-opacity duration-300 ease-out",
-            "opacity-100 animate-in fade-in-0"
-          )}
-        >
-          {msgs[idx]}
-        </div>
-        <p className="mt-3 text-xs text-gray-500">
-          잠시만 기다리면 결과가 나와요.
-        </p>
+        <img
+          src="/aquarium/fishing.gif"
+          alt="낚시 중 애니메이션"
+          className="mx-auto w-40 h-40 object-contain rounded-md"
+          draggable={false}
+        />
       </div>
     </div>
   );
@@ -172,13 +121,13 @@ const FAIL_REASONS = [
   "🫧 미끼만 홀라당 사라졌어요!",
   "🌊 갑작스런 파도에 라인이 휙—",
   "😵 한눈판 사이에 놓쳤어요!",
-  "💤 졸았더니 찌가… 이미 내려갔네요!",
+  "💤 깜빡 졸아버렸어요 ㅠ",
   "🧊 손이 미끄러졌어요… 아쉽!",
-  "🎏 작은 물고기만 몰려왔어요…",
+  "🎏 새끼들은 돌려보냈어요",
 ];
 
 /* =======================
-   에픽/전설 전용 버스트 이펙트
+   에픽/전설 버스트
    ======================= */
 function RarityBurst({ rarity }: { rarity: string }) {
   const isEpic = rarity === "에픽";
@@ -209,7 +158,6 @@ function RarityBurst({ rarity }: { rarity: string }) {
 
   return (
     <div className="pointer-events-none absolute inset-0">
-      {/* 키프레임 등록 */}
       <style>{`
         @keyframes rarity-burst {
           0%   { opacity: 0; transform: translate(-50%,-50%) scale(0.6) rotate(0deg); }
@@ -227,7 +175,6 @@ function RarityBurst({ rarity }: { rarity: string }) {
               animation: `rarity-burst ${isLegend ? 1100 : 900}ms ease-out ${
                 p.delay
               }ms forwards`,
-              // CSS 변수로 전달
               ["--dx" as any]: `${p.dx}px`,
               ["--dy" as any]: `${p.dy}px`,
               ["--scale" as any]: p.scale.toString(),
@@ -243,7 +190,7 @@ function RarityBurst({ rarity }: { rarity: string }) {
 }
 
 /* =======================
-   결과 모달 (성공/실패 명확 강조 + 에픽/전설 이펙트)
+   결과 패널 (성공/실패 배너 간결화)
    ======================= */
 type FishResult =
   | { type: "FAIL" }
@@ -256,7 +203,7 @@ type FishResult =
       ingredient?: string | null;
     };
 
-function ResultModal({
+function ResultPanel({
   open,
   result,
   onClose,
@@ -268,45 +215,52 @@ function ResultModal({
   const [failMsg, setFailMsg] = useState<string>("");
 
   useEffect(() => {
-    if (open && result?.type === "FAIL") setFailMsg(pickOne(FAIL_REASONS));
+    if (open && result?.type === "FAIL") {
+      const i = Math.floor(Math.random() * FAIL_REASONS.length);
+      setFailMsg(FAIL_REASONS[i] ?? "아쉽! 다음엔 꼭 잡자 🎣");
+    }
   }, [open, result?.type]);
 
-  const share = useCallback(() => {
-    toast.info("공유하기는 곧 제공될 예정이에요!");
-  }, []);
+  if (!open) return null;
+
+  if (!open) return null;
 
   const isSuccess = result?.type === "SUCCESS";
-  const bannerCls = isSuccess
-    ? "bg-emerald-50 text-emerald-900 border-emerald-200"
-    : "bg-rose-50 text-rose-900 border-rose-200";
+  // 칩 전용 색상 (글자만큼 배경색)
+  const chipCls = isSuccess
+    ? "bg-emerald-100 text-emerald-900 border-emerald-200"
+    : "bg-rose-100 text-rose-900 border-rose-200";
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="sr-only">낚시 결과</DialogTitle>
-        </DialogHeader>
-
-        {/* 상태 배너 (성공/실패를 큰 아이콘과 색으로 또렷하게) */}
-        <div
-          className={cn(
-            "mb-3 rounded-xl border px-3 py-2 font-bold flex items-center gap-2",
-            bannerCls
-          )}
+    <div className="fixed inset-0 z-[1000] grid place-items-center bg-black/25 backdrop-blur-[2px]">
+      <div className="relative w-[min(92vw,520px)] max-h-[80vh] overflow-auto rounded-2xl bg-white border shadow-xl p-4">
+        <button
+          onClick={onClose}
+          className="absolute right-2 top-2 p-1 rounded-md hover:bg-gray-100 text-gray-600"
+          aria-label="닫기"
         >
-          {isSuccess ? (
-            <CheckCircle2 className="w-5 h-5" />
-          ) : (
-            <XCircle className="w-5 h-5" />
-          )}
-          {isSuccess ? "낚시 성공!" : "낚시 실패…"}
+          <X className="w-4 h-4" />
+        </button>
+
+        {/* ⬇️ 배너 → 중앙 칩(텍스트만큼 배경) */}
+        <div className="mb-4 flex items-center justify-center">
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-sm font-semibold",
+              chipCls
+            )}
+          >
+            {isSuccess ? (
+              <CheckCircle2 className="w-4 h-4" />
+            ) : (
+              <XCircle className="w-4 h-4" />
+            )}
+            <span>{isSuccess ? "낚시 성공" : "낚시 실패"}</span>
+          </span>
         </div>
 
         <div className="relative">
-          {/* 에픽/전설 이펙트 */}
           {isSuccess && <RarityBurst rarity={(result as any).rarity} />}
-
-          {/* 본문 */}
           {isSuccess ? (
             <div className="space-y-3 relative z-10">
               <div className="flex items-center gap-3">
@@ -315,13 +269,13 @@ function ResultModal({
                     (result as any).image || "/aquarium/fish_placeholder.png"
                   }
                   alt={(result as any).labelKo}
-                  className="w-20 h-20 object-contain bg-white rounded-xl border"
+                  className="w-20 h-20 object-contain"
                   draggable={false}
                 />
                 <div>
                   <div className="text-lg font-bold flex items-center gap-2">
                     {(result as any).labelKo}
-                    <span className="inline-flex items-center rounded-full border bg-amber-50 px-2 py-0.5 text-[11px] font-semibold">
+                    <span className="inline-flex items-center rounded-lg border bg-amber-50 px-2 py-0.5 text-[11px] font-semibold">
                       {(result as any).rarity}
                     </span>
                   </div>
@@ -332,27 +286,36 @@ function ResultModal({
                   )}
                 </div>
               </div>
-              <div className="rounded-xl border bg-gradient-to-br from-sky-50 to-emerald-50 p-3 text-sm text-gray-700">
+              <div className="text-sm text-gray-700">
                 <Sparkles className="inline-block w-4 h-4 mr-1 text-emerald-600" />
                 축하해요! 새로운 해양 생물을 획득했어요.
               </div>
             </div>
           ) : (
-            <div className="rounded-xl border bg-gray-50 p-4 text-center text-sm text-gray-700">
+            <div className="p-4 text-center text-base text-gray-700">
               {failMsg}
             </div>
           )}
         </div>
 
-        <DialogFooter className="flex gap-2 justify-end">
-          <Button variant="outline" onClick={share}>
+        {/* 공유하기: 파랑 / 닫기: 기본 */}
+        <div className="mt-4 flex gap-2 justify-end">
+          <button
+            onClick={() => toast.info("공유하기는 곧 제공될 예정이에요!")}
+            className="rounded-md bg-sky-600 text-white px-3 py-1.5 text-sm hover:bg-sky-700 inline-flex items-center"
+          >
             <Share2 className="w-4 h-4 mr-1" />
             공유하기
-          </Button>
-          <Button onClick={onClose}>닫기</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </button>
+          <button
+            onClick={onClose}
+            className="inline-flex items-center rounded-md border px-3 py-1.5 text-sm hover:bg-gray-50"
+          >
+            닫기
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -378,113 +341,178 @@ export default function FishingPage() {
   const [result, setResult] = useState<FishResult | null>(null);
   const [resultOpen, setResultOpen] = useState(false);
 
-  // onDone 최신화
-  const onOverlayDoneRef = useRef<(() => void) | null>(null);
-  const onOverlayDone = useCallback(() => {
-    onOverlayDoneRef.current?.();
-  }, []);
+  // 드롭 하이라이트
+  const [dragOver, setDragOver] = useState(false);
 
-  const handleStart = useCallback(
-    ({ title, emoji }: { title: IngredientTitle; emoji: string }) => {
-      setResult(null);
-      setOverlay(true);
-
-      const finalize = async () => {
-        setOverlay(false);
-
-        const res = rollFishByIngredient(title);
-        if (!res.ok) {
-          setResult({ type: "FAIL" });
-          setResultOpen(true);
-          return;
-        }
-
-        const fish = FISHES.find((f) => f.id === res.fishId);
-        if (!fish) {
-          setResult({ type: "FAIL" });
-          setResultOpen(true);
-          return;
-        }
-
-        if (!coupleId) {
-          toast.warning("커플 정보가 없어서 보관함에 추가하지 못했어요.");
-        } else {
-          try {
-            const { data: row, error: selErr } = await supabase
-              .from("couple_aquarium")
-              .select("aquarium_fishes")
-              .eq("couple_id", coupleId)
-              .maybeSingle();
-            if (selErr) throw selErr;
-
-            const prevList: string[] = Array.isArray(row?.aquarium_fishes)
-              ? (row!.aquarium_fishes as string[])
-              : [];
-            const nextFishIds = [...prevList, fish.id];
-
-            const { error: upErr } = await supabase
-              .from("couple_aquarium")
-              .upsert(
-                { couple_id: coupleId, aquarium_fishes: nextFishIds },
-                { onConflict: "couple_id" }
-              );
-            if (upErr) {
-              toast.warning(`결과 저장 실패: ${upErr.message}`);
-            } else {
-              try {
-                const itemName = fish.labelKo.toString();
-                if (user?.id && user?.partner_id) {
-                  await sendUserNotification({
-                    senderId: user.id,
-                    receiverId: user.partner_id,
-                    type: "낚시성공",
-                    itemName,
-                  } as any);
-                }
-              } catch (e) {
-                console.warn("알림 전송 실패(무시 가능):", e);
-              }
-              await fetchCoupleData?.();
-            }
-          } catch (e: any) {
-            console.warn("낚시 결과 저장 중 오류:", e?.message ?? e);
-            toast.warning("결과 저장 중 오류가 발생했어요.");
-          }
-        }
-
-        setResult({
-          type: "SUCCESS",
-          id: fish.id,
-          labelKo: fish.labelKo,
-          image: fish.image,
-          rarity: fish.rarity,
-          ingredient: `${emoji} ${title}`,
-        });
-        setResultOpen(true);
-      };
-
-      onOverlayDoneRef.current = () => {
-        void finalize();
-      };
+  // 배경 드롭 핸들러들
+  const onDragOver = useCallback(
+    (e: React.DragEvent) => {
+      if (overlay) return;
+      if (e.dataTransfer.types.includes(DND_MIME)) {
+        e.preventDefault();
+        setDragOver(true);
+      }
     },
-    [coupleId, fetchCoupleData, user?.id, user?.partner_id]
+    [overlay]
+  );
+  const onDragEnter = useCallback(
+    (e: React.DragEvent) => {
+      if (overlay) return;
+      if (e.dataTransfer.types.includes(DND_MIME)) setDragOver(true);
+    },
+    [overlay]
+  );
+  const onDragLeave = useCallback(() => setDragOver(false), []);
+
+  const onDrop = useCallback(
+    async (e: React.DragEvent) => {
+      setDragOver(false);
+      if (overlay) return;
+
+      const raw = e.dataTransfer.getData(DND_MIME);
+      if (!raw) return;
+
+      e.preventDefault();
+      let payload: { title: IngredientTitle; emoji: string } | null = null;
+      try {
+        payload = JSON.parse(raw);
+      } catch {
+        return;
+      }
+      if (!payload) return;
+
+      // 오버레이 시작
+      setOverlay(true);
+      const started = performance.now();
+
+      // 재료 차감
+      if (coupleId) {
+        try {
+          await consumeIngredients(coupleId, { [payload.title]: 1 } as Record<
+            IngredientTitle,
+            number
+          >);
+          window.dispatchEvent(
+            new CustomEvent("ingredient-consumed", {
+              detail: { title: payload.title },
+            })
+          );
+        } catch (err: any) {
+          setOverlay(false);
+          toast.error(err?.message ?? "재료 차감에 실패했어요.");
+          return;
+        }
+      }
+
+      // 결과 계산
+      const res = rollFishByIngredient(payload.title);
+      let computed: FishResult;
+      let fishObj = null as null | (typeof FISHES)[number];
+
+      if (!res.ok) {
+        computed = { type: "FAIL" };
+      } else {
+        fishObj = FISHES.find((f) => f.id === res.fishId) || null;
+        if (!fishObj) {
+          computed = { type: "FAIL" };
+        } else {
+          computed = {
+            type: "SUCCESS",
+            id: fishObj.id,
+            labelKo: fishObj.labelKo,
+            image: fishObj.image,
+            rarity: fishObj.rarity,
+            ingredient: `${payload.emoji} ${payload.title}`,
+          };
+        }
+      }
+
+      // 최소 2.5초 보장
+      const elapsed = performance.now() - started;
+      const rest = Math.max(0, 2500 - elapsed);
+      window.setTimeout(() => {
+        setOverlay(false);
+        setResult(computed);
+        setResultOpen(true);
+
+        // 저장/알림은 성공시에만 백그라운드 처리
+        if (computed.type === "SUCCESS" && fishObj) {
+          (async () => {
+            if (!coupleId) return;
+            try {
+              const { data: row, error: selErr } = await supabase
+                .from("couple_aquarium")
+                .select("aquarium_fishes")
+                .eq("couple_id", coupleId)
+                .maybeSingle();
+              if (selErr) throw selErr;
+
+              const prevList: string[] = Array.isArray(row?.aquarium_fishes)
+                ? (row!.aquarium_fishes as string[])
+                : [];
+              const nextFishIds = [...prevList, fishObj.id];
+
+              const { error: upErr } = await supabase
+                .from("couple_aquarium")
+                .upsert(
+                  { couple_id: coupleId, aquarium_fishes: nextFishIds },
+                  { onConflict: "couple_id" }
+                );
+
+              if (upErr) {
+                toast.warning(`결과 저장 실패: ${upErr.message}`);
+              } else {
+                try {
+                  const itemName = fishObj.labelKo.toString();
+                  if (user?.id && user?.partner_id) {
+                    await sendUserNotification({
+                      senderId: user.id,
+                      receiverId: user.partner_id,
+                      type: "낚시성공",
+                      itemName,
+                    } as any);
+                  }
+                } catch (e) {
+                  console.warn("알림 전송 실패(무시 가능):", e);
+                }
+                await fetchCoupleData?.();
+              }
+            } catch (e: any) {
+              console.warn("낚시 결과 저장 중 오류:", e?.message ?? e);
+              toast.warning("결과 저장 중 오류가 발생했어요.");
+            }
+          })();
+        }
+      }, rest);
+    },
+    [overlay, coupleId, fetchCoupleData, user?.id, user?.partner_id]
   );
 
   return (
     <div className="w-full h-[calc(100vh-64px)] max-h-[100svh] grid grid-cols-12 gap-3">
-      {/* 좌측: 재료 선택/시작 */}
+      {/* 좌측: 재료 (낚시 중에는 드래그 비활성) */}
       <aside className="col-span-12 md:col-span-3 xl:col-span-3 rounded-2xl border bg-white p-3 flex flex-col gap-3">
-        <IngredientFishingSection onStart={handleStart} />
+        <IngredientFishingSection dragDisabled={overlay} />
       </aside>
 
-      {/* 중앙: 배경 & 오버레이 */}
-      <main className="relative col-span-12 md:col-span-6 xl:col-span-6 rounded-2xl border overflow-hidden">
+      {/* 중앙: 배경 & 드롭존 & 도감 버튼 */}
+      <main
+        className={cn(
+          "relative col-span-12 md:col-span-9 xl:col-span-9 rounded-2xl border overflow-hidden"
+        )}
+        onDragOver={onDragOver}
+        onDragEnter={onDragEnter}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+      >
+        {/* 배경 이미지 */}
         <img
           src={bg}
           alt="fishing background"
           className="absolute inset-0 w-full h-full object-cover"
           draggable={false}
         />
+
         {/* 상단 중앙 시간대 배지 */}
         <div className="relative z-10 h-full pointer-events-none">
           <div className="absolute top-3 left-1/2 -translate-x-1/2 rounded-full bg-black/35 text-white text-xs px-3 py-1 backdrop-blur-sm">
@@ -492,21 +520,37 @@ export default function FishingPage() {
           </div>
         </div>
 
-        <FishingOverlay visible={overlay} onDone={onOverlayDone} />
+        {/* 우상단: 도감 아이콘 */}
+        <div className="absolute top-3 right-3 z-20 pointer-events-auto">
+          <MarineDexModal isOcean />
+        </div>
+
+        {/* 드롭 가이드 (중앙) — 배경 색 고정 */}
+        {!overlay && (
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
+            <div className="text-xs px-3 py-1 rounded-full border shadow backdrop-blur-sm text-center bg-white/70 border-white/80 text-gray-700">
+              {dragOver ? (
+                <>놓으면 바로 낚시 시작! 🎣</>
+              ) : (
+                <>
+                  재료를 이곳에 드래그해서 <br />
+                  낚시를 시작하세요 🎣
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 낚시중 오버레이 (고정 GIF + 랜덤 멘트) */}
+        <FishingOverlay visible={overlay} />
+
+        {/* 결과 패널 */}
+        <ResultPanel
+          open={resultOpen}
+          result={result}
+          onClose={() => setResultOpen(false)}
+        />
       </main>
-
-      {/* 우측: 해양도감 (Ocean 모드) */}
-      <aside className="col-span-12 md:col-span-3 xl:col-span-3 rounded-2xl border bg-white p-3">
-        <h3 className="text-sm font-semibold text-zinc-800 mb-2">해양 도감</h3>
-        <MarineDexModal isOcean />
-      </aside>
-
-      {/* 결과 모달 */}
-      <ResultModal
-        open={resultOpen}
-        result={result}
-        onClose={() => setResultOpen(false)}
-      />
     </div>
   );
 }
