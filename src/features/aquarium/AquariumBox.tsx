@@ -282,7 +282,7 @@ export default function AquariumBox({
         {/* ⬅ mx-auto, maxWidth 제거 */}
         <div
           className="relative w-full rounded-xl overflow-hidden"
-          style={{ aspectRatio: "800 / 420" }}
+          style={{ aspectRatio: "800 / 450" }}
         >
           <img
             key={`loading-${timeSlot}`}
@@ -321,7 +321,7 @@ export default function AquariumBox({
       {/* 비율 박스 */}
       <div
         className="relative w-full rounded-xl overflow-hidden will-change-transform transform-gpu"
-        style={{ aspectRatio: "800 / 350" }}
+        style={{ aspectRatio: "800 / 450" }}
       >
         {/* ✅ 시간대별 단일 배경만 표시 */}
         <img
