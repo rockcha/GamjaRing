@@ -16,12 +16,11 @@ import { FISH_BY_ID } from "@/features/aquarium/fishes";
 // ✅ 로딩 스켈레톤 (AquariumBox가 렌더되기 전 단계에서만 사용)
 function TankSkeleton({ text }: { text: string }) {
   return (
-    <div className="mx-auto w-full px-2" style={{ maxWidth: 1100 }}>
+    <div className="w-full px-2">
       <div
         className="relative w-full rounded-xl overflow-hidden"
         style={{ aspectRatio: "800 / 420" }}
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-sky-200 to-sky-300 animate-pulse" />
         <div className="absolute inset-0 opacity-30 bg-[url('/aquarium/water.jpg')] bg-cover" />
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="px-4 py-2 rounded-lg bg-white/70 text-slate-700 font-medium shadow">
@@ -226,7 +225,7 @@ export default function AquariumPage() {
 
   return (
     <div className="w-full p-6">
-      <div className="mx-auto w-full max-w-[1100px] px-2 space-y-3">
+      <div className="w-full px-0 space-y-3">
         {/* 어항 폭 기준 좌↔우 끝에 배치 */}
         <div className="flex items-center justify-between gap-2">
           <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 text-sky-800 border border-sky-200 pr-4 px-3 py-1 text-sm">
@@ -238,19 +237,17 @@ export default function AquariumPage() {
           </div>
         </div>
 
-        <TankFrame>
-          {/* ✅ 로딩일 때는 AquariumBox를 아예 렌더하지 않고 스켈레톤만 보여줌 */}
-          {loading ? (
-            <TankSkeleton text={currentLoadingText} />
-          ) : (
-            <AquariumBox
-              fishIds={fishIds}
-              isLoading={false} // 이미 페이지에서 로딩 분기 처리
-              loadingText={currentLoadingText}
-              onSell={handleSell}
-            />
-          )}
-        </TankFrame>
+        {/* ✅ 로딩일 때는 AquariumBox를 아예 렌더하지 않고 스켈레톤만 보여줌 */}
+        {loading ? (
+          <TankSkeleton text={currentLoadingText} />
+        ) : (
+          <AquariumBox
+            fishIds={fishIds}
+            isLoading={false} // 이미 페이지에서 로딩 분기 처리
+            loadingText={currentLoadingText}
+            onSell={handleSell}
+          />
+        )}
       </div>
     </div>
   );
