@@ -1,65 +1,72 @@
-// src/components/GoldDisplay.tsx
+// src/components/PotatoDisplay.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Coins,
-  MessageSquare,
-  Sparkles,
-  Heart,
-  UtensilsCrossed,
-  Info,
-} from "lucide-react";
-import { useCoupleContext } from "@/contexts/CoupleContext";
+import { Info, Sprout, Droplets, Gift } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { useCoupleContext } from "@/contexts/CoupleContext";
 
 type Props = {
   className?: string;
 };
 
-export default function GoldDisplay({ className = "" }: Props) {
-  const { gold } = useCoupleContext();
+export default function PotatoDisplay({ className = "" }: Props) {
+  // ✅ 컨텍스트에서 전역 감자값/유틸 사용
+  const { couple, potatoCount, refreshPotatoCount } = useCoupleContext();
+  const coupleId = couple?.id ?? null;
 
+  const [open, setOpen] = useState(false);
+
+  // 이펙트용 상태
   const [bump, setBump] = useState(false);
-  const prev = useRef<number>(gold);
-
-  // ✅ 떠오르는 델타 이펙트
+  const prev = useRef<number>(potatoCount);
   const [delta, setDelta] = useState<number | null>(null);
   const deltaTimer = useRef<number | null>(null);
 
+  // ✅ 컨텍스트 값이 바뀌면 자동 리렌더 + 이펙트
   useEffect(() => {
-    if (prev.current !== gold) {
-      const diff = gold - prev.current;
-      prev.current = gold;
+    let bumpTimer: number | null = null;
 
-      // 튕김
+    if (prev.current !== potatoCount) {
+      const diff = potatoCount - prev.current;
+      prev.current = potatoCount;
+
       setBump(true);
-      window.setTimeout(() => setBump(false), 180);
+      bumpTimer = window.setTimeout(() => setBump(false), 180);
 
-      // 델타 표시
       if (diff !== 0) {
         setDelta(diff);
-        // 이전 타이머 정리
-        if (deltaTimer.current) {
-          window.clearTimeout(deltaTimer.current);
-        }
+        if (deltaTimer.current) window.clearTimeout(deltaTimer.current);
         deltaTimer.current = window.setTimeout(() => setDelta(null), 900);
       }
     }
+
     return () => {
+      if (bumpTimer) window.clearTimeout(bumpTimer);
       if (deltaTimer.current) window.clearTimeout(deltaTimer.current);
     };
-  }, [gold]);
+  }, [potatoCount]);
 
-  const [open, setOpen] = useState(false);
-  const formatted = useMemo(() => gold.toLocaleString("ko-KR"), [gold]);
+  useEffect(() => {
+    if (!coupleId) return;
+    let called = false;
+    if (!called) {
+      called = true;
+      void refreshPotatoCount?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coupleId]);
+
+  const formatted = useMemo(
+    () => potatoCount.toLocaleString("ko-KR"),
+    [potatoCount]
+  );
 
   const deltaText =
     delta === null
@@ -73,6 +80,8 @@ export default function GoldDisplay({ className = "" }: Props) {
       ? "text-emerald-700 bg-emerald-50 border-emerald-200"
       : "text-rose-700 bg-rose-50 border-rose-200";
 
+  const disabled = !coupleId;
+
   return (
     <>
       {/* 상대 배치용 래퍼 */}
@@ -83,31 +92,39 @@ export default function GoldDisplay({ className = "" }: Props) {
             className={[
               "pointer-events-none absolute left-1/2 -translate-x-1/2",
               "-top-3 sm:-top-4",
-              "px-2 py-0.5 rounded-full border shadow-sm",
+              "px-2 rounded-full border shadow-sm",
               "text-xs font-semibold tabular-nums",
-              "animate-[goldFloat_700ms_ease-out_forwards]",
+              "animate-[potatoFloat_700ms_ease-out_forwards]",
               deltaColor,
             ].join(" ")}
             aria-hidden
           >
-            🪙 {deltaText}
+            🥔 {deltaText}
           </span>
         )}
 
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={() => !disabled && setOpen(true)}
           className={[
-            "inline-flex items-center gap-2 px-3 py-1.5 ",
-
+            "inline-flex items-center gap-2 px-3 py-1.5",
             "select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70",
-            bump ? "scale-[1.03]" : "scale-100",
+            disabled
+              ? "opacity-60 cursor-not-allowed"
+              : bump
+              ? "scale-[1.03]"
+              : "scale-100",
             className,
           ].join(" ")}
-          aria-label={`보유 골드 ${formatted}. 골드 획득 방법 보기`}
+          aria-label={
+            disabled
+              ? "커플 정보가 없어 감자 정보를 볼 수 없어요."
+              : `보유 감자 ${formatted}. 감자 획득 방법 보기`
+          }
+          disabled={disabled}
         >
           <div className="flex items-center justify-center w-6 h-6 ">
-            <Coins className="w-4 h-4 text-amber-700" />
+            <span className="text-sm leading-none">🥔</span>
           </div>
           <span className="text-sm font-bold text-amber-800 tabular-nums">
             {formatted}
@@ -115,51 +132,47 @@ export default function GoldDisplay({ className = "" }: Props) {
         </button>
       </div>
 
-      {/* ✅ shadcn Dialog (기존 내용 그대로) */}
+      {/* 안내 Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-[560px] rounded-2xl p-0">
           <DialogHeader className="p-4 border-b">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100">
-                <Coins className="w-5 h-5 text-amber-700" />
+                <Sprout className="w-5 h-5 text-amber-700" />
               </div>
               <div className="text-left">
-                <DialogTitle className="text-lg">골드 획득 방법</DialogTitle>
+                <DialogTitle className="text-lg">
+                  감자(🥔) 획득 방법
+                </DialogTitle>
               </div>
             </div>
           </DialogHeader>
 
           <div className="p-4 sm:p-5 space-y-4">
             <SectionItem
-              icon={<MessageSquare className="w-5 h-5" />}
-              title="1. 질문 답변"
-              badge="+15"
-              desc="오늘의 질문에 성실히 답하면 보상을 받아요. "
+              icon={<Sprout className="w-5 h-5" />}
+              title="1. 씨앗 심기 & 수확"
+              badge="+랜덤"
+              desc="감자밭에 씨앗을 심고 일정 시간이 지나면 수확할 수 있어요. 연속 수확 보너스가 적용될 수 있어요."
             />
             <SectionItem
-              icon={<Sparkles className="w-5 h-5" />}
-              title="2. 타로카드 확인하기"
-              badge="+5"
-              desc="매일 타로카드를 확인하면 소소한 골드를 지급해요. ‘초대박’이면 추가 보너스!"
+              icon={<Droplets className="w-5 h-5" />}
+              title="2. 물 주기 미션"
+              badge="+소량"
+              desc="정해진 간격으로 밭에 물을 주면 소소한 감자를 보상으로 줍니다."
             />
             <SectionItem
-              icon={<Heart className="w-5 h-5" />}
-              title="3. 반응 추가하기(아직 구현 예정) "
-              badge="+5"
-              desc="서로의 답변에 리액션을 남기면 커플 활동 점수와 함께 골드가 들어와요."
-            />
-            <SectionItem
-              icon={<UtensilsCrossed className="w-5 h-5" />}
-              title="4. 해양 생물 판매하기"
-              badge="?"
-              desc="입양하거나 야생에서 잡은 해양 생물을 판매해서 골드를 얻을 수 있어요."
+              icon={<Gift className="w-5 h-5" />}
+              title="3. 특별 이벤트"
+              badge="+변동"
+              desc="기간 한정 이벤트나 퀘스트 달성 시 추가 감자를 획득할 수 있어요."
             />
 
             <div className="rounded-lg border bg-amber-50/60 px-3 py-2.5 text-amber-900 text-sm flex gap-2">
               <Info className="w-4.5 h-4.5 mt-0.5 shrink-0" />
               <p>
-                모은 골드는 <b>상점</b>에서 물고기를 구매하거나, 농장에서{" "}
-                <b>생산 시설</b>을 건설할 수 있어요.
+                모은 감자는 <b>요리 재료</b>로 쓰거나, <b>재료 구매</b>시 사용할
+                수 있어요.
               </p>
             </div>
           </div>
@@ -177,24 +190,12 @@ export default function GoldDisplay({ className = "" }: Props) {
 
       {/* 키프레임 정의 */}
       <style>{`
-  @keyframes goldFloat {
-    0% {
-      opacity: 0;
-      transform: translate(-50%, 0) scale(0.9);
-      filter: blur(0.5px);
-    }
-    15% {
-      opacity: 1;
-      transform: translate(-50%, -6px) scale(1);
-      filter: blur(0);
-    }
-    100% {
-      opacity: 0;
-      transform: translate(-50%, -18px) scale(1);
-      filter: blur(0.5px);
-    }
-  }
-`}</style>
+        @keyframes potatoFloat {
+          0% { opacity: 0; transform: translate(-50%, 0) scale(0.9); filter: blur(0.5px); }
+          15% { opacity: 1; transform: translate(-50%, -6px) scale(1); filter: blur(0); }
+          100% { opacity: 0; transform: translate(-50%, -18px) scale(1); filter: blur(0.5px); }
+        }
+      `}</style>
     </>
   );
 }
@@ -220,8 +221,8 @@ function SectionItem({
         <div className="flex items-center gap-2">
           <h4 className="font-medium">{title}</h4>
           {badge && (
-            <span className="inline-flex items-center rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-xs font-semibold border border-amber-200">
-              {badge} 골드
+            <span className="inline-flex items-center text-amber-800 px-2 py-0.5 text-xs font-semibold border border-amber-200">
+              {badge}
             </span>
           )}
         </div>

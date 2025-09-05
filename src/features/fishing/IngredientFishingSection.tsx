@@ -15,6 +15,43 @@ import { PackageOpen, Fish as FishIcon } from "lucide-react";
 
 const DND_MIME = "application/x-ingredient";
 
+/* ------------------------------- */
+/* 🥔 이모지 전용 드래그 고스트 유틸 */
+/* ------------------------------- */
+let dragGhostEl: HTMLDivElement | null = null;
+
+function setEmojiDragImage(e: React.DragEvent, emoji: string, fontPx = 28) {
+  // 기존 고스트 정리
+  if (dragGhostEl) {
+    dragGhostEl.remove();
+    dragGhostEl = null;
+  }
+  const ghost = document.createElement("div");
+  ghost.textContent = emoji;
+  ghost.style.position = "fixed";
+  ghost.style.top = "-1000px"; // Safari 대응: DOM에 있어야 함
+  ghost.style.left = "-1000px";
+  ghost.style.fontSize = `${fontPx}px`;
+  ghost.style.lineHeight = "1";
+  ghost.style.pointerEvents = "none";
+  ghost.style.userSelect = "none";
+  ghost.style.background = "transparent"; // ✅ 배경 없음
+  ghost.style.padding = "0";
+  ghost.style.margin = "0";
+  document.body.appendChild(ghost);
+  dragGhostEl = ghost;
+
+  // 중앙 기준으로 오프셋
+  e.dataTransfer!.setDragImage(ghost, fontPx / 2, fontPx / 2);
+}
+
+function cleanupDragGhost() {
+  if (dragGhostEl) {
+    dragGhostEl.remove();
+    dragGhostEl = null;
+  }
+}
+
 type Props = {
   className?: string;
   /** 낚시 중일 때 true로 전달 → 드래그 비활성 */
@@ -139,7 +176,7 @@ export default function IngredientFishingSection({
     [selected, capturable]
   );
 
-  // 드래그 스타트
+  // 드래그 스타트 (이모지만 프리뷰)
   const handleDragStart = (e: React.DragEvent, cell: IngredientCell) => {
     if (dragDisabled || cell.count <= 0) {
       e.preventDefault();
@@ -148,6 +185,10 @@ export default function IngredientFishingSection({
     const payload = JSON.stringify({ title: cell.title, emoji: cell.emoji });
     e.dataTransfer.setData(DND_MIME, payload);
     e.dataTransfer.effectAllowed = "copy";
+
+    const fontPx = 64;
+
+    setEmojiDragImage(e, cell.emoji, fontPx);
   };
 
   return (
@@ -184,6 +225,7 @@ export default function IngredientFishingSection({
               onClick={() => setSelected({ title: c.title, emoji: c.emoji })}
               draggable={!disabled}
               onDragStart={(e) => handleDragStart(e, c)}
+              onDragEnd={cleanupDragGhost} // ✅ 드래그 종료 시 고스트 정리
               className={cn(
                 "relative w-full aspect-square rounded-xl border bg-white shadow-sm overflow-hidden",
                 "flex flex-col items-center justify-center gap-1 p-2",
@@ -198,7 +240,10 @@ export default function IngredientFishingSection({
               title={`${c.title} ×${c.count}`}
             >
               {/* 이모지 크기도 반응형 */}
-              <span className="leading-none select-none text-[clamp(20px,4.2vw,28px)]">
+              <span
+                data-emoji
+                className="leading-none select-none text-[clamp(20px,4.2vw,28px)]"
+              >
                 {c.emoji}
               </span>
 

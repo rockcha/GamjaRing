@@ -19,6 +19,9 @@ import { useUser } from "@/contexts/UserContext";
 import { toast } from "sonner";
 /* ✅ 추가: AuthButton */
 import AuthButton from "../widgets/AuthButton";
+import GoldDisplay from "@/features/aquarium/GoldDisplay";
+import PotatoDisplay from "../widgets/PotatoDisplay";
+import PotatoExchange from "../widgets/PotatoExchange";
 
 type HeaderMeta = { url: string; header?: string };
 type HeaderMapLike = Record<string, string | HeaderMeta>;
@@ -123,11 +126,16 @@ export default function AppHeader({
               <NotificationDropdown />
               <Separator orientation="vertical" className="h-6 my-auto" />
               <WeatherCard />
-              <Separator orientation="vertical" className="h-6 my-auto" />
-              <PotatoPokeButton />
+
               <Separator orientation="vertical" className="h-6 my-auto" />
               <DailyFortuneCard />
               <Separator orientation="vertical" className="h-6 my-auto" />
+              <PotatoExchange />
+              <Separator orientation="vertical" className="h-6 my-auto" />
+              <div className="flex flex-col">
+                <PotatoDisplay />
+                <GoldDisplay />
+              </div>
             </div>
           </div>
 

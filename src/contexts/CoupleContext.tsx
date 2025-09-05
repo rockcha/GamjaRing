@@ -1,5 +1,5 @@
 // src/contexts/CoupleContext.tsx
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import supabase from "@/lib/supabase";
 import { useUser } from "./UserContext";
 
@@ -12,13 +12,16 @@ import { CreateTaskTable } from "@/utils/tasks/CreateTaskTable";
 import { deleteUserDailyTask } from "@/utils/tasks/DeleteDailyTask";
 import { DeleteUserAnswers } from "@/utils/DeleteUserAnswers";
 
+// ✅ 추가: 감자 개수 조회 유틸
+import { getPotatoCount } from "@/features/potato_field/utils";
+
 interface Couple {
   id: string;
   user1_id: string;
   user2_id: string;
   started_at: string;
   created_at: string;
-  gold: number; // ✅ 추가
+  gold: number;
 }
 
 interface UserNotification {
@@ -44,10 +47,19 @@ interface CoupleContextType {
   acceptRequest: (notificationId: string) => Promise<{ error: Error | null }>;
   rejectRequest: (notificationId: string) => Promise<{ error: Error | null }>;
 
-  // ✅ gold 전역 사용/갱신
+  // gold
   gold: number;
   addGold: (amount: number) => Promise<{ error: Error | null }>;
   spendGold: (amount: number) => Promise<{ error: Error | null }>;
+
+  // ✅ potato (전역)
+  potatoCount: number;
+  setPotatoCount: (n: number) => void; // 낙관적 갱신 등에서 쓰고 싶을 때
+  refreshPotatoCount: () => Promise<void>; // 강제 최신화가 필요할 때
+
+  spendPotatoes: (amount: number) => Promise<{ error: Error | null }>;
+  /** (옵션) 감자 증가(낙관적) — 수확 등에서 쓸 수 있음 */
+  addPotatoes?: (amount: number) => Promise<{ error: Error | null }>;
 }
 
 const CoupleContext = createContext<CoupleContextType | undefined>(undefined);
@@ -63,13 +75,20 @@ export const CoupleProvider = ({ children }: { children: React.ReactNode }) => {
       ? couple?.user2_id ?? null
       : couple?.user1_id ?? null;
 
-  const gold = couple?.gold ?? 0; // ✅ 파생값
+  const gold = couple?.gold ?? 0; // 파생값
+
+  // ✅ potatoCount 전역 상태
+  const [potatoCount, setPotatoCount] = useState<number>(0);
 
   const fetchCoupleData = async () => {
-    if (!user?.couple_id) return setCouple(null);
+    if (!user?.couple_id) {
+      setCouple(null);
+      setPotatoCount(0); // 커플 해제 시 감자 수 0으로 초기화
+      return;
+    }
     const { data, error } = await supabase
       .from("couples")
-      .select("id,user1_id,user2_id,started_at,created_at,gold") // ✅ gold 포함
+      .select("id,user1_id,user2_id,started_at,created_at,gold")
       .eq("id", user.couple_id)
       .maybeSingle();
 
@@ -83,10 +102,9 @@ export const CoupleProvider = ({ children }: { children: React.ReactNode }) => {
   ): Promise<ConnectResult> => {
     if (!user?.id) return { error: new Error("로그인 상태가 아닙니다.") };
 
-    // 0) 오늘 날짜(YYYY-MM-DD)
     const today = new Date().toLocaleDateString("sv-SE");
 
-    // 1) 이미 커플인지 검사
+    // 이미 커플인지 검사
     const { data: existing, error: checkError } = await supabase
       .from("couples")
       .select("id")
@@ -98,14 +116,14 @@ export const CoupleProvider = ({ children }: { children: React.ReactNode }) => {
     if (checkError) return { error: new Error(checkError.message) };
     if (existing) return { error: new Error("이미 연결된 커플입니다.") };
 
-    // 2) 커플 생성 (초기 gold = 200)
+    // 커플 생성 (초기 gold = 200)
     const { data: coupleRow, error: coupleError } = await supabase
       .from("couples")
       .insert({
         user1_id: user.id,
         user2_id: partnerId,
         started_at: today,
-        gold: 200, // ✅ 초기 골드
+        gold: 200,
       })
       .select("*")
       .single();
@@ -116,7 +134,7 @@ export const CoupleProvider = ({ children }: { children: React.ReactNode }) => {
 
     const coupleId = coupleRow.id as string;
 
-    // 3) 두 사용자(users) 연결 — 병렬 처리
+    // 두 사용자 연결
     const [u1, u2] = await Promise.all([
       supabase
         .from("users")
@@ -130,13 +148,22 @@ export const CoupleProvider = ({ children }: { children: React.ReactNode }) => {
     if (u1.error) return { error: new Error(u1.error.message) };
     if (u2.error) return { error: new Error(u2.error.message) };
 
-    // 4) couple_points 생성
+    // couple_points 생성
     await createCouplePoints(coupleId);
 
-    // 5) 상태 동기화
-    fetchUser(); // UI 동기화용
+    // 상태 동기화
+    fetchUser();
     setCouple(coupleRow as Couple);
     await fetchCoupleData();
+
+    // ✅ 새 커플의 감자 개수 초기 로드
+    try {
+      const n = await getPotatoCount(coupleId);
+      setPotatoCount(n);
+    } catch (e) {
+      console.error("[CoupleContext] initial getPotatoCount error:", e);
+      setPotatoCount(0);
+    }
 
     return { error: null, couple: coupleRow as Couple };
   };
@@ -153,7 +180,7 @@ export const CoupleProvider = ({ children }: { children: React.ReactNode }) => {
     return await connectToPartnerById(partnerUser.id);
   };
 
-  // ✅ gold 서버 업데이트 유틸
+  // gold 서버 업데이트 유틸
   async function updateGoldOnServer(coupleId: string, newGold: number) {
     return supabase
       .from("couples")
@@ -167,8 +194,6 @@ export const CoupleProvider = ({ children }: { children: React.ReactNode }) => {
 
       const prev = couple.gold ?? 0;
       let next = prev + amount;
-
-      // ✅ 음수 방지 (최소 0)
       if (next < 0) next = 0;
 
       // 낙관적 업데이트
@@ -210,15 +235,78 @@ export const CoupleProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  //감자 관련
+  const spendPotatoes = async (amount: number) => {
+    try {
+      if (!couple?.id) return { error: new Error("커플 정보가 없습니다.") };
+      if (amount <= 0)
+        return { error: new Error("양수만 차감할 수 있습니다.") };
+
+      const prev = potatoCount;
+      if (prev < amount) return { error: new Error("감자가 부족합니다.") };
+
+      const next = Math.max(0, prev - amount);
+
+      // ✅ 1) 낙관적 업데이트
+      setPotatoCount(next);
+
+      // ✅ 2) 서버 반영
+      const { error } = await supabase
+        .from("couple_potato_field")
+        .update({ harvested_count: next })
+        .eq("couple_id", couple.id);
+
+      if (error) {
+        // 롤백
+        setPotatoCount(prev);
+        return { error: new Error(error.message) };
+      }
+
+      return { error: null };
+    } catch (e: any) {
+      return { error: e };
+    }
+  };
+
+  const addPotatoes = async (amount: number) => {
+    try {
+      if (!couple?.id) return { error: new Error("커플 정보가 없습니다.") };
+      if (amount <= 0)
+        return { error: new Error("양수만 추가할 수 있습니다.") };
+
+      const prev = potatoCount;
+      const next = prev + amount;
+
+      // ✅ 1) 낙관적 업데이트
+      setPotatoCount(next);
+
+      // ✅ 2) 서버 반영
+      const { error } = await supabase
+        .from("couple_potato_field")
+        .update({ harvested_count: next })
+        .eq("couple_id", couple.id);
+
+      if (error) {
+        // 롤백
+        setPotatoCount(prev);
+        return { error: new Error(error.message) };
+      }
+
+      return { error: null };
+    } catch (e: any) {
+      return { error: e };
+    }
+  };
+
   const disconnectCouple = async () => {
     if (!user?.id || !user.couple_id) {
       return { error: new Error("커플 아이디 존재하지않음") };
     }
 
-    // ✅ 0) 스냅샷: 나/커플ID/파트너ID 확보
+    // 0) 스냅샷
     const coupleId = user.couple_id;
 
-    // partnerId가 컨텍스트에 없다면 couples에서 조회해서 확보
+    // partnerId 확보
     let partner = user.partner_id ?? null;
     if (!partner) {
       const { data: coupleRow, error: coupleFetchErr } = await supabase
@@ -251,14 +339,14 @@ export const CoupleProvider = ({ children }: { children: React.ReactNode }) => {
       .eq("couple_id", coupleId);
     if (pointsError) return { error: pointsError };
 
-    // 2) 두 유저 couple_id/partner_id 초기화
+    // 2) users 커플 해제
     const { error: upErr } = await supabase
       .from("users")
       .update({ couple_id: null, partner_id: null })
       .in("id", idsToClear);
     if (upErr) return { error: upErr };
 
-    // 3) Daily_Task 삭제 (나와 파트너)
+    // 3) Daily_Task 삭제
     const { error: myDeleteErr } = await deleteUserDailyTask(user.id);
     if (myDeleteErr) alert(`내 task 삭제 실패: ${myDeleteErr.message}`);
 
@@ -288,6 +376,7 @@ export const CoupleProvider = ({ children }: { children: React.ReactNode }) => {
     // 6) 로컬 상태 초기화
     await fetchUser();
     setCouple(null);
+    setPotatoCount(0);
 
     open("커플관계를 끊었습니다");
     return { error: null };
@@ -298,7 +387,6 @@ export const CoupleProvider = ({ children }: { children: React.ReactNode }) => {
     if (isCoupled)
       return { error: new Error("이미 커플 상태입니다.. 바람피지마세요") };
 
-    // 상대방 유저 조회
     const { data: receiver, error } = await supabase
       .from("users")
       .select("id, partner_id")
@@ -312,7 +400,6 @@ export const CoupleProvider = ({ children }: { children: React.ReactNode }) => {
     if (receiver.partner_id)
       return { error: new Error("상대방은 이미 커플입니다.") };
 
-    // ✅ 나에게 온 알림 / 내가 보낸 알림
     const { data: receivedNotifications } = await getUserNotifications(user.id);
     const { data: sentNotifications } = await getUserNotifications(receiver.id);
 
@@ -337,7 +424,6 @@ export const CoupleProvider = ({ children }: { children: React.ReactNode }) => {
         error: new Error("상대방이 이미 당신에게 커플 요청을 보냈습니다."),
       };
 
-    // ✅ 커플 요청 알림 전송
     await sendUserNotification({
       senderId: user.id,
       receiverId: receiver.id,
@@ -358,7 +444,6 @@ export const CoupleProvider = ({ children }: { children: React.ReactNode }) => {
   const acceptRequest = async (notificationId: string) => {
     if (!user) return { error: new Error("로그인 필요") };
 
-    // 🔍 notificationId로 상대(sender)를 조회
     const { data: notificationData, error: fetchError } = await supabase
       .from("user_notification")
       .select("sender_id")
@@ -371,7 +456,6 @@ export const CoupleProvider = ({ children }: { children: React.ReactNode }) => {
     if (user?.id === partnerId)
       return { error: new Error("자기 자신과는 커플을 맺을 수 없습니다.") };
 
-    // 1) 커플 연결
     const { error: connectError, couple } = await connectToPartnerById(
       partnerId
     );
@@ -381,17 +465,14 @@ export const CoupleProvider = ({ children }: { children: React.ReactNode }) => {
         error: new Error("커플 ID가 존재하지 않아 task를 생성할 수 없습니다"),
       };
 
-    // 비동기 업데이트때문에 직접 상태 주입
     setCouple(couple);
 
-    // 2) task 생성
     const { error: taskError } = await CreateTaskTable({
       userId: user.id,
       coupleId: couple.id,
     });
     if (taskError) return { error: taskError };
 
-    // 3) 수락 알림 전송 & 기존 요청 삭제
     await sendUserNotification({
       senderId: user.id,
       receiverId: partnerId,
@@ -430,35 +511,107 @@ export const CoupleProvider = ({ children }: { children: React.ReactNode }) => {
     return { error: null };
   };
 
+  // ✅ 커플 변경 시 기본 데이터 로드
   useEffect(() => {
     if (user?.couple_id) fetchCoupleData();
-    else setCouple(null);
+    else {
+      setCouple(null);
+      setPotatoCount(0);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.couple_id]);
 
+  // ✅ 커플 연결 시 감자 "초기 로드"
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!couple?.id) return;
+      try {
+        const n = await getPotatoCount(couple.id);
+        if (!cancelled) setPotatoCount(n);
+      } catch (e) {
+        console.error("[CoupleContext] getPotatoCount error:", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [couple?.id]);
+
+  // ✅ 감자 실시간 구독 (해당 커플 id)
+  useEffect(() => {
+    if (!couple?.id) return;
+
+    const channel = supabase
+      .channel(`potato_field:${couple.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "couple_potato_field",
+          filter: `couple_id=eq.${couple.id}`,
+        },
+        (payload) => {
+          const newCount = (payload.new as any)?.harvested_count ?? 0;
+          setPotatoCount(newCount);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [couple?.id]);
+
+  // ✅ 외부에서 강제로 최신화하고 싶을 때 호출
+  const refreshPotatoCount = async () => {
+    if (!couple?.id) return;
+    try {
+      const n = await getPotatoCount(couple.id);
+      setPotatoCount(n);
+    } catch (e) {
+      console.error("[CoupleContext] refreshPotatoCount error:", e);
+    }
+  };
+
+  // value를 메모이즈 (potatoCount 포함!)
+  const value = useMemo<CoupleContextType>(
+    () => ({
+      couple,
+      isCoupled,
+      partnerId,
+
+      fetchCoupleData,
+      connectToPartner,
+      disconnectCouple,
+      requestCouple,
+      fetchIncomingRequests,
+      acceptRequest,
+      rejectRequest,
+
+      gold,
+      addGold,
+      spendGold,
+
+      potatoCount,
+      setPotatoCount, // 낙관적 업데이트 등에서 유용
+      refreshPotatoCount, // 강제 최신화 유틸
+
+      spendPotatoes,
+      addPotatoes,
+    }),
+    [
+      couple,
+      isCoupled,
+      partnerId,
+      gold,
+      potatoCount, // 🔑 포함해야 소비자가 값 변화를 감지
+    ]
+  );
+
   return (
-    <CoupleContext.Provider
-      value={{
-        couple,
-        isCoupled,
-        partnerId,
-
-        fetchCoupleData,
-        connectToPartner,
-        disconnectCouple,
-        requestCouple,
-        fetchIncomingRequests,
-        acceptRequest,
-        rejectRequest,
-
-        // gold
-        gold,
-        addGold,
-        spendGold,
-      }}
-    >
-      {children}
-    </CoupleContext.Provider>
+    <CoupleContext.Provider value={value}>{children}</CoupleContext.Provider>
   );
 };
 

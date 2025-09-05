@@ -6,6 +6,7 @@ import FloatingHomeButton from "../widgets/FloatingHomeButton";
 import AppHeader from "./AppHeader";
 import NotificationDropdown from "../widgets/Notification/NotificationDropdown";
 import MenuButton from "../widgets/MenuButton";
+import PotatoPokeButton from "../widgets/PotatoPokeButton";
 
 type PageLayoutProps = {
   /** 명시적으로 넘기면 이 값이 최우선. 없으면 현재 경로로 타이틀 계산 */
@@ -97,6 +98,7 @@ export default function PageLayout({
       >
         {/* <FloatingHomeButton /> */}
         <MenuButton />
+        <PotatoPokeButton />
 
         <Outlet />
       </main>

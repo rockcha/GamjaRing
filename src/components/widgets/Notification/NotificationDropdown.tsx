@@ -36,7 +36,7 @@ export default function NotificationDropdown({
   const { loading, notifications } = useNotifications(uid);
   const { format } = useRelativeTime();
 
-  // 필터링: 커플 연결된 상태에선 '커플요청 요청' 숨김
+  // 커플 연결 시 '커플요청(요청)' 숨김
   const visibleItems = useMemo(() => {
     if (!notifications) return [];
     if (!isCoupled) return notifications;
@@ -55,53 +55,43 @@ export default function NotificationDropdown({
     onUnreadChange?.(visibleUnreadCount);
   }, [visibleUnreadCount, onUnreadChange]);
 
-  // ✅ 낙관적 배지 제어: 지금 읽음 처리 중인(곧 사라질) 알림 ID들
+  // 낙관적 배지 제어
   const [pendingReadIds, setPendingReadIds] = useState<string[]>([]);
-
-  // 훅 데이터가 갱신되면, 아직 안 사라진 ID만 남기기(교집합 갱신)
   useEffect(() => {
     if (!pendingReadIds.length) return;
     const currentUnreadIds = new Set(visibleUnread.map((n) => n.id));
     setPendingReadIds((prev) => prev.filter((id) => currentUnreadIds.has(id)));
   }, [visibleUnread, pendingReadIds.length]);
 
-  // 최종 배지 계산: 서버 업데이트 전이더라도 UI는 즉시 줄여 보임
   const computedUnreadCount = Math.max(
     0,
     visibleUnreadCount - pendingReadIds.length
   );
   const hasUnreadBadge = computedUnreadCount > 0;
 
-  // 열릴 때 읽음 처리 (낙관적 업데이트 포함)
+  // 열릴 때 읽음 처리(낙관적)
   const handleOpenChange = async (v: boolean) => {
     setOpen(v);
     if (v && uid) {
       const ids = visibleUnread.map((n) => n.id);
       if (ids.length > 0) {
-        // 1) 배지 즉시 숨김(낙관적)
         setPendingReadIds(ids);
-
-        // 2) 서버 업데이트
         const { error } = await supabase
           .from("user_notification")
           .update({ is_read: true })
           .in("id", ids);
-
-        // 3) 실패 시 롤백(배지 다시 보이도록)
-        if (error) {
-          setPendingReadIds([]);
-        }
+        if (error) setPendingReadIds([]);
       }
     }
   };
 
-  // 항상 기본 PNG 사용
+  // 아이콘 자원
   const iconSrc = "/notification/bell.png";
   const [imgLoaded, setImgLoaded] = useState(false);
 
   return (
     <>
-      {/* PNG + 아래 텍스트 */}
+      {/* PNG + 아래 텍스트 버튼 (DailyFortuneCard 톤) */}
       <Button
         type="button"
         variant="ghost"
@@ -116,16 +106,41 @@ export default function NotificationDropdown({
           className
         )}
       >
-        {/* 아이콘 래퍼: 배지 위치를 위한 relative */}
-        <span className="relative inline-block">
+        {/* 아이콘 래퍼: 배지/파동용 relative */}
+        {/* 아이콘 래퍼: 배지/파동용 relative */}
+        <span className="relative inline-grid place-items-center h-10 w-10">
+          {/* 🌊 퍼지는 파동 (새 알림 있을 때만) */}
+          {hasUnreadBadge && (
+            <>
+              {/* 확산되는 반투명 원 */}
+              <span
+                className="
+          pointer-events-none absolute inset-0 rounded-full
+          bg-rose-400/25 blur-[0.5px] transform-gpu
+          motion-safe:animate-[notifWave_1.6s_ease-out_infinite]
+          motion-reduce:animate-none
+        "
+                aria-hidden
+              />
+              {/* 얇은 고정 링 (중앙을 또렷하게) */}
+              <span
+                className="
+          pointer-events-none absolute inset-0 rounded-full
+          ring-2 ring-rose-300/60
+        "
+                aria-hidden
+              />
+            </>
+          )}
+
           <img
             src={iconSrc}
             alt="알림"
             className="
-              h-8 w-8 object-contain
-              transition-transform duration-200
-              group-hover:scale-110 group-active:scale-95
-            "
+      h-8 w-8 object-contain
+      transition-transform duration-200
+      group-hover:scale-110 group-active:scale-95
+    "
             draggable={false}
             loading="lazy"
             onLoad={() => setImgLoaded(true)}
@@ -134,25 +149,25 @@ export default function NotificationDropdown({
             <Skeleton className="h-8 w-8 rounded-md absolute inset-0" />
           )}
 
-          {/* 빨간 배지 */}
+          {/* 우상단 빨간 점 배지 */}
           {hasUnreadBadge && (
             <>
               <span
                 className="
-                  pointer-events-none
-                  absolute -top-0.5 -right-0.5
-                  h-2.5 w-2.5 rounded-full
-                  bg-rose-500/60
-                  animate-ping
-                "
+          pointer-events-none
+          absolute -top-0.5 -right-0.5
+          h-2.5 w-2.5 rounded-full
+          bg-rose-500/60 animate-ping
+        "
               />
               <span
                 className="
-                  pointer-events-none
-                  absolute -top-0.5 -right-0.5
-                  h-2.5 w-2.5 rounded-full
-                  bg-rose-500 shadow-[0_0_0_1px_rgba(255,255,255,0.9)]
-                "
+          pointer-events-none
+          absolute -top-0.5 -right-0.5
+          h-2.5 w-2.5 rounded-full
+          bg-rose-500
+          shadow-[0_0_0_1px_rgba(255,255,255,0.9)]
+        "
               />
             </>
           )}
@@ -163,7 +178,7 @@ export default function NotificationDropdown({
         </span>
       </Button>
 
-      {/* Dialog로 알림 표시 (고정 높이 + 내부 스크롤) */}
+      {/* Dialog로 알림 표시 */}
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-md p-0 overflow-hidden">
           <div className="flex flex-col min-h-[340px] sm:min-h-[380px] max-h-[70vh]">
@@ -203,3 +218,10 @@ export default function NotificationDropdown({
     </>
   );
 }
+<style>{`
+@keyframes notifWave {
+  0%   { transform: scale(1);   opacity: .65; }
+  70%  { transform: scale(2.15); opacity: 0;  }
+  100% { transform: scale(2.15); opacity: 0;  }
+}
+`}</style>;

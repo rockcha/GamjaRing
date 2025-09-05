@@ -14,6 +14,7 @@ import {
   INGREDIENT_EMOJI,
   type IngredientTitle,
 } from "@/features/kitchen/type";
+import GoldDisplay from "./GoldDisplay";
 
 type RarityFilter = "전체" | FishRarity;
 
@@ -132,6 +133,7 @@ export default function MarineDexModal({
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h2 className="text-xl font-bold">해양생물 도감</h2>
+
                     <p className="text-xs text-gray-500 mt-1">
                       모든 어종을 한눈에 보고, 등급별로 탐색해 보세요.
                     </p>
@@ -149,22 +151,26 @@ export default function MarineDexModal({
                 {captureHeader}
 
                 {/* 필터 탭 */}
-                <div className="mb-3 flex flex-wrap items-center gap-2">
-                  {filters.map((f) => {
-                    const active = rarity === f;
-                    return (
-                      <button
-                        key={f}
-                        onClick={() => setRarity(f)}
-                        className={`px-3 py-1 rounded-full border text-sm transition ${filterBtnCls(
-                          f,
-                          active
-                        )}`}
-                      >
-                        {f}
-                      </button>
-                    );
-                  })}
+                <div className="flex justify-between">
+                  {" "}
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    {filters.map((f) => {
+                      const active = rarity === f;
+                      return (
+                        <button
+                          key={f}
+                          onClick={() => setRarity(f)}
+                          className={`px-3 py-1 rounded-full border text-sm transition ${filterBtnCls(
+                            f,
+                            active
+                          )}`}
+                        >
+                          {f}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <GoldDisplay />
                 </div>
 
                 {/* 목록 (남은 공간 채우고 스크롤) */}
