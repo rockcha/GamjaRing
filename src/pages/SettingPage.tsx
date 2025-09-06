@@ -25,6 +25,7 @@ import AvatarPicker from "@/features/AvatarPicker";
 import { avatarSrc } from "@/features/localAvatar";
 // ✅ shadcn Avatar
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import IngredientAdjustCard from "@/features/ingredients/IngredientAdjustCard";
 
 type CoupleRow = {
   id: string;
@@ -245,6 +246,7 @@ export default function SettingPage() {
   return (
     <main className="w-full max-w-3xl mx-auto px-4 md:px-6 py-6 space-y-8">
       {/* 내 정보 */}
+      <IngredientAdjustCard />
       <Card className="bg-white shadow-base">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-[#b75e20]">
