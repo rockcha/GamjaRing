@@ -98,7 +98,7 @@ export default function PageLayout({
       >
         {/* <FloatingHomeButton /> */}
         <MenuButton />
-        <PotatoPokeButton />
+        {/* <PotatoPokeButton /> */}
 
         <Outlet />
       </main>

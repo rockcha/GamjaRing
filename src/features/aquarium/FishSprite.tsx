@@ -1,4 +1,3 @@
-// src/features/aquarium/FishSprite.tsx
 "use client";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { FishInfo } from "./fishes";
@@ -54,11 +53,14 @@ export default function FishSprite({
   overridePos,
   popIn = false,
   isHovered = false,
+  /** ✅ 추가: 컨테이너 폭 기준 스케일 */
+  containerScale = 1,
 }: {
   fish: FishInfo;
   overridePos: { leftPct: number; topPct: number };
   popIn?: boolean;
   isHovered?: boolean;
+  containerScale?: number;
 }) {
   /** 개체별 토큰(고정) → PRNG */
   const tokenRef = useRef<number>(makeToken());
@@ -103,11 +105,14 @@ export default function FishSprite({
     return () => clearInterval(id);
   }, [flipEveryX, rand, isMovable]);
 
-  // 반응형 너비
+  // 반응형 너비(뷰포트 의존 제거, 컨테이너 비례)
   const sizeMul = fish.size ?? 1;
-  const widthCss = `clamp(${28 * sizeMul}px, ${6 * sizeMul}vw, ${
-    92 * sizeMul
-  }px)`;
+  // 기준 폭(중간값) 72px, 하한/상한 28~92px → 전부 containerScale에 비례
+  const base = 72 * sizeMul * containerScale;
+  const minPx = 28 * sizeMul * containerScale;
+  const maxPx = 92 * sizeMul * containerScale;
+  const widthPx = Math.max(minPx, Math.min(maxPx, base));
+  const widthCss = `${Math.round(widthPx)}px`;
 
   // transform 합성
   const hoverScale = isHovered && isMovable ? 1.08 : 1;
@@ -227,7 +232,7 @@ export default function FishSprite({
           alt={fish.labelKo}
           className="pointer-events-none select-none will-change-transform transform-gpu hover:cursor-pointer"
           style={{
-            width: widthCss,
+            width: widthCss, // ✅ 컨테이너 비례 px 폭
             height: "auto",
             transform: `scale(${sx}, ${sy})`,
             transition: "transform 240ms ease-out",

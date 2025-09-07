@@ -1,4 +1,3 @@
-// src/features/fishing/IngredientFishingSection.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -35,7 +34,7 @@ function setEmojiDragImage(e: React.DragEvent, emoji: string, fontPx = 28) {
   ghost.style.lineHeight = "1";
   ghost.style.pointerEvents = "none";
   ghost.style.userSelect = "none";
-  ghost.style.background = "transparent"; // ✅ 배경 없음
+  ghost.style.background = "transparent";
   ghost.style.padding = "0";
   ghost.style.margin = "0";
   document.body.appendChild(ghost);
@@ -154,7 +153,7 @@ export default function IngredientFishingSection({
     return list;
   }, [invMap, EMOJI_BY_TITLE]);
 
-  // 선택 재료로 포획 가능한 "모든 어종" (야생 포함)
+  // 선택 재료로 포획 가능한 "모든 어종"
   const capturable = useMemo(() => {
     if (!selected) return [];
     return FISHES.filter((f) => f.ingredient === selected.title);
@@ -185,10 +184,7 @@ export default function IngredientFishingSection({
     const payload = JSON.stringify({ title: cell.title, emoji: cell.emoji });
     e.dataTransfer.setData(DND_MIME, payload);
     e.dataTransfer.effectAllowed = "copy";
-
-    const fontPx = 64;
-
-    setEmojiDragImage(e, cell.emoji, fontPx);
+    setEmojiDragImage(e, cell.emoji, 64);
   };
 
   return (
@@ -208,7 +204,7 @@ export default function IngredientFishingSection({
         </span>
       </div>
 
-      {/* 반응형 재료 그리드: auto-fill + 정사각형 칸 */}
+      {/* 반응형 재료 그리드 */}
       <div
         className="grid gap-2 rounded-2xl
                   grid-cols-[repeat(auto-fill,minmax(72px,1fr))]
@@ -223,13 +219,22 @@ export default function IngredientFishingSection({
         {cells.map((c) => {
           const isSel = selected?.title === c.title;
           const disabled = dragDisabled || c.count <= 0;
+
           return (
             <button
               key={c.title}
-              onClick={() => setSelected({ title: c.title, emoji: c.emoji })}
+              onClick={() => {
+                setSelected({ title: c.title, emoji: c.emoji });
+                // ✅ 탭(클릭) 시 선택 이벤트 브로드캐스트 (모바일 칩에서 수신)
+                window.dispatchEvent(
+                  new CustomEvent("ingredient-picked", {
+                    detail: { title: c.title, emoji: c.emoji },
+                  })
+                );
+              }}
               draggable={!disabled}
               onDragStart={(e) => handleDragStart(e, c)}
-              onDragEnd={cleanupDragGhost} // ✅ 드래그 종료 시 고스트 정리
+              onDragEnd={cleanupDragGhost}
               className={cn(
                 "relative w-full aspect-square rounded-xl border bg-white shadow-sm overflow-hidden",
                 "flex flex-col items-center justify-center gap-1 p-2",
@@ -243,7 +248,7 @@ export default function IngredientFishingSection({
               )}
               title={`${c.title} ×${c.count}`}
             >
-              {/* 이모지 크기도 반응형 */}
+              {/* 이모지 */}
               <span
                 data-emoji
                 className="leading-none select-none text-[clamp(20px,4.2vw,28px)]"
@@ -251,6 +256,7 @@ export default function IngredientFishingSection({
                 {c.emoji}
               </span>
 
+              {/* 수량 */}
               <span className="absolute right-1.5 bottom-1.5 text-[10px] text-amber-700 font-semibold tabular-nums">
                 ×{c.count}
               </span>
@@ -281,7 +287,7 @@ export default function IngredientFishingSection({
           </span>
         </div>
 
-        {/* 반응형 프리뷰: 2/3/4열 + 정사각형 카드 */}
+        {/* 프리뷰 */}
         <div className="mt-2 flex-1 min-h-0 overflow-y-auto">
           {selected ? (
             capturable.length > 0 ? (

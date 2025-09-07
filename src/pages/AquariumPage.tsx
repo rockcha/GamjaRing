@@ -4,7 +4,6 @@
 import { useEffect, useMemo, useState } from "react";
 import AquariumBox from "@/features/aquarium/AquariumBox";
 import MarineDexModal from "@/features/aquarium/MarineDexModal";
-import TankFrame from "@/features/aquarium/TankFrame";
 
 import { toast } from "sonner";
 import supabase from "@/lib/supabase";

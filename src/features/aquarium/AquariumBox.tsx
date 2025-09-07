@@ -1,7 +1,6 @@
-// src/features/aquarium/AquariumBox.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FISH_BY_ID } from "./fishes";
 import FishSprite from "./FishSprite";
 import supabase from "@/lib/supabase";
@@ -127,11 +126,20 @@ export default function AquariumBox({
   isLoading: isLoadingProp = false,
   loadingText,
   onSell,
+  /** ✅ 읽기 전용(미리보기)일 때 클릭/모달 비활성화 */
+  readOnly = false,
+  /** ✅ 부모가 화면비를 제어 (기본 800/410) */
+  aspectRatio = "800 / 410",
+  /** ✅ 컨테이너 크기에 맞춰 물고기 스케일 */
+  fitToContainer = false,
 }: {
   fishIds?: string[];
   isLoading?: boolean;
   loadingText?: string;
   onSell?: (payload: SellPayload) => Promise<void> | void;
+  readOnly?: boolean;
+  aspectRatio?: string;
+  fitToContainer?: boolean;
 }) {
   const { couple, fetchCoupleData } = useCoupleContext();
   const coupleId = couple?.id ?? null;
@@ -274,15 +282,35 @@ export default function AquariumBox({
     return () => clearTimeout(t);
   }, [fishIds]);
 
+  /* ── 컨테이너 스케일 계산 ───────────────────────────── */
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [containerScale, setContainerScale] = useState(1); // 기준 800px
+
+  useEffect(() => {
+    if (!fitToContainer) return;
+    const el = containerRef.current;
+    if (!el) return;
+
+    const ro = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect;
+      if (!rect) return;
+      const width = rect.width;
+      // 기준 800px 대비 스케일, 하한/상한으로 튐 방지
+      const scale = Math.max(0.4, Math.min(2.0, width / 800));
+      setContainerScale(scale);
+    });
+
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [fitToContainer]);
+
   /* ── 로딩 화면 ──────────────────────────────────────── */
   if (isLoading) {
     return (
       <div className="w-full">
-        {" "}
-        {/* ⬅ mx-auto, maxWidth 제거 */}
         <div
           className="relative w-full rounded-xl overflow-hidden"
-          style={{ aspectRatio: "800 / 410" }}
+          style={{ aspectRatio }}
         >
           <img
             key={`loading-${timeSlot}`}
@@ -320,10 +348,11 @@ export default function AquariumBox({
     <div className="w-full">
       {/* 비율 박스 */}
       <div
+        ref={containerRef}
         className="relative w-full rounded-xl overflow-hidden will-change-transform transform-gpu"
-        style={{ aspectRatio: "800 / 410" }}
+        style={{ aspectRatio }}
       >
-        {/* ✅ 시간대별 단일 배경만 표시 */}
+        {/* 배경 */}
         <img
           key={timeSlot}
           src={bg.url}
@@ -331,7 +360,7 @@ export default function AquariumBox({
           className="absolute inset-0 w-full h-full object-cover"
         />
 
-        {/* 상시 표시: 현재 시간대 뱃지 */}
+        {/* 시간대 뱃지 */}
         <div className="absolute top-2 right-2 select-none">
           <div className="flex items-center gap-2 rounded-full bg-white/85 px-3 py-1 text-sm font-medium shadow">
             <span>{BG_BY_SLOT[timeSlot].label}</span>
@@ -346,10 +375,16 @@ export default function AquariumBox({
             const isAppearing = appearingKeys.includes(slot.key);
             const isHovered = hoverKey === slot.key;
 
+            const eventProps = readOnly
+              ? {}
+              : {
+                  onClick: () => setSelectedKey(slot.key),
+                };
+
             return (
               <div
                 key={slot.key}
-                onClick={() => setSelectedKey(slot.key)}
+                {...eventProps}
                 onMouseEnter={() => setHoverKey(slot.key)}
                 onMouseLeave={() => setHoverKey(null)}
               >
@@ -361,6 +396,8 @@ export default function AquariumBox({
                   overridePos={{ leftPct: slot.leftPct, topPct: slot.topPct }}
                   popIn={isAppearing}
                   isHovered={isHovered}
+                  /** ✅ 컨테이너 폭 기준 스케일 전달 */
+                  containerScale={fitToContainer ? containerScale : 1}
                 />
               </div>
             );
@@ -368,8 +405,8 @@ export default function AquariumBox({
         </div>
       </div>
 
-      {/* 물고기 액션 모달 */}
-      {selectedSlot && selectedFish && (
+      {/* 읽기 전용이 아니면 기존 모달 동작 유지 */}
+      {!readOnly && selectedSlot && selectedFish && (
         <FishActionModal
           open={true}
           onClose={() => setSelectedKey(null)}
@@ -378,7 +415,7 @@ export default function AquariumBox({
           index={Number.isFinite(selectedIndex) ? selectedIndex : -1}
           fishCountOfThis={countsById.get(selectedSlot.id) ?? 0}
           {...(onSell && {
-            onSell: async (payload) => {
+            onSell: async (payload: SellPayload) => {
               await onSell(payload);
               await refreshFromDB();
               setSelectedKey(null);

@@ -115,7 +115,7 @@ export default function BrowseProducersButton({
         onClick={() => handleOpen(true)}
         className={cn("gap-2", className)}
       >
-        🛒 생산수단 둘러보기
+        🛒 생산시설 둘러보기
       </Button>
 
       <Dialog open={open} onOpenChange={handleOpen}>

@@ -50,7 +50,7 @@ export default function PotatoFieldPage() {
         <section className="min-w-0 md:col-span-7">
           <SectionHeader
             emoji="🏗️"
-            title="시설"
+            title="생산시설"
             subtitle="재료를 생산하는 우리만의 공간"
           />
           <GradientDivider className="mt-2" />

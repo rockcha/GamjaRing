@@ -1,4 +1,3 @@
-// src/components/layouts/AppHeader.tsx
 "use client";
 
 import { HeartHandshake } from "lucide-react";
@@ -22,6 +21,7 @@ import AuthButton from "../widgets/AuthButton";
 import GoldDisplay from "@/features/aquarium/GoldDisplay";
 import PotatoDisplay from "../widgets/PotatoDisplay";
 import PotatoExchange from "../widgets/PotatoExchange";
+import InstallButton from "../InstallButton";
 
 type HeaderMeta = { url: string; header?: string };
 type HeaderMapLike = Record<string, string | HeaderMeta>;
@@ -70,28 +70,84 @@ export default function AppHeader({
         className
       )}
     >
-      <div className="mx-auto px-4 py-3 ">
-        {/* 4섹션 그리드 */}
+      <div className="mx-auto px-4 py-3 relative">
+        {/* =========================
+            ✅ 모바일 전용 헤더 (md 미만)
+            - 감자링 제목/설명 완전 숨김
+            - 중앙 정렬 + 살짝 축소
+           ========================= */}
+        <div className="md:hidden">
+          {/* 우상단 고정 로그인 버튼 (기존 유지) */}
+          <div className="absolute right-0 top-0 z-10">
+            <AuthButton />
+          </div>
+
+          {/* 상단: 중앙 배지 (조금 축소) */}
+          <div className="flex items-center justify-center">
+            <div className="scale-95 origin-top">
+              <DaysTogetherBadge />
+            </div>
+          </div>
+
+          {/* 하단: 위젯들 — 중앙정렬 + 축소 + 컴팩트 */}
+          <div className="mt-2 flex items-center justify-center">
+            {!isCoupled && (
+              <button
+                type="button"
+                aria-label="커플 연결 필요"
+                className="absolute inset-0 z-10 cursor-not-allowed bg-transparent"
+                onClick={() => toast.warning("커플 연결부터 해주세요")}
+              />
+            )}
+            <div
+              className={cn(
+                // 축소 + 간격 줄임
+                "flex items-center gap-2 px-2 py-1 rounded-xl",
+                "scale-90 origin-top",
+                "bg-white/60 backdrop-blur-sm shadow-sm",
+                !isCoupled && "opacity-60"
+              )}
+              aria-hidden={!isCoupled}
+              tabIndex={isCoupled ? 0 : -1}
+            >
+              <NotificationDropdown />
+              <Separator orientation="vertical" className="h-5" />
+              <WeatherCard />
+
+              <Separator orientation="vertical" className="h-5" />
+              <DailyFortuneCard />
+
+              <Separator orientation="vertical" className="h-5" />
+              <PotatoExchange />
+
+              <Separator orientation="vertical" className="h-5" />
+              <div className="flex flex-col leading-tight">
+                <PotatoDisplay />
+                <GoldDisplay />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* =========================
+            ✅ 데스크탑 헤더 (md 이상)
+            - 기존 4섹션 그리드 유지
+           ========================= */}
         <div
           className="
-            grid items-stretch gap-3
-            grid-cols-1
-            md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto]
+            hidden md:grid items-stretch gap-3
+            grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto]
           "
         >
-          {/* 섹션 1: 로고 + 감자링 멘트 */}
-          <div className="pl-3 flex flex-col md:grid md:grid-rows-[auto_auto] ">
-            <div className="flex items-center md:items-start ">
+          {/* 섹션 1: 로고 + 감자링 멘트 (모바일에서는 숨겨짐) */}
+          <div className="pl-3 flex flex-col md:grid md:grid-rows-[auto_auto]">
+            <div className="flex items-center md:items-start">
               <HeartHandshake className="h-8 w-8 mr-2 shrink-0" />
               <h1 className="truncate text-2xl md:text-3xl font-extrabold tracking-tight">
                 {routeTitle}
               </h1>
-              <p className="ml-2 text-sm font-medium text-neutral-700 truncate md:hidden ">
-                우리를 잇는 따뜻한 고리,{" "}
-                <span className="font-semibold text-amber-600">감자링🥔</span>
-              </p>
             </div>
-            <div className="hidden md:flex min-h-[42px] items-center ">
+            <div className="min-h-[42px] flex items-center">
               <p className="text-base font-medium text-neutral-700 truncate">
                 우리를 잇는 따뜻한 고리,{" "}
                 <span className="font-semibold text-amber-600">감자링🥔</span>
@@ -138,15 +194,11 @@ export default function AppHeader({
             </div>
           </div>
 
-          {/* ✅ 섹션 4: AuthButton - 데스크탑에선 4번째 열, 모바일에선 우상단 고정 */}
+          {/* 섹션 4: AuthButton (데스크탑) */}
           <div className="hidden md:flex items-center justify-end">
             <AuthButton />
+            <InstallButton />
           </div>
-        </div>
-
-        {/* ✅ 모바일 전용: 우상단 고정 버튼 (md부터는 grid 아이템이 대신 표시) */}
-        <div className="absolute right-4 top-3 z-10 md:hidden">
-          <AuthButton />
         </div>
       </div>
     </header>

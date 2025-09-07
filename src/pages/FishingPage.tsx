@@ -1,4 +1,3 @@
-// src/features/fishing/FishingPage.tsx
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -23,6 +22,8 @@ import {
   CheckCircle2,
   XCircle,
   X,
+  PanelBottomOpen,
+  Eraser,
 } from "lucide-react";
 
 /* =======================
@@ -69,7 +70,7 @@ function slotLabel(slot: TimeSlot) {
 }
 
 /* =======================
-   알고 계셨나요? (바다 이야기 15가지)
+   알고 계셨나요?
    ======================= */
 const OCEAN_TRIVIA = [
   "옛사람들은 깊은 바다 어딘가에 용왕이 살며 바다의 날씨를 주관한다고 믿었대요.",
@@ -90,7 +91,7 @@ const OCEAN_TRIVIA = [
 ];
 
 /* =======================
-   낚시중 오버레이 (랜덤 이야기 순환)
+   낚시중 오버레이
    ======================= */
 function FishingOverlay({ visible }: { visible: boolean }) {
   const [text, setText] = useState<string>("바다의 숨결을 듣는 중…");
@@ -120,7 +121,6 @@ function FishingOverlay({ visible }: { visible: boolean }) {
           draggable={false}
         />
 
-        {/* 중앙 헤딩 + 이야기 */}
         <div className="mt-1 text-sm text-gray-900 text-center">
           <div className="font-semibold mb-1">알고 계셨나요?</div>
           <div className="text-gray-800">{text}</div>
@@ -352,6 +352,42 @@ export default function FishingPage() {
   // 드롭 하이라이트
   const [dragOver, setDragOver] = useState(false);
 
+  // ✅ 모바일: 재료 하단 시트 열기/닫기
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+
+  // ✅ 모바일: 선택된 재료 (이 칩에서 드래그 가능)
+  const [selectedIngredient, setSelectedIngredient] = useState<{
+    title: IngredientTitle;
+    emoji: string;
+  } | null>(null);
+
+  // IngredientFishingSection → (선택) → 모바일 시트 닫고 칩에 세팅
+  const handlePickIngredient = useCallback(
+    (payload: { title: IngredientTitle; emoji: string }) => {
+      setSelectedIngredient(payload);
+      setMobileSheetOpen(false);
+      toast.success(`재료 선택: ${payload.emoji} ${payload.title}`);
+    },
+    []
+  );
+
+  // 🔁 Fallback: 섹션에서 커스텀 이벤트로 알려줄 수도 있음
+  useEffect(() => {
+    const onPicked = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail as
+        | { title: IngredientTitle; emoji: string }
+        | undefined;
+      if (!detail) return;
+      handlePickIngredient(detail);
+    };
+    window.addEventListener("ingredient-picked", onPicked as EventListener);
+    return () =>
+      window.removeEventListener(
+        "ingredient-picked",
+        onPicked as EventListener
+      );
+  }, [handlePickIngredient]);
+
   // 배경 드롭 핸들러들
   const onDragOver = useCallback(
     (e: React.DragEvent) => {
@@ -502,35 +538,33 @@ export default function FishingPage() {
     [overlay, coupleId, fetchCoupleData, user?.id, user?.partner_id]
   );
 
-  // ✨ 변경 포인트만 발췌
-  // ✨ 레이아웃 반환부만 교체
+  /* =======================
+     레이아웃
+     ======================= */
   return (
     <div
       className={cn(
-        // 전체 높이 유지
         "w-full h:[calc(100vh-64px)] h-[calc(100vh-64px)] max-h-[100svh]",
-        // 모바일: 1컬럼 + (상단 고정 높이, 하단 가변)
-        "grid grid-cols-1 grid-rows-[minmax(260px,42vh)_1fr] gap-3",
-        // md↑: 12컬럼(3:9) + 단일 로우
-        "md:grid-cols-12 md:grid-rows-1"
+        "grid grid-cols-1 grid-rows-1",
+        "md:grid-cols-12 md:grid-rows-1 gap-3"
       )}
     >
-      {/* 상단(모바일) / 좌측(md↑): 재료 */}
+      {/* 데스크탑 전용: 좌측 재료 패널 */}
       <aside
-        className="order-1 md:order-none
-                 col-span-1 md:col-span-3
-                 rounded-2xl border bg-white p-3 flex flex-col gap-3
-                 overflow-y-auto overscroll-contain min-h-0"
+        className={cn(
+          "hidden md:flex",
+          "col-span-3 rounded-2xl border bg-white p-3 flex-col gap-3",
+          "overflow-y-auto overscroll-contain min-h-0"
+        )}
       >
+        {/* 데스크탑에서는 기존 드래그 UX 유지 */}
         <IngredientFishingSection dragDisabled={overlay} />
       </aside>
 
-      {/* 하단(모바일) / 우측(md↑): 낚시터 */}
+      {/* 메인 낚시터 */}
       <main
         className={cn(
-          "order-2 md:order-none",
-          "col-span-1 md:col-span-9",
-          "relative rounded-2xl border overflow-hidden min-w-0 min-h-0"
+          "col-span-1 md:col-span-9 relative rounded-2xl border overflow-hidden min-w-0 min-h-0"
         )}
         onDragOver={onDragOver}
         onDragEnter={onDragEnter}
@@ -545,13 +579,12 @@ export default function FishingPage() {
           draggable={false}
         />
 
+        {/* 비네트 */}
+        <div className="pointer-events-none absolute inset-0 [background:radial-gradient(60%_60%_at_50%_40%,rgba(0,0,0,0)_0%,rgba(0,0,0,.25)_100%)] md:[background:radial-gradient(55%_65%_at_50%_35%,rgba(0,0,0,0)_0%,rgba(0,0,0,.18)_100%)]" />
+
         {/* 상단 중앙 시간대 배지 */}
         <div className="relative z-10 h-full pointer-events-none">
-          <div
-            className="absolute top-2 left-1/2 -translate-x-1/2 rounded-full
-                     bg-black/35 text-white text-[10px] sm:text-xs px-2.5 py-1
-                     backdrop-blur-sm"
-          >
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 rounded-full bg-black/35 text-white text-[10px] sm:text-xs px-2.5 py-1 backdrop-blur-sm">
             현재 시간대: {slotLabel(slot)}
           </div>
         </div>
@@ -561,12 +594,28 @@ export default function FishingPage() {
           <MarineDexModal isOcean />
         </div>
 
+        {/* 좌상단: 모바일 하단 시트 열기 */}
+        <button
+          type="button"
+          onClick={() => setMobileSheetOpen(true)}
+          className="md:hidden absolute left-2 top-2 z-20 inline-flex items-center gap-1
+                     rounded-full bg-white/80 border border-white/90 px-2.5 py-1 text-[11px]
+                     shadow-sm backdrop-blur hover:bg-white"
+          aria-label="재료 패널 열기"
+        >
+          <PanelBottomOpen className="w-3.5 h-3.5" />
+          재료 열기
+        </button>
+
         {/* 드롭 가이드 */}
         {!overlay && (
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
             <div
-              className="text-[11px] sm:text-xs px-3 py-1 rounded-full border shadow
-                          backdrop-blur-sm text-center bg-white/70 border-white/80 text-gray-700"
+              className={cn(
+                "text-[11px] sm:text-xs px-3 py-1 rounded-full border shadow",
+                "backdrop-blur-sm text-center bg-white/70 border-white/80 text-gray-700",
+                dragOver && "ring-2 ring-sky-300 bg-white/85"
+              )}
             >
               재료를 이곳에 드래그해서 <br />
               낚시를 시작하세요 🎣
@@ -581,7 +630,148 @@ export default function FishingPage() {
           result={result}
           onClose={() => setResultOpen(false)}
         />
+
+        {/* ✅ 모바일 전용: 선택된 재료 드래그 칩 */}
+        <MobileSelectedIngredientChip selected={selectedIngredient} />
       </main>
+
+      {/* ✅ 모바일 하단 시트: 재료 패널 (선택 시 칩으로 이동) */}
+      <MobileIngredientSheet
+        open={mobileSheetOpen}
+        onClose={() => setMobileSheetOpen(false)}
+        onPick={handlePickIngredient}
+        overlay={overlay}
+      />
+    </div>
+  );
+}
+
+/* =======================
+   하위 컴포넌트: 모바일 하단 시트
+   ======================= */
+function MobileIngredientSheet({
+  open,
+  onClose,
+  onPick,
+  overlay,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onPick: (payload: { title: IngredientTitle; emoji: string }) => void;
+  overlay: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "md:hidden fixed left-0 right-0 z-[60]",
+        open ? "bottom-0" : "-bottom-[70vh]",
+        "transition-all duration-300 ease-out"
+      )}
+      style={{ height: "68vh" }}
+      aria-hidden={!open}
+    >
+      {/* 암막 클릭 → 닫기 */}
+      <button
+        className={cn(
+          "absolute inset-0 -top-[32vh] bg-black/30 backdrop-blur-[1px] transition-opacity",
+          open
+            ? "opacity-100 pointer-events-auto"
+            : "opacity-0 pointer-events-none"
+        )}
+        onClick={onClose}
+        aria-label="재료 패널 닫기"
+      />
+      <div className="relative h-full rounded-t-2xl border-t border-x bg-white shadow-xl overflow-hidden">
+        {/* 핸들바 */}
+        <div className="py-2 grid place-items-center border-b bg-white/90 sticky top-0 z-10">
+          <div className="h-1.5 w-10 rounded-full bg-gray-300" />
+        </div>
+
+        <div className="h-[calc(100%-40px)] overflow-y-auto p-3">
+          {/* ✅ onPick을 내려서 '클릭 선택' → 칩 세팅 */}
+          <IngredientFishingSection
+            dragDisabled={overlay}
+            // @ts-expect-error: 섹션에 onPick을 추가 구현하면 타입 맞음. (미구현이어도 무시됨)
+            onPick={(p: { title: IngredientTitle; emoji: string }) => onPick(p)}
+          />
+          {/* Fallback 설명 */}
+          <p className="mt-2 text-[11px] text-gray-500">
+            항목을 탭하면 선택됩니다. 선택 후 화면에 떠있는 “재료선택” 칩에서
+            드래그하세요.
+          </p>
+        </div>
+
+        <button
+          onClick={onClose}
+          className="absolute right-3 top-2 p-2 rounded-md hover:bg-gray-100 text-gray-600"
+          aria-label="닫기"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* =======================
+   하위 컴포넌트: 모바일 드래그 칩
+   ======================= */
+function MobileSelectedIngredientChip({
+  selected,
+}: {
+  selected: { title: IngredientTitle; emoji: string } | null;
+}) {
+  // 드래그 시작 시 MIME에 실어 보내기
+  const onDragStart = (e: React.DragEvent) => {
+    if (!selected) return;
+    e.dataTransfer.setData(DND_MIME, JSON.stringify(selected));
+    // iOS 대응: 프리뷰 이미지가 없으면 드래그가 잘 안 보이는 경우가 있어 투명 캔버스로 대체
+    const img = new Image();
+    img.src =
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGP4BwQACfsD/aiJli0AAAAASUVORK5CYII=";
+    e.dataTransfer.setDragImage(img, 0, 0);
+  };
+
+  return (
+    <div className="md:hidden pointer-events-none">
+      <div className="absolute left-2 bottom-2 z-20">
+        <div
+          className={cn(
+            "inline-flex items-center gap-2 rounded-full border bg-white/85 backdrop-blur px-3 py-1.5 shadow",
+            "pointer-events-auto"
+          )}
+          draggable={!!selected}
+          onDragStart={onDragStart}
+          aria-label="선택된 재료"
+          title={
+            selected
+              ? `드래그해서 낚시 시작: ${selected.emoji} ${selected.title}`
+              : "재료를 선택하세요"
+          }
+          role="button"
+        >
+          <span className="text-[11px] text-gray-600">재료선택</span>
+          <span className="text-base leading-none">
+            {selected ? `${selected.emoji} ${selected.title}` : "—"}
+          </span>
+          {selected && (
+            <span
+              role="button"
+              aria-label="선택 취소"
+              className="ml-1 inline-flex items-center justify-center rounded-md p-1 hover:bg-gray-100 text-gray-600"
+              onClick={(e) => {
+                e.stopPropagation();
+                // 간단히 페이지 레벨 state를 비우기 위해 커스텀 이벤트 송출
+                window.dispatchEvent(
+                  new CustomEvent("ingredient-picked", { detail: null } as any)
+                );
+              }}
+            >
+              <Eraser className="w-3.5 h-3.5" />
+            </span>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
