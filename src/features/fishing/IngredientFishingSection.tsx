@@ -194,7 +194,7 @@ export default function IngredientFishingSection({
         <span className="inline-flex h-8 w-8 items-center justify-center">
           <PackageOpen className="h-4 w-4 text-amber-700" />
         </span>
-        <h3 className="text-sm font-semibold text-zinc-800">재료</h3>
+        <h3 className="text-sm font-semibold text-zinc-800">재료통</h3>
         <span className="ml-auto text-xs text-muted-foreground">
           {loading
             ? "불러오는 중…"

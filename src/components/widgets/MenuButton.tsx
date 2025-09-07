@@ -11,11 +11,11 @@ import {
   MessageSquareText,
   Package,
   CalendarClock,
-  Menu as MenuIcon,
+  ArrowLeftCircle,
   ChefHat, // 부엌
   Fish, // 아쿠아리움
   Sprout, // 🌱 감자밭
-  Waves, // 🌊 바다낚시 (추가 아이콘)
+  Waves, // 🌊 바다낚시
 } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 
@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import LoginButton from "@/components/LoginButton";
 import LogoutButton from "@/components/LogoutButton";
 import AvatarWidget from "@/components/widgets/AvatarWidget";
+import * as React from "react";
 
 type Item = {
   id: string;
@@ -30,19 +31,23 @@ type Item = {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
 };
 
-const NAV_ITEMS: Item[] = [
-  { id: "home", label: "메인페이지", icon: Home },
+// 그룹별 아이템
+const BASIC_ITEMS: Item[] = [
   { id: "info", label: "감자링이란?", icon: Info },
   { id: "settings", label: "마이페이지", icon: Settings },
+];
+
+const DAILY_ITEMS: Item[] = [
   { id: "questions", label: "오늘의 질문", icon: MessageSquareText },
   { id: "bundle", label: "답변꾸러미", icon: Package },
   { id: "scheduler", label: "커플 스케쥴러", icon: CalendarClock },
+];
 
-  // 🎮 게임들
+const WORLD_ITEMS: Item[] = [
   { id: "aquarium", label: "아쿠아리움", icon: Fish },
-  { id: "kitchen", label: "조리실", icon: ChefHat },
+  { id: "fishing", label: "바다낚시", icon: Waves },
   { id: "potatoField", label: "농장", icon: Sprout },
-  { id: "fishing", label: "바다낚시", icon: Waves }, // ✅ 추가
+  { id: "kitchen", label: "조리실", icon: ChefHat },
 ];
 
 const GUARDS: Record<
@@ -59,7 +64,7 @@ const GUARDS: Record<
   aquarium: { requireLogin: true, requireCouple: true },
   kitchen: { requireLogin: true, requireCouple: true },
   potatoField: { requireLogin: true, requireCouple: true },
-  fishing: { requireLogin: true, requireCouple: true }, // ✅ 추가
+  fishing: { requireLogin: true, requireCouple: true },
 };
 
 const FALLBACK_ROUTE: Record<string, string> = {
@@ -73,7 +78,7 @@ const FALLBACK_ROUTE: Record<string, string> = {
   aquarium: "/aquarium",
   kitchen: "/kitchen",
   potatoField: "/potatoField",
-  fishing: "/fishing", // ✅ 추가
+  fishing: "/fishing",
 };
 
 export default function MenuButton() {
@@ -91,62 +96,78 @@ export default function MenuButton() {
 
   const go = (id: string) => {
     const g = GUARDS[id] || {};
-    if (g.requireLogin && !uid) return open("로그인이 필요해요.");
-    if (g.requireCouple && !coupled) return open("커플 연동이 필요해요.");
+    if (g.requireLogin && !uid) return alert("로그인이 필요해요.");
+    if (g.requireCouple && !coupled) return alert("커플 연동이 필요해요.");
     const url = FALLBACK_ROUTE[id] ?? `/${id}`;
     if (typeof window !== "undefined") window.location.assign(url);
   };
 
+  const renderGroup = (title: string, items: Item[]) => (
+    <div className="mb-4">
+      <h3 className="px-3 py-1 text-xs font-semibold text-zinc-500">{title}</h3>
+      <nav className="flex flex-col gap-1">
+        {items.map((item) => {
+          const Icon = item.icon;
+          const disabled = disabledByState(item.id);
+          return (
+            <Button
+              key={item.id}
+              variant="ghost"
+              className={cn(
+                "h-10 w-full justify-start gap-2",
+                disabled && "opacity-50"
+              )}
+              onClick={() => !disabled && go(item.id)}
+              disabled={disabled}
+            >
+              <Icon className="h-4 w-4" />
+              {item.label}
+            </Button>
+          );
+        })}
+      </nav>
+    </div>
+  );
+
   return (
-    <div className="fixed bottom-4 right-4 z-50">
+    <div className="fixed top-1/2 right-4 -translate-y-1/2 z-50 group">
       <Sheet>
         <SheetTrigger asChild>
-          <Button
-            size="icon"
-            className="h-12 w-12 rounded-full shadow-md bg-amber-700 hover:bg-amber-600"
-            aria-label="빠른 메뉴 열기"
-          >
-            <MenuIcon className="h-6 w-6 text-white" />
-          </Button>
+          <div className="flex flex-col items-center gap-1 cursor-pointer">
+            <Button
+              size="icon"
+              className="h-12 w-12 rounded-full shadow-md bg-amber-700 hover:bg-amber-600"
+              aria-label="빠른 메뉴 열기"
+            >
+              <ArrowLeftCircle className="h-6 w-6 text-white" />
+            </Button>
+            <span className="text-[10px] text-black drop-shadow-sm">
+              빠른 메뉴 펼치기
+            </span>
+          </div>
         </SheetTrigger>
 
         <SheetContent
           side="right"
-          className="w-64 sm:max-w-sm p-0"
+          className="w-64 sm:max-w-sm p-0 flex flex-col"
           showClose={false}
         >
-          {/* Avatar + 로그인/로그아웃 */}
+          {/* Avatar */}
           <div className="pt-4 flex flex-col items-center">
             <AvatarWidget size="md" />
           </div>
-          <div className="flex justify-end mb-2 px-3">
-            {user ? <LogoutButton /> : <LoginButton />}
-          </div>
-          <Separator />
+          <Separator className="my-2" />
 
-          {/* 메뉴 목록 */}
-          <div className="px-3 pb-3">
-            <nav className="mt-2 flex flex-col gap-1">
-              {NAV_ITEMS.map((item) => {
-                const Icon = item.icon;
-                const disabled = disabledByState(item.id);
-                return (
-                  <Button
-                    key={item.id}
-                    variant="ghost"
-                    className={cn(
-                      "h-10 w-full justify-start gap-2",
-                      disabled && "opacity-50"
-                    )}
-                    onClick={() => !disabled && go(item.id)}
-                    disabled={disabled}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {item.label}
-                  </Button>
-                );
-              })}
-            </nav>
+          {/* 메뉴 그룹 */}
+          <div className="px-3 pb-3 flex-1 overflow-y-auto">
+            {renderGroup("기본", BASIC_ITEMS)}
+            {renderGroup("우리의 일상", DAILY_ITEMS)}
+            {renderGroup("감자링만의 세상", WORLD_ITEMS)}
+          </div>
+
+          {/* 하단 고정 영역 */}
+          <div className="border-t p-3 flex justify-end">
+            {user ? <LogoutButton /> : <LoginButton />}
           </div>
         </SheetContent>
       </Sheet>

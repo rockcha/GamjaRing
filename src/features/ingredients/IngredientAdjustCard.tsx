@@ -159,7 +159,7 @@ export default function IngredientAdjustCard({
   return (
     <section
       className={cn(
-        "rounded-2xl border bg-white p-4 shadow-sm flex flex-col gap-3",
+        "rounded-2xl  p-4 shadow-sm flex flex-col gap-3",
         className
       )}
     >

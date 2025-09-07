@@ -6,8 +6,9 @@ import { useCoupleContext } from "@/contexts/CoupleContext";
 import PotatoFieldGrid from "@/features/potato_field/PotatoFieldGrid";
 import { ensureRow, getPotatoCount } from "@/features/potato_field/utils";
 import ProducerSection from "@/features/producer/ProducerSection";
-import BrowseProducersButton from "@/features/producer/BrowseProducersButton";
 import { cn } from "@/lib/utils";
+
+/* ───────────────────────────── page ───────────────────────────── */
 
 export default function PotatoFieldPage() {
   const { couple } = useCoupleContext();
@@ -27,26 +28,18 @@ export default function PotatoFieldPage() {
   }, [coupleId]);
 
   if (!coupleId) {
-    return (
-      <div className="w-full py-10 text-center text-slate-600">
-        커플 연결이 필요해요.
-      </div>
-    );
+    return <EmptyState>커플 연결이 필요해요.</EmptyState>;
   }
 
   if (!ready) {
-    return (
-      <div className="w-full py-10 text-center text-slate-600">
-        감자밭 불러오는 중… 🥔
-      </div>
-    );
+    return <EmptyState>감자밭 불러오는 중… 🥔</EmptyState>;
   }
 
   return (
-    <div className="w-full px-2 sm:px-4 md:px-6 py-3">
-      {/* 레이아웃: 좌(시설 7) / 우(감자밭 3) */}
-      <div className="grid w-full items-start gap-8 md:grid-cols-10">
-        {/* 시설 섹션 */}
+    <div className="w-full px-3 sm:px-4 md:px-6 py-4">
+      {/* 레이아웃: 모바일 1컬럼 → md↑ 7:3 */}
+      <div className="grid w-full items-start gap-6 md:gap-8 md:grid-cols-10">
+        {/* ── 생산시설 ───────────────────────── */}
         <section className="min-w-0 md:col-span-7">
           <SectionHeader
             emoji="🏗️"
@@ -54,28 +47,26 @@ export default function PotatoFieldPage() {
             subtitle="재료를 생산하는 우리만의 공간"
           />
           <GradientDivider className="mt-2" />
-          {/* 내용: 배경/테두리 없이 자연스럽게 */}
-          <div className="mt-4">
+
+          <SectionCard className="mt-4">
             <ProducerSection />
-          </div>
+          </SectionCard>
         </section>
 
-        {/* 감자밭 섹션 */}
+        {/* ── 감자밭 ─────────────────────────── */}
         <section className="min-w-0 md:col-span-3">
           <SectionHeader
             emoji="🥔"
             title="감자밭"
             subtitle="씨앗을 심고 수확해요"
-            right={
-              <PotatoChip count={count} className="hidden md:inline-flex" />
-            }
           />
           <GradientDivider className="mt-2" />
-          <div className="mt-4">
-            {/* 모바일에서 감자 수 표시 (헤더 오른쪽 배지가 숨겨지는 경우) */}
-            <PotatoChip count={count} className="mb-3 md:hidden" />
+
+          <SectionCard className="mt-4">
+            {/* 모바일 전용 칩 (데스크탑 오른쪽 배지 대신) */}
+
             <PotatoFieldGrid coupleId={coupleId} onCountChange={setCount} />
-          </div>
+          </SectionCard>
         </section>
       </div>
     </div>
@@ -83,6 +74,12 @@ export default function PotatoFieldPage() {
 }
 
 /* ───────────────────────────── helpers/ui ───────────────────────────── */
+
+function EmptyState({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="w-full py-12 text-center text-slate-600">{children}</div>
+  );
+}
 
 function SectionHeader({
   emoji,
@@ -101,12 +98,12 @@ function SectionHeader({
     <div className={cn("flex items-end justify-between gap-4", className)}>
       <div className="min-w-0">
         <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight">
-          <span className="text-2xl leading-none">{emoji}</span>
+          <span aria-hidden className="text-2xl leading-none">
+            {emoji}
+          </span>
           <span className="truncate">{title}</span>
         </h2>
-        {subtitle && (
-          <p className="mt-1 text-sm text-neutral-500">{subtitle}</p>
-        )}
+        {subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}
       </div>
       {right ? <div className="shrink-0">{right}</div> : null}
     </div>
@@ -117,30 +114,31 @@ function GradientDivider({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "h-px w-full bg-gradient-to-r from-amber-200/70 via-amber-100/0 to-transparent",
+        "h-px w-full bg-gradient-to-r from-amber-200/70 via-transparent to-transparent",
         className
       )}
     />
   );
 }
 
-function PotatoChip({
-  count,
+/** 유리톤 섹션 래퍼: 가벼운 그림자 + 링 + 부드러운 전환 */
+function SectionCard({
   className,
+  children,
 }: {
-  count: number;
   className?: string;
+  children: React.ReactNode;
 }) {
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-2 rounded-full px-3 py-1.5 ring-1",
-        "bg-amber-50/80 ring-amber-200/80 text-amber-900",
+        "rounded-2xl border border-slate-200/70 bg-white/60 backdrop-blur-sm",
+        "shadow-sm hover:shadow-md transition-shadow",
+        "px-3 sm:px-4 md:px-5 py-3 sm:py-4",
         className
       )}
     >
-      <span className="text-xl leading-none">🥔</span>
-      <span className="tabular-nums font-semibold">{count}</span>
+      {children}
     </div>
   );
 }

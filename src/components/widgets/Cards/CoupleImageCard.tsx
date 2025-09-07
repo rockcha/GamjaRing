@@ -6,16 +6,10 @@ import supabase from "@/lib/supabase";
 import { useUser } from "@/contexts/UserContext";
 import { useCoupleContext } from "@/contexts/CoupleContext";
 
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
+import { Card, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
+
 import {
   Carousel,
   CarouselContent,
@@ -27,16 +21,14 @@ import {
 
 import { Pencil, Loader2, Trash2, ImageUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import DaysTogetherBadge from "@/components/DaysTogetherBadge";
 
 const BUCKET = "Couple_Image";
 const MAX_SLOTS = 5;
-const ASPECT_RATIO = "3 / 2";
 
 // ===== egress 최적화 상수 =====
-// 새로고침 안정성을 위해 TTL을 넉넉히(권장 14~30일). 필요시 줄여도 동작은 동일.
 const SIGNED_TTL_SEC = 60 * 60 * 24 * 30; // 30일
 const RENEW_BEFORE_SEC = 60 * 5; // 만료 5분 전이면 갱신
-// transform은 width/quality만 사용 (안전)
 const TRANSFORM = { width: 1280, quality: 70 };
 
 // localStorage 키
@@ -58,7 +50,8 @@ const emptySlot = (): Slot => ({
 
 type Props = {
   className?: string;
-  imageHeight?: number | string; // minHeight 기준
+  /** 이미지 최대 표시 높이 (작은 사진은 더 작게 보이고, 큰 사진은 여기까지만) */
+  maxImageHeight?: number; // px
 };
 
 // ===== 캐시 =====
@@ -83,7 +76,7 @@ const isFresh = (exp: number) => exp - RENEW_BEFORE_SEC > nowSec();
 
 export default function CoupleImageCard({
   className,
-  imageHeight = 600,
+  maxImageHeight = 520, // 기본 최대 높이(원본이 더 작으면 더 작게)
 }: Props) {
   const { user, isCoupled } = useUser();
   const { couple } = useCoupleContext();
@@ -151,7 +144,7 @@ export default function CoupleImageCard({
     []
   );
 
-  // ===== 기존 파일 목록 로드 (path만 세팅) + 캐시된 URL "만료 검사" 후 주입 =====
+  // ===== 기존 파일 목록 로드 =====
   const loadExisting = useCallback(async () => {
     if (!coupleId || !isCoupled) {
       setSlots(Array.from({ length: MAX_SLOTS }, emptySlot));
@@ -192,7 +185,6 @@ export default function CoupleImageCard({
         if (!s.path) return s;
         const entry = cached[s.path];
         if (entry && isFresh(entry.exp)) return { ...s, url: entry.url };
-        // 만료/임박 → 캐시에서 제거하고 url은 null로 유지 (이후 ensureUrlFor가 갱신)
         if (entry && !isFresh(entry.exp)) {
           delete cached[s.path];
           writeCache(cached);
@@ -230,7 +222,7 @@ export default function CoupleImageCard({
       if (!inRange(idx)) return;
       const s = slots[idx];
       if (!s?.path) return;
-      if (s.url) return; // 이미 있음
+      if (s.url) return;
       try {
         const signed = await getSignedUrlCached(s.path);
         // 선로드 후 교체(깜빡임 방지)
@@ -242,21 +234,17 @@ export default function CoupleImageCard({
           img.src = signed;
         });
         updateSlot(idx, (prev) => ({ ...prev, url: signed }));
-      } catch {
-        // 실패 시 그대로 두고, 실패 쿨다운에 의해 반복요청 차단
-      }
+      } catch {}
     },
     [slots, getSignedUrlCached]
   );
 
-  // activeIdx가 바뀔 때 보이는 영역 보장
   useEffect(() => {
     void ensureUrlFor(activeIdx);
     void ensureUrlFor((activeIdx + 1) % MAX_SLOTS);
     void ensureUrlFor((activeIdx - 1 + MAX_SLOTS) % MAX_SLOTS);
   }, [activeIdx, ensureUrlFor]);
 
-  // ✅ 새로고침 직후 slots가 세팅되면 한 번 더 보장 로드 (carouselApi 준비 이전 케이스 대비)
   useEffect(() => {
     if (!slots.length) return;
     void ensureUrlFor(activeIdx);
@@ -386,16 +374,6 @@ export default function CoupleImageCard({
     }
   };
 
-  // 크기 스타일
-  const minH =
-    typeof imageHeight === "number" ? Math.max(360, imageHeight) : 360;
-  const ratioBoxStyle: React.CSSProperties = {
-    aspectRatio: ASPECT_RATIO,
-    width: "100%",
-    minHeight: `${minH}px`,
-    maxHeight: "550px",
-  };
-
   // ✅ onError 시 즉시 재발급하여 깨짐 복구
   const handleImgError = useCallback(
     async (idx: number, path: string) => {
@@ -411,8 +389,6 @@ export default function CoupleImageCard({
 
   return (
     <Card className={cn(className)}>
-      <Separator />
-
       <input
         ref={fileInputRef}
         type="file"
@@ -424,8 +400,9 @@ export default function CoupleImageCard({
 
       {initialLoading ? (
         <div className="space-y-2">
-          <div className="rounded-lg w-full" style={ratioBoxStyle}>
-            <Skeleton className="w-full h-full rounded-lg" />
+          {/* 로딩 시에도 너무 크지 않게 */}
+          <div className="rounded-lg w-full">
+            <Skeleton className="w-full h-[280px] sm:h-[360px] rounded-lg" />
           </div>
           <Skeleton className="h-6 w-24 rounded-md" />
         </div>
@@ -446,7 +423,6 @@ export default function CoupleImageCard({
                 const shouldLoad = visibleIdx.includes(idx);
                 const hasImg = !!s.path && !!s.url && shouldLoad;
 
-                // 잔상 방지: 슬롯/파일 기준 고유 키
                 const itemKey = `${idx}-${s.path ?? "empty"}`;
 
                 return (
@@ -454,16 +430,24 @@ export default function CoupleImageCard({
                     key={itemKey}
                     className="bg-transparent border-0 p-2"
                   >
-                    <div>
-                      <Card className="overflow-hidden">
-                        <div className="relative w-full" style={ratioBoxStyle}>
+                    <div className="w-full">
+                      {/* 이미지 컨테이너:
+                          - 고정 비율/최소 높이 제거
+                          - 작은 사진은 작은 그대로, 큰 사진은 maxImageHeight까지만
+                          - 중앙 정렬 */}
+                      <div className="relative w-full rounded-md border bg-white/40">
+                        <div className="w-full flex items-center justify-center p-2">
                           {s.path && shouldLoad ? (
                             hasImg ? (
                               <img
                                 key={s.path ?? `img-${idx}`}
                                 src={s.url!}
                                 alt={`커플 이미지 ${idx + 1}`}
-                                className="w-full h-full object-contain rounded-md transition-opacity duration-200"
+                                className="block max-w-full h-auto"
+                                style={{
+                                  maxHeight: `${maxImageHeight}px`,
+                                  objectFit: "contain",
+                                }}
                                 draggable={false}
                                 loading={idx === activeIdx ? "eager" : "lazy"}
                                 decoding="async"
@@ -475,8 +459,8 @@ export default function CoupleImageCard({
                                 }
                               />
                             ) : (
-                              <div className="w-full h-full grid place-items-center">
-                                <Skeleton className="w-full h-full rounded-md" />
+                              <div className="w-full grid place-items-center">
+                                <Skeleton className="w-full h-[220px] sm:h-[260px] rounded-md" />
                               </div>
                             )
                           ) : (
@@ -485,8 +469,8 @@ export default function CoupleImageCard({
                               disabled={isDisabled || s.uploading}
                               onClick={() => openPickerFor(idx)}
                               className={cn(
-                                "w-full h-full flex flex-col items-center justify-center gap-2",
-                                "border-2 border-dashed rounded-md",
+                                "w-full h-[220px] sm:h-[260px] flex flex-col items-center justify-center gap-2",
+                                "border-2 border-dashed rounded-md m-2",
                                 isDisabled
                                   ? "cursor-not-allowed opacity-70"
                                   : "hover:bg-amber-50"
@@ -502,45 +486,45 @@ export default function CoupleImageCard({
                               </span>
                             </button>
                           )}
-
-                          {(s.uploading || s.deleting) && (
-                            <div className="absolute inset-0 grid place-items-center bg-black/10">
-                              <Loader2 className="h-6 w-6 animate-spin" />
-                            </div>
-                          )}
-
-                          {s.path && !isDisabled && (
-                            <div className="absolute right-2 bottom-2 flex items-center gap-1">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => openPickerFor(idx)}
-                                disabled={s.uploading || s.deleting}
-                                title="이미지 교체"
-                                className="bg-white hover:cursor-pointer"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleDelete(idx)}
-                                disabled={s.uploading || s.deleting}
-                                title="이미지 삭제"
-                                className="bg-white hover:cursor-pointer"
-                              >
-                                <Trash2 className="h-4 w-4 text-rose-600" />
-                              </Button>
-                            </div>
-                          )}
-
-                          <div className="absolute bottom-2 left-2">
-                            <span className="px-2 py-1 text-xs rounded-md bg-white/95 shadow-sm border">
-                              {idx + 1} / {MAX_SLOTS}
-                            </span>
-                          </div>
                         </div>
-                      </Card>
+
+                        {(s.uploading || s.deleting) && (
+                          <div className="absolute inset-0 grid place-items-center bg-black/10">
+                            <Loader2 className="h-6 w-6 animate-spin" />
+                          </div>
+                        )}
+
+                        {s.path && !isDisabled && (
+                          <div className="absolute right-2 bottom-2 flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => openPickerFor(idx)}
+                              disabled={s.uploading || s.deleting}
+                              title="이미지 교체"
+                              className="bg-white hover:cursor-pointer"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleDelete(idx)}
+                              disabled={s.uploading || s.deleting}
+                              title="이미지 삭제"
+                              className="bg-white hover:cursor-pointer"
+                            >
+                              <Trash2 className="h-4 w-4 text-rose-600" />
+                            </Button>
+                          </div>
+                        )}
+
+                        <div className="absolute bottom-2 left-2">
+                          <span className="px-2 py-1 text-xs rounded-md bg-white/95 shadow-sm border">
+                            {idx + 1} / {MAX_SLOTS}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </CarouselItem>
                 );

@@ -40,10 +40,6 @@ export default function AquariumPreviewCard({
         {/* DB에서 자동 로딩, 클릭해도 아무 동작 없음, 컨테이너 스케일 적용 */}
         <AquariumBox readOnly aspectRatio={aspectRatio} fitToContainer />
       </CardContent>
-
-      <CardFooter className="flex justify-end gap-2">
-        <Button onClick={goAquarium}>어항으로 가기</Button>
-      </CardFooter>
     </Card>
   );
 }

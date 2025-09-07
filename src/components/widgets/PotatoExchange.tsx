@@ -22,6 +22,7 @@ import {
 /* ✅ 컨텍스트로 낙관적 업데이트 */
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { addIngredients } from "@/features/kitchen/kitchenApi";
+import { Gift, Loader2, Sparkles } from "lucide-react";
 
 /* =========================
    교환소 설정
@@ -65,6 +66,122 @@ function sampleUnique<T>(pool: readonly T[], n: number): T[] {
     out.push(item!);
   }
   return out;
+}
+
+/* =========================
+   작은 뱃지 컴포넌트
+========================= */
+function Pill({ children }: { children: React.ReactNode }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full border",
+        "px-2 py-1 text-xs font-medium",
+        "bg-white text-zinc-800 shadow-sm"
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+/* =========================
+   획득 결과 패널
+========================= */
+function RewardsPanel({
+  loading,
+  status,
+  lastRewards,
+  onClose,
+}: {
+  loading: boolean;
+  status: string;
+  lastRewards: { title: IngredientTitle; emoji: string }[];
+  onClose: () => void;
+}) {
+  const hasRewards = lastRewards.length > 0;
+
+  return (
+    <section
+      className={cn(
+        "relative rounded-xl border bg-gradient-to-b from-amber-50/70 to-white",
+        "p-3 sm:p-4 flex flex-col min-h-[220px]"
+      )}
+    >
+      <header className="flex items-center justify-between gap-2">
+        <h3 className="text-sm sm:text-base font-semibold text-amber-900 inline-flex items-center gap-2">
+          <Sparkles className="h-4 w-4" aria-hidden /> 획득한 재료
+        </h3>
+        <div className="text-xs text-zinc-500">{status}</div>
+      </header>
+
+      {/* 내용 */}
+      <div className="mt-3 sm:mt-4 flex-1">
+        {!hasRewards ? (
+          <div className="grid place-items-center h-full min-h-[140px]">
+            {loading ? (
+              <div className="flex items-center gap-2 text-zinc-600">
+                <Loader2 className="h-4 w-4 animate-spin" /> 열어보는 중…
+              </div>
+            ) : (
+              <div className="text-center text-zinc-500 text-sm">
+                아직 획득한 재료가 없어요.
+                <div className="mt-1 text-xs">
+                  왼쪽에서 보따리를 열어보세요!
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div
+            className={cn(
+              "grid gap-2",
+              "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
+            )}
+          >
+            {lastRewards.map((r, i) => (
+              <div
+                key={`${r.title}-${i}`}
+                className={cn(
+                  "group rounded-lg border bg-white/90 p-2",
+                  "hover:shadow-sm transition"
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <div
+                    className="text-2xl leading-none select-none"
+                    aria-hidden
+                  >
+                    {r.emoji}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold text-zinc-800 truncate">
+                      {r.title}
+                    </div>
+                    <div className="text-[10px] text-zinc-500">1개 획득</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <footer className="mt-3 flex items-center justify-end gap-2">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={onClose}
+          className="rounded-lg"
+        >
+          닫기
+        </Button>
+      </footer>
+
+      {/* 장식 라인 */}
+      <div className="pointer-events-none absolute inset-x-0 -bottom-px h-px bg-gradient-to-r from-transparent via-amber-300/70 to-transparent" />
+    </section>
+  );
 }
 
 /* =========================
@@ -137,7 +254,7 @@ export default function PotatoExchange({
           } finally {
             setIsOpening(false);
           }
-        }, 2000);
+        }, 1000);
       } catch (err) {
         console.error(err);
         setStatus("오류가 발생했어요. 잠시 후 다시 시도해주세요.");
@@ -188,7 +305,7 @@ export default function PotatoExchange({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
           className={cn(
-            "w-[min(92vw,960px)] max-w-none rounded-2xl p-0",
+            "w-[min(92vw,1000px)] max-w-none rounded-2xl p-0",
             "overflow-hidden"
           )}
         >
@@ -214,82 +331,84 @@ export default function PotatoExchange({
             </div>
           </DialogHeader>
 
-          {/* 바디: 고정 3열 그리드 (모바일에서도 3개 가로로 보이도록) */}
+          {/* 바디: 좌측(작게) 번들 목록 + 우측(넓게) 결과 패널 */}
           <div className="px-3 sm:px-5 py-3 max-h-[65vh] overflow-y-auto">
             <div
               className={cn(
-                "grid grid-cols-3 gap-2 sm:gap-3" // 👈 항상 3열
+                "grid gap-3",
+                // 모바일: 1열(번들 → 결과), 태블릿 이상: 12 그리드로 비율 조정
+                "grid-cols-1 md:grid-cols-12"
               )}
             >
-              {BUNDLES.map((b) => (
-                <button
-                  key={b.key}
-                  onClick={() => onClickBundle(b.key)}
-                  disabled={isOpening}
-                  className={cn(
-                    "group relative rounded-xl border bg-white p-2 sm:p-3 shadow-sm",
-                    "transition hover:shadow-md hover:-translate-y-0.5",
-                    isOpening && "opacity-70 cursor-wait"
-                  )}
-                >
-                  <figure className="flex flex-col items-center">
-                    {/* 이미지 컨테이너: 정사각, 내부 여백 최소화 */}
-                    <div className="w-full aspect-square rounded-md border bg-white grid place-items-center p-1.5 sm:p-2">
-                      <img
-                        src={b.img}
-                        alt={b.label}
-                        className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-[1.03]"
-                        draggable={false}
-                        loading="lazy"
-                      />
-                    </div>
-                    <figcaption className="mt-1.5 sm:mt-2 text-[11px] sm:text-sm font-medium text-zinc-800 text-center">
-                      {b.label}
-                    </figcaption>
-                  </figure>
-
-                  {/* 호버 오버레이 + 라벨(소형화) */}
-                  <div
-                    className={cn(
-                      "pointer-events-none absolute inset-0 rounded-xl",
-                      "bg-amber-900/0 group-hover:bg-amber-900/5 transition-colors"
-                    )}
-                    aria-hidden
-                  />
-                  <div
-                    className={cn(
-                      "pointer-events-none absolute inset-x-1.5 bottom-1.5",
-                      "rounded-md border bg-amber-50/90 text-amber-900 text-[10px] sm:text-xs font-semibold",
-                      "px-2 py-1 shadow-sm opacity-0 translate-y-1",
-                      "group-hover:opacity-100 group-hover:translate-y-0 transition"
-                    )}
-                  >
-                    감자 {b.cost} → 랜덤 재료 {b.count}개
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 풋터: sticky + 접근성 라이브 영역 */}
-          <DialogFooter
-            className={cn(
-              "sticky bottom-0 z-10 p-3 sm:p-4 border-t",
-              "bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70"
-            )}
-          >
-            <div className="w-full">
-              <div
+              {/* 번들 목록 - 작게, 조밀하게 */}
+              <section
                 className={cn(
-                  "rounded-lg border bg-slate-50 text-slate-800",
-                  "px-3 py-2 text-sm sm:text-base"
+                  "md:col-span-5 lg:col-span-4",
+                  "rounded-xl border bg-white p-2 sm:p-3"
                 )}
-                aria-live="polite"
               >
-                {status}
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-zinc-800 inline-flex items-center gap-2">
+                    <Gift className="h-4 w-4" aria-hidden /> 선택지
+                  </h3>
+                  <div className="text-[11px] text-zinc-500">감자 사용</div>
+                </div>
+
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {BUNDLES.map((b) => (
+                    <button
+                      key={b.key}
+                      onClick={() => onClickBundle(b.key)}
+                      disabled={isOpening}
+                      className={cn(
+                        "group relative rounded-lg border bg-white p-2",
+                        "transition hover:shadow-sm hover:-translate-y-0.5",
+                        isOpening && "opacity-70 cursor-wait"
+                      )}
+                    >
+                      <figure className="flex flex-col items-center">
+                        {/* 이미지 컨테이너: 더 작게 (긴문구 대비 정사각 + 최소 패딩) */}
+                        <div className="w-full aspect-square rounded-md border bg-white grid place-items-center p-1">
+                          <img
+                            src={b.img}
+                            alt={b.label}
+                            className="max-h-16 sm:max-h-20 object-contain transition-transform duration-300 group-hover:scale-[1.03]"
+                            draggable={false}
+                            loading="lazy"
+                          />
+                        </div>
+                        <figcaption className="mt-1 text-[10px] sm:text-xs font-medium text-zinc-800 text-center leading-tight">
+                          {b.label}
+                        </figcaption>
+                      </figure>
+
+                      {/* 라벨(아주 작게) */}
+                      <div
+                        className={cn(
+                          "pointer-events-none absolute inset-x-1 bottom-1",
+                          "rounded-md border bg-amber-50/90 text-amber-900 text-[10px] font-semibold",
+                          "px-1.5 py-0.5 shadow-sm opacity-0 translate-y-1",
+                          "group-hover:opacity-100 group-hover:translate-y-0 transition"
+                        )}
+                      >
+                        감자 {b.cost} → 재료 {b.count}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              {/* 결과 패널 - 더 넓게 */}
+              <div className="md:col-span-7 lg:col-span-8">
+                <RewardsPanel
+                  loading={isOpening}
+                  status={status}
+                  lastRewards={lastRewards}
+                  onClose={() => setOpen(false)}
+                />
               </div>
             </div>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </>

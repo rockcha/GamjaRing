@@ -366,7 +366,6 @@ export default function FishingPage() {
     (payload: { title: IngredientTitle; emoji: string }) => {
       setSelectedIngredient(payload);
       setMobileSheetOpen(false);
-      toast.success(`재료 선택: ${payload.emoji} ${payload.title}`);
     },
     []
   );
