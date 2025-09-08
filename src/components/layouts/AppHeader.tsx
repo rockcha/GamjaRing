@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import CoupleBalanceCard from "../widgets/Cards/CoupleBalanceCard";
 import DaysTogetherBadge from "../DaysTogetherBadge";
 import { NavIconButton } from "../widgets/NavIconButton";
+import PotatoExchange from "../widgets/PotatoExchange";
 
 /* ----------------------------------------------------------------
    1) 네비/가드/라우팅 — 모듈 상단 "상수"로 고정 (참조 동일성 보장)
@@ -147,6 +148,11 @@ const RightCluster = memo(function RightCluster() {
         className="h-6 my-auto hidden md:block"
       />
       <WeatherCard />
+      <Separator
+        orientation="vertical"
+        className="h-6 my-auto hidden md:block"
+      />
+      <PotatoExchange />
       <Separator
         orientation="vertical"
         className="h-6 my-auto hidden md:block"
