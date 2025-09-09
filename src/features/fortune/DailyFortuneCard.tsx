@@ -99,6 +99,7 @@ export default function DailyFortuneCard({
     setLoadingLine("타로카드 정리중… ⏳");
     intervalRef.current = setInterval(() => {
       setLoadingLine(LOADING_LINES[i % LOADING_LINES.length]);
+      
       i++;
     }, 380);
 

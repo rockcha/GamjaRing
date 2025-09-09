@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, ShieldCheck } from "lucide-react";
 
-export default function ResetPasswordPage() {
+export default function ResetPasswardPage() {
   const navigate = useNavigate();
   const [pwd1, setPwd1] = useState("");
   const [pwd2, setPwd2] = useState("");

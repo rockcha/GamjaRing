@@ -91,13 +91,7 @@ export default function PotatoPokeButton({
 
   return (
     // 고정 위치 래퍼: 좌하단 + safe-area 고려
-    <div
-      className={["fixed z-50", className].join(" ")}
-      style={{
-        left: "calc(env(safe-area-inset-left, 0px) + 16px)",
-        bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
-      }}
-    >
+    <div className="fixed left-2 top-1/2 -translate-y-1/2 z-[50]">
       <motion.button
         type="button"
         onClick={handleClick}
