@@ -102,11 +102,10 @@ export default function AquariumPreviewCard({
 
   return (
     <AquariumBox
-      readOnly
       fishIds={previewFishIds}
       isLoading={loading}
-      aspectRatio={aspectRatio}
       fitToContainer
+      showDetailButton={false}
     />
   );
 }

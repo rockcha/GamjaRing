@@ -6,7 +6,7 @@ import { FISH_BY_ID } from "./fishes";
 import FishSprite from "./FishSprite";
 import supabase from "@/lib/supabase";
 import { useCoupleContext } from "@/contexts/CoupleContext";
-import FishActionModal from "./FishActionModal";
+import AquariumDetailButton from "./AquariumDetailButton";
 
 type Slot = { key: string; id: string; leftPct: number; topPct: number };
 type SellPayload = { index: number; fishId: string; sellPrice: number };
@@ -27,18 +27,14 @@ function clamp(v: number, min = 0, max = 100) {
 }
 
 function SpawnBurst({ leftPct, topPct }: { leftPct: number; topPct: number }) {
-  const particles = useMemo(
-    () =>
-      Array.from({ length: 18 }).map((_, i) => ({
-        id: i,
-        dx: Math.random() * 48 - 24,
-        dy: Math.random() * -48 - 12,
-        delay: Math.random() * 140,
-        scale: 0.8 + Math.random() * 1.2,
-        char: ["💦", "✨", "🐟", "💧"][Math.floor(Math.random() * 4)],
-      })),
-    []
-  );
+  const particles = Array.from({ length: 18 }).map((_, i) => ({
+    id: i,
+    dx: Math.random() * 48 - 24,
+    dy: Math.random() * -48 - 12,
+    delay: Math.random() * 140,
+    scale: 0.8 + Math.random() * 1.2,
+    char: ["💦", "✨", "🐟", "💧"][Math.floor(Math.random() * 4)],
+  }));
 
   return (
     <>
@@ -107,6 +103,7 @@ export default function AquariumBox({
   readOnly = false,
   aspectRatio = "800 / 410",
   fitToContainer = false,
+  showDetailButton = true,
 }: {
   fishIds?: string[];
   isLoading?: boolean;
@@ -115,15 +112,16 @@ export default function AquariumBox({
   readOnly?: boolean;
   aspectRatio?: string;
   fitToContainer?: boolean;
+  showDetailButton?: boolean;
 }) {
   const { couple, fetchCoupleData } = useCoupleContext();
   const coupleId = couple?.id ?? null;
 
   const [fishIdsInternal, setFishIdsInternal] = useState<string[]>([]);
-  const [breedCount, setBreedCount] = useState<number>(0);
+
   const [loadingInternal, setLoadingInternal] = useState(false);
 
-  // ✅ 테마 상태: 실제 이미지 onLoad 전까지 스켈레톤
+  // ✅ 테마 상태
   const [themeTitle, setThemeTitle] = useState<string | null>(null);
   const [bgUrl, setBgUrl] = useState<string | null>(null);
   const [bgReady, setBgReady] = useState(false);
@@ -138,7 +136,6 @@ export default function AquariumBox({
     window.addEventListener("aquarium-theme-applied", handler);
     return () => window.removeEventListener("aquarium-theme-applied", handler);
   }, []);
-  const [hasBgEverLoaded, setHasBgEverLoaded] = useState(false);
 
   /* ── DB: 어항 물고기/브리드 카운트 ───────────────────── */
   useEffect(() => {
@@ -148,14 +145,14 @@ export default function AquariumBox({
       if (fishIdsProp) return; // 외부 주입 모드
       if (!coupleId) {
         setFishIdsInternal([]);
-        setBreedCount(0);
+
         return;
       }
       try {
         setLoadingInternal(true);
         const { data, error } = await supabase
           .from("couple_aquarium")
-          .select("aquarium_fishes, breed_count")
+          .select("aquarium_fishes")
           .eq("couple_id", coupleId)
           .maybeSingle();
 
@@ -165,21 +162,15 @@ export default function AquariumBox({
           await supabase
             .from("couple_aquarium")
             .upsert(
-              { couple_id: coupleId, aquarium_fishes: [], breed_count: 0 },
+              { couple_id: coupleId, aquarium_fishes: [] },
               { onConflict: "couple_id" }
             );
           setFishIdsInternal([]);
-          setBreedCount(0);
         } else {
           const arr = Array.isArray(data.aquarium_fishes)
             ? (data.aquarium_fishes as string[])
             : [];
           setFishIdsInternal(arr);
-          setBreedCount(
-            Number.isFinite(data.breed_count as number)
-              ? (data.breed_count as number)
-              : 0
-          );
         }
       } finally {
         if (mounted) setLoadingInternal(false);
@@ -202,9 +193,7 @@ export default function AquariumBox({
       setThemeTitle(null);
 
       try {
-        if (!coupleId) {
-          return;
-        }
+        if (!coupleId) return;
 
         const cur = await supabase
           .from("couple_aquarium")
@@ -251,22 +240,19 @@ export default function AquariumBox({
     };
   }, [coupleId, themeRefreshTick]);
 
+  /** 외부에서도 부를 수 있게 새로고침 함수 노출 */
   const refreshFromDB = async () => {
     if (!coupleId) return;
     const { data } = await supabase
       .from("couple_aquarium")
-      .select("aquarium_fishes, breed_count")
+      .select("aquarium_fishes")
       .eq("couple_id", coupleId)
       .maybeSingle();
     const arr = Array.isArray(data?.aquarium_fishes)
       ? (data!.aquarium_fishes as string[])
       : [];
     setFishIdsInternal(arr);
-    setBreedCount(
-      Number.isFinite(data?.breed_count as number)
-        ? (data?.breed_count as number)
-        : 0
-    );
+
     await fetchCoupleData?.();
   };
 
@@ -279,7 +265,6 @@ export default function AquariumBox({
 
   const [slots, setSlots] = useState<Slot[]>([]);
   const [appearingKeys, setAppearingKeys] = useState<string[]>([]);
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [hoverKey, setHoverKey] = useState<string | null>(null);
 
   useEffect(() => {
@@ -335,7 +320,7 @@ export default function AquariumBox({
       const rect = entries[0]?.contentRect;
       if (!rect) return;
       const width = rect.width;
-      const scale = Math.max(0.4, Math.min(2.0, width / 800));
+      const scale = Math.max(0.8, Math.min(2.0, width / 800));
       setContainerScale(scale);
     });
 
@@ -343,13 +328,9 @@ export default function AquariumBox({
     return () => ro.disconnect();
   }, [fitToContainer]);
 
-  /* ── 롱프레스 드래그 ─────────────────────────────────── */
-  const PRESS_MS = 280; // 롱프레스 임계값
+  /* ── 드래그 (롱프레스 없이 즉시 시작) ─────────────────── */
   const [dragKey, setDragKey] = useState<string | null>(null);
   const dragOffsetRef = useRef<{ ox: number; oy: number }>({ ox: 0, oy: 0 });
-  const pressTimerRef = useRef<number | null>(null);
-  const pressKeyRef = useRef<string | null>(null);
-  const suppressClickRef = useRef(false);
 
   const getPointerPct = (evt: MouseEvent | TouchEvent) => {
     const el = containerRef.current;
@@ -371,48 +352,25 @@ export default function AquariumBox({
     return { xPct: x, yPct: y };
   };
 
-  const beginPress = (
+  const startDrag = (
     key: string,
     e: React.MouseEvent | React.TouchEvent,
     slot: Slot
   ) => {
     if (readOnly) return;
-    pressKeyRef.current = key;
-    suppressClickRef.current = false;
-
+    setDragKey(key);
     const native = e.nativeEvent as any as MouseEvent | TouchEvent;
     const { xPct, yPct } = getPointerPct(native);
     dragOffsetRef.current = { ox: xPct - slot.leftPct, oy: yPct - slot.topPct };
-
-    // 롱프레스 타이머
-    if (pressTimerRef.current) {
-      window.clearTimeout(pressTimerRef.current);
-      pressTimerRef.current = null;
-    }
-    pressTimerRef.current = window.setTimeout(() => {
-      // 롱프레스 확정 → 드래그 시작
-      setSelectedKey(null); // 드래그 중 모달 방지
-      setDragKey(key);
-      suppressClickRef.current = true;
-    }, PRESS_MS) as unknown as number;
-  };
-
-  const cancelPressTimer = () => {
-    if (pressTimerRef.current) {
-      window.clearTimeout(pressTimerRef.current);
-      pressTimerRef.current = null;
-    }
   };
 
   const handleMoveWhileDrag = (evt: MouseEvent | TouchEvent) => {
     if (!dragKey) return;
     if ("touches" in evt) evt.preventDefault(); // 모바일 스크롤 방지
-
     const { xPct, yPct } = getPointerPct(evt);
     const { ox, oy } = dragOffsetRef.current;
     const nx = clamp(xPct - ox, 0, 100);
     const ny = clamp(yPct - oy, 0, 100);
-
     setSlots((prev) =>
       prev.map((s) =>
         s.key === dragKey ? { ...s, leftPct: nx, topPct: ny } : s
@@ -420,28 +378,11 @@ export default function AquariumBox({
     );
   };
 
-  const endPressOrDrag = () => {
-    // 드래그 중이면 종료
-    if (dragKey) {
-      setDragKey(null);
-      cancelPressTimer();
-      pressKeyRef.current = null;
-      return;
-    }
-
-    // 드래그 아니면(롱프레스 아니면) → 클릭으로 간주
-    const key = pressKeyRef.current;
-    cancelPressTimer();
-    pressKeyRef.current = null;
-
-    // suppressClickRef는 onClick에서 체크하지만,
-    // 혹시 모를 타이밍 이슈 대비해 여기서도 처리 X (onClick에서 일괄 처리)
-  };
+  const endDrag = () => setDragKey(null);
 
   useEffect(() => {
-    // 전역 포인터 이벤트
     const onMove = (e: MouseEvent | TouchEvent) => handleMoveWhileDrag(e);
-    const onUp = () => endPressOrDrag();
+    const onUp = () => endDrag();
 
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
@@ -456,7 +397,6 @@ export default function AquariumBox({
       window.removeEventListener("touchend", onUp);
       window.removeEventListener("touchcancel", onUp);
     };
-    // dragKey 의존 필요 없음: 항상 구독하고 내부에서 체크
   }, [dragKey]);
 
   /* ── 로딩 화면(물고기 데이터) ───────────────────────── */
@@ -465,7 +405,6 @@ export default function AquariumBox({
       <div className="w-full">
         <div
           className="relative rounded-xl overflow-hidden mx-auto"
-          // 높이 75vh, 가로는 3:2 비율 유지
           style={{ height: "73vh", width: "min(100%, calc(73vh * 1.5))" }}
         >
           <div className="absolute inset-0 bg-slate-200 dark:bg-zinc-800 animate-pulse" />
@@ -479,13 +418,6 @@ export default function AquariumBox({
     );
   }
 
-  /* ── 본 화면 ────────────────────────────────────────── */
-  const selectedSlot = selectedKey
-    ? slots.find((s) => s.key === selectedKey)
-    : undefined;
-  const selectedFish = selectedSlot ? FISH_BY_ID[selectedSlot.id] : undefined;
-  const selectedIndex = selectedKey ? Number(selectedKey.split("-").pop()) : -1;
-
   const showBgSkeleton = themeLoading || !bgUrl || !bgReady;
 
   return (
@@ -496,21 +428,25 @@ export default function AquariumBox({
       {/* 1536×1024 (3:2) 비율, 높이 75vh */}
       <div
         ref={containerRef}
-        className={`relative rounded-xl overflow-hidden will-change-transform transform-gpu mx-auto ${
+        className={`relative rounded-xl overflow-hidden will-change-transform transform-gpu mx-auto  ${
           dragKey ? "cursor-grabbing select-none" : ""
         }`}
         style={{ height: "75vh", width: "min(100%, calc(75vh * 1.5))" }}
       >
-        {/* 배경 이미지 (로드 완료 전까지는 스켈레톤으로 가림) */}
+        {/* 좌상단 상세보기 버튼 (판매 후 콜백으로 새로고침) */}
+        {showDetailButton && (
+          <div className="absolute left-2 top-2 z-20">
+            <AquariumDetailButton onChanged={refreshFromDB} />
+          </div>
+        )}
+
+        {/* 배경 이미지 */}
         {bgUrl && (
           <img
             src={bgUrl}
             alt={themeTitle ?? ""}
             className="absolute inset-0 w-full h-full object-cover z-0"
-            onLoad={() => {
-              setBgReady(true);
-              setHasBgEverLoaded(true); // ✅ 최초 로드 완료 체크
-            }}
+            onLoad={() => setBgReady(true)}
             onError={(e) => {
               const el = e.currentTarget as HTMLImageElement;
               el.style.opacity = "0.9";
@@ -530,7 +466,11 @@ export default function AquariumBox({
         )}
 
         {/* 물고기/이펙트 레이어 */}
-        <div className="absolute inset-0">
+        <div
+          className={` 
+            readOnly ? "absolute inset-0 pointer-events-none" 
+          }`}
+        >
           {slots.map((slot) => {
             const fish = FISH_BY_ID[slot.id];
             if (!fish) return null;
@@ -538,25 +478,15 @@ export default function AquariumBox({
             const isHovered = hoverKey === slot.key;
             const isDragging = dragKey === slot.key;
 
-            // 이벤트: 롱프레스 시작 + 클릭(짧은 탭) 분기
-            const eventProps = readOnly
-              ? {}
-              : {
-                  onMouseDown: (e: React.MouseEvent) =>
-                    beginPress(slot.key, e, slot),
-                  onTouchStart: (e: React.TouchEvent) =>
-                    beginPress(slot.key, e, slot),
-                  onMouseUp: () => endPressOrDrag(),
-                  onTouchEnd: () => endPressOrDrag(),
-                  onClick: () => {
-                    // 롱프레스(드래그)였다면 클릭 억제
-                    if (dragKey || suppressClickRef.current) {
-                      suppressClickRef.current = false;
-                      return;
-                    }
-                    setSelectedKey(slot.key);
-                  },
-                };
+            // 즉시 드래그 시작 (모달 오픈 로직 제거)
+            const eventProps = {
+              onMouseDown: (e: React.MouseEvent) =>
+                startDrag(slot.key, e, slot),
+              onTouchStart: (e: React.TouchEvent) =>
+                startDrag(slot.key, e, slot),
+              onMouseUp: () => endDrag(),
+              onTouchEnd: () => endDrag(),
+            };
 
             return (
               <div
@@ -584,26 +514,6 @@ export default function AquariumBox({
           })}
         </div>
       </div>
-
-      {/* 읽기 전용이 아니면 기존 모달 동작 유지 */}
-      {!readOnly && selectedSlot && selectedFish && (
-        <FishActionModal
-          open={true}
-          onClose={() => setSelectedKey(null)}
-          coupleId={coupleId}
-          fishId={selectedSlot.id}
-          index={Number.isFinite(selectedIndex) ? selectedIndex : -1}
-          fishCountOfThis={countsById.get(selectedSlot.id) ?? 0}
-          {...(onSell && {
-            onSell: async (payload: SellPayload) => {
-              await onSell(payload);
-              await refreshFromDB();
-              setSelectedKey(null);
-            },
-            onAfterSell: refreshFromDB,
-          })}
-        />
-      )}
     </div>
   );
 }

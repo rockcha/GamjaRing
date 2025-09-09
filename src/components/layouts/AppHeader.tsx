@@ -28,7 +28,7 @@ import { toast } from "sonner";
 import CoupleBalanceCard from "../widgets/Cards/CoupleBalanceCard";
 import DaysTogetherBadge from "../DaysTogetherBadge";
 import { NavIconButton } from "../widgets/NavIconButton";
-import PotatoExchange from "../widgets/PotatoExchange";
+
 import TodayQuestionInline from "../widgets/Cards/TodayQuestionCard";
 
 /* ----------------------------------------------------------------
@@ -152,7 +152,7 @@ const RightCluster = memo(function RightCluster() {
         orientation="vertical"
         className="h-6 my-auto hidden md:block"
       />
-      <PotatoExchange />
+
       <Separator
         orientation="vertical"
         className="h-6 my-auto hidden md:block"

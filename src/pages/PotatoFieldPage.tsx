@@ -7,6 +7,7 @@ import PotatoFieldGrid from "@/features/potato_field/PotatoFieldGrid";
 import { ensureRow, getPotatoCount } from "@/features/potato_field/utils";
 import ProducerSection from "@/features/producer/ProducerSection";
 import { cn } from "@/lib/utils";
+import PotatoExchange from "@/components/widgets/PotatoExchange";
 
 /* ───────────────────────────── page ───────────────────────────── */
 
@@ -36,7 +37,24 @@ export default function PotatoFieldPage() {
   }
 
   return (
-    <div className="w-full px-3 sm:px-4 md:px-6 py-4">
+    <div className="relative w-full px-3 sm:px-4 md:px-6 py-4">
+      {/* ▶ PotatoFieldPage 컨테이너 기준 오른쪽 상단 고정 */}
+      <div className="absolute right-6 top-3 z-50">
+        <div
+          className={cn(
+            "rounded-lg   bg-white/70 backdrop-blur",
+            "shadow-sm hover:shadow-md transition-shadow",
+            "px-2.5 py-1.5"
+          )}
+          role="region"
+          aria-label="감자 교환 위젯"
+        >
+          <div className="flex items-center gap-2">
+            <PotatoExchange />
+          </div>
+        </div>
+      </div>
+
       {/* 레이아웃: 모바일 1컬럼 → md↑ 7:3 */}
       <div className="grid w-full items-start gap-6 md:gap-8 md:grid-cols-10">
         {/* ── 생산시설 ───────────────────────── */}
@@ -47,7 +65,6 @@ export default function PotatoFieldPage() {
             subtitle="재료를 생산하는 우리만의 공간"
           />
           <GradientDivider className="mt-2" />
-
           <SectionCard className="mt-4">
             <ProducerSection />
           </SectionCard>
@@ -61,12 +78,10 @@ export default function PotatoFieldPage() {
             subtitle="씨앗을 심고 수확해요"
           />
           <GradientDivider className="mt-2" />
-
           <SectionCard className="mt-4">
-            {/* 모바일 전용 칩 (데스크탑 오른쪽 배지 대신) */}
-
             <PotatoFieldGrid coupleId={coupleId} onCountChange={setCount} />
           </SectionCard>
+          {/* ⛔️ 기존 하단 PotatoExchange는 제거 */}
         </section>
       </div>
     </div>

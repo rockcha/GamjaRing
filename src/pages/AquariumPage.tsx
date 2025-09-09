@@ -241,7 +241,7 @@ export default function AquariumPage() {
     >
       <div className="w-full space-y-3 flex-1 ">
         {/* ✅ 어항 + 상단 고정 오버레이 (로딩/비로딩 공통) */}
-        <div className="relative w-full -mt-1">
+        <div className="relative w-full mt-4">
           {/* 탱크 본체 */}
           {loading ? (
             <TankSkeleton text={currentLoadingText} />

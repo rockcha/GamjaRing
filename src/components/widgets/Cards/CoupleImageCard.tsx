@@ -21,7 +21,6 @@ import {
 
 import { Pencil, Loader2, Trash2, ImageUp } from "lucide-react";
 import { cn } from "@/lib/utils";
-import DaysTogetherBadge from "@/components/DaysTogetherBadge";
 
 const BUCKET = "Couple_Image";
 const MAX_SLOTS = 5;
@@ -74,9 +73,24 @@ function writeCache(map: Record<string, CacheEntry>) {
 const nowSec = () => Math.floor(Date.now() / 1000);
 const isFresh = (exp: number) => exp - RENEW_BEFORE_SEC > nowSec();
 
+// ===== 이미지 타임아웃 가드 =====
+async function tryLoadWithTimeout(url: string, ms = 3500) {
+  return await Promise.race([
+    new Promise<void>((res, rej) => {
+      const img = new Image();
+      img.onload = () => res();
+      img.onerror = () => rej(new Error("img error"));
+      img.src = url;
+    }),
+    new Promise<void>((_, rej) =>
+      setTimeout(() => rej(new Error("timeout")), ms)
+    ),
+  ]);
+}
+
 export default function CoupleImageCard({
   className,
-  maxImageHeight = 520, // 기본 최대 높이(원본이 더 작으면 더 작게)
+  maxImageHeight = 520,
 }: Props) {
   const { user, isCoupled } = useUser();
   const { couple } = useCoupleContext();
@@ -144,6 +158,21 @@ export default function CoupleImageCard({
     []
   );
 
+  // 캐시 무시 재발급(재시도용, 쿨다운도 무시)
+  const refreshSignedUrlForce = useCallback(async (path: string) => {
+    const { data, error } = await supabase.storage
+      .from(BUCKET)
+      .createSignedUrl(path, SIGNED_TTL_SEC, { transform: TRANSFORM });
+    if (error || !data?.signedUrl)
+      throw error ?? new Error("force sign failed");
+    const signed = data.signedUrl;
+    const exp = nowSec() + SIGNED_TTL_SEC;
+    cacheRef.current[path] = { url: signed, exp };
+    writeCache(cacheRef.current);
+    delete failRef.current[path];
+    return signed;
+  }, []);
+
   // ===== 기존 파일 목록 로드 =====
   const loadExisting = useCallback(async () => {
     if (!coupleId || !isCoupled) {
@@ -209,34 +238,47 @@ export default function CoupleImageCard({
   useEffect(() => {
     if (!carouselApi) return;
     const onSelect = () => setActiveIdx(carouselApi.selectedScrollSnap());
-    onSelect();
+    // 초기 레이아웃 안정 후 select
+    requestAnimationFrame(onSelect);
     carouselApi.on("select", onSelect);
     return () => {
       carouselApi?.off("select", onSelect);
     };
   }, [carouselApi]);
 
-  // 현재/양옆만 url 로드
+  // 현재/양옆만 url 로드 (개선: URL을 즉시 꽂고, 뒤에서 확인/재시도)
   const ensureUrlFor = useCallback(
     async (idx: number) => {
       if (!inRange(idx)) return;
       const s = slots[idx];
       if (!s?.path) return;
       if (s.url) return;
+
+      const path = s.path;
       try {
-        const signed = await getSignedUrlCached(s.path);
-        // 선로드 후 교체(깜빡임 방지)
-        await new Promise<void>((resolve) => {
-          const img = new Image();
-          img.onload = () => resolve();
-          img.onerror = () => resolve();
-          img.decoding = "async";
-          img.src = signed;
-        });
+        // 1) 서명 URL 발급
+        const signed = await getSignedUrlCached(path);
+
+        // 2) UI에 즉시 반영 (사용자는 바로 본다)
         updateSlot(idx, (prev) => ({ ...prev, url: signed }));
-      } catch {}
+
+        // 3) 백그라운드 확인 + 타임아웃 가드
+        try {
+          await tryLoadWithTimeout(signed, 3500);
+        } catch {
+          // 4) 한 번은 강제 재발급 후 교체
+          try {
+            const fresh = await refreshSignedUrlForce(path);
+            updateSlot(idx, (prev) => ({ ...prev, url: fresh }));
+          } catch {
+            // 무시: 다음 인터랙션에서 또 시도됨
+          }
+        }
+      } catch {
+        // 실패 쿨다운 중이면 다음 인터랙션/슬라이드 이동 시 재시도
+      }
     },
-    [slots, getSignedUrlCached]
+    [slots, getSignedUrlCached, refreshSignedUrlForce]
   );
 
   useEffect(() => {
@@ -322,22 +364,26 @@ export default function CoupleImageCard({
       writeCache(cacheRef.current);
       delete failRef.current[uploadPath];
 
-      // 변환 포함 서명 URL 발급 + 선로드
+      // 변환 포함 서명 URL 발급
       const signed = await getSignedUrlCached(uploadPath);
-      await new Promise<void>((resolve) => {
-        const img = new Image();
-        img.onload = () => resolve();
-        img.onerror = () => resolve();
-        img.decoding = "async";
-        img.src = signed;
-      });
 
+      // UI 즉시 반영
       updateSlot(index, (_) => ({
         url: signed,
         path: uploadPath,
         uploading: false,
         deleting: false,
       }));
+
+      // 백그라운드 확인 (실패 시 강제 재발급)
+      try {
+        await tryLoadWithTimeout(signed, 3500);
+      } catch {
+        try {
+          const fresh = await refreshSignedUrlForce(uploadPath);
+          updateSlot(index, (prev) => ({ ...prev, url: fresh }));
+        } catch {}
+      }
     } catch (e: any) {
       updateSlot(index, (prev) => ({ ...prev, uploading: false }));
       setError(e?.message ?? "이미지를 업로드하는 중 오류가 발생했어요.");
@@ -374,17 +420,17 @@ export default function CoupleImageCard({
     }
   };
 
-  // ✅ onError 시 즉시 재발급하여 깨짐 복구
+  // ✅ onError 시 즉시 재발급하여 깨짐 복구 (강제 재발급 사용)
   const handleImgError = useCallback(
     async (idx: number, path: string) => {
       try {
-        const fresh = await getSignedUrlCached(path);
+        const fresh = await refreshSignedUrlForce(path);
         updateSlot(idx, (prev) => ({ ...prev, url: fresh }));
       } catch {
         // 무시: 다음 인터랙션에서 재시도
       }
     },
-    [getSignedUrlCached]
+    [refreshSignedUrlForce]
   );
 
   return (
@@ -431,10 +477,7 @@ export default function CoupleImageCard({
                     className="bg-transparent border-0 p-2"
                   >
                     <div className="w-full">
-                      {/* 이미지 컨테이너:
-                          - 고정 비율/최소 높이 제거
-                          - 작은 사진은 작은 그대로, 큰 사진은 maxImageHeight까지만
-                          - 중앙 정렬 */}
+                      {/* 이미지 컨테이너 */}
                       <div className="relative w-full rounded-md border bg-white/40">
                         <div className="w-full flex items-center justify-center p-2">
                           {s.path && shouldLoad ? (
@@ -443,14 +486,15 @@ export default function CoupleImageCard({
                                 key={s.path ?? `img-${idx}`}
                                 src={s.url!}
                                 alt={`커플 이미지 ${idx + 1}`}
-                                className="block max-w-full h-auto"
+                                className="block max-w-full h-auto border rounded-xl"
                                 style={{
                                   maxHeight: `${maxImageHeight}px`,
                                   objectFit: "contain",
                                 }}
                                 draggable={false}
                                 loading={idx === activeIdx ? "eager" : "lazy"}
-                                decoding="async"
+                                // 액티브는 decoding 동기화로 "안뜨는 느낌" 최소화
+                                decoding={idx === activeIdx ? "sync" : "async"}
                                 fetchPriority={
                                   idx === activeIdx ? "high" : "low"
                                 }

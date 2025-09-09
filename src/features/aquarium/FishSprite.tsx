@@ -108,9 +108,9 @@ export default function FishSprite({
   // 반응형 너비(뷰포트 의존 제거, 컨테이너 비례)
   const sizeMul = fish.size ?? 1;
   // 기준 폭(중간값) 72px, 하한/상한 28~92px → 전부 containerScale에 비례
-  const base = 72 * sizeMul * containerScale;
-  const minPx = 28 * sizeMul * containerScale;
-  const maxPx = 92 * sizeMul * containerScale;
+  const base = 76 * sizeMul * containerScale;
+  const minPx = 32 * sizeMul * containerScale;
+  const maxPx = 100 * sizeMul * containerScale;
   const widthPx = Math.max(minPx, Math.min(maxPx, base));
   const widthCss = `${Math.round(widthPx)}px`;
 

@@ -61,6 +61,21 @@ export const FISHES: FishInfo[] = [
     description: "온화한 성격의 소형 관상어예요.",
   },
   {
+    id: "old-boot",
+    labelKo: "오래된 장화",
+    cost: 13,
+    image: img("일반", "old-boot.png"),
+    size: 0.4,
+    swimY: [70, 95],
+    isWild: false,
+    isMovable: true,
+    ingredient: "고기",
+    rarity: "일반",
+    description:
+      "세월이 느껴지는 낡은 장화. 바다 밑에 가라앉아 기묘한 분위기를 풍겨요.",
+  },
+
+  {
     id: "goldfish",
     labelKo: "금붕어",
     cost: 40,
@@ -72,6 +87,34 @@ export const FISHES: FishInfo[] = [
     ingredient: "밀",
     rarity: "일반",
     description: "초보도 키우기 쉬운 친숙한 물고기예요.",
+  },
+  {
+    id: "sea-bream",
+    labelKo: "도미",
+    cost: 90,
+    image: img("일반", "sea-bream.png"),
+    size: 1.1,
+    swimY: [25, 55],
+    isWild: true,
+    isMovable: true,
+    ingredient: "망고",
+    rarity: "일반",
+    description:
+      "은은한 분홍빛 비늘이 특징인 바다 도미. 차분하게 유영하며 바다를 물들이는 인기 있는 어종.",
+  },
+  {
+    id: "rockfish",
+    labelKo: "우럭",
+    cost: 94,
+    ingredient: "계란",
+    rarity: "일반",
+    size: 1.1,
+    isWild: true,
+    isMovable: true,
+    image: img("일반", "rockfish.png"),
+    swimY: [40, 72],
+    description:
+      "짙은 무늬와 둥근 눈이 특징인 우럭. 달걀의 기운을 받아 색감이 은은히 밝아졌습니다.",
   },
   {
     id: "cardinalfish",
@@ -86,6 +129,21 @@ export const FISHES: FishInfo[] = [
     rarity: "일반",
     description: "형광빛 줄무늬가 매력적인 작은 바닷물고기예요.",
   },
+  {
+    id: "mango-jelly-bag",
+    labelKo: "망고젤리 봉지",
+    cost: 36,
+    image: img("일반", "mango-jelly-bag.png"),
+    size: 0.6,
+    swimY: [25, 55],
+    isWild: false,
+    isMovable: true,
+    ingredient: "망고",
+    rarity: "일반",
+    description:
+      "달콤한 향기가 은은히 풍기는 망고젤리 봉지. 바닷속을 둥둥 떠다니며 의외로 눈에 잘 띄어요.",
+  },
+
   {
     id: "mackerel",
     labelKo: "고등어",
@@ -284,6 +342,19 @@ export const FISHES: FishInfo[] = [
     description: "벽에 붙어 떨어지지 않아요.",
   },
   {
+    id: "seaweed-pile",
+    labelKo: "해조류 더미",
+    cost: 23,
+    image: img("일반", "seaweed-pile.png"),
+    size: 0.4,
+    swimY: [92, 99], // 바닥 근처 고정
+    isWild: false,
+    isMovable: true,
+    ingredient: "베이컨",
+    rarity: "일반",
+    description: "여러 겹의 해조가 폭신하게 쌓여 잔물결에 살랑거려요.",
+  },
+  {
     id: "seahorse",
     labelKo: "해마",
     cost: 55,
@@ -336,6 +407,20 @@ export const FISHES: FishInfo[] = [
     description: "튼튼한 집게로 바닥을 천천히 거니는 갑각류예요.",
   },
   {
+    id: "plastic-bag",
+    labelKo: "떠다니는 비닐봉지",
+    cost: 10,
+    image: img("일반", "plastic-bag.png"),
+    size: 0.6,
+    swimY: [20, 50],
+    isWild: false,
+    isMovable: true,
+    ingredient: "밀",
+    rarity: "일반",
+    description:
+      "바닷속에서 펄럭이며 떠다니는 비닐봉지. 보기엔 소소하지만 은근 무섭죠.",
+  },
+  {
     id: "crab",
     labelKo: "게",
     cost: 38,
@@ -347,6 +432,59 @@ export const FISHES: FishInfo[] = [
     ingredient: "케찹",
     rarity: "일반",
     description: "옆걸음으로 바닥을 청소하는 성실한 주민이에요.",
+  },
+  {
+    id: "rusty_diving_tank",
+    labelKo: "녹슨 잠수통",
+    cost: 30,
+    image: img("일반", "rusty_diving_tank.png"),
+    ingredient: "치즈",
+    size: 1.4, // 덩치 있는 소품 느낌
+    swimY: [10, 20], // 바닥 근처에 스폰
+    isWild: false,
+    isMovable: true, // 배치 이동 가능
+    rarity: "일반",
+    description:
+      "깊은 바다 밑에 가라앉아 세월의 녹이 슨 잠수통. 가끔 작은 거품을 뿜어내요.",
+  },
+  {
+    id: "old-anchor",
+    labelKo: "낡은 닻",
+    cost: 45,
+    image: img("일반", "old-anchor.png"),
+    size: 2.2,
+    swimY: [83, 95],
+    isWild: false,
+    isMovable: false,
+    ingredient: "꿀",
+    rarity: "일반",
+    description: "과거의 배에서 떨어진 닻이 바다 밑에 자리 잡고 있어요.",
+  },
+  {
+    id: "lionfish",
+    labelKo: "쏠배감펭",
+    cost: 105,
+    image: img("일반", "lionfish.png"),
+    size: 1.5,
+    swimY: [30, 60],
+    isWild: true,
+    isMovable: true,
+    ingredient: "플랫브레드",
+    rarity: "일반",
+    description: "화려한 가시 지느러미가 특징인 바다의 멋진 포식자.",
+  },
+  {
+    id: "sunfish",
+    labelKo: "개복치",
+    cost: 85,
+    image: img("일반", "sunfish.png"),
+    size: 1.6, // 커다란 체형
+    swimY: [35, 65], // 중층을 천천히 유영
+    isWild: true,
+    isMovable: true,
+    ingredient: "계란",
+    rarity: "일반",
+    description: "둥글넓적한 몸과 큰 지느러미로 느릿하게 떠다니는 바다의 요정.",
   },
 
   /* ────────────────────────────────────────────────────────────────
@@ -365,6 +503,106 @@ export const FISHES: FishInfo[] = [
     rarity: "희귀",
     description: "고대의 껍질을 닮은 신비한 연체동물이에요.",
   },
+
+  {
+    id: "ancient_amphora_pair",
+    labelKo: "고대 암포라 한쌍",
+    cost: 120,
+    image: img("희귀", "ancient_amphora_pair.png"),
+    ingredient: "플랫브레드",
+    size: 1.6,
+    swimY: [82, 95],
+    isWild: false,
+    isMovable: false,
+    rarity: "희귀",
+    description:
+      "반쯤 묻힌 항아리 두 개. 균열 사이로 기포가 솟고 해초가 살짝 엉켜 있습니다.",
+  },
+  {
+    id: "stone-statue",
+    labelKo: "바다 석상",
+    cost: 140,
+    image: img("희귀", "stone-statue.png"),
+    size: 2.1,
+    swimY: [85, 95],
+    isWild: false,
+    isMovable: false,
+    ingredient: "밀",
+    rarity: "희귀",
+    description:
+      "신비로운 석상이 바닷속에 잠겨 있어요. 마치 누군가의 유적 같아요.",
+  },
+  {
+    id: "barreleye",
+    labelKo: "바렐아이",
+    cost: 195,
+    image: img("희귀", "barreleye.png"),
+    size: 1.2, // 소형 어종이지만 존재감 있게
+    swimY: [55, 88], // 중층~심층
+    isWild: true,
+    isMovable: true,
+    ingredient: "소금",
+    rarity: "희귀",
+    description:
+      "유리처럼 투명한 머리 돔과 위쪽을 향한 관형 눈을 지닌 심해어. 잔잔한 녹빛 눈과 고요한 유영이 신비롭습니다.",
+  },
+  {
+    id: "baby_whale_shark",
+    labelKo: "아기 고래상어 ",
+    cost: 220,
+    image: img("희귀", "babay_whale_shark.png"),
+    size: 2,
+    ingredient: "베이컨",
+    swimY: [28, 52],
+    isWild: true,
+    isMovable: true,
+    rarity: "희귀",
+    description:
+      "점박이 무늬가 선명한 어린 고래상어. 느릿느릿 수면 아래를 미끄러져요.",
+  },
+
+  {
+    id: "krabby_patty_secret",
+    labelKo: "게살버거 비법서 ",
+    cost: 150,
+    image: img("희귀", "krabby_patty_secret.png"),
+    size: 1.4,
+    ingredient: "케찹",
+    swimY: [80, 94],
+    isWild: false,
+    isMovable: true,
+    rarity: "희귀",
+    description: "물에 젖어도 안 풀리는 단단한 게살버거 비법서.",
+  },
+  {
+    id: "poseidon-spear",
+    labelKo: "포세이돈의 창",
+    cost: 230,
+    image: img("희귀", "poseidon-spear.png"),
+    size: 2.5,
+    swimY: [40, 75],
+    isWild: false,
+    isMovable: false,
+    ingredient: "꿀",
+    rarity: "희귀",
+    description:
+      "바다의 신 포세이돈이 사용했다는 전설의 창. 금빛 장식과 푸른빛 오라가 감돌며, 바다 생명체조차 경외하는 힘을 발산해요.",
+  },
+
+  {
+    id: "captain-treasure-chest",
+    labelKo: "선장의 보물상자",
+    cost: 200,
+    image: img("희귀", "captain-treasure-chest.png"),
+    size: 2,
+    swimY: [99, 99],
+    isWild: true,
+    isMovable: false,
+    ingredient: "치즈",
+    rarity: "희귀",
+    description:
+      "바다를 누비던 선장의 보물상자, 틈새로 금빛 반짝임이 새어 나와요.",
+  },
   {
     id: "dolphin",
     labelKo: "돌고래",
@@ -380,10 +618,10 @@ export const FISHES: FishInfo[] = [
   },
   {
     id: "shark",
-    labelKo: "상어",
+    labelKo: "청상아리",
     cost: 200,
     image: img("희귀", "shark.png"),
-    size: 2.3,
+    size: 3,
     swimY: [20, 80],
     isWild: true,
     isMovable: true,
@@ -391,6 +629,35 @@ export const FISHES: FishInfo[] = [
     rarity: "희귀",
     description: "예리한 감각의 바다 최상위 포식자예요.",
   },
+  {
+    id: "great_white_shark",
+    labelKo: "백상아리",
+    cost: 245,
+    image: img("희귀", "great_white_shark.png"),
+    size: 3.5, // 크고 묵직한 체형
+    swimY: [25, 55], // 중층 위주 유영
+    isWild: true,
+    isMovable: true,
+    ingredient: "고기",
+    rarity: "희귀",
+    description:
+      "강력한 체형과 뚜렷한 카운터셰이딩이 특징인 최상위 포식자. 느릿하지만 위압감 있는 유영을 보여요.",
+  },
+  {
+    id: "sawshark",
+    labelKo: "톱상어",
+    cost: 190,
+    image: img("희귀", "sawshark.png"),
+    size: 2.7, // 길고 날씬한 체형
+    swimY: [30, 62], // 중층을 유영
+    isWild: true,
+    isMovable: true,
+    ingredient: "우유",
+    rarity: "희귀",
+    description:
+      "긴 톱니 모양 주둥이와 수염(바벨)을 지닌 톱상어. 민첩하게 수면 아래를 가릅니다.",
+  },
+
   {
     id: "seal",
     labelKo: "바다표범",
@@ -416,6 +683,32 @@ export const FISHES: FishInfo[] = [
     ingredient: "고기",
     rarity: "희귀",
     description: "어둠 속을 밝히는 초롱불로 먹잇감을 유혹해요.",
+  },
+  {
+    id: "giant-fish-bones",
+    labelKo: "거대한 생선의 뼈",
+    cost: 100,
+    image: img("희귀", "giant-fish-bones.png"),
+    size: 2,
+    swimY: [95, 97], // 바닥 근처 고정
+    isWild: false,
+    isMovable: false,
+    ingredient: "버터",
+    rarity: "희귀",
+    description: "거대한 생선의 백골. 아치형 척추와 갈비뼈가 장관을 이룹니다.",
+  },
+  {
+    id: "sunset-damselfish",
+    labelKo: "노을빛 제비고기",
+    cost: 140,
+    image: img("희귀", "sunset-damselfish.png"),
+    size: 1.5,
+    ingredient: "양파",
+    swimY: [40, 68],
+    isWild: true,
+    isMovable: true,
+    rarity: "희귀",
+    description: "살구·라일락 노을 그라데이션이 옆구리에서 은은하게 번진다.",
   },
   {
     id: "whale",
@@ -503,7 +796,7 @@ export const FISHES: FishInfo[] = [
     labelKo: "바다악어",
     cost: 190,
     image: img("희귀", "saltwater-croc.png"),
-    size: 2.0,
+    size: 3.5,
     swimY: [15, 55],
     isWild: true,
     isMovable: true,
@@ -595,6 +888,20 @@ export const FISHES: FishInfo[] = [
      ③ 에픽 (Epic)
      ──────────────────────────────────────────────────────────────── */
   {
+    id: "giant_squid",
+    labelKo: "대왕오징어",
+    cost: 490,
+    image: img("에픽", "giant_squid.png"),
+    size: 3,
+    swimY: [58, 86],
+    isWild: true,
+    isMovable: true,
+    ingredient: "소금",
+    rarity: "에픽",
+    description:
+      "길게 늘어진 촉수와 은은히 빛나는 빨판으로 유영하는 대왕오징어. 깊은 수역을 느릿하게 가로질러요.",
+  },
+  {
     id: "diver-kuromi",
     labelKo: "잠수부 쿠로미",
     cost: 560,
@@ -610,7 +917,7 @@ export const FISHES: FishInfo[] = [
   },
   {
     id: "diver-kkaekooki",
-    labelKo: "잠수부 깨국이",
+    labelKo: "잠수부 록구리",
     cost: 550,
     image: img("에픽", "diver-kkaekooki.png"),
     size: 1.4,
@@ -666,7 +973,7 @@ export const FISHES: FishInfo[] = [
     labelKo: "미트 파이크",
     cost: 495,
     image: img("에픽", "ing-meat-pike.png"),
-    size: 1.4,
+    size: 2.4,
     swimY: [20, 55],
     isWild: true,
     isMovable: true,
@@ -792,6 +1099,20 @@ export const FISHES: FishInfo[] = [
     description: "새콤한 향처럼 호기심 많은 뱀장어요.",
   },
   {
+    id: "adult_whale_shark",
+    labelKo: "성체 고래상어",
+    cost: 440,
+    image: img("에픽", "adult_whale_shark.png"),
+    size: 3, // 거대한 체형
+    swimY: [20, 50], // 수면 아래~중층 유영
+    isWild: true,
+    isMovable: true,
+    ingredient: "플랫브레드",
+    rarity: "에픽",
+    description:
+      "인디고 등과 은빛 점·줄무늬가 별자리처럼 반짝이는 거대한 여과섭식자. 고요하고 신비로운 유영을 보여요.",
+  },
+  {
     id: "ing-greens-guppy",
     labelKo: "그린스 구피",
     cost: 435,
@@ -816,6 +1137,50 @@ export const FISHES: FishInfo[] = [
     ingredient: "망고",
     rarity: "에픽",
     description: "망고빛 그러데이션이 사랑스러운 소형어예요.",
+  },
+  {
+    id: "lumineil",
+    labelKo: "루미네일피시",
+    cost: 420,
+    image: img("에픽", "lumineil-fish.png"),
+    size: 2.1,
+    swimY: [30, 70], // 부드럽게 유영
+    isWild: false,
+    isMovable: true,
+    ingredient: "우유",
+    rarity: "에픽",
+    description:
+      "투명한 몸과 빛나는 꼬리 지느러미를 가진 희귀 어종. 물속에서 은은한 빛 점이 반짝여요.",
+  },
+
+  {
+    id: "aquarose",
+    labelKo: "아쿠아로즈",
+    cost: 480,
+    image: img("에픽", "aqua-rose.png"),
+    size: 2.0,
+    swimY: [35, 75], // 꽃잎처럼 퍼지며 헤엄
+    isWild: false,
+    isMovable: true,
+    ingredient: "케찹",
+    rarity: "에픽",
+    description:
+      "장미꽃잎 같은 지느러미를 가진 아름다운 물고기. 마치 꽃이 물속에서 피어난 듯 우아해요.",
+  },
+
+  {
+    id: "seraphish",
+    labelKo: "세라피쉬",
+    cost: 450,
+    image: img("에픽", "seraphish.png"),
+    size: 2.3,
+    swimY: [20, 60], // 성스러운 느낌으로 천천히 이동
+    isWild: false,
+    isMovable: true,
+    ingredient: "얼음",
+    rarity: "에픽",
+    description:
+      "천사의 날개와 빛의 고리를 두른 신비로운 어종. 은빛 지느러미 끝에서 작은 별빛이 흩날려요.",
   },
 
   /* ────────────────────────────────────────────────────────────────
@@ -863,7 +1228,7 @@ export const FISHES: FishInfo[] = [
   {
     id: "obsidian-gargoyle",
     labelKo: "옵시디언 가고일",
-    cost: 1200,
+    cost: 1380,
     image: img("전설", "obsidian-gargoyle.png"),
     size: 2.2,
     swimY: [80, 85],
@@ -877,7 +1242,7 @@ export const FISHES: FishInfo[] = [
   {
     id: "abyssal-leviathan",
     labelKo: "심연의 레비아탄",
-    cost: 1300,
+    cost: 1400,
     image: img("전설", "abyssal-leviathan.png"),
     size: 3,
     swimY: [10, 45],
@@ -893,7 +1258,7 @@ export const FISHES: FishInfo[] = [
     labelKo: "유령 해적선",
     cost: 1100,
     image: img("전설", "ghost-pirate-ship.png"),
-    size: 2.3,
+    size: 3.2,
     swimY: [15, 50],
     isWild: true,
     isMovable: true,
@@ -901,6 +1266,78 @@ export const FISHES: FishInfo[] = [
     rarity: "전설",
     description:
       "심연을 떠도는 유령 해적선, 푸른 불꽃과 안개가 감싸는 전설의 망령선이에요.",
+  },
+  {
+    id: "golden_whale_choir",
+    labelKo: "황금 고래 성가대",
+    cost: 1260,
+    image: img("전설", "golden_whale_choir.png"),
+    size: 3, // 전설급: 화면을 크게 차지
+    swimY: [18, 46], // 수면 아래~중층 사이를 장엄하게 유영
+    isWild: true,
+    isMovable: true,
+    ingredient: "꿀",
+    rarity: "전설",
+    description:
+      "합창하듯 저주파음을 내는 영물 고래. 몸통에 흐르는 금빛 문양이 노랫결에 맞춰 은은히 밝아집니다.",
+  },
+  {
+    id: "heras-mango-tree",
+    labelKo: "헤라의 망고나무",
+    cost: 1280,
+    image: img("전설", "heras-mango-tree.png"),
+    size: 3.4,
+    swimY: [89, 95],
+    isWild: true,
+    isMovable: false,
+    ingredient: "망고",
+    rarity: "전설",
+    description:
+      "신들의 여왕 헤라가 바다에 내려 심었다는 전설의 망고나무. 황금빛 열매에서 신성한 향기가 퍼져나와, 바다의 수호와 풍요를 상징해요.",
+  },
+
+  {
+    id: "magma-megalodon",
+    labelKo: "마그마 메갈로돈",
+    cost: 1360,
+    image: img("전설", "magma-megalodon.png"),
+    size: 3.8,
+    swimY: [25, 65],
+    isWild: true,
+    isMovable: true,
+    ingredient: "케찹",
+    rarity: "전설",
+    description:
+      "용암처럼 붉게 타오르는 전설의 메갈로돈. 지느러미와 이빨에서 불길한 붉은빛이 새어나오며, 바닷속 심연을 지배하는 존재예요.",
+  },
+
+  {
+    id: "peach_coral_dragon",
+    labelKo: "살구빛 산호 용",
+    cost: 1240,
+    image: img("전설", "peach_coral_dragon.png"),
+    size: 3.2, // 길고 유려한 전설급 실루엣
+    swimY: [24, 58], // 수면 아래~중층을 장엄하게 유영
+    isWild: true,
+    isMovable: true,
+    ingredient: "양파",
+    rarity: "전설",
+    description:
+      "살구빛·코랄 톤의 산호 가지 뿔과 프릴을 지닌 해룡. 유영에 맞춰 비늘 틈의 금빛 무늬가 은은히 맥동합니다.",
+  },
+  {
+    id: "atlantis_last_colossus",
+    labelKo: "아틀란티스 마지막 수호병",
+    cost: 1370,
+    image: img("전설", "atlantis_last_colossus.png"),
+    size: 3, // 전설급 존재감
+    swimY: [70, 95], // 해저 근처에 정지/유영
+    isWild: true, // 인공 구조물 계열
+    isMovable: true, // 미세한 부유/광휘 모션
+    ingredient: "계란",
+    rarity: "전설",
+    description:
+      "청록빛 파티나가 흐르는 고대 수호 골렘. 금빛 룬이 맥동하며, 삼지창과 방패로 성소를 지킨다.",
   },
 ];
 
