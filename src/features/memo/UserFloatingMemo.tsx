@@ -210,14 +210,12 @@ export default function UserMemoFloating() {
             aria-label="유저 메모 열기"
             className="fixed right-2 top-1/2 -translate-y-1/2 z-40
                        flex flex-col items-center justify-center gap-1
-                       w-14 rounded-2xl px-3 py-2
-                       bg-amber-800 text-primary-foreground shadow-lg
+                       rounded-full p-4
+                        text-neutral-700 bg-white/90
                        hover:opacity-90 transition  select-none"
           >
-            <NotebookPen className="h-7 w-7" />
-            <span className="text-[11px] leading-none whitespace-nowrap">
-              메모
-            </span>
+            <NotebookPen className="h-6 w-6" />
+
             {(saving || dirty) && (
               <span
                 className="absolute -top-1 -right-1 inline-flex h-4 min-w-4 items-center justify-center

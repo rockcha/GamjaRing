@@ -64,7 +64,7 @@ export const RECIPES: readonly Recipe[] = [
     grade: "초급",
     potato: 3,
     ingredients: ["케찹", "소금"],
-    sell: 15,
+    sell: 35,
   },
   {
     name: "감자 바게트",
@@ -72,7 +72,7 @@ export const RECIPES: readonly Recipe[] = [
     grade: "초급",
     potato: 3,
     ingredients: ["밀", "우유"],
-    sell: 15,
+    sell: 35,
   },
   {
     name: "감자 토스트",
@@ -80,7 +80,7 @@ export const RECIPES: readonly Recipe[] = [
     grade: "초급",
     potato: 2,
     ingredients: ["밀", "꿀"],
-    sell: 14,
+    sell: 34,
   },
   {
     name: "감자 아이스크림",
@@ -88,7 +88,7 @@ export const RECIPES: readonly Recipe[] = [
     grade: "초급",
     potato: 1,
     ingredients: ["얼음", "꿀"],
-    sell: 13,
+    sell: 33,
   },
   {
     name: "감자전",
@@ -96,7 +96,7 @@ export const RECIPES: readonly Recipe[] = [
     grade: "초급",
     potato: 3,
     ingredients: ["밀", "계란"],
-    sell: 15,
+    sell: 34,
   },
 
   // ── 중급 ──
@@ -106,7 +106,7 @@ export const RECIPES: readonly Recipe[] = [
     grade: "중급",
     potato: 3,
     ingredients: ["밀", "치즈", "케찹", "녹색채소"],
-    sell: 27,
+    sell: 62,
   },
   {
     name: "감자 와플",
@@ -114,7 +114,7 @@ export const RECIPES: readonly Recipe[] = [
     grade: "중급",
     potato: 3,
     ingredients: ["계란", "우유", "버터"],
-    sell: 23,
+    sell: 59,
   },
   {
     name: "감자 핫도그",
@@ -122,7 +122,7 @@ export const RECIPES: readonly Recipe[] = [
     grade: "중급",
     potato: 3,
     ingredients: ["밀", "고기", "케찹"],
-    sell: 24,
+    sell: 55,
   },
   {
     name: "감자 샐러드",
@@ -130,7 +130,7 @@ export const RECIPES: readonly Recipe[] = [
     grade: "중급",
     potato: 4,
     ingredients: ["망고", "양파", "녹색채소"],
-    sell: 25,
+    sell: 60,
   },
   {
     name: "감자 오믈렛",
@@ -138,7 +138,7 @@ export const RECIPES: readonly Recipe[] = [
     grade: "중급",
     potato: 4,
     ingredients: ["계란", "버터", "양파"],
-    sell: 24,
+    sell: 63,
   },
 
   // ── 고급 ──
@@ -148,7 +148,7 @@ export const RECIPES: readonly Recipe[] = [
     grade: "고급",
     potato: 5,
     ingredients: ["플랫브레드", "치즈", "양파", "베이컨"],
-    sell: 37,
+    sell: 80,
   },
   {
     name: "감자 타코",
@@ -156,7 +156,7 @@ export const RECIPES: readonly Recipe[] = [
     grade: "고급",
     potato: 3,
     ingredients: ["플랫브레드", "고기", "녹색채소", "치즈"],
-    sell: 35,
+    sell: 82,
   },
   {
     name: "감자 부리또",
@@ -164,7 +164,7 @@ export const RECIPES: readonly Recipe[] = [
     grade: "고급",
     potato: 4,
     ingredients: ["플랫브레드", "고기", "치즈", "녹색채소"],
-    sell: 36,
+    sell: 86,
   },
   {
     name: "감자 퐁듀",
@@ -172,7 +172,7 @@ export const RECIPES: readonly Recipe[] = [
     grade: "고급",
     potato: 4,
     ingredients: ["치즈", "우유", "밀", "버터"],
-    sell: 34,
+    sell: 85,
   },
   {
     name: "감자 망고빙수",
@@ -180,7 +180,7 @@ export const RECIPES: readonly Recipe[] = [
     grade: "고급",
     potato: 1,
     ingredients: ["꿀", "얼음", "망고", "우유", "버터"], // 현재 5개
-    sell: 33, // 5개 기준. 4개로 줄이면 31 정도 권장
+    sell: 90, // 5개 기준. 4개로 줄이면 31 정도 권장
   },
 ] as const;
 

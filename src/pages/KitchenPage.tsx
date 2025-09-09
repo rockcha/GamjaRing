@@ -34,7 +34,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Coins } from "lucide-react";
-import GoldDisplay from "@/features/aquarium/GoldDisplay";
+
+// ✅ 추가: 파트너에게 요리 공유 알림용
+import { useUser } from "@/contexts/UserContext";
+import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 
 // ────────────────────────────────────────────────────────────
 // Types & type guards
@@ -64,6 +67,9 @@ type CookingState =
 export default function KitchenPage() {
   const { couple, addGold } = useCoupleContext();
   const coupleId = couple?.id ?? null;
+
+  // ✅ 추가: 사용자/파트너 정보 (알림 전송)
+  const { user } = useUser();
 
   const defaultRecipeName = RECIPES_BY_GRADE["초급"][0]?.name ?? null;
 
@@ -240,6 +246,21 @@ export default function KitchenPage() {
           sell: r.sell,
           desc: getFoodDesc(r.name as RecipeName),
         });
+
+        // ✅ 음식/이름 공유: 파트너에게 알림 전송
+        try {
+          if (user?.id && user?.partner_id) {
+            await sendUserNotification({
+              senderId: user.id,
+              receiverId: user.partner_id,
+              type: "음식공유",
+              foodName: r.name as RecipeName,
+              // gold: 옵션 — 필요 없다면 생략
+            });
+          }
+        } catch (e) {
+          console.warn("음식 공유 알림 실패(무시 가능):", e);
+        }
       } catch (e) {
         console.error(e);
         toast.error("조리에 실패했어요.");
@@ -350,14 +371,7 @@ export default function KitchenPage() {
                 </div>
 
                 <div className="flex justify-end gap-2">
-                  <button
-                    type="button"
-                    className="inline-flex items-center rounded-md border px-3 py-2 text-sm"
-                    // TODO: 공유 로직
-                    onClick={() => {}}
-                  >
-                    공유하기
-                  </button>
+                  {/* 공유 버튼 제거 */}
                   <button
                     type="button"
                     className="inline-flex items-center rounded-md bg-amber-600 px-3 py-2 text-sm text-white hover:bg-amber-700"

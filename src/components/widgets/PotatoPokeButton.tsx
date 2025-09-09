@@ -101,7 +101,7 @@ export default function PotatoPokeButton({
         className={[
           "relative grid place-items-center",
           "h-14 w-14 rounded-full",
-          "bg-white text-white shadow-lg",
+          "bg-white/90 ",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2",
           "transition-colors",
           loading ? "opacity-80 cursor-not-allowed" : "cursor-pointer",

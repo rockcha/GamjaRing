@@ -26,15 +26,6 @@ function clamp(v: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, v));
 }
 
-function preloadImage(src: string) {
-  return new Promise<void>((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve();
-    img.onerror = () => reject();
-    img.src = src;
-  });
-}
-
 function SpawnBurst({ leftPct, topPct }: { leftPct: number; topPct: number }) {
   const particles = useMemo(
     () =>
@@ -148,6 +139,7 @@ export default function AquariumBox({
     return () => window.removeEventListener("aquarium-theme-applied", handler);
   }, []);
   const [hasBgEverLoaded, setHasBgEverLoaded] = useState(false);
+
   /* ── DB: 어항 물고기/브리드 카운트 ───────────────────── */
   useEffect(() => {
     let mounted = true;
@@ -259,11 +251,6 @@ export default function AquariumBox({
     };
   }, [coupleId, themeRefreshTick]);
 
-  // 새 URL이 올 때마다 로드 완료 플래그 리셋
-  // useEffect(() => {
-  //   if (bgUrl) setBgReady(false);
-  // }, [bgUrl]);
-
   const refreshFromDB = async () => {
     if (!coupleId) return;
     const { data } = await supabase
@@ -356,6 +343,122 @@ export default function AquariumBox({
     return () => ro.disconnect();
   }, [fitToContainer]);
 
+  /* ── 롱프레스 드래그 ─────────────────────────────────── */
+  const PRESS_MS = 280; // 롱프레스 임계값
+  const [dragKey, setDragKey] = useState<string | null>(null);
+  const dragOffsetRef = useRef<{ ox: number; oy: number }>({ ox: 0, oy: 0 });
+  const pressTimerRef = useRef<number | null>(null);
+  const pressKeyRef = useRef<string | null>(null);
+  const suppressClickRef = useRef(false);
+
+  const getPointerPct = (evt: MouseEvent | TouchEvent) => {
+    const el = containerRef.current;
+    if (!el) return { xPct: 0, yPct: 0 };
+    const rect = el.getBoundingClientRect();
+
+    let clientX: number, clientY: number;
+    if ("touches" in evt) {
+      const t = evt.touches[0] ?? evt.changedTouches[0];
+      clientX = t?.clientX ?? 0;
+      clientY = t?.clientY ?? 0;
+    } else {
+      clientX = (evt as MouseEvent).clientX;
+      clientY = (evt as MouseEvent).clientY;
+    }
+
+    const x = clamp(((clientX - rect.left) / rect.width) * 100, 0, 100);
+    const y = clamp(((clientY - rect.top) / rect.height) * 100, 0, 100);
+    return { xPct: x, yPct: y };
+  };
+
+  const beginPress = (
+    key: string,
+    e: React.MouseEvent | React.TouchEvent,
+    slot: Slot
+  ) => {
+    if (readOnly) return;
+    pressKeyRef.current = key;
+    suppressClickRef.current = false;
+
+    const native = e.nativeEvent as any as MouseEvent | TouchEvent;
+    const { xPct, yPct } = getPointerPct(native);
+    dragOffsetRef.current = { ox: xPct - slot.leftPct, oy: yPct - slot.topPct };
+
+    // 롱프레스 타이머
+    if (pressTimerRef.current) {
+      window.clearTimeout(pressTimerRef.current);
+      pressTimerRef.current = null;
+    }
+    pressTimerRef.current = window.setTimeout(() => {
+      // 롱프레스 확정 → 드래그 시작
+      setSelectedKey(null); // 드래그 중 모달 방지
+      setDragKey(key);
+      suppressClickRef.current = true;
+    }, PRESS_MS) as unknown as number;
+  };
+
+  const cancelPressTimer = () => {
+    if (pressTimerRef.current) {
+      window.clearTimeout(pressTimerRef.current);
+      pressTimerRef.current = null;
+    }
+  };
+
+  const handleMoveWhileDrag = (evt: MouseEvent | TouchEvent) => {
+    if (!dragKey) return;
+    if ("touches" in evt) evt.preventDefault(); // 모바일 스크롤 방지
+
+    const { xPct, yPct } = getPointerPct(evt);
+    const { ox, oy } = dragOffsetRef.current;
+    const nx = clamp(xPct - ox, 0, 100);
+    const ny = clamp(yPct - oy, 0, 100);
+
+    setSlots((prev) =>
+      prev.map((s) =>
+        s.key === dragKey ? { ...s, leftPct: nx, topPct: ny } : s
+      )
+    );
+  };
+
+  const endPressOrDrag = () => {
+    // 드래그 중이면 종료
+    if (dragKey) {
+      setDragKey(null);
+      cancelPressTimer();
+      pressKeyRef.current = null;
+      return;
+    }
+
+    // 드래그 아니면(롱프레스 아니면) → 클릭으로 간주
+    const key = pressKeyRef.current;
+    cancelPressTimer();
+    pressKeyRef.current = null;
+
+    // suppressClickRef는 onClick에서 체크하지만,
+    // 혹시 모를 타이밍 이슈 대비해 여기서도 처리 X (onClick에서 일괄 처리)
+  };
+
+  useEffect(() => {
+    // 전역 포인터 이벤트
+    const onMove = (e: MouseEvent | TouchEvent) => handleMoveWhileDrag(e);
+    const onUp = () => endPressOrDrag();
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchmove", onMove, { passive: false });
+    window.addEventListener("touchend", onUp);
+    window.addEventListener("touchcancel", onUp);
+
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchmove", onMove as any);
+      window.removeEventListener("touchend", onUp);
+      window.removeEventListener("touchcancel", onUp);
+    };
+    // dragKey 의존 필요 없음: 항상 구독하고 내부에서 체크
+  }, [dragKey]);
+
   /* ── 로딩 화면(물고기 데이터) ───────────────────────── */
   if (isLoading) {
     return (
@@ -363,7 +466,7 @@ export default function AquariumBox({
         <div
           className="relative rounded-xl overflow-hidden mx-auto"
           // 높이 75vh, 가로는 3:2 비율 유지
-          style={{ height: "75vh", width: "min(100%, calc(75vh * 1.5))" }}
+          style={{ height: "73vh", width: "min(100%, calc(73vh * 1.5))" }}
         >
           <div className="absolute inset-0 bg-slate-200 dark:bg-zinc-800 animate-pulse" />
           <div className="absolute inset-0 flex items-center justify-center">
@@ -387,10 +490,15 @@ export default function AquariumBox({
 
   return (
     <div className="w-full">
+      {/* 드래그 시 애니메이션 일시정지용 전역 스타일 */}
+      <style>{`.drag-pause * { animation-play-state: paused !important; }`}</style>
+
       {/* 1536×1024 (3:2) 비율, 높이 75vh */}
       <div
         ref={containerRef}
-        className="relative rounded-xl overflow-hidden will-change-transform transform-gpu mx-auto"
+        className={`relative rounded-xl overflow-hidden will-change-transform transform-gpu mx-auto ${
+          dragKey ? "cursor-grabbing select-none" : ""
+        }`}
         style={{ height: "75vh", width: "min(100%, calc(75vh * 1.5))" }}
       >
         {/* 배경 이미지 (로드 완료 전까지는 스켈레톤으로 가림) */}
@@ -428,11 +536,26 @@ export default function AquariumBox({
             if (!fish) return null;
             const isAppearing = appearingKeys.includes(slot.key);
             const isHovered = hoverKey === slot.key;
+            const isDragging = dragKey === slot.key;
 
+            // 이벤트: 롱프레스 시작 + 클릭(짧은 탭) 분기
             const eventProps = readOnly
               ? {}
               : {
-                  onClick: () => setSelectedKey(slot.key),
+                  onMouseDown: (e: React.MouseEvent) =>
+                    beginPress(slot.key, e, slot),
+                  onTouchStart: (e: React.TouchEvent) =>
+                    beginPress(slot.key, e, slot),
+                  onMouseUp: () => endPressOrDrag(),
+                  onTouchEnd: () => endPressOrDrag(),
+                  onClick: () => {
+                    // 롱프레스(드래그)였다면 클릭 억제
+                    if (dragKey || suppressClickRef.current) {
+                      suppressClickRef.current = false;
+                      return;
+                    }
+                    setSelectedKey(slot.key);
+                  },
                 };
 
             return (
@@ -441,6 +564,10 @@ export default function AquariumBox({
                 {...eventProps}
                 onMouseEnter={() => setHoverKey(slot.key)}
                 onMouseLeave={() => setHoverKey(null)}
+                className={`${
+                  isDragging ? "drag-pause cursor-grabbing" : "cursor-pointer"
+                }`}
+                style={{ touchAction: "none" }}
               >
                 {isAppearing && (
                   <SpawnBurst leftPct={slot.leftPct} topPct={slot.topPct} />
@@ -449,7 +576,7 @@ export default function AquariumBox({
                   fish={fish}
                   overridePos={{ leftPct: slot.leftPct, topPct: slot.topPct }}
                   popIn={isAppearing}
-                  isHovered={isHovered}
+                  isHovered={isHovered || isDragging}
                   containerScale={fitToContainer ? containerScale : 1}
                 />
               </div>

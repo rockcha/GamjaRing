@@ -204,6 +204,7 @@ export default function PotatoExchange({
 
   const { couple, spendPotatoes } = useCoupleContext();
   const coupleId = couple?.id ?? "";
+  const isCoupled = !!coupleId; // ✅ 커플 여부 플래그
 
   // 재료 풀 (이모지 포함)
   const POOL = useMemo(
@@ -216,7 +217,7 @@ export default function PotatoExchange({
   );
 
   const onClickBundle = (bundleKey: BundleKey) => {
-    if (isOpening) return;
+    if (isOpening || !isCoupled) return; // ✅ 비커플 시 클릭 무시
 
     const bundle = BUNDLES.find((b) => b.key === bundleKey)!;
     setIsOpening(true);
@@ -292,10 +293,8 @@ export default function PotatoExchange({
             loading="lazy"
             onLoad={() => setImgLoaded(true)}
           />
-          {!imgLoaded && (
-            <Skeleton className="absolute inset-0 h-8 w-8 rounded-md" />
-          )}
         </div>
+        {!imgLoaded && <Skeleton className="h-8 w-8 rounded-md" />}
         <span className="text-[11px] sm:text-xs font-medium text-neutral-700 transition-colors group-hover:text-neutral-800">
           {caption}
         </span>
@@ -331,16 +330,10 @@ export default function PotatoExchange({
             </div>
           </DialogHeader>
 
-          {/* 바디: 좌측(작게) 번들 목록 + 우측(넓게) 결과 패널 */}
+          {/* 바디: 좌측 번들 목록 + 우측 결과 패널 */}
           <div className="px-3 sm:px-5 py-3 max-h-[65vh] overflow-y-auto">
-            <div
-              className={cn(
-                "grid gap-3",
-                // 모바일: 1열(번들 → 결과), 태블릿 이상: 12 그리드로 비율 조정
-                "grid-cols-1 md:grid-cols-12"
-              )}
-            >
-              {/* 번들 목록 - 작게, 조밀하게 */}
+            <div className={cn("grid gap-3", "grid-cols-1 md:grid-cols-12")}>
+              {/* 번들 목록 */}
               <section
                 className={cn(
                   "md:col-span-5 lg:col-span-4",
@@ -355,50 +348,57 @@ export default function PotatoExchange({
                 </div>
 
                 <div className="mt-2 grid grid-cols-3 gap-2">
-                  {BUNDLES.map((b) => (
-                    <button
-                      key={b.key}
-                      onClick={() => onClickBundle(b.key)}
-                      disabled={isOpening}
-                      className={cn(
-                        "group relative rounded-lg border bg-white p-2",
-                        "transition hover:shadow-sm hover:-translate-y-0.5",
-                        isOpening && "opacity-70 cursor-wait"
-                      )}
-                    >
-                      <figure className="flex flex-col items-center">
-                        {/* 이미지 컨테이너: 더 작게 (긴문구 대비 정사각 + 최소 패딩) */}
-                        <div className="w-full aspect-square rounded-md border bg-white grid place-items-center p-1">
-                          <img
-                            src={b.img}
-                            alt={b.label}
-                            className="max-h-16 sm:max-h-20 object-contain transition-transform duration-300 group-hover:scale-[1.03]"
-                            draggable={false}
-                            loading="lazy"
-                          />
-                        </div>
-                        <figcaption className="mt-1 text-[10px] sm:text-xs font-medium text-zinc-800 text-center leading-tight">
-                          {b.label}
-                        </figcaption>
-                      </figure>
-
-                      {/* 라벨(아주 작게) */}
-                      <div
+                  {BUNDLES.map((b) => {
+                    const disabled = !isCoupled || isOpening; // ✅ 커플 아니면 비활성화
+                    return (
+                      <button
+                        key={b.key}
+                        onClick={() => onClickBundle(b.key)}
+                        disabled={disabled}
+                        aria-disabled={disabled}
+                        title={
+                          !isCoupled ? "커플 연결 후 이용 가능" : undefined
+                        }
                         className={cn(
-                          "pointer-events-none absolute inset-x-1 bottom-1",
-                          "rounded-md border bg-amber-50/90 text-amber-900 text-[10px] font-semibold",
-                          "px-1.5 py-0.5 shadow-sm opacity-0 translate-y-1",
-                          "group-hover:opacity-100 group-hover:translate-y-0 transition"
+                          "group relative rounded-lg border bg-white p-2",
+                          "transition hover:shadow-sm hover:-translate-y-0.5",
+                          disabled &&
+                            "opacity-60 cursor-not-allowed hover:shadow-none hover:translate-y-0"
                         )}
                       >
-                        감자 {b.cost} → 재료 {b.count}
-                      </div>
-                    </button>
-                  ))}
+                        <figure className="flex flex-col items-center">
+                          <div className="w-full aspect-square rounded-md border bg-white grid place-items-center p-1">
+                            <img
+                              src={b.img}
+                              alt={b.label}
+                              className="max-h-16 sm:max-h-20 object-contain transition-transform duration-300 group-hover:scale-[1.03]"
+                              draggable={false}
+                              loading="lazy"
+                            />
+                          </div>
+                          <figcaption className="mt-1 text-[10px] sm:text-xs font-medium text-zinc-800 text-center leading-tight">
+                            {b.label}
+                          </figcaption>
+                        </figure>
+
+                        <div
+                          className={cn(
+                            "pointer-events-none absolute inset-x-1 bottom-1",
+                            "rounded-md border bg-amber-50/90 text-amber-900 text-[10px] font-semibold",
+                            "px-1.5 py-0.5 shadow-sm opacity-0 translate-y-1",
+                            !disabled &&
+                              "group-hover:opacity-100 group-hover:translate-y-0 transition"
+                          )}
+                        >
+                          감자 {b.cost} → 재료 {b.count}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </section>
 
-              {/* 결과 패널 - 더 넓게 */}
+              {/* 결과 패널 */}
               <div className="md:col-span-7 lg:col-span-8">
                 <RewardsPanel
                   loading={isOpening}

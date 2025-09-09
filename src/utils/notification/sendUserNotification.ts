@@ -17,36 +17,33 @@ type NotificationType =
   | "음악등록"
   | "음식공유"
   | "물품구매"
-  | "물품판매" // ✅ 추가
-  | "교배성공" // ✅ 추가
-  | "교배실패"; // ✅ 추가
+  | "물품판매"
+  | "낚시성공"
+  | "생산시설구매"; // ✅ 추가
 
 interface SendUserNotificationInput {
   senderId: string;
   receiverId: string;
   type: NotificationType;
-  /** 하위호환용: 받아도 사용하지 않습니다. */
   senderNickname?: string;
-  /** 하위호환용: 받아도 사용하지 않습니다(고정 문구 사용). */
   description?: string;
-  /** 기본은 false지만, '커플요청'은 자동 true */
   isRequest?: boolean;
 
   /** '음식공유'일 때 표시할 음식 이름 (선택) */
   foodName?: string;
 
-  /** '음식공유'일 때 실제 변경된 골드(음수/양수) (선택) */
+  /** 더 이상 '음식공유'에선 사용하지 않지만, 하위호환 위해 유지 */
   gold?: number;
 
-  /** '물품구매' | '물품판매' | '교배성공' | '교배실패' 에서 표시할 물품/물고기 이름 (선택) */
+  /** '물품구매' | '물품판매' | '낚시성공' | '생산시설구매' 에서 표시할 아이템/어종/시설 이름 (선택) */
   itemName?: string;
 }
 
-// '음식공유' / '물품구매' / '물품판매' / '교배성공' / '교배실패'는 별도 처리
+// '음식공유' / '물품구매' / '물품판매' / '낚시성공' / '생산시설구매'는 별도 처리
 const ACTION_BY_TYPE: Record<
   Exclude<
     NotificationType,
-    "음식공유" | "물품구매" | "물품판매" | "교배성공" | "교배실패"
+    "음식공유" | "물품구매" | "물품판매" | "낚시성공" | "생산시설구매"
   >,
   string
 > = {
@@ -82,7 +79,7 @@ export const sendUserNotification = async ({
   type,
   isRequest,
   foodName,
-  gold,
+  gold, // 유지(미사용)
   itemName,
 }: SendUserNotificationInput) => {
   if (senderId === receiverId) {
@@ -109,13 +106,9 @@ export const sendUserNotification = async ({
   let action: string;
   if (type === "음식공유") {
     const name = (foodName ?? "").trim();
-    const base = "음식을 공유했어요 🍽️";
-    const hasDelta = typeof gold === "number" && Number.isFinite(gold);
-    const sign = hasDelta && gold! >= 0 ? "+" : "";
-    const goldSuffix = hasDelta ? ` 🪙 ${sign}${Math.trunc(gold!)} ` : "";
     action = name
-      ? `${base} ${quote(name)}${goldSuffix}`
-      : `${base}${goldSuffix}`;
+      ? `음식공유, ${withObjectJosa(quote(name))} 요리했어요 🍽️`
+      : "음식공유, 음식을 요리했어요 🍽️";
   } else if (type === "물품구매") {
     const name = (itemName ?? "").trim();
     action = name
@@ -126,22 +119,22 @@ export const sendUserNotification = async ({
     action = name
       ? `${withObjectJosa(quote(name))} 판매했습니다 💰`
       : "물품을 판매했어요 💰";
-  } else if (type === "교배성공") {
-    const name = (itemName ?? "").trim(); // 물고기 종 이름
-    action = name
-      ? `${quote(name)} 교배에 성공했어요 🐣`
-      : "교배에 성공했어요 🐣";
-  } else if (type === "교배실패") {
+  } else if (type === "낚시성공") {
     const name = (itemName ?? "").trim();
     action = name
-      ? `${quote(name)} 교배에 실패했어요 💦`
-      : "교배에 실패했어요 💦";
+      ? `${withObjectJosa(quote(name))} 포획했어요 🐟`
+      : "낚시에 성공했어요 🐟";
+  } else if (type === "생산시설구매") {
+    const name = (itemName ?? "").trim();
+    action = name
+      ? `${withObjectJosa(quote(name))} 구매했습니다 🏭`
+      : "생산시설을 구매했어요 🏭";
   } else {
     action =
       ACTION_BY_TYPE[
         type as Exclude<
           NotificationType,
-          "음식공유" | "물품구매" | "물품판매" | "교배성공" | "교배실패"
+          "음식공유" | "물품구매" | "물품판매" | "낚시성공" | "생산시설구매"
         >
       ] ?? String(type);
   }
@@ -159,7 +152,6 @@ export const sendUserNotification = async ({
       type,
       description: fixedDescription,
       is_request: finalIsRequest,
-      // gold_delta 등 추가 저장이 필요하면 테이블 스키마에 컬럼을 추가하세요.
     },
   ]);
 

@@ -34,13 +34,8 @@ function TankSkeleton({ text }: { text: string }) {
       aria-busy="true"
     >
       {/* 텍스트 레이어: 항상 즉시 렌더 */}
-      <div className="absolute inset-0 flex items-center justify-center z-10">
-        <div
-          className="px-4 py-2 rounded-lg bg-white/80 text-slate-800 font-medium shadow-sm
-                        [font-family:system-ui,-apple-system,Segoe_UI,Roboto,Apple_Color_Emoji,Segoe_UI_Emoji]"
-        >
-          {text}
-        </div>
+      <div className="text-3xl absolute inset-0 flex items-center justify-center z-10">
+        {text}
       </div>
     </div>
   );

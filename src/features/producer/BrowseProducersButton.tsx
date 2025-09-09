@@ -24,6 +24,9 @@ import {
 import GoldDisplay from "../aquarium/GoldDisplay";
 import { Coins, Clock } from "lucide-react";
 
+// ✅ 알림 전송 (생산시설구매)
+import { sendUserNotification } from "@/utils/notification/sendUserNotification";
+
 function formatHours(h: number) {
   const totalMin = Math.round(h * 60);
   const HH = Math.floor(totalMin / 60);
@@ -94,6 +97,20 @@ export default function BrowseProducersButton({
       setOwnedCount((m) => ({ ...m, [prod.name]: (m[prod.name] ?? 0) + 1 }));
       toast.success(`구매 완료: ${prod.name}`);
       onPurchased?.();
+
+      // ✅ 파트너에게 "생산시설구매" 알림 전송 (실패해도 구매는 유지)
+      try {
+        if (user?.id && user?.partner_id) {
+          await sendUserNotification({
+            senderId: user.id,
+            receiverId: user.partner_id,
+            type: "생산시설구매",
+            itemName: prod.name, // 예) ‘강화 온실’을 구매했습니다 🏭
+          });
+        }
+      } catch (e) {
+        console.warn("생산시설 구매 알림 전송 실패(무시 가능):", e);
+      }
     } catch (e) {
       console.error(e);
       try {

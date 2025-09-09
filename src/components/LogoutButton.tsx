@@ -2,21 +2,19 @@
 "use client";
 
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { useUser } from "@/contexts/UserContext";
 import { LogOut, Loader2 } from "lucide-react";
+import { useUser } from "@/contexts/UserContext";
 
 export default function LogoutButton() {
-  const { logout } = useUser();
-  const navigate = useNavigate();
+  const { logout, user } = useUser();
   const [loading, setLoading] = useState(false);
 
   const handleLogout = async () => {
     if (loading) return;
     try {
       setLoading(true);
-      await logout(); // ✅ 로그아웃 처리
+      await logout();
+      // 로그인 페이지로 완전히 이동 (히스토리 정리)
       window.location.replace("/login");
     } catch (error) {
       console.error("로그아웃 실패:", error);
@@ -26,22 +24,32 @@ export default function LogoutButton() {
   };
 
   return (
-    <Button
+    <button
       type="button"
       aria-label="로그아웃"
-      variant="ghost"
-      size="sm"
+      title="로그아웃"
       onClick={handleLogout}
-      className="gap-1.5 text-[#3d2b1f]"
-      disabled={loading}
-      aria-busy={loading}
+      disabled={loading || !user}
+      className={[
+        // 위치: 메모 버튼(50%) 바로 밑으로 64px
+        "fixed right-2 z-40",
+        "top-[calc(50%+30px)]",
+        // 모양/색감: 메모 버튼과 동일
+        "rounded-full p-4 select-none",
+        "bg-white/90 text-neutral-700",
+        "hover:opacity-90 transition",
+        // 비활성화 시
+        "disabled:opacity-60 disabled:cursor-not-allowed",
+      ].join(" ")}
     >
       {loading ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
+        <Loader2 className="h-6 w-6 animate-spin" />
       ) : (
-        <LogOut className="h-4 w-4" />
+        <LogOut className="h-6 w-6" />
       )}
-      로그아웃
-    </Button>
+
+      {/* 스크린리더 접근성용 텍스트 */}
+      <span className="sr-only">로그아웃</span>
+    </button>
   );
 }
