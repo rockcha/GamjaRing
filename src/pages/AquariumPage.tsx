@@ -11,6 +11,7 @@ import { useCoupleContext } from "@/contexts/CoupleContext";
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 import { useUser } from "@/contexts/UserContext";
 import { FISH_BY_ID } from "@/features/aquarium/fishes";
+import ThemeShopButton from "@/features/aquarium/ThemeShopButton";
 
 /* ------------------------------
    ✅ TankSkeleton
@@ -241,9 +242,9 @@ export default function AquariumPage() {
     //    기본 64px, md: 72px, lg: 80px
     <div
       className="[--hdr:64px] md:[--hdr:72px] lg:[--hdr:80px] min-h-[calc(100svh-var(--hdr))] w-full
-                    px-4 pt-3 pb-6 -mt-1 flex flex-col"
+                   flex flex-col bg-sky-200"
     >
-      <div className="w-full space-y-3 flex-1">
+      <div className="w-full space-y-3 flex-1 ">
         {/* ✅ 어항 + 상단 고정 오버레이 (로딩/비로딩 공통) */}
         <div className="relative w-full -mt-1">
           {/* 탱크 본체 */}
@@ -259,12 +260,12 @@ export default function AquariumPage() {
           )}
 
           {/* 🔒 상단-왼쪽 고정 오버레이 */}
-          <div className="absolute left-2 top-2 z-20 flex items-center gap-2">
+          <div className="absolute right-2 top-2 z-20 flex items-center gap-2">
             <span className="inline-flex items-center gap-1 rounded-full bg-sky-100/90 backdrop-blur-sm text-sky-900 border border-sky-200 px-2.5 py-1 text-xs shadow-sm">
               <span>🐟</span>
               <b className="tabular-nums">{fishCount}</b>
             </span>
-
+            <ThemeShopButton />
             {/* 도감 버튼 (작게) */}
             <MarineDexModal
               gold={gold}

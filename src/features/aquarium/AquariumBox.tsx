@@ -1,3 +1,4 @@
+// src/features/aquarium/AquariumBox.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -8,42 +9,30 @@ import { useCoupleContext } from "@/contexts/CoupleContext";
 import FishActionModal from "./FishActionModal";
 
 type Slot = { key: string; id: string; leftPct: number; topPct: number };
+type SellPayload = { index: number; fishId: string; sellPrice: number };
 
-/* ── 시간대 판별 ───────────────────────────────────────── */
-type TimeSlot = "morning" | "noon" | "evening" | "night";
+// (참고용 상수이지만 초기 표시엔 쓰지 않음)
+const BASE_THEME_ID = 12;
+const BASE_THEME_TITLE = "수중 정원";
+const themeImageUrl = (title: string) =>
+  `/aquarium/themes/${encodeURIComponent(title)}.png`;
 
-function getTimeSlot(d: Date): TimeSlot {
-  const hh = d.getHours();
-  const mm = d.getMinutes();
-  if ((hh > 5 && hh < 11) || (hh === 5 && mm >= 0) || (hh === 11 && mm === 0))
-    return "morning";
-  if ((hh > 11 && hh < 17) || (hh === 11 && mm >= 1) || (hh === 17 && mm === 0))
-    return "noon";
-  if ((hh > 17 && hh < 20) || (hh === 17 && mm >= 1) || (hh === 20 && mm <= 30))
-    return "evening";
-  return "night";
-}
-
-/** ✅ 단일 이미지 경로 + 라벨 */
-const BG_BY_SLOT: Record<TimeSlot, { url: string; label: string }> = {
-  morning: { url: "/aquarium/morning.png", label: "🌅 아침" },
-  noon: { url: "/aquarium/noon.png", label: "🌞 낮" },
-  evening: { url: "/aquarium/evening.png", label: "🌆 저녁" },
-  night: { url: "/aquarium/night.png", label: "🌙 밤" },
-};
-
-function preload(src: string) {
-  const img = new Image();
-  img.src = src;
-}
-
-/* ── 유틸/이펙트 ───────────────────────────────────────── */
+/* ── 유틸 ─────────────────────────────────────────────── */
 function randInRange(min: number, max: number) {
   if (max < min) [min, max] = [max, min];
   return min + Math.random() * (max - min);
 }
 function clamp(v: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, v));
+}
+
+function preloadImage(src: string) {
+  return new Promise<void>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve();
+    img.onerror = () => reject();
+    img.src = src;
+  });
 }
 
 function SpawnBurst({ leftPct, topPct }: { leftPct: number; topPct: number }) {
@@ -119,18 +108,13 @@ function SpawnBurst({ leftPct, topPct }: { leftPct: number; topPct: number }) {
   );
 }
 
-type SellPayload = { index: number; fishId: string; sellPrice: number };
-
 export default function AquariumBox({
   fishIds: fishIdsProp,
   isLoading: isLoadingProp = false,
   loadingText,
   onSell,
-  /** ✅ 읽기 전용(미리보기)일 때 클릭/모달 비활성화 */
   readOnly = false,
-  /** ✅ 부모가 화면비를 제어 (기본 800/410) */
   aspectRatio = "800 / 410",
-  /** ✅ 컨테이너 크기에 맞춰 물고기 스케일 */
   fitToContainer = false,
 }: {
   fishIds?: string[];
@@ -148,30 +132,33 @@ export default function AquariumBox({
   const [breedCount, setBreedCount] = useState<number>(0);
   const [loadingInternal, setLoadingInternal] = useState(false);
 
+  // ✅ 테마 상태: 실제 이미지 onLoad 전까지 스켈레톤
+  const [themeTitle, setThemeTitle] = useState<string | null>(null);
+  const [bgUrl, setBgUrl] = useState<string | null>(null);
+  const [bgReady, setBgReady] = useState(false);
+  const [themeLoading, setThemeLoading] = useState(false);
+
   const fishIds = fishIdsProp ?? fishIdsInternal;
   const isLoading = isLoadingProp || loadingInternal;
 
-  /* ── 시간대 상태 (상시 뱃지 표시) ───────────────────── */
-  const [timeSlot, setTimeSlot] = useState<TimeSlot>(getTimeSlot(new Date()));
+  const [themeRefreshTick, setThemeRefreshTick] = useState(0);
   useEffect(() => {
-    Object.values(BG_BY_SLOT).forEach((v) => preload(v.url));
-    const tick = () => setTimeSlot(getTimeSlot(new Date()));
-    tick();
-    const id = setInterval(tick, 30_000);
-    return () => clearInterval(id);
+    const handler = () => setThemeRefreshTick((n) => n + 1);
+    window.addEventListener("aquarium-theme-applied", handler);
+    return () => window.removeEventListener("aquarium-theme-applied", handler);
   }, []);
-  const bg = BG_BY_SLOT[timeSlot];
-
-  /* ── DB 로드/초기화 ─────────────────────────────────── */
+  const [hasBgEverLoaded, setHasBgEverLoaded] = useState(false);
+  /* ── DB: 어항 물고기/브리드 카운트 ───────────────────── */
   useEffect(() => {
-    if (fishIdsProp) return;
-    if (!coupleId) {
-      setFishIdsInternal([]);
-      setBreedCount(0);
-      return;
-    }
     let mounted = true;
+
     (async () => {
+      if (fishIdsProp) return; // 외부 주입 모드
+      if (!coupleId) {
+        setFishIdsInternal([]);
+        setBreedCount(0);
+        return;
+      }
       try {
         setLoadingInternal(true);
         const { data, error } = await supabase
@@ -193,7 +180,7 @@ export default function AquariumBox({
           setBreedCount(0);
         } else {
           const arr = Array.isArray(data.aquarium_fishes)
-            ? (data!.aquarium_fishes as string[])
+            ? (data.aquarium_fishes as string[])
             : [];
           setFishIdsInternal(arr);
           setBreedCount(
@@ -203,13 +190,79 @@ export default function AquariumBox({
           );
         }
       } finally {
-        setLoadingInternal(false);
+        if (mounted) setLoadingInternal(false);
       }
     })();
+
     return () => {
       mounted = false;
     };
   }, [coupleId, fishIdsProp]);
+
+  /* ── DB: 테마 로드 (theme_id → title → 이미지 URL) ───── */
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      setThemeLoading(true);
+      setBgReady(false);
+      setBgUrl(null);
+      setThemeTitle(null);
+
+      try {
+        if (!coupleId) {
+          return;
+        }
+
+        const cur = await supabase
+          .from("couple_aquarium")
+          .select("theme_id")
+          .eq("couple_id", coupleId)
+          .maybeSingle();
+
+        let themeId = cur.data?.theme_id as number | null;
+
+        if (!Number.isFinite(themeId)) themeId = BASE_THEME_ID;
+
+        const th = await supabase
+          .from("aquarium_themes")
+          .select("title")
+          .eq("id", themeId!)
+          .maybeSingle();
+
+        const title =
+          th.data?.title && typeof th.data.title === "string"
+            ? th.data.title
+            : BASE_THEME_TITLE;
+
+        if (!mounted) return;
+
+        setThemeTitle(title);
+        setBgUrl(themeImageUrl(title));
+      } catch {
+        if (!mounted) return;
+        setThemeTitle("이미지 로드 실패");
+        setBgUrl(
+          "data:image/svg+xml;utf8," +
+            encodeURIComponent(
+              `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1536 1024'><rect width='100%' height='100%' fill='#0ea5e9'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='white' font-size='28'>테마 이미지를 불러오지 못했어요</text></svg>`
+            )
+        );
+        setBgReady(true);
+      } finally {
+        setThemeLoading(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [coupleId, themeRefreshTick]);
+
+  // 새 URL이 올 때마다 로드 완료 플래그 리셋
+  // useEffect(() => {
+  //   if (bgUrl) setBgReady(false);
+  // }, [bgUrl]);
 
   const refreshFromDB = async () => {
     if (!coupleId) return;
@@ -295,7 +348,6 @@ export default function AquariumBox({
       const rect = entries[0]?.contentRect;
       if (!rect) return;
       const width = rect.width;
-      // 기준 800px 대비 스케일, 하한/상한으로 튐 방지
       const scale = Math.max(0.4, Math.min(2.0, width / 800));
       setContainerScale(scale);
     });
@@ -304,32 +356,19 @@ export default function AquariumBox({
     return () => ro.disconnect();
   }, [fitToContainer]);
 
-  /* ── 로딩 화면 ──────────────────────────────────────── */
+  /* ── 로딩 화면(물고기 데이터) ───────────────────────── */
   if (isLoading) {
     return (
       <div className="w-full">
         <div
-          className="relative w-full rounded-xl overflow-hidden"
-          style={{ aspectRatio }}
+          className="relative rounded-xl overflow-hidden mx-auto"
+          // 높이 75vh, 가로는 3:2 비율 유지
+          style={{ height: "75vh", width: "min(100%, calc(75vh * 1.5))" }}
         >
-          <img
-            key={`loading-${timeSlot}`}
-            src={bg.url}
-            alt={timeSlot}
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-
-          {/* 시간대 뱃지 */}
-          <div className="absolute top-2 right-2 select-none">
-            <div className="flex items-center gap-2 rounded-full bg-white/85 px-3 py-1 text-sm font-medium shadow">
-              <span>⏰</span>
-              <span>{BG_BY_SLOT[timeSlot].label}</span>
-            </div>
-          </div>
-
+          <div className="absolute inset-0 bg-slate-200 dark:bg-zinc-800 animate-pulse" />
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="px-4 py-2 rounded-lg bg-white/70 text-slate-700 font-medium shadow">
-              {loadingText ?? "🫧 어항 청소중 …"}
+              {loadingText ?? "🫧 어항 준비중 …"}
             </div>
           </div>
         </div>
@@ -344,28 +383,43 @@ export default function AquariumBox({
   const selectedFish = selectedSlot ? FISH_BY_ID[selectedSlot.id] : undefined;
   const selectedIndex = selectedKey ? Number(selectedKey.split("-").pop()) : -1;
 
+  const showBgSkeleton = themeLoading || !bgUrl || !bgReady;
+
   return (
     <div className="w-full">
-      {/* 비율 박스 */}
+      {/* 1536×1024 (3:2) 비율, 높이 75vh */}
       <div
         ref={containerRef}
-        className="relative w-full rounded-xl overflow-hidden will-change-transform transform-gpu"
-        style={{ aspectRatio }}
+        className="relative rounded-xl overflow-hidden will-change-transform transform-gpu mx-auto"
+        style={{ height: "75vh", width: "min(100%, calc(75vh * 1.5))" }}
       >
-        {/* 배경 */}
-        <img
-          key={timeSlot}
-          src={bg.url}
-          alt={timeSlot}
-          className="absolute inset-0 w-full h-full object-cover"
-        />
+        {/* 배경 이미지 (로드 완료 전까지는 스켈레톤으로 가림) */}
+        {bgUrl && (
+          <img
+            src={bgUrl}
+            alt={themeTitle ?? ""}
+            className="absolute inset-0 w-full h-full object-cover z-0"
+            onLoad={() => {
+              setBgReady(true);
+              setHasBgEverLoaded(true); // ✅ 최초 로드 완료 체크
+            }}
+            onError={(e) => {
+              const el = e.currentTarget as HTMLImageElement;
+              el.style.opacity = "0.9";
+              el.src =
+                "data:image/svg+xml;utf8," +
+                encodeURIComponent(
+                  `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1536 1024'><rect width='100%' height='100%' fill='#0ea5e9'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='white' font-size='28'>테마 이미지를 불러오지 못했어요</text></svg>`
+                );
+              setBgReady(true);
+            }}
+          />
+        )}
 
-        {/* 시간대 뱃지 */}
-        <div className="absolute top-2 right-2 select-none">
-          <div className="flex items-center gap-2 rounded-full bg-white/85 px-3 py-1 text-sm font-medium shadow">
-            <span>{BG_BY_SLOT[timeSlot].label}</span>
-          </div>
-        </div>
+        {/* 이미지 로딩 전 스켈레톤 */}
+        {showBgSkeleton && (
+          <div className="absolute inset-0 bg-slate-200 dark:bg-zinc-800 animate-pulse" />
+        )}
 
         {/* 물고기/이펙트 레이어 */}
         <div className="absolute inset-0">
@@ -396,7 +450,6 @@ export default function AquariumBox({
                   overridePos={{ leftPct: slot.leftPct, topPct: slot.topPct }}
                   popIn={isAppearing}
                   isHovered={isHovered}
-                  /** ✅ 컨테이너 폭 기준 스케일 전달 */
                   containerScale={fitToContainer ? containerScale : 1}
                 />
               </div>

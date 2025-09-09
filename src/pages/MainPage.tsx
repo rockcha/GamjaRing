@@ -11,6 +11,7 @@ import CoupleSchedulePreview from "@/components/widgets/Cards/CoupleShedulePrevi
 import CoupleMusicCard from "@/components/widgets/Cards/CoupleMusicCard";
 import DailyFortuneCard from "@/features/fortune/DailyFortuneCard";
 import { Skeleton } from "@/components/ui/skeleton";
+import AquariumPreviewCard from "@/components/widgets/Cards/AquariumPreviewCard";
 
 export default function MainPage() {
   const { isCoupled, loading } = useUser(); // ✅ loading 가져오기
@@ -39,23 +40,23 @@ export default function MainPage() {
           grid gap-2 items-start
           grid-cols-1
           md:[grid-template-columns:minmax(220px,1fr)_minmax(0,0.9fr)]
-          lg:[grid-template-columns:minmax(260px,0.9fr)_minmax(0,1.1fr)_minmax(0,0.9fr)]
+          lg:[grid-template-columns:minmax(260px,0.9fr)_minmax(0,1.0fr)_minmax(0,1.0fr)]
         "
       >
         {/* 왼쪽 */}
         <div className="flex flex-col gap-2 min-w-0">
           <CoupleMusicCard />
+          <CoupleSchedulePreview limit={4} className="w-full h-fit" />
         </div>
 
         {/* 가운데: 커플 이미지 */}
         <div className="min-w-0">
-          <CoupleImageCard className="w-full [&_img]:h-[620px]" />
+          <CoupleImageCard className="w-full [&_img]:h-[520px]" />
         </div>
 
         {/* 오른쪽: 질문 + 일정 */}
         <div className="flex flex-col gap-2 min-w-0">
-          <CoupleSchedulePreview limit={5} className="w-full h-fit" />
-          <TodayQuestionCard className="w-full h-fit" />
+          <AquariumPreviewCard />
         </div>
       </div>
     </div>

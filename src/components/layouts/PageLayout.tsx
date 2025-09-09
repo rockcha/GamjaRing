@@ -98,7 +98,7 @@ export default function PageLayout({
         className="mx-auto flex min-h-[calc(100vh-9rem)] w-full max-w-screen-2xl items-center justify-center px-2"
       >
         {/* <FloatingHomeButton /> */}
-        {/* <MenuButton /> */}
+        <MenuButton />
         <PotatoPokeButton />
         <UserMemoFloating />
 

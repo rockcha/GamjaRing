@@ -130,7 +130,7 @@ export default function MenuButton() {
   );
 
   return (
-    <div className="fixed top-1/2 right-4 -translate-y-1/2 z-50 group">
+    <div className="fixed bottom-4 right-4 -translate-y-1/2 z-50 group">
       <Sheet>
         <SheetTrigger asChild>
           <div className="flex flex-col items-center gap-1 cursor-pointer">

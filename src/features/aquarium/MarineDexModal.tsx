@@ -9,12 +9,13 @@ import {
   type FishRarity,
   RARITY_CAPTURE,
 } from "./fishes";
-import { Coins, Anchor, X, Info } from "lucide-react";
+import { Coins, Anchor, X, Info, Book, BookOpen, Bookmark } from "lucide-react";
 import {
   INGREDIENT_EMOJI,
   type IngredientTitle,
 } from "@/features/kitchen/type";
 import GoldDisplay from "./GoldDisplay";
+import { Button } from "@/components/ui/button"; // ✅ 추가: shadcn 버튼
 
 type RarityFilter = "전체" | FishRarity;
 
@@ -118,12 +119,12 @@ export default function MarineDexModal({
             className="fixed inset-0 z-[9999] flex items-center justify-center"
             aria-modal="true"
             role="dialog"
-            onClick={() => setOpen(false)} // ✅ 배경 클릭 시 닫힘
+            onClick={() => setOpen(false)}
           >
-            {/* 배경 딤드 (헤더 포함 전영역 덮기) */}
+            {/* 배경 딤드 */}
             <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px]" />
 
-            {/* 컨텐츠 래퍼 (클릭 전파 방지) */}
+            {/* 컨텐츠 */}
             <div
               className="relative z-10 flex items-center justify-center w-full h-full p-4"
               onClick={(e) => e.stopPropagation()}
@@ -133,7 +134,6 @@ export default function MarineDexModal({
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h2 className="text-xl font-bold">해양생물 도감</h2>
-
                     <p className="text-xs text-gray-500 mt-1">
                       모든 어종을 한눈에 보고, 등급별로 탐색해 보세요.
                     </p>
@@ -152,7 +152,6 @@ export default function MarineDexModal({
 
                 {/* 필터 탭 */}
                 <div className="flex justify-between">
-                  {" "}
                   <div className="mb-3 flex flex-wrap items-center gap-2">
                     {filters.map((f) => {
                       const active = rarity === f;
@@ -173,7 +172,7 @@ export default function MarineDexModal({
                   <GoldDisplay />
                 </div>
 
-                {/* 목록 (남은 공간 채우고 스크롤) */}
+                {/* 목록 */}
                 <div className="flex-1 overflow-y-auto pr-1">
                   <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
                     {list.map((f) => {
@@ -202,7 +201,7 @@ export default function MarineDexModal({
                               loading="lazy"
                             />
 
-                            {/* 좌상단: 희귀도 배지 */}
+                            {/* 좌상단: 희귀도 */}
                             <div className="absolute left-2 top-2">
                               <span
                                 className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${rarityChipCls(
@@ -224,7 +223,7 @@ export default function MarineDexModal({
                               </span>
                             </div>
 
-                            {/* 우하단: 가격 배지 */}
+                            {/* 우하단: 가격 */}
                             <div className="absolute right-2 bottom-2">
                               <span
                                 className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[12px] tabular-nums ${
@@ -258,7 +257,7 @@ export default function MarineDexModal({
                                 {f.labelKo}
                               </span>
 
-                              {/* isOcean === false 일 때만 입양 버튼 노출 */}
+                              {/* 트리거와 무관: 입양 버튼은 기존 로직 유지 */}
                               {!isOcean && onBuy && !f.isWild && (
                                 <button
                                   onClick={() => onBuy(f.id, f.cost)}
@@ -299,20 +298,16 @@ export default function MarineDexModal({
 
   return (
     <>
-      {/* 접힌 상태: 책 아이콘 버튼 */}
-      <button
-        onClick={() => setOpen(true)}
-        className="inline-flex items-center justify-center h-9 w-9"
-        aria-label="해양생물 도감 열기"
+      {/* ✅ 트리거: 테마샵 트리거와 유사한 흰색(Outline) 버튼 + 아이콘/라벨 가로 배치 */}
+      <Button
+        variant="outline"
         title="도감 열기"
+        onClick={() => setOpen(true)}
+        className="transition-transform duration-150 hover:scale-[1.02] active:scale-100 hover:shadow-sm"
       >
-        <img
-          src="/aquarium/book.png"
-          alt="도감 열기"
-          className="w-8 h-8"
-          draggable={false}
-        />
-      </button>
+        <Book className="mr-2 h-4 w-4" />
+        도감
+      </Button>
 
       {modal}
     </>

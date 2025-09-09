@@ -29,6 +29,7 @@ import CoupleBalanceCard from "../widgets/Cards/CoupleBalanceCard";
 import DaysTogetherBadge from "../DaysTogetherBadge";
 import { NavIconButton } from "../widgets/NavIconButton";
 import PotatoExchange from "../widgets/PotatoExchange";
+import TodayQuestionInline from "../widgets/Cards/TodayQuestionCard";
 
 /* ----------------------------------------------------------------
    1) 네비/가드/라우팅 — 모듈 상단 "상수"로 고정 (참조 동일성 보장)
@@ -56,7 +57,6 @@ const WORLD: readonly NavItem[] = [
   { id: "fishing", label: "바다낚시", icon: Waves },
   { id: "potatoField", label: "농장", icon: Sprout },
   { id: "kitchen", label: "조리실", icon: ChefHat },
-  { id: "shop", label: "상점", icon: Store },
 ] as const;
 
 const GUARDS: Record<
@@ -311,6 +311,7 @@ export default function AppHeader({
               disabledByState={disabledByState}
               onGo={go}
             />
+            <TodayQuestionInline />
           </nav>
         </div>
       </div>

@@ -1,60 +1,42 @@
-// src/features/couple/TodayQuestionCard.tsx
+// src/features/couple/TodayQuestionInline.tsx
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
 import supabase from "@/lib/supabase";
 import { useUser } from "@/contexts/UserContext";
 import { useNavigate } from "react-router-dom";
-
-// shadcn/ui
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
-import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-// ✅ magicui TypingAnimation 그대로 사용 (수정 X)
 import { TypingAnimation } from "@/components/magicui/typing-animation";
-// 🔁 커서 깜빡임에 사용
 import { motion } from "motion/react";
 
 type DailyTaskRow = {
   user_id: string;
-  completed: boolean; // 작성 완료 여부
-  question_id: number; // FK → question.id
+  completed: boolean;
+  question_id: number;
 };
 
 type QuestionRow = {
   id: number;
-  content: string; // 질문 본문
+  content: string;
 };
 
-export default function TodayQuestionCard({
+export default function TodayQuestionInline({
   className,
 }: {
   className?: string;
 }) {
   const { user, isCoupled } = useUser();
+  const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   const [task, setTask] = useState<DailyTaskRow | null>(null);
   const [question, setQuestion] = useState<QuestionRow | null>(null);
 
-  // 🔁 무한 반복을 위한 key
+  // 🔁 Typing 반복 제어
   const [loopKey, setLoopKey] = useState(0);
 
-  const navigate = useNavigate();
-
-  // 오늘 제출했다면 이전 질문으로 스위칭
   const computeDisplayId = useCallback(
     (currentId: number | null, completed: boolean) => {
       if (currentId == null) return null;
@@ -77,7 +59,7 @@ export default function TodayQuestionCard({
     setLoading(true);
     setError(null);
     try {
-      // 1) daily_task
+      // 1) 내 daily_task
       const { data: t, error: tErr } = await supabase
         .from("daily_task")
         .select("user_id, completed, question_id")
@@ -128,14 +110,14 @@ export default function TodayQuestionCard({
 
   const onClickGoAnswer = () => navigate("/questions");
 
-  // ✅ 안전 문자열(끝의 undefined 방지)
+  // 안전 문자열
   const safeQuestionText =
     (typeof question?.content === "string"
       ? question?.content
       : String(question?.content ?? "")) || "질문 본문을 찾을 수 없어요.";
 
-  // 🔁 TypingAnimation 1회 완료 후 5초 쉬었다가 재시작 (컴포넌트 수정 없이)
-  const CHAR_MS = 140; // TypingAnimation duration과 동일하게
+  // 🔁 TypingAnimation 1회 완료 후 5초 쉰 뒤 재시작
+  const CHAR_MS = 140;
   const PAUSE_MS = 5000;
   useEffect(() => {
     if (loading || !task || !safeQuestionText) return;
@@ -144,114 +126,72 @@ export default function TodayQuestionCard({
     return () => window.clearTimeout(t);
   }, [safeQuestionText, loading, task?.completed, loopKey]);
 
-  // 비로그인/커플 미연결
-  if (!user?.id || !isCoupled) {
-    return (
-      <Card className={cn("bg-white", className)}>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-[#3d2b1f]"> 💭 오늘의 질문</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            로그인 후 커플을 연결하면 오늘의 질문을 받아볼 수 있어요.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+  // 비로그인/미커플이면 표시 안 함
+  if (!user?.id || !isCoupled) return null;
 
-  const StatusBadge = ({ completed }: { completed: boolean }) =>
-    completed ? (
-      <div className="flex p-2 gap-1.5 rounded-xl text-xs bg-emerald-100 text-emerald-800 ">
-        작성 완료
-      </div>
-    ) : (
-      <div className="flex p-2 gap-1.5 rounded-xl text-xs bg-rose-100 text-rose-800 border">
-        미완료
-      </div>
-    );
+  const statusEmoji = task?.completed ? "✅" : "📝";
+  const statusLabel = task?.completed ? "작성 완료" : "미완료";
 
   return (
-    <Card className={cn("bg-white", className)}>
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-around gap-2">
-          <CardTitle className="flex items-center  gap-2 text-[#3d2b1f]">
-            💭 오늘의 질문
-            {loading ? (
-              <Skeleton className="ml-1 h-5 w-16 rounded-full" />
-            ) : (
-              <StatusBadge completed={!!task?.completed} />
-            )}
-          </CardTitle>
-        </div>
-      </CardHeader>
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClickGoAnswer}
+      onKeyDown={(e) =>
+        (e.key === "Enter" || e.key === " ") && onClickGoAnswer()
+      }
+      title={task?.completed ? "작성 열기" : "작성하러가기"}
+      className={cn(
+        // 깔끔한 1줄 바
+        "w-full cursor-pointer select-none",
+        "flex items-center gap-2 px-3 py-2",
+        "rounded-md border border-slate-200/70 bg-amber-50 hover:bg-slate-50 transition",
+        "whitespace-nowrap overflow-hidden",
+        className
+      )}
+    >
+      {/* 상태 이모지 + 라벨 */}
+      {loading ? (
+        <Skeleton className="h-5 w-24 rounded" />
+      ) : error ? (
+        <span className="text-sm text-rose-600">오류: {error}</span>
+      ) : !task ? (
+        <span className="text-sm text-slate-500">
+          오늘의 질문 레코드가 아직 생성되지 않았어요.
+        </span>
+      ) : (
+        <>
+          <span className="shrink-0">{statusEmoji}</span>
+          <span className="shrink-0 text-xs text-slate-600">{statusLabel}</span>
+          <span className="mx-2 shrink-0 text-slate-300">·</span>
 
-      <Separator className="my-4" />
-
-      <CardContent className="space-y-3 font-semibold">
-        {loading && (
-          <>
-            <Skeleton className="h-6 rounded-md" />
-            <Skeleton className="h-6 w-2/3 rounded-md" />
-          </>
-        )}
-
-        {!loading && error && (
-          <p className="text-sm text-red-600">오류: {error}</p>
-        )}
-
-        {!loading && !error && !task && (
-          <p className="text-sm text-muted-foreground">
-            오늘의 질문 레코드가 아직 생성되지 않았어요.
-          </p>
-        )}
-
-        {!loading && !error && task && (
-          <>
-            {/* 🔁 무한 반복 + 커서 깜빡임 (TypingAnimation은 수정하지 않음) */}
-            <p className="text-[15px] leading-[1.6] min-h-[3.2em] text-[#3d2b1f]">
-              <TypingAnimation
-                key={loopKey} // key가 바뀔 때마다 재마운트 → 다시 타이핑
-                as="span" // 줄바꿈 방지
-                className="font-medium !text-[15px] !leading-relaxed !tracking-normal"
-                duration={CHAR_MS}
-                startOnView
-              >
-                {safeQuestionText}
-              </TypingAnimation>
-
-              {/* 깜빡이는 커서 */}
-              <motion.span
-                aria-hidden
-                className="ml-1 inline-block align-baseline"
-                initial={{ opacity: 1 }}
-                animate={{ opacity: [1, 0.1] }}
-                transition={{
-                  duration: 0.8,
-                  repeat: Infinity,
-                  repeatType: "reverse",
-                }}
-              >
-                |
-              </motion.span>
-            </p>
-          </>
-        )}
-      </CardContent>
-
-      <CardFooter className="pt-2 flex justify-end">
-        {!loading && !error && task && (
-          <Button
-            variant="ghost"
-            onClick={onClickGoAnswer}
-            className="mt-1 hover:cursor-pointer flex items-center gap-1.5"
-            title={task.completed ? "작성 열기" : "작성하기"}
-          >
-            {task.completed ? "수정하러가기" : "작성하러가기"}
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-        )}
-      </CardFooter>
-    </Card>
+          {/* 한 줄 타이핑 텍스트 */}
+          <span className="min-w-0 overflow-hidden text-ellipsis">
+            <TypingAnimation
+              key={loopKey}
+              as="span"
+              className="font-medium !text-[15px] !leading-[1.6] !tracking-normal"
+              duration={CHAR_MS}
+              startOnView
+            >
+              {safeQuestionText}
+            </TypingAnimation>
+            <motion.span
+              aria-hidden
+              className="ml-1 inline-block align-baseline"
+              initial={{ opacity: 1 }}
+              animate={{ opacity: [1, 0.1] }}
+              transition={{
+                duration: 0.8,
+                repeat: Infinity,
+                repeatType: "reverse",
+              }}
+            >
+              |
+            </motion.span>
+          </span>
+        </>
+      )}
+    </div>
   );
 }

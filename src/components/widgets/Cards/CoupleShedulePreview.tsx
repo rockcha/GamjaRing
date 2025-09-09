@@ -112,13 +112,10 @@ export default function CoupleSchedulePreview({
     <Card className={cn("relative overflow-hidden", className)}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-center">
-          <CardTitle className="text-[#3d2b1f] text-xl">
+          <CardTitle className="text-[#3d2b1f] text-lg">
             ⏰ 일정 미리보기
           </CardTitle>
         </div>
-        <p className="pl-1 text-sm text-amber-800 mt-1 text-center">
-          다가오는 일정을 확인해보세요
-        </p>
       </CardHeader>
 
       <Separator />
