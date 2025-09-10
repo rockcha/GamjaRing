@@ -9,27 +9,18 @@ import {
   type FishRarity,
   RARITY_CAPTURE,
 } from "./fishes";
-import { Coins, Anchor, X, Info, Book, BookOpen, Bookmark } from "lucide-react";
+import { Anchor, X, Info, Book } from "lucide-react";
 import {
   INGREDIENT_EMOJI,
   type IngredientTitle,
 } from "@/features/kitchen/type";
-import GoldDisplay from "./GoldDisplay";
-import { Button } from "@/components/ui/button"; // ✅ 추가: shadcn 버튼
+import { Button } from "@/components/ui/button";
 
 type RarityFilter = "전체" | FishRarity;
 
-export default function MarineDexModal({
-  gold,
-  onBuy,
-  isOcean = false,
-}: {
-  gold?: number;
-  onBuy?: (fishId: string, cost: number) => void;
-  isOcean?: boolean;
-}) {
+export default function MarineDexModal() {
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false); // ✅ SSR 안전 포털 마운트
+  const [mounted, setMounted] = useState(false); // SSR-safe portal mount
   useEffect(() => setMounted(true), []);
 
   const [rarity, setRarity] = useState<RarityFilter>("전체");
@@ -48,11 +39,9 @@ export default function MarineDexModal({
       const ra = rarityOrder[a.rarity];
       const rb = rarityOrder[b.rarity];
       if (ra !== rb) return ra - rb;
-      return a.cost - b.cost;
+      return a.labelKo.localeCompare(b.labelKo, "ko");
     });
   }, [rarity]);
-
-  const fmt = (n: number) => n.toLocaleString("ko-KR");
 
   const rarityChipCls = (r: FishRarity) =>
     r === "일반"
@@ -121,16 +110,16 @@ export default function MarineDexModal({
             role="dialog"
             onClick={() => setOpen(false)}
           >
-            {/* 배경 딤드 */}
+            {/* backdrop */}
             <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px]" />
 
-            {/* 컨텐츠 */}
+            {/* content */}
             <div
               className="relative z-10 flex items-center justify-center w-full h-full p-4"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="relative bg-white rounded-2xl shadow-2xl w-[860px] max-w-[92vw] max-h-[82vh] p-5 flex flex-col">
-                {/* 헤더 */}
+                {/* header */}
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h2 className="text-xl font-bold">해양생물 도감</h2>
@@ -150,9 +139,9 @@ export default function MarineDexModal({
 
                 {captureHeader}
 
-                {/* 필터 탭 */}
-                <div className="flex justify-between">
-                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                {/* filters */}
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {filters.map((f) => {
                       const active = rarity === f;
                       return (
@@ -169,21 +158,15 @@ export default function MarineDexModal({
                       );
                     })}
                   </div>
-                  <GoldDisplay />
                 </div>
 
-                {/* 목록 */}
+                {/* list */}
                 <div className="flex-1 overflow-y-auto pr-1">
                   <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
                     {list.map((f) => {
                       const ingEmoji =
                         INGREDIENT_EMOJI[f.ingredient as IngredientTitle] ??
                         "❓";
-                      const priceDisabled = f.isWild;
-                      const canBuy =
-                        !!onBuy &&
-                        !f.isWild &&
-                        (typeof gold !== "number" || gold >= f.cost);
 
                       return (
                         <div
@@ -201,7 +184,7 @@ export default function MarineDexModal({
                               loading="lazy"
                             />
 
-                            {/* 좌상단: 희귀도
+                            {/* 좌상단: 희귀도 */}
                             <div className="absolute left-2 top-2">
                               <span
                                 className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${rarityChipCls(
@@ -210,9 +193,9 @@ export default function MarineDexModal({
                               >
                                 {f.rarity}
                               </span>
-                            </div> */}
+                            </div>
 
-                            {/* 우상단: 재료 이모지 */}
+                            {/* 우상단: 필요 재료 이모지 */}
                             <div
                               className="absolute right-2 top-2 w-9 h-9 rounded-full bg-white/95 border border-gray-200 shadow-sm flex items-center justify-center text-lg"
                               title={`필요 재료: ${f.ingredient}`}
@@ -220,32 +203,6 @@ export default function MarineDexModal({
                             >
                               <span className="translate-y-[1px]">
                                 {ingEmoji}
-                              </span>
-                            </div>
-
-                            {/* 우하단: 가격 */}
-                            <div className="absolute right-2 bottom-2">
-                              <span
-                                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[12px] tabular-nums ${
-                                  priceDisabled
-                                    ? "bg-gray-100 text-gray-400 border-gray-200"
-                                    : "bg-amber-50 text-amber-900 border-amber-200"
-                                }`}
-                                title={
-                                  priceDisabled
-                                    ? "야생 종은 입양할 수 없어요."
-                                    : ""
-                                }
-                                aria-disabled={priceDisabled || undefined}
-                              >
-                                <Coins
-                                  className={`w-4 h-4 ${
-                                    priceDisabled
-                                      ? "text-gray-300"
-                                      : "text-amber-600"
-                                  }`}
-                                />
-                                {fmt(f.cost)}
                               </span>
                             </div>
                           </div>
@@ -256,21 +213,6 @@ export default function MarineDexModal({
                               <span className="inline-flex items-center rounded-md border px-2.5 py-1 text-[11px] font-bold bg-white text-zinc-900">
                                 {f.labelKo}
                               </span>
-
-                              {/* 트리거와 무관: 입양 버튼은 기존 로직 유지 */}
-                              {!isOcean && onBuy && !f.isWild && (
-                                <button
-                                  onClick={() => onBuy(f.id, f.cost)}
-                                  className={`ml-auto px-2.5 py-1 rounded-md text-[11px] border ${
-                                    canBuy
-                                      ? "bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700"
-                                      : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-                                  }`}
-                                  disabled={!canBuy}
-                                >
-                                  입양
-                                </button>
-                              )}
                             </div>
 
                             <p className="mt-2 text-xs text-gray-700 line-clamp-2">
@@ -283,11 +225,11 @@ export default function MarineDexModal({
                   </div>
                 </div>
 
-                {/* 푸터 메모 */}
+                {/* footer note */}
                 <div className="mt-3 text-[11px] text-gray-500 flex items-center gap-1">
                   <Anchor className="w-3.5 h-3.5" />
-                  야생(포획 대상) 어종은 가격이 비활성화되며, 바다 탐험에서 만날
-                  수 있어요.
+                  도감은 정보 제공용입니다. 야생(포획 대상) 어종은 바다 탐험에서
+                  만날 수 있어요.
                 </div>
               </div>
             </div>
@@ -298,7 +240,7 @@ export default function MarineDexModal({
 
   return (
     <>
-      {/* ✅ 트리거: 테마샵 트리거와 유사한 흰색(Outline) 버튼 + 아이콘/라벨 가로 배치 */}
+      {/* trigger */}
       <Button
         variant="outline"
         title="도감 열기"

@@ -37,7 +37,7 @@ function RarityBadge({ r }: { r: FishRarity }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold",
+        "inline-flex items-center rounded-xl border px-2 py-0.5 text-[11px] font-semibold",
         cls
       )}
     >
@@ -440,8 +440,8 @@ export default function AquariumDetailButton({
                           title={`${it.label} 확대 보기`}
                         >
                           {/* 보유수 배지 (우상단) */}
-                          <span className="absolute top-1 right-1 rounded-full bg-amber-600 text-white text-[11px] font-bold px-1.5 py-0.5 shadow ring-1 ring-white/80">
-                            {owned}
+                          <span className="absolute top-1 right-1 rounded-lg bg-amber-600 text-white text-[11px] font-bold px-1.5 py-0.5 shadow ring-1 ring-white/80">
+                            x{owned}
                           </span>
 
                           <img

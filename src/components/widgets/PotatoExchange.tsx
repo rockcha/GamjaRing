@@ -1,13 +1,12 @@
 // src/features/potato_exchange/PotatoExchange.tsx
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,10 +18,12 @@ import {
   type IngredientTitle,
 } from "@/features/kitchen/type";
 
-/* ✅ 컨텍스트로 낙관적 업데이트 */
+/* 컨텍스트 & API */
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { addIngredients } from "@/features/kitchen/kitchenApi";
-import { Gift, Loader2, Sparkles } from "lucide-react";
+
+/* 아이콘 */
+import { Gift, Loader2, Sparkles, Lock } from "lucide-react";
 
 /* =========================
    교환소 설정
@@ -50,7 +51,6 @@ const BUNDLES = [
     img: "/exchange/bundle-pile.png",
   },
 ] as const;
-
 type BundleKey = (typeof BUNDLES)[number]["key"];
 
 /* =========================
@@ -69,15 +69,21 @@ function sampleUnique<T>(pool: readonly T[], n: number): T[] {
 }
 
 /* =========================
-   작은 뱃지 컴포넌트
+   작은 Pill(칩) 컴포넌트
 ========================= */
-function Pill({ children }: { children: React.ReactNode }) {
+function Pill({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border",
-        "px-2 py-1 text-xs font-medium",
-        "bg-white text-zinc-800 shadow-sm"
+        "inline-flex items-center gap-1 rounded-full border bg-white",
+        "px-2 py-1 text-xs font-medium text-zinc-800 shadow-sm",
+        className
       )}
     >
       {children}
@@ -86,7 +92,88 @@ function Pill({ children }: { children: React.ReactNode }) {
 }
 
 /* =========================
-   획득 결과 패널
+   번들 카드
+========================= */
+function BundleCard({
+  disabled,
+  img,
+  label,
+  subLabel,
+  onClick,
+}: {
+  disabled?: boolean;
+  img: string;
+  label: string;
+  subLabel: string;
+  onClick: () => void;
+}) {
+  const onKey = useCallback(
+    (e: React.KeyboardEvent<HTMLButtonElement>) => {
+      if (disabled) return;
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onClick();
+      }
+    },
+    [disabled, onClick]
+  );
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onKeyDown={onKey}
+      disabled={disabled}
+      aria-disabled={disabled}
+      className={cn(
+        "group relative rounded-xl border bg-white p-2 text-left",
+        "transition will-change-transform",
+        "hover:shadow-sm hover:-translate-y-0.5",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2",
+        disabled &&
+          "opacity-60 cursor-not-allowed hover:shadow-none hover:translate-y-0"
+      )}
+      title={disabled ? "커플 연결 후 이용 가능" : undefined}
+    >
+      <figure className="flex flex-col items-center">
+        <div className="w-full aspect-square rounded-lg border bg-white grid place-items-center p-1">
+          <img
+            src={img}
+            alt={label}
+            className="max-h-20 object-contain transition-transform duration-300 group-hover:scale-[1.03]"
+            draggable={false}
+            loading="lazy"
+          />
+        </div>
+        <figcaption className="mt-1 text-[11px] sm:text-xs font-medium text-zinc-800 text-center leading-tight">
+          {label}
+        </figcaption>
+      </figure>
+
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-x-1 bottom-1 rounded-md",
+          "border bg-amber-50/95 text-amber-900 text-[10px] font-semibold",
+          "px-1.5 py-0.5 shadow-sm",
+          disabled
+            ? "opacity-80"
+            : "opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition"
+        )}
+      >
+        {subLabel}
+      </div>
+
+      {disabled && (
+        <div className="pointer-events-none absolute right-2 top-2 text-amber-700/80">
+          <Lock className="w-4 h-4" />
+        </div>
+      )}
+    </button>
+  );
+}
+
+/* =========================
+   보상 패널
 ========================= */
 function RewardsPanel({
   loading,
@@ -104,7 +191,8 @@ function RewardsPanel({
   return (
     <section
       className={cn(
-        "relative rounded-xl border bg-gradient-to-b from-amber-50/70 to-white",
+        "relative rounded-xl border",
+        "bg-gradient-to-b from-amber-50/70 to-white",
         "p-3 sm:p-4 flex flex-col min-h-[220px]"
       )}
     >
@@ -115,7 +203,6 @@ function RewardsPanel({
         <div className="text-xs text-zinc-500">{status}</div>
       </header>
 
-      {/* 내용 */}
       <div className="mt-3 sm:mt-4 flex-1">
         {!hasRewards ? (
           <div className="grid place-items-center h-full min-h-[140px]">
@@ -133,12 +220,7 @@ function RewardsPanel({
             )}
           </div>
         ) : (
-          <div
-            className={cn(
-              "grid gap-2",
-              "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
-            )}
-          >
+          <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
             {lastRewards.map((r, i) => (
               <div
                 key={`${r.title}-${i}`}
@@ -178,14 +260,13 @@ function RewardsPanel({
         </Button>
       </footer>
 
-      {/* 장식 라인 */}
       <div className="pointer-events-none absolute inset-x-0 -bottom-px h-px bg-gradient-to-r from-transparent via-amber-300/70 to-transparent" />
     </section>
   );
 }
 
 /* =========================
-   컴포넌트
+   메인 컴포넌트
 ========================= */
 export default function PotatoExchange({
   className,
@@ -204,9 +285,8 @@ export default function PotatoExchange({
 
   const { couple, spendPotatoes } = useCoupleContext();
   const coupleId = couple?.id ?? "";
-  const isCoupled = !!coupleId; // ✅ 커플 여부 플래그
+  const isCoupled = !!coupleId;
 
-  // 재료 풀 (이모지 포함)
   const POOL = useMemo(
     () =>
       INGREDIENT_TITLES.map((t) => {
@@ -216,24 +296,28 @@ export default function PotatoExchange({
     []
   );
 
-  const onClickBundle = (bundleKey: BundleKey) => {
-    if (isOpening || !isCoupled) return; // ✅ 비커플 시 클릭 무시
+  const openDialog = () => {
+    setOpen(true);
+    setStatus("원하시는 선택지를 골라주세요.");
+    setLastRewards([]);
+  };
 
+  const onClickBundle = (bundleKey: BundleKey) => {
+    if (isOpening || !isCoupled) return;
     const bundle = BUNDLES.find((b) => b.key === bundleKey)!;
+
     setIsOpening(true);
     setLastRewards([]);
     setStatus(`${bundle.label} 열어보는 중 … ⏳`);
 
     (async () => {
       try {
-        // 1) 낙관적 감자 차감
-        if (coupleId) {
-          const { error } = await spendPotatoes(bundle.cost);
-          if (error) {
-            setStatus(error.message || "감자 차감에 실패했어요.");
-            setIsOpening(false);
-            return;
-          }
+        // 1) 감자 차감 (컨텍스트 제공 함수)
+        const { error } = await spendPotatoes(bundle.cost);
+        if (error) {
+          setStatus(error.message || "감자 차감에 실패했어요.");
+          setIsOpening(false);
+          return;
         }
 
         // 2) 연출 후 결과 지급
@@ -255,7 +339,7 @@ export default function PotatoExchange({
           } finally {
             setIsOpening(false);
           }
-        }, 1000);
+        }, 900); // 살짝 더 빠른 피드백
       } catch (err) {
         console.error(err);
         setStatus("오류가 발생했어요. 잠시 후 다시 시도해주세요.");
@@ -266,14 +350,10 @@ export default function PotatoExchange({
 
   return (
     <>
-      {/* 오프너 버튼 */}
+      {/* 오프너 버튼 (작은 아이콘 + 라벨) */}
       <Button
         variant="ghost"
-        onClick={() => {
-          setOpen(true);
-          setStatus("원하시는 선택지를 골라주세요.");
-          setLastRewards([]);
-        }}
+        onClick={openDialog}
         aria-label={`${caption} 열기`}
         className={cn(
           "p-0 h-auto inline-flex flex-col items-center gap-1",
@@ -304,11 +384,10 @@ export default function PotatoExchange({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
           className={cn(
-            "w-[min(92vw,1000px)] max-w-none rounded-2xl p-0",
-            "overflow-hidden"
+            "w-[min(92vw,1024px)] max-w-none rounded-2xl p-0 overflow-hidden"
           )}
         >
-          {/* 헤더: sticky + 반응형 정렬 */}
+          {/* 헤더: 리본 + PotatoDisplay */}
           <DialogHeader
             className={cn(
               "sticky top-0 z-10 p-4 border-b",
@@ -317,7 +396,7 @@ export default function PotatoExchange({
           >
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <div className="flex-1 min-w-0">
-                <DialogTitle className="text-base sm:text-lg">
+                <DialogTitle className="text-base sm:text-lg tracking-tight">
                   감자교환소
                 </DialogTitle>
                 <p className="text-xs sm:text-sm text-neutral-500 mt-0.5">
@@ -328,18 +407,14 @@ export default function PotatoExchange({
                 <PotatoDisplay />
               </div>
             </div>
+            <div className="mt-3 h-px w-full bg-gradient-to-r from-amber-200/80 via-transparent to-transparent" />
           </DialogHeader>
 
           {/* 바디: 좌측 번들 목록 + 우측 결과 패널 */}
           <div className="px-3 sm:px-5 py-3 max-h-[65vh] overflow-y-auto">
-            <div className={cn("grid gap-3", "grid-cols-1 md:grid-cols-12")}>
+            <div className="grid gap-3 grid-cols-1 md:grid-cols-12">
               {/* 번들 목록 */}
-              <section
-                className={cn(
-                  "md:col-span-5 lg:col-span-4",
-                  "rounded-xl border bg-white p-2 sm:p-3"
-                )}
-              >
+              <section className="md:col-span-5 lg:col-span-4 rounded-xl border bg-white p-2 sm:p-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-zinc-800 inline-flex items-center gap-2">
                     <Gift className="h-4 w-4" aria-hidden /> 선택지
@@ -348,54 +423,24 @@ export default function PotatoExchange({
                 </div>
 
                 <div className="mt-2 grid grid-cols-3 gap-2">
-                  {BUNDLES.map((b) => {
-                    const disabled = !isCoupled || isOpening; // ✅ 커플 아니면 비활성화
-                    return (
-                      <button
-                        key={b.key}
-                        onClick={() => onClickBundle(b.key)}
-                        disabled={disabled}
-                        aria-disabled={disabled}
-                        title={
-                          !isCoupled ? "커플 연결 후 이용 가능" : undefined
-                        }
-                        className={cn(
-                          "group relative rounded-lg border bg-white p-2",
-                          "transition hover:shadow-sm hover:-translate-y-0.5",
-                          disabled &&
-                            "opacity-60 cursor-not-allowed hover:shadow-none hover:translate-y-0"
-                        )}
-                      >
-                        <figure className="flex flex-col items-center">
-                          <div className="w-full aspect-square rounded-md border bg-white grid place-items-center p-1">
-                            <img
-                              src={b.img}
-                              alt={b.label}
-                              className="max-h-16 sm:max-h-20 object-contain transition-transform duration-300 group-hover:scale-[1.03]"
-                              draggable={false}
-                              loading="lazy"
-                            />
-                          </div>
-                          <figcaption className="mt-1 text-[10px] sm:text-xs font-medium text-zinc-800 text-center leading-tight">
-                            {b.label}
-                          </figcaption>
-                        </figure>
-
-                        <div
-                          className={cn(
-                            "pointer-events-none absolute inset-x-1 bottom-1",
-                            "rounded-md border bg-amber-50/90 text-amber-900 text-[10px] font-semibold",
-                            "px-1.5 py-0.5 shadow-sm opacity-0 translate-y-1",
-                            !disabled &&
-                              "group-hover:opacity-100 group-hover:translate-y-0 transition"
-                          )}
-                        >
-                          감자 {b.cost} → 재료 {b.count}
-                        </div>
-                      </button>
-                    );
-                  })}
+                  {BUNDLES.map((b) => (
+                    <BundleCard
+                      key={b.key}
+                      disabled={!isCoupled || isOpening}
+                      img={b.img}
+                      label={b.label}
+                      subLabel={`감자 ${b.cost} → 재료 ${b.count}`}
+                      onClick={() => onClickBundle(b.key)}
+                    />
+                  ))}
                 </div>
+
+                {/* 하단 도움말 */}
+                {!isCoupled && (
+                  <div className="mt-2 text-[11px] text-amber-700/80">
+                    커플 연결 후 이용할 수 있어요.
+                  </div>
+                )}
               </section>
 
               {/* 결과 패널 */}

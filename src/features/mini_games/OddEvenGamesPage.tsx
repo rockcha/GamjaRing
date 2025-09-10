@@ -30,32 +30,31 @@ export default function OddEvenGamesPage() {
   const { user } = useUser();
   const coupleId = couple?.id ?? null;
 
-  // 잔여 골드 (베팅 모달 검증용만 사용)
+  /* ───────── Gold / Session State ───────── */
   const [gold, setGold] = useState<number | null>(null);
   const [loadingGold, setLoadingGold] = useState(false);
 
-  // 세션
   const [session, setSession] = useState<Session | null>(null);
   const [checking, setChecking] = useState(false);
 
-  // 베팅 모달
+  /* ───────── Betting Modal ───────── */
   const [betModalOpen, setBetModalOpen] = useState(false);
   const [bet, setBet] = useState<number>(100);
   const [starting, setStarting] = useState(false);
 
-  // 라운드 진행 상태
+  /* ───────── Round State ───────── */
   const [guessing, setGuessing] = useState(false);
   const [win, setWin] = useState<boolean | null>(null);
   const [lastRoll, setLastRoll] = useState<"odd" | "even" | null>(null);
 
-  // 결과 모달
+  /* ───────── Result Modal ───────── */
   const [resultModalOpen, setResultModalOpen] = useState(false);
   const [revealing, setRevealing] = useState(false);
   const [rolledNumber, setRolledNumber] = useState<number | null>(null);
   const [rolledParity, setRolledParity] = useState<"odd" | "even" | null>(null);
   const [failedThisRound, setFailedThisRound] = useState(false);
 
-  // 보상 점프 애니메이션 트리거
+  /* ───────── Reward Bounce ───────── */
   const rewardRef = useRef<HTMLDivElement | null>(null);
   const lastReward = useRef<number | null>(null);
   useEffect(() => {
@@ -67,7 +66,6 @@ export default function OddEvenGamesPage() {
     if (lastReward.current !== session.reward) {
       lastReward.current = session.reward;
       rewardRef.current?.classList.remove("reward-bounce");
-      // next tick
       requestAnimationFrame(() => {
         rewardRef.current?.classList.add("reward-bounce");
         setTimeout(
@@ -78,7 +76,7 @@ export default function OddEvenGamesPage() {
     }
   }, [session?.reward]);
 
-  /* ───────── 잔액 / 세션 동기화 ───────── */
+  /* ───────── Sync: Gold + Session ───────── */
   const refreshGold = useCallback(async () => {
     if (!coupleId) return;
     try {
@@ -128,7 +126,7 @@ export default function OddEvenGamesPage() {
     void refreshSession();
   }, [refreshSession]);
 
-  /* ───────── 베팅 플로우 ───────── */
+  /* ───────── Betting Flow ───────── */
   const onClickBet = useCallback(async () => {
     if (!user?.id || !coupleId) {
       toast.warning("커플 연동 후 이용해 주세요.");
@@ -211,7 +209,7 @@ export default function OddEvenGamesPage() {
     }
   }, [bet, betValid, refreshGold, refreshSession]);
 
-  /* ───────── 라운드 진행 ───────── */
+  /* ───────── Round ───────── */
   const onGuess = useCallback(
     async (choice: GuessChoice) => {
       if (!session || guessing || win !== null) return;
@@ -327,7 +325,7 @@ export default function OddEvenGamesPage() {
     await refreshGold();
   }, [refreshSession, refreshGold]);
 
-  /* ───────── 파생 정보 ───────── */
+  /* ───────── Derived ───────── */
   const stepLabel = useMemo(() => {
     if (!session) return "";
     if (session.step === 1) return "첫 번째 라운드";
@@ -360,67 +358,78 @@ export default function OddEvenGamesPage() {
     </span>
   );
 
-  /* ───────── 렌더 ───────── */
+  /* ───────── Render ───────── */
   return (
     <div
-      className="min-h-[calc(100dvh-80px)] w-full bg-fixed bg-cover bg-center"
-      style={{ backgroundImage: "url(/odd_even/odd-even-background.png)" }}
+      className={cn(
+        "min-h-[calc(100dvh-80px)] w-full",
+        "bg-gradient-to-b from-slate-50 to-white"
+      )}
     >
-      <div className="mx-auto max-w-4xl px-4 py-8">
+      <div className="mx-auto w-full max-w-4xl px-4 py-10">
         {/* 헤더 */}
-        <div className="mb-6 flex flex-col items-center justify-between gap-3 rounded-2xl bg-white p-5 shadow-sm sm:flex-row">
-          <div className="text-center sm:text-left">
-            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
-              홀짝 게임
-            </h1>
-            <p className="text-slate-600">베팅하고 홀/짝을 맞춰보세요</p>
-          </div>
-          <div>{statusPill}</div>
-        </div>
+        <header className="mx-auto mb-8 flex max-w-3xl flex-col items-center justify-center gap-3 rounded-2xl bg-white/90 px-6 py-6 shadow-sm ring-1 ring-slate-200/70">
+          <h1 className="text-center text-2xl font-extrabold tracking-tight text-slate-900">
+            홀짝 게임
+          </h1>
+          <p className="text-center text-slate-600">
+            베팅하고 홀/짝을 맞춰보세요
+          </p>
+          <div className="mt-1">{statusPill}</div>
+        </header>
 
-        {/* 세션 없을 때 */}
+        {/* 세션 없음 */}
         {!session && (
-          <>
+          <section className="mx-auto grid max-w-lg place-items-center">
             {!coupleId && (
-              <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 flex items-center justify-center gap-2">
-                <ShieldAlert className="w-4 h-4" />
+              <div className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                <ShieldAlert className="h-4 w-4" />
                 커플 연동 후 이용할 수 있어요.
               </div>
             )}
-            <div className="flex justify-center">
-              <Button
-                onClick={onClickBet}
-                disabled={checking || !coupleId}
-                className={cn(
-                  "rounded-xl bg-amber-600 px-8 py-6 text-lg font-bold text-white shadow-sm transition hover:bg-amber-700",
-                  !coupleId && "cursor-not-allowed opacity-60"
-                )}
-              >
-                {checking ? (
-                  <span className="inline-flex items-center gap-2">
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    확인 중…
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-2">
-                    <Play className="w-5 h-5" />
-                    베팅하기
-                  </span>
-                )}
-              </Button>
-            </div>
-          </>
+
+            <Button
+              onClick={onClickBet}
+              disabled={checking || !coupleId}
+              className={cn(
+                "rounded-2xl bg-amber-600 px-8 py-6 text-lg font-bold text-white shadow-sm transition hover:bg-amber-700",
+                !coupleId && "cursor-not-allowed opacity-60"
+              )}
+            >
+              {checking ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  확인 중…
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-2">
+                  <Play className="h-5 w-5" />
+                  베팅하기
+                </span>
+              )}
+            </Button>
+            <div
+              className={cn(
+                "mt-6 w-full max-w-3xl h-56 sm:h-64 md:h-72",
+                "rounded-2xl border  shadow-sm",
+                "bg-center bg-cover mx-auto"
+              )}
+              style={{
+                backgroundImage: "url(/odd_even/odd-even-background.png)",
+              }}
+              aria-hidden
+            />
+          </section>
         )}
 
-        {/* 진행 중 화면 */}
+        {/* 진행 중 */}
         {session && (
-          <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
-            {/* 상단: 보상/배수/베팅액/단계 */}
+          <section className="mx-auto mt-4 max-w-3xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+            {/* 상단 정보 (중앙 정렬) */}
             <div className="flex flex-col items-center justify-center gap-2">
               <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
                 현재 보상
               </div>
-
               <div
                 ref={rewardRef}
                 className="text-5xl font-extrabold tracking-tight text-slate-900"
@@ -428,7 +437,7 @@ export default function OddEvenGamesPage() {
                 {session.reward.toLocaleString("ko-KR")} G
               </div>
 
-              <div className="flex flex-wrap items-center justify-center gap-2">
+              <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
                 <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200">
                   베팅액의{" "}
                   <b className="ml-1 text-slate-900">{rewardMultiplier}배</b>
@@ -445,17 +454,17 @@ export default function OddEvenGamesPage() {
               </div>
             </div>
 
-            {/* 라운드 / 선택 */}
+            {/* 선택 영역 */}
             {win === null ? (
               <>
                 <div className="mt-8 text-center text-lg font-semibold text-slate-800">
                   {stepLabel}
                 </div>
-                <div className="mt-2 text-center text-slate-600">
+                <div className="mt-1 text-center text-slate-600">
                   홀/짝을 선택하세요. (50%)
                 </div>
 
-                <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="mx-auto mt-6 grid max-w-md grid-cols-1 gap-3 sm:grid-cols-2">
                   <Button
                     disabled={guessing}
                     onClick={() => onGuess("odd")}
@@ -477,8 +486,8 @@ export default function OddEvenGamesPage() {
                 </div>
               </>
             ) : win === true ? (
-              <>
-                <div className="mt-8 text-center">
+              <div className="mx-auto mt-8 grid max-w-xl place-items-center gap-5">
+                <div className="text-center">
                   <span className="text-xl font-bold text-emerald-700">
                     정답!{" "}
                   </span>
@@ -486,7 +495,7 @@ export default function OddEvenGamesPage() {
                     결과:&nbsp;{lastRoll === "odd" ? "홀" : "짝"}
                   </span>
                 </div>
-                <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+                <div className="flex flex-wrap items-center justify-center gap-3">
                   <Button
                     disabled={guessing}
                     onClick={onStepUp}
@@ -509,21 +518,21 @@ export default function OddEvenGamesPage() {
                     <span className="ml-1 opacity-80">(여기까지 할래요)</span>
                   </Button>
                 </div>
-              </>
+              </div>
             ) : null}
-          </div>
+          </section>
         )}
       </div>
 
       {/* 베팅 모달 */}
       {betModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          className="fixed inset-0 z-50 grid place-items-center bg-black/50 px-4"
           onClick={() => setBetModalOpen(false)}
           aria-hidden={!betModalOpen}
         >
           <div
-            className="w-[420px] max-w-[90vw] rounded-2xl bg-white p-5 shadow-xl"
+            className="w-[420px] max-w-[92vw] rounded-2xl bg-white p-5 shadow-xl ring-1 ring-slate-200"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
@@ -611,14 +620,14 @@ export default function OddEvenGamesPage() {
       {/* 결과 모달 */}
       {resultModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+          className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4"
           onClick={() => {
             if (failedThisRound) closeFailModal();
           }}
           aria-hidden={!resultModalOpen}
         >
           <div
-            className="w-[460px] max-w-[92vw] rounded-2xl bg-white p-6 shadow-2xl"
+            className="w-[460px] max-w-[92vw] rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-slate-200"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
@@ -642,14 +651,12 @@ export default function OddEvenGamesPage() {
 
             <div className="mt-5">
               {revealing ? (
-                <div className="flex flex-col items-center justify-center py-8">
+                <div className="grid place-items-center py-8 text-slate-600">
                   <Loader2 className="h-8 w-8 animate-spin text-amber-600" />
-                  <div className="mt-3 text-sm text-slate-600">
-                    결과 공개중입니다…
-                  </div>
+                  <div className="mt-3 text-sm">결과 공개중입니다…</div>
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center gap-3">
+                <div className="grid place-items-center gap-3">
                   <div className="leading-none text-6xl font-extrabold text-slate-900">
                     {rolledNumber ?? "-"}
                   </div>
@@ -687,25 +694,17 @@ export default function OddEvenGamesPage() {
       )}
 
       {/* 보상 점프 애니메이션 */}
-      <style jsx>{`
-        .reward-bounce {
-          animation: reward-bounce 450ms ease-out;
-        }
-        @keyframes reward-bounce {
-          0% {
-            transform: translateY(0) scale(1);
-          }
-          30% {
-            transform: translateY(-6px) scale(1.02);
-          }
-          60% {
-            transform: translateY(0) scale(0.995);
-          }
-          100% {
-            transform: translateY(0) scale(1);
-          }
-        }
-      `}</style>
+      <style>{`
+  .reward-bounce {
+    animation: reward-bounce 450ms ease-out;
+  }
+  @keyframes reward-bounce {
+    0% { transform: translateY(0) scale(1); }
+    30% { transform: translateY(-6px) scale(1.02); }
+    60% { transform: translateY(0) scale(0.995); }
+    100% { transform: translateY(0) scale(1); }
+  }
+`}</style>
     </div>
   );
 }

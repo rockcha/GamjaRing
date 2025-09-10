@@ -65,9 +65,9 @@ export const FISHES: FishInfo[] = [
     labelKo: "오래된 장화",
     cost: 3,
     image: img("일반", "old-boot.png"),
-    size: 0.8,
-    swimY: [70, 95],
-    isWild: false,
+    size: 1.2,
+    swimY: [40, 55],
+    isWild: true,
     isMovable: true,
     ingredient: "고기",
     rarity: "일반",
@@ -88,13 +88,27 @@ export const FISHES: FishInfo[] = [
     description: "연안과 하구에 흔한 잡어.",
   },
   {
+    id: "beach-ball",
+    labelKo: "물놀이 공",
+    cost: 2,
+    image: img("일반", "beach-ball.png"),
+    size: 1.1, // 살짝 큰 소품 느낌
+    swimY: [0, 12], // 수면 근처에서 둥둥
+    isWild: true,
+    isMovable: true,
+    ingredient: "녹색채소",
+    rarity: "일반",
+    description: "파도 위를 통통 튀며 떠다니는 물놀이 공이에요.",
+  },
+
+  {
     id: "trash-tire",
     labelKo: "고무 타이어",
     cost: 4,
     image: img("일반", "trash-tire.png"),
-    size: 1.1,
-    swimY: [80, 98],
-    isWild: false,
+    size: 1.3,
+    swimY: [10, 68],
+    isWild: true,
     isMovable: true,
     ingredient: "양파",
     rarity: "일반",
@@ -394,7 +408,7 @@ export const FISHES: FishInfo[] = [
     id: "trash-toy-duck",
     labelKo: "버려진 오리 장난감",
     cost: 4,
-    image: "/aquarium/fishes/common/toy-duck.png", // 투명 PNG
+    image: img("일반", "trash-toy-duck.png"), // 투명 PNG
     size: 0.45, // 살짝 작게
     swimY: [2, 14], // 수면 근처에서 둥둥
     isWild: true, // 낚시로만 획득
@@ -675,7 +689,7 @@ export const FISHES: FishInfo[] = [
     image: img("일반", "seaweed-pile.png"),
     size: 0.7,
     swimY: [92, 99], // 바닥 근처 고정
-    isWild: false,
+    isWild: true,
     isMovable: true,
     ingredient: "베이컨",
     rarity: "일반",
@@ -738,9 +752,9 @@ export const FISHES: FishInfo[] = [
     labelKo: "떠다니는 비닐봉지",
     cost: 0,
     image: img("일반", "plastic-bag.png"),
-    size: 0.6,
+    size: 0.8,
     swimY: [20, 50],
-    isWild: false,
+    isWild: true,
     isMovable: true,
     ingredient: "밀",
     rarity: "일반",
@@ -1696,6 +1710,20 @@ export const FISHES: FishInfo[] = [
     ingredient: "소금",
     rarity: "전설",
     description: "몸에 별무리처럼 점등이 번지는 괴짜 문어예요.",
+  },
+  {
+    id: "coral-turtle-god",
+    labelKo: "산호 거북신",
+    cost: 1420,
+    image: img("전설", "coral-turtle-god.png"),
+    size: 2.8,
+    swimY: [10, 25], // 수면 근처를 주로 유영(섬처럼 보이도록)
+    isWild: true,
+    isMovable: true, // 느리지만 이동함
+    ingredient: "녹색채소",
+    rarity: "전설",
+    description:
+      "등껍질이 초록빛 산호와 이끼로 뒤덮여 작은 섬처럼 보이는 바다의 수호신 거북이에요.",
   },
   {
     id: "obsidian-gargoyle",
