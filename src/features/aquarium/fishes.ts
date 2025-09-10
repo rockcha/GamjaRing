@@ -65,7 +65,7 @@ export const FISHES: FishInfo[] = [
     labelKo: "오래된 장화",
     cost: 3,
     image: img("일반", "old-boot.png"),
-    size: 0.4,
+    size: 0.8,
     swimY: [70, 95],
     isWild: false,
     isMovable: true,
@@ -673,7 +673,7 @@ export const FISHES: FishInfo[] = [
     labelKo: "해조류 더미",
     cost: 2,
     image: img("일반", "seaweed-pile.png"),
-    size: 0.4,
+    size: 0.7,
     swimY: [92, 99], // 바닥 근처 고정
     isWild: false,
     isMovable: true,

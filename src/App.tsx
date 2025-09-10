@@ -22,7 +22,7 @@ import AquariumPage from "./pages/AquariumPage";
 import PotatoFieldPage from "./pages/PotatoFieldPage";
 import KitchenPage from "./pages/KitchenPage";
 import FishingPage from "./pages/FishingPage";
-import OddEvenGamesPage from "./features/mini_games/OddEventGamesPage";
+import OddEvenGamesPage from "./features/mini_games/OddEvenGamesPage";
 
 export default function App() {
   return (
