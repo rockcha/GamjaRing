@@ -7,14 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import {
-  NotebookPen,
-  Loader2,
-  PencilLine,
-  Eye,
-  Save,
-  Plus,
-} from "lucide-react";
+import { NotebookPen, Loader2, PencilLine, Eye, Plus } from "lucide-react";
 import supabase from "@/lib/supabase";
 import { useUser } from "@/contexts/UserContext";
 import { toast } from "sonner";
@@ -24,7 +17,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -83,9 +75,14 @@ function insertPrefixAtCurrentLine(
   return { nextValue, nextCursor };
 }
 
-export default function UserMemoFloating() {
+export default function UserMemoModal({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
   const { user } = useUser(); // { id: string }
-  const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("edit");
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
@@ -114,7 +111,6 @@ export default function UserMemoFloating() {
       if (error) throw error;
 
       if (!data) {
-        // 최초 생성 (빈 내용)
         const { data: created, error: insErr } = await supabase
           .from("user_memo")
           .upsert({ user_id: user.id, content: "" }, { onConflict: "user_id" })
@@ -139,7 +135,7 @@ export default function UserMemoFloating() {
     async (next?: string) => {
       if (!user?.id) return;
       const body = typeof next === "string" ? next : content;
-      if (!dirty && next === undefined) return; // 불필요 저장 방지
+      if (!dirty && next === undefined) return;
       setSaving(true);
       try {
         const { error } = await supabase
@@ -178,10 +174,10 @@ export default function UserMemoFloating() {
   const handleOpenChange = useCallback(
     (v: boolean) => {
       if (!v && dirty) save();
-      setOpen(v);
+      onOpenChange(v);
       if (v) setMode("edit");
     },
-    [dirty, save]
+    [dirty, save, onOpenChange]
   );
 
   /** 글머리 버튼 */
@@ -202,139 +198,112 @@ export default function UserMemoFloating() {
   };
 
   return (
-    <>
-      {/* 오른쪽 중앙 고정 버튼: 아이콘 + "메모" 고정 라벨만 (내용 미표시) */}
-      <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogTrigger asChild>
-          <button
-            aria-label="유저 메모 열기"
-            className="fixed right-2 top-1/2 -translate-y-1/2 z-40
-                       flex flex-col items-center justify-center gap-1
-                       rounded-full p-4
-                        text-neutral-700 bg-white/90
-                       hover:opacity-90 transition  select-none"
-          >
-            <NotebookPen className="h-6 w-6" />
-
-            {(saving || dirty) && (
-              <span
-                className="absolute -top-1 -right-1 inline-flex h-4 min-w-4 items-center justify-center
-                           rounded-full bg-destructive text-[10px] px-1"
-                title={saving ? "저장중…" : "미저장"}
-              >
-                {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : "•"}
-              </span>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <NotebookPen className="h-5 w-5" />내 메모
+            {loading && <Loader2 className="h-4 w-4 animate-spin ml-1" />}
+            {!loading && dirty && (
+              <Badge variant="secondary" className="ml-2">
+                수정됨
+              </Badge>
             )}
-          </button>
-        </DialogTrigger>
+          </DialogTitle>
+          <DialogDescription>
+            닫을 때 자동 저장돼요. 보기 모드에서는 URL이 링크로 보입니다.
+          </DialogDescription>
+        </DialogHeader>
 
-        <DialogContent className="sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <NotebookPen className="h-5 w-5" />내 메모
-              {loading && <Loader2 className="h-4 w-4 animate-spin ml-1" />}
-              {!loading && dirty && (
-                <Badge variant="secondary" className="ml-2">
-                  수정됨
-                </Badge>
-              )}
-            </DialogTitle>
-            <DialogDescription>
-              배경을 클릭해도 자동 저장됩니다. 보기 모드에서는 URL이 링크로
-              보입니다.
-            </DialogDescription>
-          </DialogHeader>
+        {/* 모드 토글 */}
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant={mode === "edit" ? "default" : "secondary"}
+            onClick={() => setMode("edit")}
+            className="gap-1"
+          >
+            <PencilLine className="h-4 w-4" />
+            편집
+          </Button>
+          <Button
+            size="sm"
+            variant={mode === "view" ? "default" : "secondary"}
+            onClick={() => setMode("view")}
+            className="gap-1"
+          >
+            <Eye className="h-4 w-4" />
+            보기
+          </Button>
+        </div>
 
-          {/* 모드 토글 */}
-          <div className="flex items-center gap-2">
+        {/* 글머리/이모지 퀵바 */}
+        {mode === "edit" && (
+          <div className="flex flex-wrap items-center gap-2">
+            {["•", "✅", "☑️", "⭐", "📌", "🚨", "❗", "⚠️"].map((b) => (
+              <Button
+                key={b}
+                size="icon"
+                variant="secondary"
+                className="h-8 w-8"
+                onClick={() => handleBullet(b)}
+                title={`${b} 글머리`}
+              >
+                <span className="text-base">{b}</span>
+              </Button>
+            ))}
+            <Separator orientation="vertical" className="mx-1 h-6" />
             <Button
               size="sm"
-              variant={mode === "edit" ? "default" : "secondary"}
-              onClick={() => setMode("edit")}
+              variant="secondary"
               className="gap-1"
+              onClick={() => {
+                const stamp =
+                  new Date().toLocaleString(undefined, {
+                    year: "2-digit",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }) + " — ";
+                const next = (content ? content + "\n" : "") + stamp;
+                setContent(next);
+                setDirty(true);
+                requestAnimationFrame(() => taRef.current?.focus());
+              }}
             >
-              <PencilLine className="h-4 w-4" />
-              편집
-            </Button>
-            <Button
-              size="sm"
-              variant={mode === "view" ? "default" : "secondary"}
-              onClick={() => setMode("view")}
-              className="gap-1"
-            >
-              <Eye className="h-4 w-4" />
-              보기
+              <Plus className="h-4 w-4" />
+              타임스탬프
             </Button>
           </div>
+        )}
 
-          {/* 글머리/이모지 쿼ickbar */}
-          {mode === "edit" && (
-            <div className="flex flex-wrap items-center gap-2">
-              {bullets.map((b) => (
-                <Button
-                  key={b}
-                  size="icon"
-                  variant="secondary"
-                  className="h-8 w-8"
-                  onClick={() => handleBullet(b)}
-                  title={`${b} 글머리`}
-                >
-                  <span className="text-base">{b}</span>
-                </Button>
-              ))}
-              <Separator orientation="vertical" className="mx-1 h-6" />
-              <Button
-                size="sm"
-                variant="secondary"
-                className="gap-1"
-                onClick={() => {
-                  const stamp =
-                    new Date().toLocaleString(undefined, {
-                      year: "2-digit",
-                      month: "2-digit",
-                      day: "2-digit",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    }) + " — ";
-                  const next = (content ? content + "\n" : "") + stamp;
-                  setContent(next);
-                  setDirty(true);
-                  requestAnimationFrame(() => taRef.current?.focus());
-                }}
-              >
-                <Plus className="h-4 w-4" />
-                타임스탬프
-              </Button>
+        {/* 본문 */}
+        <div className="mt-2">
+          {mode === "edit" ? (
+            <Textarea
+              ref={taRef}
+              value={content}
+              onChange={(e) => {
+                setContent(e.target.value);
+                setDirty(true);
+              }}
+              onBlur={() => dirty && !saving && save()}
+              placeholder="오늘의 생각, 해야 할 일, 링크 등을 자유롭게 적어보세요."
+              className="min-h-[260px] resize-y"
+              disabled={loading}
+            />
+          ) : (
+            <div className="min-h-[200px] rounded-md border p-3">
+              {content.trim().length === 0 ? (
+                <p className="text-muted-foreground">메모가 비어 있어요.</p>
+              ) : (
+                renderWithAutoLinks(content)
+              )}
             </div>
           )}
-
-          {/* 본문 */}
-          <div className="mt-2">
-            {mode === "edit" ? (
-              <Textarea
-                ref={taRef}
-                value={content}
-                onChange={(e) => {
-                  setContent(e.target.value);
-                  setDirty(true);
-                }}
-                onBlur={() => dirty && !saving && save()}
-                placeholder="오늘의 생각, 해야 할 일, 링크 등을 자유롭게 적어보세요."
-                className="min-h-[260px] resize-y"
-                disabled={loading}
-              />
-            ) : (
-              <div className="min-h-[200px] rounded-md border p-3">
-                {content.trim().length === 0 ? (
-                  <p className="text-muted-foreground">메모가 비어 있어요.</p>
-                ) : (
-                  renderWithAutoLinks(content)
-                )}
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

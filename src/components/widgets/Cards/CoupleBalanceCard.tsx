@@ -2,16 +2,20 @@
 "use client";
 
 import * as React from "react";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useCoupleContext } from "@/contexts/CoupleContext";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import AvatarWidget from "@/components/widgets/AvatarWidget";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { NotebookPen, LogIn, LogOut, Loader2 } from "lucide-react";
+import { useUser } from "@/contexts/UserContext";
+import { useNavigate } from "react-router-dom";
+import UserMemoModal from "@/features/memo/UserFloatingMemo";
 
 /* ───────────────────────────────────────────────────────────
    Hook: 부드러운 카운트업(숫자 보간)
@@ -59,21 +63,25 @@ type CoupleBalanceCardProps = {
   className?: string;
   dense?: boolean; // 더 컴팩트하게
   showDelta?: boolean; // +N/-N 떠오르는 배지
-  showTooltip?: boolean; // 툴팁 표시
-  onClick?: () => void; // 카드 클릭
+  onClick?: () => void; // (옵션) 외부 콜백 — 팝오버도 열립니다
 };
 
 export default function CoupleBalanceCard({
   className,
   dense = false,
   showDelta = true,
-  showTooltip = true,
   onClick,
 }: CoupleBalanceCardProps) {
   const { gold, potatoCount } = useCoupleContext() as {
     gold?: number;
     potatoCount?: number;
   };
+
+  const { user, logout } = useUser();
+  const navigate = useNavigate();
+
+  const isLoggedIn = !!user;
+  const [authBusy, setAuthBusy] = useState(false);
 
   const isLoading = typeof gold !== "number" || typeof potatoCount !== "number";
   const goldSafe = typeof gold === "number" ? gold : 0;
@@ -143,8 +151,7 @@ export default function CoupleBalanceCard({
   const cardCls = cn(
     "relative rounded-2xl border border-slate-200/70 bg-white/70 backdrop-blur-sm shadow-sm hover:shadow-md transition",
     dense ? "p-2.5" : "p-3 sm:p-3.5",
-    onClick &&
-      "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70",
+    "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70",
     className
   );
 
@@ -170,22 +177,42 @@ export default function CoupleBalanceCard({
       ? "bg-emerald-50 text-emerald-700 border-emerald-200"
       : "bg-rose-50 text-rose-700 border-rose-200";
 
-  // 툴팁 컴포넌트 스위칭
-  const TT = showTooltip ? TooltipProvider : (React.Fragment as any);
-  const Wrap = showTooltip ? Tooltip : (React.Fragment as any);
-  const Trg = showTooltip ? TooltipTrigger : (React.Fragment as any);
-  const Cnt = showTooltip ? TooltipContent : (React.Fragment as any);
+  // Popover & Memo modal state
+  const [popoverOpen, setPopoverOpen] = React.useState(false);
+  const [memoOpen, setMemoOpen] = React.useState(false);
+
+  const handleLogin = () => {
+    setPopoverOpen(false);
+    navigate("/login");
+  };
+
+  const handleLogout = async () => {
+    if (authBusy) return;
+    try {
+      setAuthBusy(true);
+      setPopoverOpen(false);
+      await logout();
+      window.location.replace("/login");
+      // 완전한 이동(히스토리 정리)
+    } catch (e) {
+      console.error("로그아웃 실패:", e);
+      setAuthBusy(false);
+    }
+  };
 
   return (
-    <TT>
-      <Wrap>
-        <Trg asChild>
+    <>
+      <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+        <PopoverTrigger asChild>
           <div
             className={cardCls}
-            role={onClick ? "button" : "group"}
-            tabIndex={onClick ? 0 : -1}
-            onClick={onClick}
-            aria-label="보유 골드와 감자 정보"
+            role="button"
+            tabIndex={0}
+            onClick={() => {
+              setPopoverOpen(true);
+              onClick?.();
+            }}
+            aria-label="보유 골드와 감자 정보 - 열어서 메뉴 보기"
           >
             {/* 델타 배지: 골드 */}
             {showDelta && goldDelta !== null && (
@@ -202,7 +229,7 @@ export default function CoupleBalanceCard({
               </span>
             )}
 
-            {/* 델타 배지: 감자 (골드와 겹치지 않게 조금 더 아래) */}
+            {/* 델타 배지: 감자 */}
             {showDelta && potatoDelta !== null && (
               <span
                 className={cn(
@@ -218,7 +245,7 @@ export default function CoupleBalanceCard({
             )}
 
             <div className="flex items-center gap-3">
-              {/* 좌측: 아바타 (계정 아이콘 대체) */}
+              {/* 좌측: 아바타 */}
               <AvatarWidget size="sm" />
 
               {/* 우측: 두 줄 (골드 / 감자) */}
@@ -264,22 +291,64 @@ export default function CoupleBalanceCard({
               }
             `}</style>
           </div>
-        </Trg>
+        </PopoverTrigger>
 
-        {showTooltip && (
-          <Cnt side="bottom" align="center" className="max-w-[220px] text-xs">
-            <div className="space-y-1">
-              <div>
-                <b className="text-amber-800">🪙 골드</b>: 상점/시설에 사용해요.
-              </div>
-              <div>
-                <b className="text-amber-800">🥔 감자</b>: 재료/요리/이벤트 보상
-                등으로 활용돼요.
-              </div>
-            </div>
-          </Cnt>
-        )}
-      </Wrap>
-    </TT>
+        {/* ↓ 아래 방향 Popover: 메뉴들 */}
+        <PopoverContent align="center" side="bottom" className="w-56 p-2">
+          {/* 메모장 */}
+          <button
+            className={cn(
+              "w-full flex items-center gap-2 rounded-md px-2 py-2 transition",
+              "hover:bg-neutral-50"
+            )}
+            onClick={() => {
+              setPopoverOpen(false);
+              setMemoOpen(true);
+            }}
+          >
+            <NotebookPen className="h-4 w-4" />
+            <span className="text-sm font-medium">메모장</span>
+          </button>
+
+          {/* 구분선 */}
+          <div className="my-2 h-px bg-neutral-200" />
+
+          {/* 로그인 / 로그아웃 (하단 고정 느낌) */}
+          {isLoggedIn ? (
+            <button
+              className={cn(
+                "w-full flex items-center gap-2 rounded-md px-2 py-2 transition",
+                "hover:bg-neutral-50 disabled:opacity-60"
+              )}
+              onClick={handleLogout}
+              disabled={authBusy}
+            >
+              {authBusy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <LogOut className="h-4 w-4" />
+              )}
+              <span className="text-sm font-medium">
+                {authBusy ? "로그아웃 중…" : "로그아웃"}
+              </span>
+            </button>
+          ) : (
+            <button
+              className={cn(
+                "w-full flex items-center gap-2 rounded-md px-2 py-2 transition",
+                "hover:bg-neutral-50"
+              )}
+              onClick={handleLogin}
+            >
+              <LogIn className="h-4 w-4" />
+              <span className="text-sm font-medium">로그인</span>
+            </button>
+          )}
+        </PopoverContent>
+      </Popover>
+
+      {/* 메모장 모달 (모달 컴포넌트는 open/onOpenChange props를 지원해야 합니다) */}
+      <UserMemoModal open={memoOpen} onOpenChange={setMemoOpen} />
+    </>
   );
 }

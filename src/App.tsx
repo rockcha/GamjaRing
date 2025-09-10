@@ -22,6 +22,7 @@ import AquariumPage from "./pages/AquariumPage";
 import PotatoFieldPage from "./pages/PotatoFieldPage";
 import KitchenPage from "./pages/KitchenPage";
 import FishingPage from "./pages/FishingPage";
+import OddEvenGamesPage from "./features/mini_games/OddEventGamesPage";
 
 export default function App() {
   return (
@@ -51,6 +52,7 @@ export default function App() {
               <Route path="aquarium" element={<AquariumPage />} />
               <Route path="potatoField" element={<PotatoFieldPage />} />
               <Route path="fishing" element={<FishingPage />} />
+              <Route path="oddEven" element={<OddEvenGamesPage />} />
             </Route>
           </Routes>
 

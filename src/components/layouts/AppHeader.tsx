@@ -1,7 +1,7 @@
 // src/components/layouts/AppHeader.tsx
 "use client";
 
-import React, { memo, useCallback } from "react";
+import React, { memo, useCallback, useRef } from "react";
 import {
   HeartHandshake,
   Home,
@@ -14,7 +14,9 @@ import {
   Waves,
   Sprout,
   ChefHat,
-  Store,
+  Gamepad2,
+  Joystick,
+  Dices,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,36 +29,53 @@ import { useUser } from "@/contexts/UserContext";
 import { toast } from "sonner";
 import CoupleBalanceCard from "../widgets/Cards/CoupleBalanceCard";
 import DaysTogetherBadge from "../DaysTogetherBadge";
-import { NavIconButton } from "../widgets/NavIconButton";
-
 import TodayQuestionInline from "../widgets/Cards/TodayQuestionCard";
 
+import {
+  NavigationMenu,
+  NavigationMenuList,
+  NavigationMenuItem,
+  NavigationMenuTrigger,
+  NavigationMenuContent,
+} from "@/components/ui/navigation-menu";
+
 /* ----------------------------------------------------------------
-   1) 네비/가드/라우팅 — 모듈 상단 "상수"로 고정 (참조 동일성 보장)
+   1) 네비/가드/라우팅 — 상수
 ----------------------------------------------------------------- */
-type NavItem = {
+type NavItemDef = {
   id: string;
   label: string;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
 };
 
-const BASIC: readonly NavItem[] = [
+const BASIC: readonly NavItemDef[] = [
   { id: "home", label: "메인페이지", icon: Home },
   { id: "info", label: "감자링이란?", icon: Info },
   { id: "settings", label: "마이페이지", icon: Settings },
 ] as const;
 
-const DAILY: readonly NavItem[] = [
+const DAILY: readonly NavItemDef[] = [
   { id: "questions", label: "오늘의 질문", icon: MessageSquareText },
   { id: "bundle", label: "답변꾸러미", icon: Package },
   { id: "scheduler", label: "커플 스케쥴러", icon: CalendarClock },
 ] as const;
 
-const WORLD: readonly NavItem[] = [
-  { id: "aquarium", label: "아쿠아리움", icon: Fish },
-  { id: "fishing", label: "바다낚시", icon: Waves },
+// 🧺 생활공방(땅/요리)
+const LAND_WORKSHOP: readonly NavItemDef[] = [
   { id: "potatoField", label: "농장", icon: Sprout },
   { id: "kitchen", label: "조리실", icon: ChefHat },
+] as const;
+
+// ⚓ 바다공방(물/낚시)
+const SEA_WORKSHOP: readonly NavItemDef[] = [
+  { id: "aquarium", label: "아쿠아리움", icon: Fish },
+  { id: "fishing", label: "바다낚시", icon: Waves },
+] as const;
+
+// 🎮 미니게임
+const MINI_GAMES: readonly NavItemDef[] = [
+  { id: "oddEven", label: "홀짝", icon: Dices },
+  { id: "game2", label: "미니게임 2", icon: Joystick },
 ] as const;
 
 const GUARDS: Record<
@@ -76,6 +95,10 @@ const GUARDS: Record<
   potatoField: { requireLogin: true, requireCouple: true },
   kitchen: { requireLogin: true, requireCouple: true },
   shop: { requireLogin: true, requireCouple: true },
+
+  // 게임: 제한 없음(원하면 나중에 가드 추가)
+  oddEven: { requireLogin: true, requireCouple: true },
+  game2: { requireLogin: true, requireCouple: true },
 };
 
 const FALLBACK_ROUTE: Record<string, string> = {
@@ -89,15 +112,15 @@ const FALLBACK_ROUTE: Record<string, string> = {
   fishing: "/fishing",
   potatoField: "/potatoField",
   kitchen: "/kitchen",
-  shop: "/shop",
+
+  // 게임 라우트
+  oddEven: "/oddEven",
+  game2: "/game2",
 };
 
 /* ----------------------------------------------------------------
-   2) 메모 가능한 하위 섹션 컴포넌트들
-   - props가 안 바뀌면 render 스킵됨
+   2) 상단 클러스터들 (memo)
 ----------------------------------------------------------------- */
-
-// 좌측: 로고 + 타이틀 + 슬로건 (routeTitle 바뀌면 이 섹션만 리렌더)
 const TitleCluster = memo(function TitleCluster({
   routeTitle,
 }: {
@@ -121,7 +144,6 @@ const TitleCluster = memo(function TitleCluster({
   );
 });
 
-// 중앙: D+일 배지 (자체 컨텍스트로 갱신됨 / routeTitle 변화와 분리)
 const CenterCluster = memo(function CenterCluster() {
   return (
     <div className="relative self-center order-last md:order-none">
@@ -133,7 +155,6 @@ const CenterCluster = memo(function CenterCluster() {
   );
 });
 
-// 우측: 알림/타로/날씨/잔액 (props 없이 메모 → routeTitle 변해도 스킵)
 const RightCluster = memo(function RightCluster() {
   return (
     <div className="flex items-center justify-end gap-2">
@@ -148,68 +169,45 @@ const RightCluster = memo(function RightCluster() {
         className="h-6 my-auto hidden md:block"
       />
       <WeatherCard />
-      <Separator
-        orientation="vertical"
-        className="h-6 my-auto hidden md:block"
-      />
-
-      <Separator
-        orientation="vertical"
-        className="h-6 my-auto hidden md:block"
-      />
-      <CoupleBalanceCard showDelta showTooltip dense />
-    </div>
-  );
-});
-
-// 하단 네비의 그룹 (title, items, 콜백 2개만 받음)
-const GroupInline = memo(function GroupInline({
-  title,
-  items,
-  disabledByState,
-  onGo,
-}: {
-  title: string;
-  items: readonly NavItem[];
-  disabledByState: (id: string) => boolean;
-  onGo: (id: string) => void;
-}) {
-  const strongHover = "hover:bg-amber-200 hover:text-amber-900";
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-[11px] font-semibold text-amber-800 bg-amber-200 rounded-full px-2 py-0.5 whitespace-nowrap">
-        {title}
-      </span>
-      <div className="flex items-center">
-        {items.map((it, idx) => {
-          const Dis = disabledByState(it.id);
-          const Icon = it.icon;
-          return (
-            <div key={it.id} className="flex items-center">
-              <NavIconButton
-                icon={Icon}
-                tooltip={it.label}
-                disabled={Dis}
-                onClick={() => !Dis && onGo(it.id)}
-                className={strongHover}
-                side="top"
-              />
-              {idx < items.length - 1 && (
-                <Separator
-                  orientation="vertical"
-                  className="h-6 mx-1 hidden md:block"
-                />
-              )}
-            </div>
-          );
-        })}
-      </div>
+      <CoupleBalanceCard showDelta dense />
     </div>
   );
 });
 
 /* ----------------------------------------------------------------
-   3) AppHeader (부모) — 하위는 memoized, 콜백은 useCallback으로 안정화
+   2-1) 드롭다운용 “가로형” NavItem (아이콘+텍스트 한 줄 고정)
+----------------------------------------------------------------- */
+function InlineNavItem({
+  icon: Icon,
+  label,
+  disabled,
+  onClick,
+}: {
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  label: string;
+  disabled?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-disabled={disabled}
+      className={cn(
+        "w-full min-w-0 inline-flex items-center gap-2 rounded-md px-2.5 py-2 text-sm",
+        "bg-white/0 hover:bg-amber-200 transition-colors",
+        "data-[disabled=true]:opacity-50 data-[disabled=true]:pointer-events-none"
+      )}
+      data-disabled={disabled ? "true" : "false"}
+    >
+      <Icon className="h-4 w-4 shrink-0" />
+      <span className="block truncate whitespace-nowrap">{label}</span>
+    </button>
+  );
+}
+
+/* ----------------------------------------------------------------
+   3) AppHeader
 ----------------------------------------------------------------- */
 export default function AppHeader({
   routeTitle,
@@ -222,7 +220,6 @@ export default function AppHeader({
   const uid = user?.id ?? null;
   const coupled = !!user?.couple_id;
 
-  // 가드 체크: uid / coupled 바뀔 때만 새로 생김 (routeTitle 변화와 독립)
   const disabledByState = useCallback(
     (id: string) => {
       const g = GUARDS[id] || {};
@@ -233,7 +230,6 @@ export default function AppHeader({
     [uid, coupled]
   );
 
-  // 라우팅: uid/coupled 바뀔 때만 새로 생김
   const go = useCallback(
     (id: string) => {
       const g = GUARDS[id] || {};
@@ -250,6 +246,60 @@ export default function AppHeader({
     },
     [uid, coupled]
   );
+
+  // 호버로 열리도록: 트리거 ref에 hover 시 click() 호출
+  const triggerRefs = useRef<
+    Record<
+      "basic" | "daily" | "land" | "sea" | "games",
+      HTMLButtonElement | null
+    >
+  >({
+    basic: null,
+    daily: null,
+    land: null,
+    sea: null,
+    games: null,
+  });
+
+  const renderGroup = (
+    key: "basic" | "daily" | "land" | "sea" | "games",
+    title: string,
+    items: readonly NavItemDef[]
+  ) => {
+    return (
+      <NavigationMenuItem key={key} className="relative">
+        <NavigationMenuTrigger
+          ref={(el) => {
+            triggerRefs.current[key] = el;
+          }}
+          onMouseEnter={() => triggerRefs.current[key]?.click()}
+          className="rounded-lg bg-white/70 hover:bg-amber-50 data-[state=open]:bg-amber-50"
+        >
+          {title}
+        </NavigationMenuTrigger>
+
+        {/* ✅ viewport=false 상태에서 각 트리거 바로 아래 고정 */}
+        <NavigationMenuContent className="p-2 md:absolute md:left-0 md:top-[calc(100%+6px)]">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 min-w-[250px] sm:min-w-[420px] border rounded-lg bg-white p-2">
+            {items.map((it) => {
+              const Disabled = disabledByState(it.id);
+              const Icon = it.icon;
+              return (
+                <div key={it.id} className="min-w-0">
+                  <InlineNavItem
+                    icon={Icon}
+                    label={it.label}
+                    disabled={Disabled}
+                    onClick={() => !Disabled && go(it.id)}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </NavigationMenuContent>
+      </NavigationMenuItem>
+    );
+  };
 
   return (
     <header
@@ -275,44 +325,24 @@ export default function AppHeader({
         </div>
       </div>
 
-      {/* 하단 네비 */}
+      {/* 하단 네비 (NavigationMenu) */}
       <div className="border-t bg-white/65 backdrop-blur-md supports-[backdrop-filter]:bg-white/55">
         <div className="mx-auto w-full max-w-screen-2xl py-3 px-3 sm:px-4">
-          <nav
-            role="navigation"
-            aria-label="헤더 네비게이션 바"
-            className={cn(
-              "min-h-12 md:min-h-14 flex items-center gap-4",
-              "overflow-x-auto overflow-y-hidden whitespace-nowrap scroll-smooth",
-              "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-            )}
-          >
-            <GroupInline
-              title="기본"
-              items={BASIC}
-              disabledByState={disabledByState}
-              onGo={go}
-            />
+          <div className="flex items-center gap-4">
+            {/* ✅ Viewport 끄기: 각 그룹 컨텐츠는 트리거 기준으로 절대 위치 */}
+            <NavigationMenu viewport={false}>
+              <NavigationMenuList className="gap-2 justify-start">
+                {renderGroup("basic", "🏠 기본", BASIC)}
+                {renderGroup("daily", "📖 우리의 일상", DAILY)}
+                {renderGroup("land", "🌱 생활공방", LAND_WORKSHOP)}
+                {renderGroup("sea", "⚓ 바다공방", SEA_WORKSHOP)}
+                {renderGroup("games", "🎮 미니게임", MINI_GAMES)}
+              </NavigationMenuList>
+            </NavigationMenu>
 
-            <Separator orientation="vertical" className="h-6 hidden md:block" />
-
-            <GroupInline
-              title="우리의 일상"
-              items={DAILY}
-              disabledByState={disabledByState}
-              onGo={go}
-            />
-
-            <Separator orientation="vertical" className="h-6 hidden md:block" />
-
-            <GroupInline
-              title="감자링의 세상"
-              items={WORLD}
-              disabledByState={disabledByState}
-              onGo={go}
-            />
+            {/* 기존 인라인 카드 그대로 유지 */}
             <TodayQuestionInline />
-          </nav>
+          </div>
         </div>
       </div>
     </header>
