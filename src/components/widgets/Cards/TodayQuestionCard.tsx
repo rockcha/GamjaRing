@@ -129,7 +129,7 @@ export default function TodayQuestionInline({
   // 비로그인/미커플이면 표시 안 함
   if (!user?.id || !isCoupled) return null;
 
-  const statusEmoji = task?.completed ? "✅" : "📝";
+  const statusEmoji = task?.completed ? "✅" : "❗";
   const statusLabel = task?.completed ? "작성 완료" : "미완료";
 
   return (

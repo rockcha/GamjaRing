@@ -98,6 +98,46 @@ export const RECIPES: readonly Recipe[] = [
     ingredients: ["밀", "계란"],
     sell: 34,
   },
+  {
+    name: "망고쥬스",
+    emoji: "🍹",
+    grade: "초급",
+    potato: 1,
+    ingredients: ["망고", "얼음"],
+    sell: 31,
+  },
+  {
+    name: "감자맥주",
+    emoji: "🍺",
+    grade: "초급",
+    potato: 2,
+    ingredients: ["밀", "얼음"],
+    sell: 33,
+  },
+  {
+    name: "감자초콜렛",
+    emoji: "🍫",
+    grade: "초급",
+    potato: 1,
+    ingredients: ["꿀", "얼음"],
+    sell: 28,
+  },
+  {
+    name: "감자도넛",
+    emoji: "🍩",
+    grade: "초급",
+    potato: 1,
+    ingredients: ["버터", "꿀", "밀"],
+    sell: 38,
+  },
+  {
+    name: "감자버블티",
+    emoji: "🧋",
+    grade: "초급",
+    potato: 1,
+    ingredients: ["우유", "꿀", "얼음"],
+    sell: 37,
+  },
 
   // ── 중급 ──
   {
@@ -140,7 +180,46 @@ export const RECIPES: readonly Recipe[] = [
     ingredients: ["계란", "버터", "양파"],
     sell: 63,
   },
-
+  {
+    name: "감자버거",
+    emoji: "🍔",
+    grade: "중급",
+    potato: 3,
+    ingredients: ["녹색채소", "양파", "플랫브레드"],
+    sell: 64,
+  },
+  {
+    name: "감자만두",
+    emoji: "🥟",
+    grade: "중급",
+    potato: 5,
+    ingredients: ["밀", "고기"],
+    sell: 62,
+  },
+  {
+    name: "감자 팬케이크",
+    emoji: "🥞",
+    grade: "중급",
+    potato: 2,
+    ingredients: ["플랫브레드", "꿀", "버터", "계란"],
+    sell: 68,
+  },
+  {
+    name: "감자 소금빵",
+    emoji: "🥐",
+    grade: "중급",
+    potato: 4,
+    ingredients: ["소금", "밀", "계란"],
+    sell: 65,
+  },
+  {
+    name: "감자 냉사케",
+    emoji: "🍶",
+    grade: "중급",
+    potato: 7,
+    ingredients: ["얼음"],
+    sell: 60,
+  },
   // ── 고급 ──
   {
     name: "포테이토 피자",
@@ -182,6 +261,46 @@ export const RECIPES: readonly Recipe[] = [
     ingredients: ["꿀", "얼음", "망고", "우유", "버터"], // 현재 5개
     sell: 90, // 5개 기준. 4개로 줄이면 31 정도 권장
   },
+  {
+    name: "감자면",
+    emoji: "🍜",
+    grade: "고급",
+    potato: 3,
+    ingredients: ["밀", "소금", "계란", "고기"], // 현재 5개
+    sell: 84,
+  },
+  {
+    name: "감자카레",
+    emoji: "🍛",
+    grade: "고급",
+    potato: 4,
+    ingredients: ["소금", "고기", "녹색채소", "베이컨"], // 현재 5개
+    sell: 88,
+  },
+  {
+    name: "감자케밥",
+    emoji: "🥙",
+    grade: "고급",
+    potato: 2,
+    ingredients: ["플랫브레드", "고기", "녹색채소", "양파", "소금"], // 현재 5개
+    sell: 90,
+  },
+  {
+    name: "감자전골탕",
+    emoji: "🍲",
+    grade: "고급",
+    potato: 8,
+    ingredients: ["소금", "고기", "양파"], // 현재 5개
+    sell: 86,
+  },
+  {
+    name: "감자경단",
+    emoji: "🍡",
+    grade: "고급",
+    potato: 1,
+    ingredients: ["계란", "고기", "밀", "베이컨", "꿀"], // 현재 5개
+    sell: 80,
+  },
 ] as const;
 
 /** 등급별 그룹 */
@@ -212,7 +331,7 @@ export type FoodInfo = {
 };
 
 export const FOOD_META: Record<RecipeName, FoodInfo> = {
-  // ── 초급 ──
+  // ────────────────── 초급 ──────────────────
   "프렌치 프라이": {
     name: "프렌치 프라이",
     desc: "겉은 바삭, 속은 크리미. 케찹 한 점에 사라지는 시간 도둑.",
@@ -233,8 +352,28 @@ export const FOOD_META: Record<RecipeName, FoodInfo> = {
     name: "감자전",
     desc: "노릇노릇, 뒤집는 순간이 하이라이트인 국민 간식.",
   },
+  망고쥬스: {
+    name: "망고쥬스",
+    desc: "잘 익은 망고와 살얼음이 만든 열대의 한 컵, 달콤 상큼 쭉—.",
+  },
+  감자맥주: {
+    name: "감자맥주",
+    desc: "맥아 향에 감자의 고소함 한 스푼, 시원하게 털어 넣는 별미.",
+  },
+  감자초콜렛: {
+    name: "감자초콜렛",
+    desc: "달콤함 속에 감자의 담백함이 스며든 이색 초콜릿 바.",
+  },
+  감자도넛: {
+    name: "감자도넛",
+    desc: "겉은 바삭, 속은 포슬—감자 반죽의 든든한 도넛.",
+  },
+  감자버블티: {
+    name: "감자버블티",
+    desc: "쫀득함은 기본, 고소한 우유에 감자풍미 스며든 한 잔.",
+  },
 
-  // ── 중급 ──
+  // ────────────────── 중급 ──────────────────
   "감자 샌드위치": {
     name: "감자 샌드위치",
     desc: "손안의 피크닉. 아삭한 채소와 치즈가 감자를 감싸요.",
@@ -255,8 +394,28 @@ export const FOOD_META: Record<RecipeName, FoodInfo> = {
     name: "감자 오믈렛",
     desc: "부드러운 계란 속에 숨겨둔 포근한 감자—브런치의 정석.",
   },
+  감자버거: {
+    name: "감자버거",
+    desc: "두툼한 감자 패티와 신선한 채소, 한입에 꽉 찬 포만감.",
+  },
+  감자만두: {
+    name: "감자만두",
+    desc: "쫄깃피 속 포슬 감자와 고기, 김이 모락모락.",
+  },
+  "감자 팬케이크": {
+    name: "감자 팬케이크",
+    desc: "버터 향 가득한 아침, 달콤·짭짤의 황금비.",
+  },
+  "감자 소금빵": {
+    name: "감자 소금빵",
+    desc: "소금 알갱이 톡톡, 버터와 감자가 만드는 바삭결.",
+  },
+  "감자 냉사케": {
+    name: "감자 냉사케",
+    desc: "얼음 사이로 스며드는 깔끔한 향—차게 즐기는 사케.",
+  },
 
-  // ── 고급 ──
+  // ────────────────── 고급 ──────────────────
   "포테이토 피자": {
     name: "포테이토 피자",
     desc: "치즈의 행복 위에 든든한 감자를 얹은 한 조각의 호사.",
@@ -276,6 +435,26 @@ export const FOOD_META: Record<RecipeName, FoodInfo> = {
   "감자 망고빙수": {
     name: "감자 망고빙수",
     desc: "감자를 곁들인 이쁜사람들만 좋아한다는 이색 빙수.",
+  },
+  감자면: {
+    name: "감자면",
+    desc: "쫄깃한 감자면에 깊은 육수 한 젓가락, 면치기의 즐거움.",
+  },
+  감자카레: {
+    name: "감자 카레",
+    desc: "부드러운 감자와 진한 카레 소스의 안정적 한 그릇.",
+  },
+  감자케밥: {
+    name: "감자 케밥",
+    desc: "불향 고기와 신선한 채소, 감자를 품은 플랫브레드 롤.",
+  },
+  감자전골탕: {
+    name: "감자 전골탕",
+    desc: "진한 국물에 고기와 감자가 우러난 뜨끈한 한 냄비.",
+  },
+  감자경단: {
+    name: "감자 경단",
+    desc: "여러가지 재료와 쫀득함을 한번에.",
   },
 } as const;
 

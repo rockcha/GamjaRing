@@ -9,6 +9,7 @@ import MenuButton from "../widgets/MenuButton";
 import PotatoPokeButton from "../widgets/PotatoPokeButton";
 import UserMemoFloating from "@/features/memo/UserFloatingMemo";
 import LogoutButton from "../LogoutButton";
+import NoticeCenterFloatingButton from "@/features/dev-note/NoticeFloatingButton";
 
 type PageLayoutProps = {
   /** 명시적으로 넘기면 이 값이 최우선. 없으면 현재 경로로 타이틀 계산 */
@@ -103,7 +104,7 @@ export default function PageLayout({
         <PotatoPokeButton />
         <UserMemoFloating />
         <LogoutButton />
-
+        <NoticeCenterFloatingButton className="left-4 bottom-4" />
         <Outlet />
       </main>
     </div>

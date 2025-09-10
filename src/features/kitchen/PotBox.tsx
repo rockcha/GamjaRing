@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { Soup, ChefHat } from "lucide-react";
+import { ChefHat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type PotIngredientItem = {
@@ -30,9 +30,10 @@ export default function PotBox({
   onCook?: () => void;
   bgSrc?: string;
 }) {
-  // 3x3 그리드에 최대 9개만 표시
+  // ▶︎ 4x4 그리드: 최대 16칸
+  const MAX_CELLS = 16;
   const cells: (PotIngredientItem | null)[] = Array.from(
-    { length: 9 },
+    { length: MAX_CELLS },
     (_, i) => items[i] ?? null
   );
 
@@ -50,11 +51,9 @@ export default function PotBox({
   const statusText = canCook ? "재료 준비가 완료됐어요." : "재료가 부족해요";
 
   return (
-    <div className="relative overflow-hidden rounded-2xl p-4  bg-none ">
-      {/* 상단 부드러운 헤더 그라디언트 */}
-
-      {/* 제목 바 + 상태 텍스트(배경/보더 제거) */}
-      <div className="relative z-10  flex items-center justify-center text-base  ">
+    <div className="relative overflow-hidden rounded-2xl p-4 bg-none">
+      {/* 제목 바 + 상태 텍스트 */}
+      <div className="relative z-10 flex items-center justify-center text-base">
         <span className={canCook ? "text-green-700" : "text-amber-700"}>
           {statusText}
         </span>
@@ -63,7 +62,7 @@ export default function PotBox({
       {/* 내용 */}
       <div className="relative z-10">
         {/* 고정 높이 + 우하단 버튼 공간 확보 */}
-        <div className="relative h-[240px] sm:h-[280px] md:h-[300px]  pb-14">
+        <div className="relative h-[260px] sm:h-[300px] md:h-[320px] pb-14">
           {/* 배경 이미지 (냄비) */}
           {bgSrc ? (
             <div
@@ -73,12 +72,12 @@ export default function PotBox({
             />
           ) : null}
 
-          {/* 안전 영역: 배경 안쪽에 비율로 패딩을 주어 3x3 그리드 배치 */}
+          {/* 안전 영역: 배경 안쪽에 패딩을 주어 4x4 그리드 배치 */}
           <div
             className="absolute inset-0"
-            style={{ top: "10%", right: "10%", bottom: "12%", left: "10%" }}
+            style={{ top: "10%", right: "8%", bottom: "12%", left: "8%" }}
           >
-            <div className="grid h-full w-full grid-cols-3 grid-rows-3 gap-2">
+            <div className="grid h-full w-full grid-cols-4 grid-rows-4 gap-2">
               {cells.map((cell, i) =>
                 cell ? (
                   <button
@@ -96,14 +95,15 @@ export default function PotBox({
                         : "",
                     ].join(" ")}
                     onClick={() => handleRemove(cell.stackIdx)}
-                    title="빼기"
+                    title={cell.title ? `${cell.title} 빼기` : "빼기"}
                   >
                     <span
                       className={[
                         "leading-none select-none transition-transform",
                         "group-hover:scale-[1.06]",
                       ].join(" ")}
-                      style={{ fontSize: "clamp(18px, 7.5vmin, 44px)" }}
+                      // 3x3보다 더 작게: 작은 화면에서도 과밀해 보이지 않도록 조정
+                      style={{ fontSize: "clamp(14px, 5.0vmin, 32px)" }}
                     >
                       {cell.emoji}
                     </span>
@@ -116,7 +116,7 @@ export default function PotBox({
           </div>
 
           {/* 오른쪽 하단 고정 버튼 */}
-          <div className="pointer-events-none absolute right-0 bottom-0 ">
+          <div className="pointer-events-none absolute right-0 bottom-0">
             <Button
               className="pointer-events-auto gap-1 px-3"
               size="sm"

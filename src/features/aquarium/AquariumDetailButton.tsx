@@ -43,13 +43,27 @@ function RarityBadge({ r }: { r: FishRarity }) {
   );
 }
 
+/** 희귀도별 카드/썸네일 톤 매핑 */
+const RARITY_CARD_CLASS: Record<FishRarity, string> = {
+  일반: "bg-neutral-50/80 border-neutral-200 text-slate-800 dark:bg-neutral-900/20 dark:border-neutral-700",
+  희귀: "bg-sky-50/80 border-sky-200 text-slate-800 dark:bg-sky-900/20 dark:border-sky-800",
+  에픽: "bg-violet-50/80 border-violet-200 text-slate-800 dark:bg-violet-900/20 dark:border-violet-800",
+  전설: "bg-amber-50/80 border-amber-200 text-slate-800 dark:bg-amber-900/20 dark:border-amber-800",
+};
+
+const RARITY_IMG_RING: Record<FishRarity, string> = {
+  일반: "ring-neutral-200 hover:ring-neutral-300 focus:ring-2 focus:ring-neutral-400/60",
+  희귀: "ring-sky-200 hover:ring-sky-300 focus:ring-2 focus:ring-sky-400/60",
+  에픽: "ring-violet-200 hover:ring-violet-300 focus:ring-2 focus:ring-violet-400/60",
+  전설: "ring-amber-200 hover:ring-amber-300 focus:ring-2 focus:ring-amber-400/60",
+};
+
 export default function AquariumDetailButton({
   className,
   buttonLabel = "상세보기",
   onChanged,
 }: {
   className?: string;
-  /** 버튼 라벨 커스터마이즈 (기본: 상세보기) */
   buttonLabel?: string;
   onChanged?: () => void;
 }) {
@@ -71,7 +85,11 @@ export default function AquariumDetailButton({
     label: string;
   } | null>(null);
 
-  /** DB에서 어항 목록 불러오기 */
+  // 이미지 프리뷰(확대) 상태
+  const [preview, setPreview] = useState<{ src: string; alt: string } | null>(
+    null
+  );
+
   const loadAquarium = async () => {
     if (!coupleId) return;
     setLoading(true);
@@ -96,8 +114,20 @@ export default function AquariumDetailButton({
   };
 
   useEffect(() => {
-    if (open) void loadAquarium(); // open 시마다 최신화
+    if (open) void loadAquarium();
   }, [open]);
+
+  // ESC로 미리보기/모달 닫기
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (preview) setPreview(null);
+        else if (open) setOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, preview]);
 
   /** 보유수 맵, 카드 리스트 */
   const countsById = useMemo(() => {
@@ -137,7 +167,6 @@ export default function AquariumDetailButton({
       image: string;
       isWild?: boolean;
     }>;
-    // 정렬: 희귀도 → 이름
     list.sort((a, b) => {
       const r = rarityOrder[a.rarity] - rarityOrder[b.rarity];
       return r !== 0 ? r : a.label.localeCompare(b.label, "ko");
@@ -167,7 +196,7 @@ export default function AquariumDetailButton({
     });
   };
 
-  /** 실제 판매 처리: 알림 전송 + DB 업데이트 2곳 + 로컬 갱신 */
+  /** 실제 판매 처리 */
   const handleSell = async () => {
     if (!confirm || !coupleId) return;
     const { fishId, sellPrice, label } = confirm;
@@ -175,7 +204,7 @@ export default function AquariumDetailButton({
     try {
       setLoading(true);
 
-      // 1) couple_aquarium.aquarium_fishes 에서 해당 어종 하나 제거
+      // 1) aquarium_fishes에서 해당 어종 1개 제거
       const firstIdx = fishIds.findIndex((f) => f === fishId);
       if (firstIdx === -1) {
         toast.error("이미 목록에서 삭제된 항목이에요.");
@@ -206,12 +235,12 @@ export default function AquariumDetailButton({
         .eq("id", coupleId);
       if (goldErr) throw goldErr;
 
-      // 3) 알림 전송 (연인에게)
+      // 3) 알림 전송(선택)
       try {
-        if (user?.id && user?.partner_id) {
+        if (user?.id && (user as any)?.partner_id) {
           await sendUserNotification({
             senderId: user.id,
-            receiverId: user.partner_id,
+            receiverId: (user as any).partner_id,
             type: "물품판매",
             itemName: label,
           });
@@ -220,7 +249,7 @@ export default function AquariumDetailButton({
         console.warn("판매 알림 전송 실패(무시 가능):", e);
       }
 
-      // 4) 로컬 반영 + UX
+      // 4) 로컬 반영
       setFishIds(nextFishIds);
       toast.success(
         `${label} 1마리 판매 완료 (+${sellPrice.toLocaleString("ko-KR")} 골드)`
@@ -266,52 +295,54 @@ export default function AquariumDetailButton({
       >
         <div
           className={cn(
-            "w-[900px] max-w-[94vw] max-h-[65vh] overflow-auto rounded-2xl bg-white p-4 shadow-xl relative transition-transform",
+            "w-[1000px] max-w-[95vw] max-h-[75vh] overflow-auto rounded-2xl bg-white p-5 shadow-xl relative transition-transform",
             open ? "scale-100" : "scale-95"
           )}
           onClick={(e) => e.stopPropagation()}
           role="dialog"
           aria-modal="true"
         >
-          {/* 헤더 */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <h3 className="text-lg font-bold">아쿠아리움 상세</h3>
-              <span className="text-sm text-slate-600">
-                종류 <b>{items.length}</b> · 총 <b>{fishIds.length}</b>마리
-              </span>
-            </div>
+          {/* 헤더 (sticky) */}
+          <div className="sticky top-0 z-10 -mx-5 px-5 pt-4 pb-3 mb-4 bg-white/90 backdrop-blur border-b border-gray-100">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-bold">아쿠아리움 상세</h3>
+                <span className="text-sm text-slate-600">
+                  종류 <b>{items.length}</b> · 총 <b>{fishIds.length}</b>마리
+                </span>
+              </div>
 
-            {/* 희귀도 필터 */}
-            <div className="flex items-center gap-2">
-              <label
-                htmlFor="rarityFilter"
-                className="text-sm text-slate-600 whitespace-nowrap"
-              >
-                희귀도
-              </label>
-              <select
-                id="rarityFilter"
-                value={rarityFilter}
-                onChange={(e) =>
-                  setRarityFilter(e.target.value as RarityFilter)
-                }
-                className="text-sm border rounded-md px-2 py-1 bg-white"
-              >
-                <option value="전체">전체</option>
-                <option value="일반">일반</option>
-                <option value="희귀">희귀</option>
-                <option value="에픽">에픽</option>
-                <option value="전설">전설</option>
-              </select>
+              {/* 희귀도 필터 */}
+              <div className="flex items-center gap-2">
+                <label
+                  htmlFor="rarityFilter"
+                  className="text-sm text-slate-600 whitespace-nowrap"
+                >
+                  희귀도
+                </label>
+                <select
+                  id="rarityFilter"
+                  value={rarityFilter}
+                  onChange={(e) =>
+                    setRarityFilter(e.target.value as RarityFilter)
+                  }
+                  className="text-sm border rounded-md px-2 py-1 bg-white"
+                >
+                  <option value="전체">전체</option>
+                  <option value="일반">일반</option>
+                  <option value="희귀">희귀</option>
+                  <option value="에픽">에픽</option>
+                  <option value="전설">전설</option>
+                </select>
 
-              <button
-                onClick={() => setOpen(false)}
-                className="ml-2 p-1.5 rounded-md border hover:bg-gray-50"
-                aria-label="닫기"
-              >
-                <X className="w-4 h-4" />
-              </button>
+                <button
+                  onClick={() => setOpen(false)}
+                  className="ml-2 p-1.5 rounded-md border hover:bg-gray-50"
+                  aria-label="닫기"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -323,20 +354,37 @@ export default function AquariumDetailButton({
               표시할 물고기가 없어요.
             </div>
           ) : (
-            // 항상 2열 그리드
-            <div className="grid grid-cols-2 gap-3">
+            // 2열 그리드(간격 확대)
+            <div className="grid grid-cols-2 gap-4 sm:gap-5">
               {filteredItems.map((it) => (
                 <div
                   key={it.id}
-                  className="flex items-center gap-3 rounded-xl border p-3 bg-gradient-to-br from-white to-slate-50/50"
+                  className={cn(
+                    "grid grid-cols-[auto_1fr_auto] items-center gap-4 rounded-2xl border p-4",
+                    RARITY_CARD_CLASS[it.rarity]
+                  )}
                 >
-                  {/* 썸네일 */}
-                  <img
-                    src={it.image}
-                    alt={it.label}
-                    className="w-14 h-14 object-contain rounded-md bg-white ring-1 ring-gray-200"
-                    draggable={false}
-                  />
+                  {/* 썸네일 컨테이너: 등급별 링 컬러 */}
+                  <button
+                    type="button"
+                    onClick={() => setPreview({ src: it.image, alt: it.label })}
+                    className={cn(
+                      "group relative w-28 h-24 sm:w-32 sm:h-28 rounded-xl",
+                      "bg-white/85 backdrop-blur-[2px] shadow-sm overflow-hidden ring-1",
+                      RARITY_IMG_RING[it.rarity]
+                    )}
+                    title={`${it.label} 확대 보기`}
+                  >
+                    <img
+                      src={it.image}
+                      alt={it.label}
+                      className="w-full h-full object-contain transition-transform duration-200 group-hover:scale-[1.06]"
+                      draggable={false}
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-black/5 to-transparent" />
+                  </button>
 
                   {/* 텍스트 */}
                   <div className="min-w-0 flex-1">
@@ -350,11 +398,11 @@ export default function AquariumDetailButton({
                       )}
                     </div>
 
-                    <div className="mt-0.5 flex items-center gap-3 text-[12px] text-gray-600">
+                    <div className="mt-1.5 flex items-center gap-3 text-[12px] text-gray-700">
                       <span className="inline-flex items-center gap-1">
                         <FishIcon className="w-3.5 h-3.5" />
                         보유{" "}
-                        <b className="text-gray-800 ml-0.5">
+                        <b className="text-gray-900 ml-0.5">
                           {countsById.get(it.id) ?? 0}
                         </b>
                       </span>
@@ -464,6 +512,39 @@ export default function AquariumDetailButton({
             </>
           )}
         </div>
+      </div>
+
+      {/* 이미지 미리보기(확대) */}
+      <div
+        className={cn(
+          "fixed inset-0 z-[95] flex items-center justify-center bg-black/70 transition-opacity",
+          preview
+            ? "opacity-100 pointer-events-auto"
+            : "opacity-0 pointer-events-none"
+        )}
+        onClick={() => setPreview(null)}
+        aria-hidden={!preview}
+      >
+        {preview && (
+          <div
+            className="relative max-w-[90vw] max-h-[80vh] p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={preview.src}
+              alt={preview.alt}
+              className="max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl ring-1 ring-white/20 bg-white/5"
+              draggable={false}
+            />
+            <button
+              onClick={() => setPreview(null)}
+              className="absolute -top-3 -right-3 p-2 rounded-full bg-white text-slate-800 shadow ring-1 ring-black/10"
+              aria-label="미리보기 닫기"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
     </>
   );
