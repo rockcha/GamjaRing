@@ -169,7 +169,7 @@ export default function IngredientFishingSection({
       : "bg-amber-50 border-amber-200";
 
   // 최대 8개만 미리보기
-  const MAX_SHOW = 8;
+  const MAX_SHOW = 12;
   const shown = useMemo(
     () => (selected ? capturable.slice(0, MAX_SHOW) : []),
     [selected, capturable]

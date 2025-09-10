@@ -3,11 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { FishInfo } from "./fishes";
 
-/** ───────────────────────────────────────────────────────────
- *  Keyframes 1회 주입
- *  - 기존 swim-x / bob-y / popIn
- *  - 추가: yaw(몸통 미세 흔들림), swim-offset(곡선 경로)
- *  ─────────────────────────────────────────────────────────── */
+/** keyframes 1회 주입 */
 function injectKeyframesOnce() {
   if (typeof document === "undefined") return;
   if (document.getElementById("aquarium-anim")) return;
@@ -27,16 +23,11 @@ function injectKeyframesOnce() {
     55%  { opacity: 1; transform: translateZ(0) scale(1.15) rotate(3deg); }
     100% { opacity: 1; transform: translateZ(0) scale(1) rotate(0deg); }
   }
-  /* 진행 방향에 따른 몸통 미세 흔들림 (진폭: --yawAmp, 방향: --dir) */
+  /* 🔹 미세 몸 흔들림: 진행 방향(dir)에 따라 ±회전 */
   @keyframes yaw {
     0%   { transform: rotate(calc(var(--yawAmp, 1deg) * -1 * var(--dir, 1))); }
     50%  { transform: rotate(calc(var(--yawAmp, 1deg) *  1 * var(--dir, 1))); }
     100% { transform: rotate(calc(var(--yawAmp, 1deg) * -1 * var(--dir, 1))); }
-  }
-  /* offset-path가 지원되면 경로를 따라 왕복 이동 */
-  @keyframes swim-offset {
-    0%   { offset-distance: 0% }
-    100% { offset-distance: 100% }
   }
   `;
   document.head.appendChild(style);
@@ -64,15 +55,47 @@ function mulberry32(seed: number) {
   };
 }
 
+/** ── 등급별 글로우 ────────────────────────── */
+function getGlowForRarity(
+  rarity?: string,
+  hovered?: boolean
+): { dropFilter: string; haloColor: string | null; haloOpacity: number } {
+  const r = (rarity || "").toLowerCase();
+
+  // Epic = 보라
+  if (r === "epic" || r === "에픽") {
+    const base = hovered ? 0.9 : 0.65;
+    const c8 = `rgba(167,139,250,${base})`; // #a78bfa
+    const c4 = `rgba(167,139,250,${Math.max(0, base - 0.25)})`;
+    return {
+      dropFilter: `drop-shadow(0 0 6px ${c8}) drop-shadow(0 0 14px ${c4})`,
+      haloColor: `rgba(167,139,250,${Math.max(0, base - 0.15)})`,
+      haloOpacity: hovered ? 0.85 : 0.65,
+    };
+  }
+  // Legendary = 금색
+  if (r === "legendary" || r === "전설") {
+    const base = hovered ? 0.9 : 0.65;
+    const c8 = `rgba(250,204,21,${base})`; // #facc15
+    const c4 = `rgba(245,158,11,${Math.max(0, base - 0.25)})`; // #f59e0b
+    return {
+      dropFilter: `drop-shadow(0 0 6px ${c8}) drop-shadow(0 0 14px ${c4})`,
+      haloColor: `rgba(250,204,21,${Math.max(0, base - 0.15)})`,
+      haloOpacity: hovered ? 0.85 : 0.65,
+    };
+  }
+  return { dropFilter: "", haloColor: null, haloOpacity: 0 };
+}
+
 export default function FishSprite({
   fish,
   overridePos,
   popIn = false,
   isHovered = false,
-  /** 컨테이너 폭 기준 스케일 */
+  /** ✅ 추가: 컨테이너 폭 기준 스케일 */
   containerScale = 1,
 }: {
-  fish: FishInfo;
+  fish: FishInfo & { rarity?: string }; // rarity를 옵션으로 허용
   overridePos: { leftPct: number; topPct: number };
   popIn?: boolean;
   isHovered?: boolean;
@@ -82,18 +105,17 @@ export default function FishSprite({
   const tokenRef = useRef<number>(makeToken());
   const rand = useMemo(() => mulberry32(tokenRef.current), []);
 
-  // 움직임 여부
+  // 움직임 여부 (기본 true)
   const isMovable = fish.isMovable !== false;
 
   // 정지 개체의 고정 Y 위치(%): swimY 범위 중앙에 약간의 난수 오프셋
   const fixedTopPct = useMemo(() => {
     const [minY, maxY] = fish.swimY || [30, 70];
     const mid = (minY + maxY) / 2;
-    const jitter = (rand() - 0.5) * Math.min(10, Math.max(2, maxY - minY)); // 최대 10% 오프셋
+    const jitter = (rand() - 0.5) * Math.min(10, Math.max(2, maxY - minY)); // 범위 최대 10% 내 소폭
     return Math.max(minY, Math.min(maxY, mid + jitter));
   }, [fish.swimY, rand]);
 
-  // 이동 파라미터
   const motion = useMemo(() => {
     if (!isMovable) return { travel: 0, speedSec: 0, delay: 0, bobPx: 0 };
     const travel = rand() * 80 + 45; // 45 ~ 125 %
@@ -103,7 +125,7 @@ export default function FishSprite({
     return { travel, speedSec, delay, bobPx };
   }, [rand, isMovable]);
 
-  // 좌우 방향(얼굴)
+  // ✅ 좌우 방향(얼굴) 토글 — 정지면 토글/반전 없음
   const [facingLeft, setFacingLeft] = useState(() =>
     isMovable ? rand() < 0.5 : false
   );
@@ -119,7 +141,7 @@ export default function FishSprite({
     return () => clearInterval(id);
   }, [flipEveryX, rand, isMovable]);
 
-  // 반응형 너비(컨테이너 비례)
+  // 반응형 너비(뷰포트 의존 제거, 컨테이너 비례)
   const sizeMul = fish.size ?? 1;
   const base = 76 * sizeMul * containerScale;
   const minPx = 32 * sizeMul * containerScale;
@@ -127,33 +149,22 @@ export default function FishSprite({
   const widthPx = Math.max(minPx, Math.min(maxPx, base));
   const widthCss = `${Math.round(widthPx)}px`;
 
-  // hover 스케일
+  // transform 합성
   const hoverScale = isHovered && isMovable ? 1.08 : 1;
+  const sx = hoverScale * (facingLeft ? -1 : 1);
+  const sy = hoverScale;
 
-  // 진행 방향 기울기(tilt) 기본값(2~6도)
+  /** ── 🔹랜덤 기울기/흔들림 파라미터 ───────────────────────────── */
   const tiltDegBase = useMemo(() => {
     if (!isMovable) return 0;
-    const amp = Math.min(6, 2 + (motion.travel / 125) * 4);
-    return amp;
-  }, [isMovable, motion.travel]);
-
-  // 몸통 미세 흔들림 진폭(0.6~1.6도)
-  const yawAmpDeg = useMemo(() => 0.6 + rand() * 1.0, [rand]);
-
-  // 곡선 경로 사용 여부 및 경로 데이터 (offset-path 지원 시)
-  const [useCurve, pathData] = useMemo(() => {
-    const supports =
-      typeof CSS !== "undefined" &&
-      (CSS as any).supports?.("offset-path", "path('M0 0 L 100 0')");
-    if (!isMovable || !supports) return [false, ""];
-    // 부드러운 S-커브 경로 (좌→우 기준)
-    const h = 80 + rand() * 40; // 세로 진폭(px)
-    const w = 100; // 경로 너비(%)
-    const p = `path('M 0 ${h / 2}
-                   C ${w * 0.25} 0, ${w * 0.25} ${h}, ${w * 0.5} ${h / 2}
-                   S ${w * 0.75} 0, ${w} ${h / 2}')`;
-    return [true, p.replace(/\s+/g, " ")];
+    return 1.5 + rand() * 4; // 1.5° ~ 4.0°
   }, [isMovable, rand]);
+  const yawAmpDeg = useMemo(() => 0.6 + rand() * 1.0, [rand]);
+  const yawDurationSec = useMemo(() => {
+    if (!isMovable) return 0;
+    const base = Math.max(2.6, motion.speedSec * 0.45);
+    return (base * (0.85 + rand() * 0.5)).toFixed(2); // 0.85x ~ 1.35x 가변
+  }, [isMovable, motion.speedSec, rand]);
 
   /** ── ⛳️ 바닥 침범 방지: top px 보정(clamp) ───────────────────────── */
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -164,20 +175,21 @@ export default function FishSprite({
     const wrap = wrapperRef.current;
     const img = imgRef.current;
     if (!wrap || !img) return;
+
     const container = (wrap.offsetParent as HTMLElement) ?? wrap.parentElement;
     if (!container) return;
 
     const parentH = container.clientHeight;
-    const imgH = img.clientHeight * hoverScale; // hover 스케일까지 반영
-    const SAFE_PAD = 6; // 위/아래 안전 여백(px)
-    const bob = motion.bobPx; // 아래쪽으로 흔들릴 여지
+    const imgH = img.clientHeight * sy; // hover 스케일까지 반영
+    const SAFE_PAD = 6;
+    const bob = motion.bobPx;
 
-    // 의도 top(%): 움직이면 overridePos.topPct, 정지면 fixedTopPct
     const intendedTopPct = isMovable ? overridePos.topPct : fixedTopPct;
     const desiredTop = (intendedTopPct / 100) * parentH;
 
     const minTop = SAFE_PAD;
     const maxTop = Math.max(SAFE_PAD, parentH - imgH - SAFE_PAD - bob);
+
     const clamped = Math.min(Math.max(desiredTop, minTop), maxTop);
     setTopPx(clamped);
   };
@@ -205,7 +217,7 @@ export default function FishSprite({
       window.removeEventListener("resize", onResize);
       ro?.disconnect();
     };
-  }, [hoverScale, motion.bobPx, overridePos.topPct, fixedTopPct, isMovable]);
+  }, [sy, motion.bobPx, overridePos.topPct, fixedTopPct, isMovable]);
 
   useEffect(() => {
     const img = imgRef.current;
@@ -214,24 +226,28 @@ export default function FishSprite({
     else img.addEventListener("load", recomputeTop, { once: true });
   }, []);
 
-  // 애니메이션 문자열
+  // 애니메이션 문자열 구성(정지면 none)
   const swimAnim = isMovable
-    ? useCurve
-      ? `swim-offset ${motion.speedSec}s ease-in-out ${motion.delay}s infinite alternate`
-      : `swim-x ${motion.speedSec}s ease-in-out ${motion.delay}s infinite alternate`
+    ? `swim-x ${motion.speedSec}s ease-in-out ${motion.delay}s infinite alternate`
     : "none";
-  const popAnim =
-    popIn && swimAnim !== "none"
-      ? `${swimAnim}, popIn 600ms ease-out`
-      : popIn
+  const popAnim = popIn
+    ? swimAnim === "none"
       ? "popIn 600ms ease-out"
-      : swimAnim;
+      : `${swimAnim}, popIn 600ms ease-out`
+    : swimAnim;
 
-  // 진행 방향 → CSS 변수
+  // 진행 방향 부호 & 기울이기
   const dir = facingLeft ? -1 : 1;
   const tiltDeg = isMovable ? tiltDegBase * dir : 0;
 
+  // z-index: 정지는 뒤쪽(1), 가동은 앞쪽(2)
   const zIndex = isMovable ? 2 : 1;
+
+  // ✅ 등급 글로우 계산
+  const { dropFilter, haloColor, haloOpacity } = useMemo(
+    () => getGlowForRarity(fish.rarity, isHovered && isMovable),
+    [fish.rarity, isHovered, isMovable]
+  );
 
   return (
     <div
@@ -245,17 +261,10 @@ export default function FishSprite({
             : `${isMovable ? overridePos.topPct : fixedTopPct}%`,
         animation: popAnim,
         ["--travel" as any]: `${motion.travel}%`,
-        // 곡선 유영(지원 시)
-        ...(useCurve
-          ? {
-              offsetPath: pathData as any,
-              offsetRotate: "0deg" as any, // 회전은 우리가 제어(tilt/yaw)
-            }
-          : {}),
         zIndex,
       }}
     >
-      {/* bob-y (상하 흔들림) */}
+      {/* 상하 흔들림 */}
       <div
         className="will-change-transform transform-gpu"
         style={{
@@ -267,39 +276,59 @@ export default function FishSprite({
           ["--bob" as any]: `${motion.bobPx}px`,
         }}
       >
-        {/* 좌우 반전 전용 래퍼 (scaleX) + hover scale */}
+        {/* 🔹 기울기(tilt) 래퍼: 고정 회전 */}
         <div
           className="will-change-transform transform-gpu"
           style={{
-            transform: `scaleX(${dir}) scale(${hoverScale})`,
-            transition: "transform 240ms ease-out",
+            transform: `rotate(${tiltDeg}deg)`,
             transformOrigin: "50% 50%",
-            ["--dir" as any]: dir,
-            ["--yawAmp" as any]: `${yawAmpDeg}deg`,
+            transition: "transform 220ms ease-out",
           }}
         >
-          {/* 진행 방향 기울기(tilt) + 몸통 미세 흔들림(yaw) */}
+          {/* 🔹 미세 흔들림(yaw) 래퍼 + 글로우 할로 */}
           <div
             className="will-change-transform transform-gpu"
             style={{
-              transform: `rotate(${tiltDeg}deg)`,
               animation: isMovable
-                ? `yaw ${Math.max(2.8, motion.speedSec * 0.45)}s ease-in-out ${
-                    motion.delay
-                  }s infinite`
+                ? `yaw ${yawDurationSec}s ease-in-out ${motion.delay}s infinite`
                 : "none",
               transformOrigin: "50% 50%",
+              ["--yawAmp" as any]: `${yawAmpDeg}deg`,
+              ["--dir" as any]: dir,
+              position: "relative",
             }}
           >
+            {/* ✅ 은은한 뒤광: epic=보라, legendary=골드 */}
+            {haloColor && (
+              <div
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  inset: "-24%",
+                  pointerEvents: "none",
+                  borderRadius: "50%",
+                  background: `radial-gradient(closest-side, ${haloColor} 0%, transparent 65%)`,
+                  opacity: haloOpacity,
+                  filter: "blur(10px)",
+                  transform: `scale(${hoverScale})`,
+                  transition: "opacity 220ms ease, transform 220ms ease",
+                }}
+              />
+            )}
+
             <img
               ref={imgRef}
               src={fish.image}
               alt={fish.labelKo}
-              className="pointer-events-none select-none will-change-transform transform-gpu"
+              className="pointer-events-none select-none will-change-transform transform-gpu hover:cursor-pointer"
               style={{
                 width: widthCss,
                 height: "auto",
-                filter: "drop-shadow(0 2px 2px rgba(0,0,0,.25))",
+                transform: `scale(${sx}, ${sy})`,
+                transition: "transform 240ms ease-out",
+                transformOrigin: "50% 50%",
+                // ✅ 기존 드롭섀도우 + 등급 글로우 레이어 합성
+                filter: `drop-shadow(0 2px 2px rgba(0,0,0,.25)) ${dropFilter}`,
               }}
             />
           </div>

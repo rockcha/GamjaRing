@@ -470,6 +470,7 @@ export const FISHES: FishInfo[] = [
     rarity: "일반",
     description: "작지만 화려한 꼬리가 돋보이는 인기 품종이에요.",
   },
+
   {
     id: "stripedfish",
     labelKo: "줄무늬 물고기",
@@ -1037,17 +1038,44 @@ export const FISHES: FishInfo[] = [
     description: "둥근 원반형 몸과 붉은 지느러미가 인상적인 중층의 방랑자.",
   },
   {
-    id: "purple-jellyfish",
-    labelKo: "보라해파리",
-    cost: 120,
-    image: img("희귀", "purple-jellyfish.png"),
-    size: 1.3, // 우산부 직경 기준
+    id: "crown-jellyfish",
+    labelKo: "크라운 해파리",
+    cost: 175,
+    image: img("희귀", "crown-jellyfish.png"),
+    size: 2.1, // 우산부 직경 기준
     swimY: [15, 55], // 상~중층 부유
     isWild: true,
     isMovable: true,
     ingredient: "얼음",
     rarity: "희귀",
     description: "투명한 몸에 보랏빛이 흐르는 은은한 발광의 해파리.",
+  },
+  {
+    id: "fangtooth",
+    labelKo: "송곳니물고기",
+    cost: 190,
+    image: img("희귀", "fangtooth.png"),
+    size: 1.2,
+    swimY: [65, 90],
+    isWild: true,
+    isMovable: true,
+    ingredient: "베이컨",
+    rarity: "희귀",
+    description:
+      "큰 송곳니로 유명한 소형 포식자예요. 어두운 심해에서 강인한 생존력을 보여요.",
+  },
+  {
+    id: "tripod-fish",
+    labelKo: "삼각대고기",
+    cost: 180,
+    image: img("희귀", "tripod-fish.png"),
+    size: 1.2,
+    swimY: [70, 95], // 바닥 가까이 '서 있는' 스타일
+    isWild: true,
+    isMovable: true,
+    ingredient: "녹색채소", // 요청 사항 반영
+    rarity: "희귀",
+    description: "긴 지느러미로 바닥에 서서 주변을 감지하는 독특한 심해어예요.",
   },
   {
     id: "turban-shell",
@@ -1126,6 +1154,19 @@ export const FISHES: FishInfo[] = [
     ingredient: "꿀",
     rarity: "희귀",
     description: "깊은 바다를 탐사하는 기계 포식자예요.",
+  },
+  {
+    id: "abandoned-smurf-doll",
+    labelKo: "버려진 스머프 인형",
+    cost: 82,
+    image: img("희귀", "abandoned-smurf-doll.png"), // 투명 PNG 권장
+    size: 0.4, // 기본 부유물보다 약간 큼
+    swimY: [30, 60], // 수중 중단~중상단에 둥둥
+    isWild: false,
+    isMovable: true,
+    ingredient: "얼음",
+    rarity: "희귀",
+    description: "색이 바랜 파란 봉제 인형. 물살에 떠밀려 조용히 흔들려요.",
   },
   {
     id: "snow-crab",
@@ -1207,6 +1248,33 @@ export const FISHES: FishInfo[] = [
     ingredient: "망고",
     rarity: "희귀",
     description: "옆으로 넓은 머리로 넓은 시야를 확보하는 독특한 상어예요.",
+  },
+  {
+    id: "shipwreck_fragment",
+    labelKo: "난파선 조각",
+    cost: 120,
+    image: img("희귀", "shipwreck_fragment.png"),
+    size: 1.7,
+    swimY: [85, 95], // 바닥 근처에 고정
+    isWild: false,
+    isMovable: false,
+    ingredient: "플랫브레드",
+    rarity: "희귀",
+    description: "바닷속 깊이 가라앉아 세월의 흔적이 묻은 난파선의 일부.",
+  },
+  {
+    id: "yellowtang",
+    labelKo: "대형 옐로우탱",
+    cost: 170,
+    image: img("희귀", "yellowtang.png"),
+    size: 2, // 일반보다 큰 스케일
+    swimY: [25, 60],
+    isWild: true,
+    isMovable: true,
+    ingredient: "망고",
+    rarity: "희귀",
+    description:
+      "햇살처럼 선명한 노란빛을 띠는 대형 옐로우탱. 산호초의 보물 같은 존재.",
   },
   {
     id: "coral-reef",
