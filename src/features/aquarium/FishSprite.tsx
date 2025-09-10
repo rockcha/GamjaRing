@@ -29,6 +29,11 @@ function injectKeyframesOnce() {
     50%  { transform: rotate(calc(var(--yawAmp, 1deg) *  1 * var(--dir, 1))); }
     100% { transform: rotate(calc(var(--yawAmp, 1deg) * -1 * var(--dir, 1))); }
   }
+  /* 🆕 저가(쓰레기) 어종 전용: 느린 360° 스핀 */
+  @keyframes slow-spin {
+    0%   { transform: rotate(0deg); }
+    100% { transform: rotate(calc(360deg * var(--spinSign, 1))); }
+  }
   `;
   document.head.appendChild(style);
 }
@@ -108,6 +113,9 @@ export default function FishSprite({
   // 움직임 여부 (기본 true)
   const isMovable = fish.isMovable !== false;
 
+  // 🆕 저가(쓰레기) 판정: cost <= 10이면 스핀 적용
+  const isTrash = (fish.cost ?? Number.POSITIVE_INFINITY) <= 10;
+
   // 정지 개체의 고정 Y 위치(%): swimY 범위 중앙에 약간의 난수 오프셋
   const fixedTopPct = useMemo(() => {
     const [minY, maxY] = fish.swimY || [30, 70];
@@ -165,6 +173,18 @@ export default function FishSprite({
     const base = Math.max(2.6, motion.speedSec * 0.45);
     return (base * (0.85 + rand() * 0.5)).toFixed(2); // 0.85x ~ 1.35x 가변
   }, [isMovable, motion.speedSec, rand]);
+
+  /** 🆕 쓰레기 전용 스핀 파라미터 */
+  const spinDurationSec = useMemo(() => {
+    if (!isTrash) return 0;
+    // 느리게: 14 ~ 28초 (개체별 랜덤)
+    return Math.round(14 + rand() * 14);
+  }, [isTrash, rand]);
+  const spinDelay = useMemo(
+    () => (isTrash ? +(rand() * 3).toFixed(2) : 0),
+    [isTrash, rand]
+  );
+  const spinSign = useMemo(() => (rand() < 0.5 ? -1 : 1), [rand]); // 시계/반시계 랜덤
 
   /** ── ⛳️ 바닥 침범 방지: top px 보정(clamp) ───────────────────────── */
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -285,7 +305,7 @@ export default function FishSprite({
             transition: "transform 220ms ease-out",
           }}
         >
-          {/* 🔹 미세 흔들림(yaw) 래퍼 + 글로우 할로 */}
+          {/* 🔹 미세 흔들림(yaw) 래퍼 */}
           <div
             className="will-change-transform transform-gpu"
             style={{
@@ -298,7 +318,7 @@ export default function FishSprite({
               position: "relative",
             }}
           >
-            {/* ✅ 은은한 뒤광: epic=보라, legendary=골드 */}
+            {/* ✅ 은은한 뒤광: epic=보라, legendary=골드 (스핀에는 포함되지 않음) */}
             {haloColor && (
               <div
                 aria-hidden
@@ -316,21 +336,33 @@ export default function FishSprite({
               />
             )}
 
-            <img
-              ref={imgRef}
-              src={fish.image}
-              alt={fish.labelKo}
-              className="pointer-events-none select-none will-change-transform transform-gpu hover:cursor-pointer"
+            {/* 🆕 쓰레기 전용 스핀 래퍼: 이미지에만 적용 */}
+            <div
+              className="will-change-transform transform-gpu"
               style={{
-                width: widthCss,
-                height: "auto",
-                transform: `scale(${sx}, ${sy})`,
-                transition: "transform 240ms ease-out",
+                animation: isTrash
+                  ? `slow-spin ${spinDurationSec}s linear ${spinDelay}s infinite`
+                  : "none",
                 transformOrigin: "50% 50%",
-                // ✅ 기존 드롭섀도우 + 등급 글로우 레이어 합성
-                filter: `drop-shadow(0 2px 2px rgba(0,0,0,.25)) ${dropFilter}`,
+                ["--spinSign" as any]: spinSign,
               }}
-            />
+            >
+              <img
+                ref={imgRef}
+                src={fish.image}
+                alt={fish.labelKo}
+                className="pointer-events-none select-none will-change-transform transform-gpu hover:cursor-pointer"
+                style={{
+                  width: widthCss,
+                  height: "auto",
+                  transform: `scale(${sx}, ${sy})`,
+                  transition: "transform 240ms ease-out",
+                  transformOrigin: "50% 50%",
+                  // ✅ 기존 드롭섀도우 + 등급 글로우 레이어 합성
+                  filter: `drop-shadow(0 2px 2px rgba(0,0,0,.25)) ${dropFilter}`,
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>

@@ -63,7 +63,7 @@ export const FISHES: FishInfo[] = [
   {
     id: "old-boot",
     labelKo: "오래된 장화",
-    cost: 13,
+    cost: 3,
     image: img("일반", "old-boot.png"),
     size: 0.4,
     swimY: [70, 95],
@@ -90,7 +90,7 @@ export const FISHES: FishInfo[] = [
   {
     id: "trash-tire",
     labelKo: "고무 타이어",
-    cost: 18,
+    cost: 4,
     image: img("일반", "trash-tire.png"),
     size: 1.1,
     swimY: [80, 98],
@@ -378,9 +378,35 @@ export const FISHES: FishInfo[] = [
     description: "거친 윤곽과 뾰족한 지느러미가 포인트인 소형 어종.",
   },
   {
+    id: "old-plank",
+    labelKo: "낡은 나무판자",
+    cost: 3,
+    image: img("일반", "old-plank.png"),
+    size: 0.9,
+    swimY: [45, 70],
+    isWild: true,
+    isMovable: true,
+    ingredient: "플랫브레드",
+    rarity: "일반",
+    description: "정체모를 선박의 부품이 여기까지 떠밀려왔다.",
+  },
+  {
+    id: "trash-toy-duck",
+    labelKo: "버려진 오리 장난감",
+    cost: 4,
+    image: "/aquarium/fishes/common/toy-duck.png", // 투명 PNG
+    size: 0.45, // 살짝 작게
+    swimY: [2, 14], // 수면 근처에서 둥둥
+    isWild: true, // 낚시로만 획득
+    isMovable: true, // 천천히 표류 + 흔들림
+    ingredient: "꿀",
+    rarity: "일반",
+    description: "바다를 떠돌다 흘러온 고무오리. 색이 바래고 스크래치가 많다.",
+  },
+  {
     id: "mango-jelly-bag",
     labelKo: "망고젤리 봉지",
-    cost: 36,
+    cost: 4,
     image: img("일반", "mango-jelly-bag.png"),
     size: 0.6,
     swimY: [25, 55],
@@ -486,7 +512,7 @@ export const FISHES: FishInfo[] = [
   },
   {
     id: "shellfish",
-    labelKo: "조개",
+    labelKo: "바지락",
     cost: 20,
     image: img("일반", "shellfish.png"),
     size: 0.4,
@@ -565,7 +591,7 @@ export const FISHES: FishInfo[] = [
   {
     id: "milk-carton",
     labelKo: "우유곽",
-    cost: 25,
+    cost: 1,
     image: img("일반", "milk-carton.png"),
     size: 0.7,
     swimY: [3, 18], // 수면 근처를 둥둥 떠다니는 높이
@@ -645,7 +671,7 @@ export const FISHES: FishInfo[] = [
   {
     id: "seaweed-pile",
     labelKo: "해조류 더미",
-    cost: 23,
+    cost: 2,
     image: img("일반", "seaweed-pile.png"),
     size: 0.4,
     swimY: [92, 99], // 바닥 근처 고정
@@ -710,7 +736,7 @@ export const FISHES: FishInfo[] = [
   {
     id: "plastic-bag",
     labelKo: "떠다니는 비닐봉지",
-    cost: 10,
+    cost: 0,
     image: img("일반", "plastic-bag.png"),
     size: 0.6,
     swimY: [20, 50],
@@ -737,7 +763,7 @@ export const FISHES: FishInfo[] = [
   {
     id: "rusty_diving_tank",
     labelKo: "녹슨 잠수통",
-    cost: 30,
+    cost: 7,
     image: img("일반", "rusty_diving_tank.png"),
     ingredient: "치즈",
     size: 1.4, // 덩치 있는 소품 느낌
@@ -865,7 +891,7 @@ export const FISHES: FishInfo[] = [
   {
     id: "krabby_patty_secret",
     labelKo: "게살버거 비법서 ",
-    cost: 150,
+    cost: 9,
     image: img("희귀", "krabby_patty_secret.png"),
     size: 1.4,
     ingredient: "케찹",
@@ -893,7 +919,7 @@ export const FISHES: FishInfo[] = [
   {
     id: "captain-treasure-chest",
     labelKo: "선장의 보물상자",
-    cost: 200,
+    cost: 270,
     image: img("희귀", "captain-treasure-chest.png"),
     size: 2,
     swimY: [99, 99],
@@ -1158,7 +1184,7 @@ export const FISHES: FishInfo[] = [
   {
     id: "abandoned-smurf-doll",
     labelKo: "버려진 스머프 인형",
-    cost: 82,
+    cost: 8,
     image: img("희귀", "abandoned-smurf-doll.png"), // 투명 PNG 권장
     size: 0.4, // 기본 부유물보다 약간 큼
     swimY: [30, 60], // 수중 중단~중상단에 둥둥
