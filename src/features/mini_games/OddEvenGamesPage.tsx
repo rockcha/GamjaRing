@@ -220,6 +220,7 @@ export default function OddEvenGamesPage() {
       setRolledParity(null);
       setFailedThisRound(false);
 
+      // "주사위 굴리는 중..." 연출 대기
       const wait = (ms: number) =>
         new Promise((resolve) => setTimeout(resolve, ms));
       await wait(3000);
@@ -360,22 +361,16 @@ export default function OddEvenGamesPage() {
 
   /* ───────── Render ───────── */
   return (
-    <div
-      className={cn(
-        "min-h-[calc(100dvh-80px)] w-full",
-        "bg-gradient-to-b from-slate-50 to-white"
-      )}
-    >
+    <div className={cn("min-h-[calc(100dvh-80px)] w-full")}>
       <div className="mx-auto w-full max-w-4xl px-4 py-10">
         {/* 헤더 */}
-        <header className="mx-auto mb-8 flex max-w-3xl flex-col items-center justify-center gap-3 rounded-2xl bg-white/90 px-6 py-6 shadow-sm ring-1 ring-slate-200/70">
+        <header className="mx-auto mb-8 flex max-w-3xl flex-col items-center justify-center gap-3">
           <h1 className="text-center text-2xl font-extrabold tracking-tight text-slate-900">
-            홀짝 게임
+            홀짝 게임 <div className="mt-1">{statusPill}</div>
           </h1>
           <p className="text-center text-slate-600">
             베팅하고 홀/짝을 맞춰보세요
           </p>
-          <div className="mt-1">{statusPill}</div>
         </header>
 
         {/* 세션 없음 */}
@@ -408,10 +403,11 @@ export default function OddEvenGamesPage() {
                 </span>
               )}
             </Button>
+
             <div
               className={cn(
                 "mt-6 w-full max-w-3xl h-56 sm:h-64 md:h-72",
-                "rounded-2xl border  shadow-sm",
+                "rounded-2xl border shadow-sm",
                 "bg-center bg-cover mx-auto"
               )}
               style={{
@@ -424,40 +420,51 @@ export default function OddEvenGamesPage() {
 
         {/* 진행 중 */}
         {session && (
-          <section className="mx-auto mt-4 max-w-3xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-            {/* 상단 정보 (중앙 정렬) */}
-            <div className="flex flex-col items-center justify-center gap-2">
-              <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                현재 보상
-              </div>
-              <div
-                ref={rewardRef}
-                className="text-5xl font-extrabold tracking-tight text-slate-900"
-              >
-                {session.reward.toLocaleString("ko-KR")} G
+          <section
+            className={cn(
+              "mx-auto mt-4 max-w-3xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm transition-colors",
+              win === true && "flash-success",
+              failedThisRound && "flash-fail"
+            )}
+          >
+            {/* 상단 정보 - 베팅/보상 나란히 (구분선 위쪽 블록) */}
+            <div className="flex flex-col items-center justify-center gap-6">
+              <div className="grid w-full max-w-xl grid-cols-1 gap-3 sm:grid-cols-2">
+                {/* 베팅액 (왼쪽, 동전 이모지 + 숫자) */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-center">
+                  <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                    베팅액
+                  </div>
+                  <div className="mt-1 text-4xl font-extrabold tracking-tight text-slate-900">
+                    🪙 {session.bet.toLocaleString("ko-KR")}
+                  </div>
+                </div>
+
+                {/* 현재 보상 (오른쪽, 돈 주머니 이모지 + 숫자) */}
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-center">
+                  <div className="text-xs font-medium uppercase tracking-wide text-amber-700">
+                    현재 보상
+                  </div>
+                  <div
+                    ref={rewardRef}
+                    className="mt-1 text-4xl font-extrabold tracking-tight text-amber-900"
+                  >
+                    💰 {session.reward.toLocaleString("ko-KR")}
+                  </div>
+                  <div className="mt-1 text-xs font-semibold text-amber-700/80">
+                    x{rewardMultiplier}
+                  </div>
+                </div>
               </div>
 
-              <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
-                <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200">
-                  베팅액의{" "}
-                  <b className="ml-1 text-slate-900">{rewardMultiplier}배</b>
-                </span>
-                <span className="inline-flex items-center rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-200">
-                  베팅액:{" "}
-                  <b className="ml-1 text-amber-800">
-                    {session.bet.toLocaleString("ko-KR")} G
-                  </b>
-                </span>
-                <span className="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-200">
-                  단계: <b className="ml-1 text-indigo-900">{session.step}</b>
-                </span>
-              </div>
+              {/* 상/하단 구분선 */}
+              <div className="mt-2 w-full border-t border-slate-200" />
             </div>
 
-            {/* 선택 영역 */}
+            {/* 라운드 & 선택 UI (구분선 아래 블록) */}
             {win === null ? (
               <>
-                <div className="mt-8 text-center text-lg font-semibold text-slate-800">
+                <div className="mt-6 text-center text-lg font-semibold text-slate-800">
                   {stepLabel}
                 </div>
                 <div className="mt-1 text-center text-slate-600">
@@ -471,8 +478,10 @@ export default function OddEvenGamesPage() {
                     className={cn(
                       "rounded-2xl bg-indigo-600 px-8 py-6 text-xl font-extrabold text-white shadow-sm transition hover:bg-indigo-700"
                     )}
+                    aria-label="홀 선택 (⚀⚂⚄)"
                   >
-                    홀
+                    <span className="mr-2">홀</span>
+                    <span className="text-2xl leading-none">⚀⚂⚄</span>
                   </Button>
                   <Button
                     disabled={guessing}
@@ -480,8 +489,10 @@ export default function OddEvenGamesPage() {
                     className={cn(
                       "rounded-2xl bg-blue-600 px-8 py-6 text-xl font-extrabold text-white shadow-sm transition hover:bg-blue-700"
                     )}
+                    aria-label="짝 선택 (⚁⚃⚅)"
                   >
-                    짝
+                    <span className="mr-2">짝</span>
+                    <span className="text-2xl leading-none">⚁⚃⚅</span>
                   </Button>
                 </div>
               </>
@@ -632,38 +643,42 @@ export default function OddEvenGamesPage() {
             role="dialog"
             aria-modal="true"
           >
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-900">
-                {revealing ? "결과 공개중…" : "결과"}
-              </h3>
-              {failedThisRound ? (
-                <button
-                  className="rounded-md border border-slate-200 p-1.5 text-slate-600 transition hover:bg-slate-50"
-                  onClick={closeFailModal}
-                  aria-label="닫기"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              ) : (
-                <div className="h-8 w-8" />
-              )}
-            </div>
-
             <div className="mt-5">
               {revealing ? (
-                <div className="grid place-items-center py-8 text-slate-600">
-                  <Loader2 className="h-8 w-8 animate-spin text-amber-600" />
-                  <div className="mt-3 text-sm">결과 공개중입니다…</div>
+                <div className="grid place-items-center gap-3 py-6 text-slate-600">
+                  {/* 주사위 굴리는 중 + GIF */}
+                  <div className="text-sm">주사위 굴리는 중...</div>
+                  <img
+                    src="/odd_even/dice-rolling.gif"
+                    alt="주사위 굴리는 중"
+                    className="h-20 w-20 object-contain"
+                  />
                 </div>
               ) : (
                 <div className="grid place-items-center gap-3">
-                  <div className="leading-none text-6xl font-extrabold text-slate-900">
+                  {/* 결과: 주사위 이모지 + (홀/짝) */}
+                  <div className="text-6xl leading-none">
                     {rolledNumber ?? "-"}
                   </div>
-                  <div className="text-xl font-extrabold">
-                    <span className="text-slate-700">결과:&nbsp;</span>
-                    <span className="text-amber-700">
-                      {rolledParity === "odd" ? "홀" : "짝"}
+                  <div className="text-3xl leading-none">
+                    {/* 유니코드 주사위 페이스: 1~6 = ⚀⚁⚂⚃⚄⚅ */}
+                    <span className="mr-1">
+                      {rolledNumber === 1
+                        ? "⚀"
+                        : rolledNumber === 2
+                        ? "⚁"
+                        : rolledNumber === 3
+                        ? "⚂"
+                        : rolledNumber === 4
+                        ? "⚃"
+                        : rolledNumber === 5
+                        ? "⚄"
+                        : rolledNumber === 6
+                        ? "⚅"
+                        : "🎲"}
+                    </span>
+                    <span className="text-slate-700">
+                      ({rolledParity === "even" ? "짝" : "홀"})
                     </span>
                   </div>
 
@@ -693,7 +708,7 @@ export default function OddEvenGamesPage() {
         </div>
       )}
 
-      {/* 보상 점프 애니메이션 */}
+      {/* 효과 & 애니메이션 */}
       <style>{`
   .reward-bounce {
     animation: reward-bounce 450ms ease-out;
@@ -703,6 +718,26 @@ export default function OddEvenGamesPage() {
     30% { transform: translateY(-6px) scale(1.02); }
     60% { transform: translateY(0) scale(0.995); }
     100% { transform: translateY(0) scale(1); }
+  }
+
+  /* 정답 / 오답 플래시 이팩트 */
+  .flash-success {
+    animation: flash-success 800ms ease-out;
+  }
+  .flash-fail {
+    animation: flash-fail 800ms ease-out;
+  }
+  @keyframes flash-success {
+    0%   { box-shadow: 0 0 0 0 rgba(16,185,129,0.0); background-color: #ffffff; }
+    15%  { box-shadow: 0 0 0 6px rgba(16,185,129,0.25); background-color: rgba(16,185,129,0.06); }
+    60%  { box-shadow: 0 0 0 0 rgba(16,185,129,0.0); }
+    100% { background-color: #ffffff; }
+  }
+  @keyframes flash-fail {
+    0%   { box-shadow: 0 0 0 0 rgba(244,63,94,0.0); background-color: #ffffff; }
+    15%  { box-shadow: 0 0 0 6px rgba(244,63,94,0.25); background-color: rgba(244,63,94,0.06); }
+    60%  { box-shadow: 0 0 0 0 rgba(244,63,94,0.0); }
+    100% { background-color: #ffffff; }
   }
 `}</style>
     </div>
