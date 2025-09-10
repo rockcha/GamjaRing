@@ -201,7 +201,7 @@ export default function MarineDexModal({
                               loading="lazy"
                             />
 
-                            {/* 좌상단: 희귀도 */}
+                            {/* 좌상단: 희귀도
                             <div className="absolute left-2 top-2">
                               <span
                                 className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${rarityChipCls(
@@ -210,7 +210,7 @@ export default function MarineDexModal({
                               >
                                 {f.rarity}
                               </span>
-                            </div>
+                            </div> */}
 
                             {/* 우상단: 재료 이모지 */}
                             <div
