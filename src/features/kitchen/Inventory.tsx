@@ -154,7 +154,6 @@ export default function Inventory({
               🥔
             </div>
             <div className="flex flex-col items-start">
-              <div className="text-base font-semibold leading-tight">감자</div>
               <div className="text-xs text-muted-foreground leading-tight">
                 클릭해서 냄비에 넣기
               </div>
@@ -186,7 +185,7 @@ export default function Inventory({
                 key={it.title}
                 variant="outline"
                 className={cn(
-                  "group relative h-24 rounded-2xl border bg-white shadow-sm overflow-hidden",
+                  "group relative h-20 rounded-2xl border bg-white shadow-sm overflow-hidden",
                   "flex flex-col items-center justify-center gap-1 px-2",
                   "transition will-change-transform hover:shadow-md hover:-translate-y-0.5",
                   !disabled && "ring-1 ring-zinc-200/70",
@@ -209,10 +208,8 @@ export default function Inventory({
                 <span className="text-3xl leading-none select-none">
                   {it.emoji}
                 </span>
-                <span className="text-[11px] font-medium text-zinc-700">
-                  {it.title}
-                </span>
-                <span className="absolute right-2 bottom-1 text-[10px] text-amber-700 font-semibold tabular-nums">
+
+                <span className="absolute right-1 bottom-0 text-[10px] text-amber-700 font-semibold tabular-nums">
                   ×{left}
                 </span>
               </Button>
@@ -248,16 +245,14 @@ export default function Inventory({
                   <button
                     key={f.name}
                     onClick={() => openModal(f.name)}
-                    className="relative h-24 rounded-2xl border bg-white shadow-sm overflow-hidden
+                    className="relative h-20 rounded-2xl border bg-white shadow-sm overflow-hidden
                                flex flex-col items-center justify-center gap-1 px-2 hover:shadow-md hover:-translate-y-0.5 transition"
                     title={f.name}
                   >
                     <span className="text-3xl leading-none select-none">
                       {emoji}
                     </span>
-                    <span className="text-[11px] font-medium text-zinc-700 truncate max-w-[90%]">
-                      {f.name}
-                    </span>
+
                     <span className="absolute right-2 bottom-1 text-[10px] text-amber-700 font-semibold tabular-nums">
                       ×{f.num}
                     </span>

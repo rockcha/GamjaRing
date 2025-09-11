@@ -14,7 +14,15 @@ import { useUser } from "@/contexts/UserContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Play, X, ShieldAlert, Loader2, Trophy, RotateCcw } from "lucide-react";
+import {
+  Play,
+  X,
+  ShieldAlert,
+  Loader2,
+  Trophy,
+  RotateCcw,
+  RefreshCcw,
+} from "lucide-react";
 
 type Session = {
   id: string;
@@ -35,6 +43,11 @@ export default function OddEvenGamesPage() {
   const [loadingGold, setLoadingGold] = useState(false);
 
   const [session, setSession] = useState<Session | null>(null);
+
+  /** 커플 세션이 진행 중이지만, 내 로컬 세션은 없는 경우(=연인이 플레이 중으로 간주) */
+  const [blockedByPartner, setBlockedByPartner] = useState(false);
+
+  /** RPC / 시작 버튼 등 공통 체크 로딩 */
   const [checking, setChecking] = useState(false);
 
   /* ───────── Betting Modal ───────── */
@@ -95,28 +108,46 @@ export default function OddEvenGamesPage() {
     }
   }, [coupleId]);
 
+  /**
+   * 커플 세션 상태를 동기화:
+   * - 세션 있으면 session 채우고 blockedByPartner=false
+   * - 세션 없으면 session=null, blockedByPartner=false
+   * - 세션이 있는데 내 로컬 session이 없을 수 없으므로(백엔드는 커플=1세션), 화면 분기:
+   *   -> 이 컴포넌트에서 "내가 참여 중인 세션"만 session으로 잡음
+   *   -> "세션은 존재하나 내 화면에서 session==null"인 경우는 없음
+   * 실제 차단 로직은 "세션 존재 & 내가 아직 시작 전" 타이밍에서 onClickBet에서 처리.
+   */
   const refreshSession = useCallback(async () => {
     if (!coupleId) {
       setSession(null);
+      setBlockedByPartner(false);
       return;
     }
     try {
       setChecking(true);
       const { data, error } = await supabase.rpc("odd_even_is_playing");
       if (error) throw error;
+
       if (data?.is_playing) {
         const s = data?.session;
-        setSession({
+        const newSession: Session = {
           id: s?.id,
           bet: Number(s?.bet ?? 0),
           step: Number(s?.step ?? 1),
           reward: Number(s?.reward ?? 0),
-        });
+        };
+        setSession(newSession);
+
+        // 내가 이미 세션 화면에 들어온 경우(=session 존재)에는 차단 배너 필요 없음
+        setBlockedByPartner(false);
       } else {
         setSession(null);
+        setBlockedByPartner(false); // 커플 세션이 없으니 차단 해제
       }
     } catch {
+      // 조회 실패 시 세션을 알 수 없으니, 과도한 차단을 피하기 위해 해제
       setSession(null);
+      setBlockedByPartner(false);
     } finally {
       setChecking(false);
     }
@@ -124,6 +155,14 @@ export default function OddEvenGamesPage() {
 
   useEffect(() => {
     void refreshSession();
+  }, [refreshSession]);
+
+  /** 5초마다 커플 세션 상태 폴링 (상대방이 종료하면 자동 해제) */
+  useEffect(() => {
+    const t = setInterval(() => {
+      void refreshSession();
+    }, 5000);
+    return () => clearInterval(t);
   }, [refreshSession]);
 
   /* ───────── Betting Flow ───────── */
@@ -139,8 +178,9 @@ export default function OddEvenGamesPage() {
 
       if (data?.is_playing) {
         const s = data?.session;
+        setBlockedByPartner(true);
         toast.error(
-          `현재 진행 중입니다 (단계 ${s?.step ?? "?"}, 보상 ${Number(
+          `연인이 지금 플레이 중이에요 (단계 ${s?.step ?? "?"}, 보상 ${Number(
             s?.reward ?? 0
           ).toLocaleString("ko-KR")}G)`
         );
@@ -173,6 +213,23 @@ export default function OddEvenGamesPage() {
     }
     try {
       setStarting(true);
+
+      // 시작 직전 재확인: 커플 세션 존재 시 시작 차단
+      const pre = await supabase.rpc("odd_even_is_playing");
+      if (pre.error) throw pre.error;
+      if (pre.data?.is_playing) {
+        const s = pre.data?.session;
+        setBlockedByPartner(true);
+        setBetModalOpen(false);
+        toast.error(
+          `연인이 지금 플레이 중이에요 (단계 ${s?.step ?? "?"}, 보상 ${Number(
+            s?.reward ?? 0
+          ).toLocaleString("ko-KR")}G)`
+        );
+        await refreshSession();
+        return;
+      }
+
       const { data, error } = await supabase.rpc("odd_even_start", {
         p_bet: bet,
       });
@@ -188,14 +245,17 @@ export default function OddEvenGamesPage() {
         setBetModalOpen(false);
         setWin(null);
         setLastRoll(null);
+        setBlockedByPartner(false);
         toast.success(
           `게임 시작! 베팅: ${Number(bet).toLocaleString("ko-KR")}G`
         );
       } else {
         const err = data?.error ?? "unknown";
         if (err === "not_enough_gold") toast.error("골드가 부족해요.");
-        else if (err === "already_playing") toast.error("이미 진행 중이에요.");
-        else if (err === "invalid_bet")
+        else if (err === "already_playing") {
+          setBlockedByPartner(true);
+          toast.error("연인이 지금 플레이 중이에요.");
+        } else if (err === "invalid_bet")
           toast.error("베팅 금액이 올바르지 않아요.");
         else toast.error("게임 시작에 실패했어요.");
       }
@@ -345,6 +405,8 @@ export default function OddEvenGamesPage() {
         "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ring-1",
         session
           ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+          : blockedByPartner
+          ? "bg-amber-50 text-amber-700 ring-amber-200"
           : "bg-rose-50 text-rose-700 ring-rose-200"
       )}
       aria-live="polite"
@@ -352,10 +414,18 @@ export default function OddEvenGamesPage() {
       <span
         className={cn(
           "h-2 w-2 rounded-full",
-          session ? "bg-emerald-500" : "bg-rose-500"
+          session
+            ? "bg-emerald-500"
+            : blockedByPartner
+            ? "bg-amber-500"
+            : "bg-rose-500"
         )}
       />
-      {session ? "진행 중" : "진행 중 아님"}
+      {session
+        ? "진행 중"
+        : blockedByPartner
+        ? "연인이 진행 중"
+        : "진행 중 아님"}
     </span>
   );
 
@@ -364,7 +434,7 @@ export default function OddEvenGamesPage() {
     <div className={cn("min-h-[calc(100dvh-80px)] w-full")}>
       <div className="mx-auto w-full max-w-4xl px-4 py-10">
         {/* 헤더 */}
-        <header className="mx-auto mb-8 flex max-w-3xl flex-col items-center justify-center gap-3">
+        <header className="mx-auto mb-6 flex max-w-3xl flex-col items-center justify-center gap-3">
           <h1 className="text-center text-2xl font-extrabold tracking-tight text-slate-900">
             홀짝 게임 <div className="mt-1">{statusPill}</div>
           </h1>
@@ -372,6 +442,33 @@ export default function OddEvenGamesPage() {
             베팅하고 홀/짝을 맞춰보세요
           </p>
         </header>
+
+        {/* 차단 배너 (내 세션은 없고, 커플 세션만 존재 → 시작 버튼 막음) */}
+        {!session && blockedByPartner && (
+          <div className="mx-auto mb-6 w-full max-w-3xl rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+            <div className="flex items-start gap-3">
+              <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+              <div className="flex-1">
+                <div className="font-semibold">
+                  연인이 지금 플레이 중이에요.
+                </div>
+                <div className="mt-0.5 text-sm">
+                  상대가 게임을 종료하거나 보상을 받으면 다시 시작할 수 있어요.
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-amber-200 text-amber-700 hover:bg-amber-100"
+                onClick={() => void refreshSession()}
+                disabled={checking}
+              >
+                <RefreshCcw className="mr-1.5 h-4 w-4" />
+                새로고침
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* 세션 없음 */}
         {!session && (
@@ -385,10 +482,10 @@ export default function OddEvenGamesPage() {
 
             <Button
               onClick={onClickBet}
-              disabled={checking || !coupleId}
+              disabled={checking || !coupleId || blockedByPartner}
               className={cn(
-                "rounded-2xl bg-amber-600 px-8 py-6 text-lg font-bold text-white shadow-sm transition hover:bg-amber-700",
-                !coupleId && "cursor-not-allowed opacity-60"
+                "rounded-2xl bg-amber-600 px-8 py-6 text-lg font-bold text-white shadow-sm transition hover:bg-amber-700 disabled:opacity-60",
+                (!coupleId || blockedByPartner) && "cursor-not-allowed"
               )}
             >
               {checking ? (
@@ -418,7 +515,7 @@ export default function OddEvenGamesPage() {
           </section>
         )}
 
-        {/* 진행 중 */}
+        {/* 진행 중 (내 세션) */}
         {session && (
           <section
             className={cn(
@@ -427,10 +524,9 @@ export default function OddEvenGamesPage() {
               failedThisRound && "flash-fail"
             )}
           >
-            {/* 상단 정보 - 베팅/보상 나란히 (구분선 위쪽 블록) */}
+            {/* 상단 정보 - 베팅/보상 */}
             <div className="flex flex-col items-center justify-center gap-6">
               <div className="grid w-full max-w-xl grid-cols-1 gap-3 sm:grid-cols-2">
-                {/* 베팅액 (왼쪽, 동전 이모지 + 숫자) */}
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-center">
                   <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
                     베팅액
@@ -440,7 +536,6 @@ export default function OddEvenGamesPage() {
                   </div>
                 </div>
 
-                {/* 현재 보상 (오른쪽, 돈 주머니 이모지 + 숫자) */}
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-center">
                   <div className="text-xs font-medium uppercase tracking-wide text-amber-700">
                     현재 보상
@@ -457,11 +552,10 @@ export default function OddEvenGamesPage() {
                 </div>
               </div>
 
-              {/* 상/하단 구분선 */}
               <div className="mt-2 w-full border-t border-slate-200" />
             </div>
 
-            {/* 라운드 & 선택 UI (구분선 아래 블록) */}
+            {/* 라운드 & 선택 UI */}
             {win === null ? (
               <>
                 <div className="mt-6 text-center text-lg font-semibold text-slate-800">
@@ -646,7 +740,6 @@ export default function OddEvenGamesPage() {
             <div className="mt-5">
               {revealing ? (
                 <div className="grid place-items-center gap-3 py-6 text-slate-600">
-                  {/* 주사위 굴리는 중 + GIF */}
                   <div className="text-sm">주사위 굴리는 중...</div>
                   <img
                     src="/odd_even/dice-rolling.gif"
@@ -656,12 +749,10 @@ export default function OddEvenGamesPage() {
                 </div>
               ) : (
                 <div className="grid place-items-center gap-3">
-                  {/* 결과: 주사위 이모지 + (홀/짝) */}
                   <div className="text-6xl leading-none">
                     {rolledNumber ?? "-"}
                   </div>
                   <div className="text-3xl leading-none">
-                    {/* 유니코드 주사위 페이스: 1~6 = ⚀⚁⚂⚃⚄⚅ */}
                     <span className="mr-1">
                       {rolledNumber === 1
                         ? "⚀"

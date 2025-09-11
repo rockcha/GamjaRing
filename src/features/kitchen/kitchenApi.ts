@@ -103,15 +103,22 @@ export async function consumeIngredients(
 
 /** 완성 요리 +delta (foods 배열에서 name으로 증가) */
 export async function addCookedFood(coupleId: string, name: string, delta = 1) {
-  const cur = await fetchKitchen(coupleId);
-  const next = cur.foods.map((f) =>
-    f.name === name ? { ...f, num: f.num + delta } : f
-  );
+  const cur = await fetchKitchen(coupleId); // { foods: {name:string, num:number}[] } 가정
+  const found = cur.foods.find((f) => f.name === name);
+
+  const next = found
+    ? cur.foods.map((f) =>
+        f.name === name ? { ...f, num: Math.max(0, f.num + delta) } : f
+      )
+    : [...cur.foods, { name, num: Math.max(0, delta) }];
+
   const { error } = await supabase
     .from("couple_kitchen")
     .update({ foods: next })
     .eq("couple_id", coupleId);
+
   if (error) throw error;
+  return next;
 }
 
 /** 감자 개수 조회 */
