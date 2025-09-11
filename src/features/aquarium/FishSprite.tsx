@@ -1,7 +1,5 @@
-// src/features/aquarium/FishSprite.tsx
 "use client";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { FishInfo } from "./fishes";
 
 /** keyframes 1회 주입 */
 function injectKeyframesOnce() {
@@ -10,34 +8,26 @@ function injectKeyframesOnce() {
   const style = document.createElement("style");
   style.id = "aquarium-anim";
   style.textContent = `
-  @keyframes swim-x {
-    0%   { transform: translateX(0) }
-    100% { transform: translateX(var(--travel, 60%)) }
-  }
-  @keyframes bob-y {
-    0%,100% { transform: translateY(0) }
-    50%     { transform: translateY(var(--bob, 8px)) }
-  }
+  @keyframes swim-x { 0% { transform: translateX(0) } 100% { transform: translateX(var(--travel, 60%)) } }
+  @keyframes bob-y { 0%,100% { transform: translateY(0) } 50% { transform: translateY(var(--bob, 8px)) } }
   @keyframes popIn {
-    0%   { opacity: 0; transform: translateZ(0) scale(0.45) rotate(-10deg); }
-    55%  { opacity: 1; transform: translateZ(0) scale(1.15) rotate(3deg); }
+    0% { opacity: 0; transform: translateZ(0) scale(0.45) rotate(-10deg); }
+    55% { opacity: 1; transform: translateZ(0) scale(1.15) rotate(3deg); }
     100% { opacity: 1; transform: translateZ(0) scale(1) rotate(0deg); }
   }
   @keyframes yaw {
-    0%   { transform: rotate(calc(var(--yawAmp, 1deg) * -1 * var(--dir, 1))); }
-    50%  { transform: rotate(calc(var(--yawAmp, 1deg) *  1 * var(--dir, 1))); }
-    100% { transform: rotate(calc(var(--yawAmp, 1deg) * -1 * var(--dir, 1))); }
+    0% { transform: rotate(calc(var(--yawAmp, 1deg) * -1 * var(--dir, 1))); }
+    50% { transform: rotate(calc(var(--yawAmp, 1deg) *  1 * var(--dir, 1))); }
+    100%{ transform: rotate(calc(var(--yawAmp, 1deg) * -1 * var(--dir, 1))); }
   }
-  @keyframes slow-spin {
-    0%   { transform: rotate(0deg); }
-    100% { transform: rotate(calc(360deg * var(--spinSign, 1))); }
-  }
+  @keyframes slow-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(calc(360deg * var(--spinSign, 1))); } }
+  @keyframes swim-band { 0% { transform: translateY(0); } 100% { transform: translateY(var(--yRangePx, 0px)); } }
   `;
   document.head.appendChild(style);
 }
 injectKeyframesOnce();
 
-/** ── 난수 유틸 ───────────────────────────── */
+/** 난수 유틸 */
 function makeToken(): number {
   try {
     if (typeof crypto !== "undefined" && "getRandomValues" in crypto) {
@@ -58,61 +48,73 @@ function mulberry32(seed: number) {
   };
 }
 
-/** ── 등급별 글로우 ────────────────────────── */
-function getGlowForRarity(
-  rarity?: string,
-  hovered?: boolean
-): { dropFilter: string; haloColor: string | null; haloOpacity: number } {
+/** 등급별 글로우 */
+function getGlowForRarity(rarity?: string | null): {
+  dropFilter: string;
+  haloColor: string | null;
+  haloOpacity: number;
+} {
   const r = (rarity || "").toLowerCase();
   if (r === "epic" || r === "에픽") {
-    const base = hovered ? 0.9 : 0.65;
+    const base = 0.65;
     const c8 = `rgba(167,139,250,${base})`;
     const c4 = `rgba(167,139,250,${Math.max(0, base - 0.25)})`;
     return {
       dropFilter: `drop-shadow(0 0 6px ${c8}) drop-shadow(0 0 14px ${c4})`,
       haloColor: `rgba(167,139,250,${Math.max(0, base - 0.15)})`,
-      haloOpacity: hovered ? 0.85 : 0.65,
+      haloOpacity: 0.65,
     };
   }
-  if (r === "legendary" || r === "전설") {
-    const base = hovered ? 0.9 : 0.65;
+  if (r === "legendary" || r === "전설" || r === "legend") {
+    const base = 0.65;
     const c8 = `rgba(250,204,21,${base})`;
     const c4 = `rgba(245,158,11,${Math.max(0, base - 0.25)})`;
     return {
       dropFilter: `drop-shadow(0 0 6px ${c8}) drop-shadow(0 0 14px ${c4})`,
       haloColor: `rgba(250,204,21,${Math.max(0, base - 0.15)})`,
-      haloOpacity: hovered ? 0.85 : 0.65,
+      haloOpacity: 0.65,
     };
   }
   return { dropFilter: "", haloColor: null, haloOpacity: 0 };
 }
 
+/** 타입 */
+export type SpriteFish = {
+  id: string;
+  labelKo: string;
+  image: string;
+  rarity?: string | null;
+  size?: number | null;
+  swimY: [number, number]; // 0=위, 100=아래
+  isMovable?: boolean | null;
+  price?: number | null;
+};
+
 export default function FishSprite({
   fish,
   overridePos,
   popIn = false,
-  isHovered = false,
   containerScale = 1,
+  onMouseDown,
+  isDragging = false,
+  /** 드롭 후 해당 topPct를 기준으로 유영(수직 대역 이동 끄고 보브만) */
+  lockTop = false,
 }: {
-  fish: FishInfo & { rarity?: string };
-  overridePos: { leftPct: number; topPct: number };
+  fish: SpriteFish;
+  overridePos: { leftPct: number; topPct: number }; // 0~100
   popIn?: boolean;
-  isHovered?: boolean;
   containerScale?: number;
+  onMouseDown?: (e: React.MouseEvent<HTMLDivElement>) => void;
+  isDragging?: boolean;
+  lockTop?: boolean;
 }) {
   const tokenRef = useRef<number>(makeToken());
   const rand = useMemo(() => mulberry32(tokenRef.current), []);
 
-  const isMovable = fish.isMovable !== false;
-  const isTrash = (fish.cost ?? Number.POSITIVE_INFINITY) <= 10;
+  const isMovable = fish.isMovable !== false; // undefined면 이동체
+  const isTrash = (fish.price ?? Number.POSITIVE_INFINITY) <= 10;
 
-  const fixedTopPct = useMemo(() => {
-    const [minY, maxY] = fish.swimY || [30, 70];
-    const mid = (minY + maxY) / 2;
-    const jitter = (rand() - 0.5) * Math.min(10, Math.max(2, maxY - minY));
-    return Math.max(minY, Math.min(maxY, mid + jitter));
-  }, [fish.swimY, rand]);
-
+  /** X/Y 모션 파라미터 */
   const motion = useMemo(() => {
     if (!isMovable) return { travel: 0, speedSec: 0, delay: 0, bobPx: 0 };
     const travel = rand() * 80 + 45;
@@ -137,72 +139,95 @@ export default function FishSprite({
     return () => clearInterval(id);
   }, [flipEveryX, rand, isMovable]);
 
-  const sizeMul = fish.size ?? 1;
-  const base = 76 * sizeMul * containerScale;
-  const minPx = 32 * sizeMul * containerScale;
-  const maxPx = 100 * sizeMul * containerScale;
+  /** 크기 */
+  const sizeMul = (fish.size ?? 1) * 1.2;
+  const base = 62 * sizeMul * containerScale;
+  const minPx = 26 * sizeMul * containerScale;
+  const maxPx = 82 * sizeMul * containerScale;
   const widthPx = Math.max(minPx, Math.min(maxPx, base));
   const widthCss = `${Math.round(widthPx)}px`;
+  const spinSignRef = useRef<number>(rand() < 0.5 ? -1 : 1);
+  const sx = facingLeft ? -1 : 1;
+  const sy = 1;
 
-  const hoverScale = isHovered && isMovable ? 1.08 : 1;
-  const sx = hoverScale * (facingLeft ? -1 : 1);
-  const sy = hoverScale;
-
-  const tiltDegBase = useMemo(() => {
-    if (!isMovable) return 0;
-    return 1.5 + rand() * 4;
-  }, [isMovable, rand]);
+  const tiltDegBase = useMemo(
+    () => (isMovable ? 1.5 + rand() * 4 : 0),
+    [isMovable, rand]
+  );
   const yawAmpDeg = useMemo(() => 0.6 + rand() * 1.0, [rand]);
+
   const yawDurationSec = useMemo(() => {
     if (!isMovable) return 0;
     const base = Math.max(2.6, motion.speedSec * 0.45);
-    return (base * (0.85 + rand() * 0.5)).toFixed(2);
+    return +(base * (0.85 + rand() * 0.5)).toFixed(2);
   }, [isMovable, motion.speedSec, rand]);
 
-  const spinDurationSec = useMemo(() => {
-    if (!isTrash) return 0;
-    return Math.round(14 + rand() * 14);
-  }, [isTrash, rand]);
+  const spinDurationSec = useMemo(
+    () => (isTrash ? Math.round(14 + rand() * 14) : 0),
+    [isTrash, rand]
+  );
   const spinDelay = useMemo(
     () => (isTrash ? +(rand() * 3).toFixed(2) : 0),
     [isTrash, rand]
   );
-  const spinSign = useMemo(() => (rand() < 0.5 ? -1 : 1), [rand]);
 
+  /** 수직 대역 계산 (lockTop이면 대역 이동 끔) */
   const wrapperRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
-  const [topPx, setTopPx] = useState<number | null>(null);
+  const [topBasePx, setTopBasePx] = useState<number | null>(null);
+  const [yRangePx, setYRangePx] = useState<number>(0);
 
-  const recomputeTop = () => {
+  const recomputeTopAndRange = () => {
     const wrap = wrapperRef.current;
     const img = imgRef.current;
     if (!wrap || !img) return;
-
     const container = (wrap.offsetParent as HTMLElement) ?? wrap.parentElement;
     if (!container) return;
 
     const parentH = container.clientHeight;
     const imgH = img.clientHeight * sy;
-    const SAFE_PAD = 6;
-    const bob = motion.bobPx;
+    const SAFE_PAD = 2;
+    const FLOOR_BIAS_PX = 6;
 
-    const intendedTopPct = isMovable ? overridePos.topPct : fixedTopPct;
-    const desiredTop = (intendedTopPct / 100) * parentH;
+    const clampPx = (px: number) =>
+      Math.min(
+        Math.max(px, SAFE_PAD),
+        Math.max(SAFE_PAD, parentH - imgH - SAFE_PAD)
+      );
 
-    const minTop = SAFE_PAD;
-    const maxTop = Math.max(SAFE_PAD, parentH - imgH - SAFE_PAD - bob);
-
-    const clamped = Math.min(Math.max(desiredTop, minTop), maxTop);
-    setTopPx(clamped);
+    if (isMovable && !lockTop) {
+      // 평상시: swimY 대역 전체를 왕복
+      const [a, b] = fish.swimY ?? [30, 50];
+      const lowPct = Math.max(0, Math.min(100, Math.min(a, b)));
+      const highPct = Math.max(0, Math.min(100, Math.max(a, b)));
+      let lowPx = (lowPct / 100) * parentH + FLOOR_BIAS_PX;
+      let highPx = (highPct / 100) * parentH + FLOOR_BIAS_PX;
+      lowPx = clampPx(lowPx);
+      highPx = clampPx(highPx);
+      const minPx = Math.min(lowPx, highPx);
+      const maxPx = Math.max(lowPx, highPx);
+      setTopBasePx(minPx);
+      setYRangePx(Math.max(0, maxPx - minPx));
+    } else {
+      // 드롭 후 or 고정체: overrideTop을 기준으로 고정(보브만)
+      const desiredTopRaw = (overridePos.topPct / 100) * parentH;
+      const SAFE_PAD = 2;
+      const imgH = img.clientHeight * sy;
+      const desiredTop = Math.min(
+        Math.max(desiredTopRaw, SAFE_PAD),
+        Math.max(SAFE_PAD, parentH - imgH - SAFE_PAD)
+      );
+      setTopBasePx(desiredTop);
+      setYRangePx(0);
+    }
   };
 
   useLayoutEffect(() => {
-    recomputeTop();
+    recomputeTopAndRange();
     const ro: ResizeObserver | null =
       typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(() => requestAnimationFrame(recomputeTop))
+        ? new ResizeObserver(() => requestAnimationFrame(recomputeTopAndRange))
         : null;
-
     if (ro) {
       const wrap = wrapperRef.current;
       const container = wrap
@@ -211,39 +236,40 @@ export default function FishSprite({
       if (container) ro.observe(container);
       if (imgRef.current) ro.observe(imgRef.current);
     }
-
-    const onResize = () => recomputeTop();
+    const onResize = () => recomputeTopAndRange();
     window.addEventListener("resize", onResize);
-
     return () => {
       window.removeEventListener("resize", onResize);
       ro?.disconnect();
     };
-  }, [sy, motion.bobPx, overridePos.topPct, fixedTopPct, isMovable]);
+  }, [sy, motion.bobPx, overridePos.topPct, isMovable, lockTop]);
 
   useEffect(() => {
     const img = imgRef.current;
     if (!img) return;
-    if (img.complete) recomputeTop();
-    else img.addEventListener("load", recomputeTop, { once: true });
+    if (img.complete) recomputeTopAndRange();
+    else img.addEventListener("load", recomputeTopAndRange, { once: true });
   }, []);
 
-  const swimAnim = isMovable
-    ? `swim-x ${motion.speedSec}s ease-in-out ${motion.delay}s infinite alternate`
-    : "none";
-  const popAnim = popIn
-    ? swimAnim === "none"
-      ? "popIn 600ms ease-out"
-      : `${swimAnim}, popIn 600ms ease-out`
-    : swimAnim;
+  const swimAnimX =
+    isMovable && !isDragging
+      ? `swim-x ${motion.speedSec}s ease-in-out ${motion.delay}s infinite alternate`
+      : "none";
 
-  const dir = facingLeft ? -1 : 1;
-  const tiltDeg = isMovable ? tiltDegBase * dir : 0;
-  const zIndex = isMovable ? 2 : 1;
+  const popAnim =
+    popIn && swimAnimX !== "none"
+      ? `${swimAnimX}, popIn 600ms ease-out`
+      : popIn
+      ? "popIn 600ms ease-out"
+      : swimAnimX;
+
+  const dir = (facingLeft ? -1 : 1) as 1 | -1;
+  const tiltDeg = isMovable && !isDragging ? tiltDegBase * dir : 0;
+  const zIndex = isDragging ? 50 : isMovable ? 2 : 1;
 
   const { dropFilter, haloColor, haloOpacity } = useMemo(
-    () => getGlowForRarity(fish.rarity, isHovered && isMovable),
-    [fish.rarity, isHovered, isMovable]
+    () => getGlowForRarity(fish.rarity),
+    [fish.rarity]
   );
 
   return (
@@ -253,86 +279,118 @@ export default function FishSprite({
       style={{
         left: `${overridePos.leftPct}%`,
         top:
-          topPx != null
-            ? `${topPx}px`
-            : `${isMovable ? overridePos.topPct : fish.swimY?.[0] ?? 50}%`,
+          topBasePx != null
+            ? `${topBasePx}px`
+            : `${lockTop ? overridePos.topPct : fish.swimY[0]}%`,
         animation: popAnim,
         ["--travel" as any]: `${motion.travel}%`,
         zIndex,
+        cursor: isDragging ? "grabbing" : "grab",
+        userSelect: "none",
       }}
+      onMouseDown={onMouseDown}
     >
+      {/* 수직 왕복: lockTop이거나 드래깅 중이면 끔 */}
       <div
         className="will-change-transform transform-gpu"
         style={{
-          animation: isMovable
-            ? `bob-y ${Math.max(3, motion.speedSec * 0.6)}s ease-in-out ${
-                motion.delay
-              }s infinite`
-            : "none",
-          ["--bob" as any]: `${motion.bobPx}px`,
+          animation:
+            isMovable && !lockTop && !isDragging
+              ? `swim-band ${Math.max(
+                  20,
+                  20
+                )}s ease-in-out 0s infinite alternate`
+              : "none",
+          ["--yRangePx" as any]: `${yRangePx}px`,
         }}
       >
         <div
           className="will-change-transform transform-gpu"
           style={{
-            transform: `rotate(${tiltDeg}deg)`,
-            transformOrigin: "50% 50%",
-            transition: "transform 220ms ease-out",
+            animation:
+              isMovable && !isDragging
+                ? `bob-y ${Math.max(3, motion.speedSec * 0.6)}s ease-in-out ${
+                    motion.delay
+                  }s infinite`
+                : "none",
+            ["--bob" as any]: `${motion.bobPx}px`,
           }}
         >
           <div
             className="will-change-transform transform-gpu"
             style={{
-              animation: isMovable
-                ? `yaw ${yawDurationSec}s ease-in-out ${motion.delay}s infinite`
-                : "none",
+              transform: `rotate(${tiltDeg}deg)`,
               transformOrigin: "50% 50%",
-              ["--yawAmp" as any]: `${yawAmpDeg}deg`,
-              ["--dir" as any]: dir,
-              position: "relative",
+              transition: "transform 220ms ease-out",
             }}
           >
-            {haloColor && (
-              <div
-                aria-hidden
-                style={{
-                  position: "absolute",
-                  inset: "-24%",
-                  pointerEvents: "none",
-                  borderRadius: "50%",
-                  background: `radial-gradient(closest-side, ${haloColor} 0%, transparent 65%)`,
-                  opacity: haloOpacity,
-                  filter: "blur(10px)",
-                  transform: `scale(${hoverScale})`,
-                  transition: "opacity 220ms ease, transform 220ms ease",
-                }}
-              />
-            )}
-
             <div
               className="will-change-transform transform-gpu"
               style={{
-                animation: isTrash
-                  ? `slow-spin ${spinDurationSec}s linear ${spinDelay}s infinite`
-                  : "none",
+                animation:
+                  isMovable && !isDragging
+                    ? `yaw ${yawDurationSec}s ease-in-out ${motion.delay}s infinite`
+                    : "none",
                 transformOrigin: "50% 50%",
-                ["--spinSign" as any]: Math.random() < 0.5 ? -1 : 1,
+                ["--yawAmp" as any]: `${yawAmpDeg}deg`,
+                ["--dir" as any]: dir,
+                position: "relative",
               }}
             >
-              <img
-                ref={imgRef}
-                src={fish.image}
-                alt={fish.labelKo}
-                className="pointer-events-none select-none will-change-transform transform-gpu hover:cursor-pointer"
-                style={{
-                  width: widthCss,
-                  height: "auto",
-                  transform: `scale(${sx}, ${sy})`,
-                  transition: "transform 240ms ease-out",
-                  transformOrigin: "50% 50%",
-                  filter: `drop-shadow(0 2px 2px rgba(0,0,0,.25)) ${dropFilter}`,
-                }}
-              />
+              {haloColor && !isDragging && (
+                <div
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    inset: "-24%",
+                    pointerEvents: "none",
+                    borderRadius: "50%",
+                    background: `radial-gradient(closest-side, ${haloColor} 0%, transparent 65%)`,
+                    opacity: haloOpacity,
+                    filter: "blur(10px)",
+                    transition: "opacity 220ms ease",
+                  }}
+                />
+              )}
+
+              {/* 호버 살짝 확대 */}
+              <div
+                className={
+                  isDragging
+                    ? ""
+                    : "transition-transform duration-200 ease-out hover:scale-[1.1] will-change-transform transform-gpu"
+                }
+              >
+                <div
+                  className="will-change-transform transform-gpu"
+                  style={{
+                    animation:
+                      isTrash && !isDragging
+                        ? `slow-spin ${spinDurationSec}s linear ${spinDelay}s infinite`
+                        : "none",
+                    transformOrigin: "50% 50%",
+                    // 변경 전: ["--spinSign" as any]: Math.random() < 0.5 ? -1 : 1,
+                    // 변경 후(고정값):
+                    ["--spinSign" as any]: spinSignRef.current,
+                  }}
+                >
+                  <img
+                    ref={imgRef}
+                    src={fish.image}
+                    alt={fish.labelKo}
+                    className="select-none will-change-transform transform-gpu pointer-events-none"
+                    style={{
+                      width: widthCss,
+                      height: "auto",
+                      transform: `scale(${sx}, ${sy})`,
+                      transition: "transform 240ms ease-out",
+                      transformOrigin: "50% 50%",
+                      filter: `drop-shadow(0 2px 2px rgba(0,0,0,.25)) ${dropFilter}`,
+                    }}
+                    draggable={false}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>

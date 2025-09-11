@@ -22,7 +22,6 @@ export type FishResult =
       ingredient?: string | null;
     };
 
-/** 카드 테두리/링 효과 */
 export const RARITY_STYLE: Record<Rarity, string> = {
   일반: "border-neutral-200 shadow-sm",
   희귀: "border-sky-300 ring-1 ring-sky-200",
@@ -30,7 +29,6 @@ export const RARITY_STYLE: Record<Rarity, string> = {
   전설: "border-amber-400 ring-2 ring-amber-200 shadow-lg",
 };
 
-/** 등급 Pill 색상 */
 export const RARITY_PILL: Record<Rarity, string> = {
   일반: "border-neutral-200 bg-neutral-50 text-neutral-700",
   희귀: "border-sky-200 bg-sky-50 text-sky-800",
@@ -38,7 +36,6 @@ export const RARITY_PILL: Record<Rarity, string> = {
   전설: "border-amber-300 bg-amber-50 text-amber-900",
 };
 
-/** 실패 멘트(이모지 다양) */
 const DEFAULT_FAIL_REASONS = [
   "🐟 힘이 너무 좋아요.머리를 털어냈어요!",
   "🪝 미끼만 사라지고 빈바늘…",
@@ -70,7 +67,6 @@ function EpicLegendFX({ rarity }: { rarity: Rarity }) {
 
   return (
     <>
-      {/* Pulsing glow ring (뒤) */}
       <motion.div
         aria-hidden
         className={cn(
@@ -89,11 +85,7 @@ function EpicLegendFX({ rarity }: { rarity: Rarity }) {
         transition={{ duration: isLegend ? 1.2 : 1.0, repeat: 1 }}
         style={{ zIndex: 1 }}
       />
-
-      {/* Sparkle burst (뒤) */}
       <SparkleBurst rarity={rarity} />
-
-      {/* Shine sweep (위) */}
       <ShineSweep rarity={rarity} />
     </>
   );
@@ -138,7 +130,7 @@ function SparkleBurst({ rarity }: { rarity: Rarity }) {
             opacity: [0, 1, 0],
             rotate: 20,
           }}
-          transition={{ duration: p.dur, delay: p.delay, ease: "easeOut" }} // ✅ easeOut
+          transition={{ duration: p.dur, delay: p.delay, ease: "easeOut" }}
           style={{ willChange: "transform, opacity" }}
         >
           {p.char}
@@ -162,7 +154,7 @@ function ShineSweep({ rarity }: { rarity: Rarity }) {
       animate={
         reduceMotion ? { opacity: 0 } : { x: "160%", opacity: [0, 0.35, 0] }
       }
-      transition={{ duration: 1.1, ease: "easeOut", delay: 0.05 }} // ✅ easeOut
+      transition={{ duration: 1.1, ease: "easeOut", delay: 0.05 }}
       style={{
         zIndex: 3,
         background:
@@ -192,20 +184,64 @@ export default function ResultDialog({
   onClose: () => void;
   failReasons?: readonly string[];
 }) {
-  const isSuccess = isSuccessResult(result);
   const reduceMotion = useReducedMotion();
 
-  /** 실패 멘트 선택 */
+  /** ✅ 표시용 결과를 락(고정) */
+  const [lockedResult, setLockedResult] = React.useState<FishResult | null>(
+    null
+  );
+  const [imgReady, setImgReady] = React.useState<boolean>(false);
+  const isSuccess = isSuccessResult(lockedResult);
+
+  /** 실패 멘트도 락된 결과 기준으로 고정 */
   const [failMsg, setFailMsg] = React.useState<string>("");
 
+  // 다이얼로그가 열릴 때 결과를 한번만 고정
   React.useEffect(() => {
     if (!open) return;
-    if (isSuccess) {
+    if (lockedResult) return; // 이미 락됨
+
+    if (!result) return; // 아직 외부 결과가 안 왔으면 대기
+
+    // 성공 결과면 이미지 프리로드 후 고정 → 깜빡임 방지
+    if (result.type === "SUCCESS" && result.image) {
+      const img = new Image();
+      img.onload = () => {
+        setLockedResult(result);
+        setImgReady(true);
+      };
+      img.onerror = () => {
+        // 이미지가 실패해도 최소한의 경험 제공
+        setLockedResult(result);
+        setImgReady(true);
+      };
+      img.src = result.image;
+    } else {
+      // 실패 결과는 프리로드 필요 없음
+      setLockedResult(result);
+      setImgReady(true);
+    }
+  }, [open, result, lockedResult]);
+
+  // 닫힐 때 초기화
+  React.useEffect(() => {
+    if (!open) {
+      setLockedResult(null);
+      setImgReady(false);
+      setFailMsg("");
+    }
+  }, [open]);
+
+  // 실패 멘트 고정
+  React.useEffect(() => {
+    if (!open) return;
+    if (!lockedResult) return;
+    if (isSuccessResult(lockedResult)) {
       setFailMsg("");
       return;
     }
-    const provided = (result as Extract<FishResult, { type: "FAIL" }>)?.reason;
-    if (provided && provided.trim()) {
+    const provided = lockedResult.reason?.trim();
+    if (provided) {
       setFailMsg(provided);
       return;
     }
@@ -213,91 +249,102 @@ export default function ResultDialog({
       failReasons?.length ? failReasons : DEFAULT_FAIL_REASONS
     ) as readonly string[];
     setFailMsg(list[Math.floor(Math.random() * list.length)]!);
-  }, [open, isSuccess, failReasons, result]);
+  }, [open, lockedResult, failReasons]);
+
+  // 로딩 상태(락/이미지 준비 전)엔 내용 숨김 + 미니 로더
+  const contentReady = !!lockedResult && imgReady;
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-md p-0 overflow-hidden rounded-2xl">
         <div className="relative p-6 pb-16">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={isSuccess ? "ok" : "fail"}
-              initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-              animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
-              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
-              transition={{ duration: 0.18 }}
-              className="relative z-[1] text-center space-y-4"
-            >
-              {/* 상태 배지 */}
-              <div className="flex justify-center">
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-sm font-semibold",
-                    isSuccess
-                      ? "bg-emerald-50 text-emerald-900 border-emerald-200"
-                      : "bg-rose-50 text-rose-900 border-rose-200"
-                  )}
-                >
-                  {isSuccess ? (
-                    <CheckCircle2 className="w-4 h-4" />
-                  ) : (
-                    <XCircle className="w-4 h-4" />
-                  )}
-                  {isSuccess ? "낚시 성공" : "낚시 실패"}
-                </span>
-              </div>
-
-              {/* 콘텐츠 */}
-              {isSuccess ? (
-                <div className="space-y-3">
-                  <div className="relative mx-auto w-24 h-24">
-                    {/* 에픽/전설 이펙트 */}
-                    <EpicLegendFX rarity={result.rarity} />
-
-                    {/* 썸네일 */}
-                    <motion.img
-                      src={result.image || "/aquarium/fish_placeholder.png"}
-                      alt={result.labelKo}
-                      className={cn(
-                        "relative z-[2] mx-auto w-24 h-24 object-contain rounded-lg border bg-white",
-                        RARITY_STYLE[result.rarity] // ✅ 정확한 키 타입으로 인덱싱
-                      )}
-                      draggable={false}
-                      initial={
-                        reduceMotion ? false : { scale: 0.95, opacity: 0 }
-                      }
-                      animate={
-                        reduceMotion ? { opacity: 1 } : { scale: 1, opacity: 1 }
-                      }
-                      transition={{ duration: 0.2 }}
-                    />
-                  </div>
-
-                  <div className="text-lg font-bold inline-flex items-center gap-2 justify-center">
-                    {result.labelKo}
-                    <span
-                      className={cn(
-                        "inline-flex items-center rounded-lg border px-2 py-0.5 text-[11px] font-semibold",
-                        RARITY_PILL[result.rarity] // ✅ 정확한 키 타입으로 인덱싱
-                      )}
-                    >
-                      {result.rarity}
-                    </span>
-                  </div>
-
-                  {result.ingredient && (
-                    <p className="text-xs text-muted-foreground">
-                      사용 재료: {result.ingredient}
-                    </p>
-                  )}
+          {!contentReady ? (
+            // ✅ 프리로드가 끝날 때까지 플레이스홀더만 (이미지/콘텐츠 미렌더)
+            <div className="h-36 flex items-center justify-center text-sm text-muted-foreground">
+              로딩 중…
+            </div>
+          ) : (
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={isSuccess ? "ok" : "fail"}
+                initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+                exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
+                transition={{ duration: 0.18 }}
+                className="relative z-[1] text-center space-y-4"
+              >
+                {/* 상태 배지 */}
+                <div className="flex justify-center">
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-sm font-semibold",
+                      isSuccess
+                        ? "bg-emerald-50 text-emerald-900 border-emerald-200"
+                        : "bg-rose-50 text-rose-900 border-rose-200"
+                    )}
+                  >
+                    {isSuccess ? (
+                      <CheckCircle2 className="w-4 h-4" />
+                    ) : (
+                      <XCircle className="w-4 h-4" />
+                    )}
+                    {isSuccess ? "낚시 성공" : "낚시 실패"}
+                  </span>
                 </div>
-              ) : (
-                <p className="text-sm text-foreground">
-                  {failMsg || "아쉽! 다음엔 꼭 잡자 🎣"}
-                </p>
-              )}
-            </motion.div>
-          </AnimatePresence>
+
+                {/* 콘텐츠 */}
+                {isSuccess ? (
+                  <div className="space-y-3">
+                    <div className="relative mx-auto w-24 h-24">
+                      <EpicLegendFX rarity={lockedResult.rarity} />
+                      <motion.img
+                        src={
+                          lockedResult.image || "/aquarium/fish_placeholder.png"
+                        }
+                        alt={lockedResult.labelKo}
+                        className={cn(
+                          "relative z-[2] mx-auto w-24 h-24 object-contain rounded-lg border bg-white",
+                          RARITY_STYLE[lockedResult.rarity]
+                        )}
+                        draggable={false}
+                        initial={
+                          reduceMotion ? false : { scale: 0.95, opacity: 0 }
+                        }
+                        animate={
+                          reduceMotion
+                            ? { opacity: 1 }
+                            : { scale: 1, opacity: 1 }
+                        }
+                        transition={{ duration: 0.2 }}
+                      />
+                    </div>
+
+                    <div className="text-lg font-bold inline-flex items-center gap-2 justify-center">
+                      {lockedResult.labelKo}
+                      <span
+                        className={cn(
+                          "inline-flex items-center rounded-lg border px-2 py-0.5 text-[11px] font-semibold",
+                          RARITY_PILL[lockedResult.rarity]
+                        )}
+                      >
+                        {lockedResult.rarity}
+                      </span>
+                    </div>
+
+                    {lockedResult.ingredient && (
+                      <p className="text-xs text-muted-foreground">
+                        사용 재료: {lockedResult.ingredient}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-foreground">
+                    {failMsg || "아쉽! 다음엔 꼭 잡자 🎣"}
+                  </p>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          )}
 
           {/* 고정 하단 닫기 버튼 */}
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-white to-white/60" />

@@ -134,7 +134,7 @@ export default function AquariumPage() {
       <div className="relative w-full mt-4">
         {/* 본체: 현재 탱크만 렌더 */}
         {cur ? (
-          <AquariumBox tankNo={cur.tank_no} fitToContainer />
+          <AquariumBox tankNo={cur.tank_no} />
         ) : (
           <div
             className="relative rounded-xl overflow-hidden mx-auto grid place-items-center"
@@ -148,7 +148,7 @@ export default function AquariumPage() {
 
         {/* 📌 AquariumBox 기준 오버레이 (어항 위에 정확히 겹침) */}
         <div
-          className="absolute top-0 left-0 right-0 mx-auto"
+          className="absolute top-0 left-0 right-0 mx-auto pointer-events-none"
           style={frameStyle}
         >
           <div className="relative h-full w-full">
@@ -215,7 +215,7 @@ export default function AquariumPage() {
             </div>
 
             {/* 좌상단: 도감(위) + 테마샵(아래) + 상세 버튼 — 박스 기준 고정 */}
-            <div className="absolute left-2 top-2 z-40 flex flex-col gap-2 pointer-events-auto">
+            <div className="absolute left-2 top-2 z-40 flex  gap-2 pointer-events-auto">
               <MarineDexModal />
               {cur && <ThemeShopButton tankNo={cur.tank_no} />}
               {/* ✅ 현재 탱크 번호를 그대로 전달 */}

@@ -206,10 +206,10 @@ export default function FishingPage() {
 
   // ⏱️ 희귀도별 대기시간
   function durationByRarity(rarity: Rarity | null): number {
-    if (rarity === "전설") return 30_000;
-    if (rarity === "에픽") return 15_000;
-    if (rarity === "희귀") return 8_000;
-    return 5_000;
+    if (rarity === "전설") return 10_000;
+    if (rarity === "에픽") return 8_000;
+    if (rarity === "희귀") return 6_000;
+    return 4_000;
   }
 
   // 배경 드롭 핸들러들

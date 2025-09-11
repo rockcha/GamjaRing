@@ -66,7 +66,7 @@ export default function MapModalButton() {
           {/* 모달 콘텐츠 래퍼: 정사각 기반 너비 */}
           <div
             className="flex flex-col items-stretch"
-            style={{ width: "min(55vw, 55vh)" }}
+            style={{ width: "min(70vw, 70vh)" }}
           >
             {/* 상단 타이틀 바 */}
             <div className="flex items-center justify-center gap-2  px-4 pt-4 bg-white/90 backdrop-blur-sm">
@@ -86,7 +86,7 @@ export default function MapModalButton() {
             <div className="p-1">
               <div
                 className="relative overflow-hidden rounded-xl "
-                style={{ width: "100%", height: "min(55vw, 55vh)" }}
+                style={{ width: "100%", height: "min(70vw, 70vh)" }}
               >
                 <MapCanvas onClose={() => setOpen(false)} />
               </div>

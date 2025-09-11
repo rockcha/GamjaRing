@@ -23,13 +23,14 @@ import {
 } from "@/features/kitchen/type";
 import { PRODUCERS } from "./type";
 import { addIngredients } from "@/features/kitchen/kitchenApi";
+import { Loader2, Play, Package } from "lucide-react"; // ⬅️ 아이콘 추가
 
 function isClientReady(it: FieldProducer) {
-  if (it.state === "ready") return true; // 서버가 ready로 찍은 경우
+  if (it.state === "ready") return true;
   if (it.state !== "producing" || !it.started_at) return false;
 
   const meta = PRODUCERS.find((p) => p.name === it.title);
-  const hours = meta?.timeSec ?? 0; // timeSec = 시간 단위(시간 수)
+  const hours = meta?.timeSec ?? 0;
   if (!hours) return false;
 
   const startMs = new Date(it.started_at).getTime();
@@ -46,8 +47,11 @@ export default function ProducerSection() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<FieldProducer[]>([]);
 
-  // ── NEW: 일괄 작업 상태/결과
-  const [bulkBusy, setBulkBusy] = useState(false);
+  // ── 일괄 작업 상태/결과
+  const [collectBusy, setCollectBusy] = useState(false); // ⬅️ 수거 로딩
+  const [startBusy, setStartBusy] = useState(false); // ⬅️ 생산 로딩
+  const anyBusy = collectBusy || startBusy; // ⬅️ 둘 중 하나라도 로딩이면 true
+
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkGained, setBulkGained] = useState<IngredientTitle[]>([]);
   const [bulkRotten, setBulkRotten] = useState<IngredientTitle[]>([]);
@@ -94,7 +98,6 @@ export default function ProducerSection() {
     () => items.filter((i) => isClientReady(i)).length,
     [items]
   );
-
   const idle = useMemo(
     () => items.filter((i) => i.state === "idle").length,
     [items]
@@ -110,12 +113,12 @@ export default function ProducerSection() {
 
   // ───────────────────────── helpers ─────────────────────────
   const decideRottenIndex = (total: number) => {
-    const willRot = Math.random() < 0.2; // 기존 규칙 유지 (20%)
+    const willRot = Math.random() < 0.2;
     if (!willRot || total <= 0) return null;
     return Math.floor(Math.random() * total);
   };
 
-  // ───────────────────────── bulk: 모두 수거 ─────────────────────────
+  // ───────────────────────── bulk: 일괄 수거 ─────────────────────────
   const handleCollectAllReady = async () => {
     const readyList = items
       .map((it, idx) => ({ it, idx }))
@@ -126,12 +129,11 @@ export default function ProducerSection() {
       return;
     }
 
-    setBulkBusy(true);
+    setCollectBusy(true);
     const gainedAll: IngredientTitle[] = [];
     const rottenAll: IngredientTitle[] = [];
 
     try {
-      // 준비 완료된 각 시설을 순회
       for (const { it, idx } of readyList) {
         const meta = PRODUCERS.find((p) => p.name === it.title);
         const titles = (meta?.produces ?? []) as IngredientTitle[];
@@ -140,25 +142,20 @@ export default function ProducerSection() {
         const kept = titles.filter((_, i) => i !== rottenIndex);
 
         if (kept.length > 0) {
-          // 인벤토리 일괄 추가
-          await addIngredients(coupleId, kept);
+          await addIngredients(coupleId!, kept);
           gainedAll.push(...kept);
         }
         if (rottenIndex !== null) {
           const rottenOne = titles[rottenIndex];
-          if (rottenOne) {
-            rottenAll.push(rottenOne); // ✅ 존재할 때만 push
-          }
+          if (rottenOne) rottenAll.push(rottenOne);
         }
-        // 상태 초기화
-        await collectAndReset(coupleId, idx);
+        await collectAndReset(coupleId!, idx);
       }
 
       setBulkGained(gainedAll);
       setBulkRotten(rottenAll);
       setBulkOpen(true);
 
-      // 요약 토스트
       const gainedEmoji = gainedAll
         .map((t) => INGREDIENT_EMOJI[t] ?? "❓")
         .join(" ");
@@ -171,13 +168,12 @@ export default function ProducerSection() {
       console.error(e);
       toast.error("일괄 수거에 실패했어요. 잠시 후 다시 시도해 주세요.");
     } finally {
-      setBulkBusy(false);
-      // 최신 상태로 재로딩
+      setCollectBusy(false);
       await load();
     }
   };
 
-  // ───────────────────────── bulk: 모두 실행(시작) ─────────────────────────
+  // ───────────────────────── bulk: 일괄 생산(시작) ─────────────────────────
   const handleStartAllIdle = async () => {
     const idleList = items
       .map((it, idx) => ({ it, idx }))
@@ -188,24 +184,24 @@ export default function ProducerSection() {
       return;
     }
 
-    setBulkBusy(true);
+    setStartBusy(true);
     try {
       for (const { idx } of idleList) {
-        await startProduction(coupleId, idx);
+        await startProduction(coupleId!, idx);
       }
       toast.success(`총 ${idleList.length}개 생산 시작!`);
     } catch (e) {
       console.error(e);
-      toast.error("일괄 실행에 실패했어요.");
+      toast.error("일괄 생산에 실패했어요.");
     } finally {
-      setBulkBusy(false);
+      setStartBusy(false);
       await load();
     }
   };
 
   return (
     <section>
-      {/* 상단 카운트 + 일괄 버튼 바 */}
+      {/* 상단 카운트 + 버튼 바 */}
       <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
         {loading ? (
           <>
@@ -228,27 +224,50 @@ export default function ProducerSection() {
         )}
 
         <div className="ml-auto flex items-center gap-2">
-          {/* NEW: 모두 실행 */}
+          {/* 일관된 버튼 디자인: 아이콘 + 라벨, sm 사이즈 */}
+          {/* 일괄 생산 */}
           <Button
             variant="secondary"
             size="sm"
             onClick={handleStartAllIdle}
-            disabled={loading || bulkBusy || idle === 0}
+            disabled={loading || anyBusy || idle === 0}
             className="disabled:opacity-60"
             title="대기 중인 시설을 모두 생산 시작"
+            aria-busy={startBusy}
           >
-            모두 실행({idle})
+            {startBusy ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                일괄 생산 중…
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5">
+                <Play className="h-4 w-4" />
+                일괄 생산({idle})
+              </span>
+            )}
           </Button>
 
-          {/* NEW: 모두 수거 */}
+          {/* 일괄 수거 */}
           <Button
             size="sm"
             onClick={handleCollectAllReady}
-            disabled={loading || bulkBusy || ready === 0}
+            disabled={loading || anyBusy || ready === 0}
             className="bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60"
             title="준비 완료된 시설에서 재료를 한꺼번에 수거"
+            aria-busy={collectBusy}
           >
-            모두 수거({ready})
+            {collectBusy ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                일괄 수거 중…
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5">
+                <Package className="h-4 w-4" />
+                일괄 수거({ready})
+              </span>
+            )}
           </Button>
 
           <BrowseProducersButton onPurchased={load} />
@@ -279,7 +298,7 @@ export default function ProducerSection() {
         </div>
       )}
 
-      {/* NEW: 일괄 결과 모달 */}
+      {/* 일괄 결과 모달 */}
       <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

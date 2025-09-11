@@ -1,4 +1,3 @@
-// src/features/aquarium/AquariumBox.tsx
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -6,24 +5,37 @@ import supabase from "@/lib/supabase";
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import FishSprite from "./FishSprite";
+import FishSprite, { type SpriteFish } from "./FishSprite";
 
 /* ---------- types ---------- */
-type Slot = { key: string; id: string; leftPct: number; topPct: number };
+type Slot = { leftPct: number; topPct: number };
 
 type EntityRow = {
   id: string;
   name_ko: string | null;
   rarity: string | null;
   size: number | null;
-  swim_y: [number, number] | null;
+  swim_y: [number, number]; // 0=위, 100=아래 (항상 존재)
   is_movable: boolean | null;
+  price: number | null;
 };
 
 type InvRow = {
-  id?: string; // 인벤토리 고유 id (1행=1마리)
-  entity_id: string; // 렌더에 사용할 엔티티 id
+  id?: string; // ★ 인벤토리 row id (안정 키)
+  entity_id: string;
   created_at?: string;
+};
+
+type RenderFish = {
+  slotKey: string; // ★ 안정 키 (InvRow.id)
+  entityId: string;
+  labelKo: string;
+  image: string;
+  rarity?: string | null;
+  size?: number | null;
+  swimY: [number, number];
+  isMovable?: boolean | null;
+  price?: number | null;
 };
 
 /* ---------- utils ---------- */
@@ -37,7 +49,6 @@ function clamp(v: number, min = 0, max = 100) {
 const themeImageUrl = (title: string) =>
   `/aquarium/themes/${encodeURIComponent(title)}.png`;
 
-/** 희귀도 → 폴더명 매핑 (ko/en 모두 허용) */
 function rarityToFolder(
   r?: string | null
 ): "common" | "rare" | "epic" | "legend" {
@@ -45,12 +56,64 @@ function rarityToFolder(
   if (x === "희귀" || x === "rare") return "rare";
   if (x === "에픽" || x === "epic") return "epic";
   if (x === "전설" || x === "legend" || x === "legendary") return "legend";
-  return "common"; // 기본값
+  return "common";
 }
-/** 엔티티 → 이미지 경로 생성 */
 function entityImagePath(ent: Pick<EntityRow, "id" | "rarity">) {
   const folder = rarityToFolder(ent.rarity);
   return `/aquarium/${folder}/${encodeURIComponent(ent.id)}.png`;
+}
+
+/** Postgres int4range → [number, number] 파서 */
+function parseIntRangeToBand(v: unknown): [number, number] | undefined {
+  if (!v) return undefined;
+
+  if (Array.isArray(v) && v.length >= 2) {
+    const a = Number(v[0]),
+      b = Number(v[1]);
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return undefined;
+    return [a, b];
+  }
+  if (typeof v === "object" && v !== null) {
+    const lo = (v as any).lower;
+    const up = (v as any).upper;
+    const bounds = (v as any).bounds;
+    if (lo != null && up != null) {
+      let a = Number(lo),
+        b = Number(up);
+      if (!Number.isFinite(a) || !Number.isFinite(b)) return undefined;
+      if (typeof bounds === "string") {
+        if (bounds[0] === "(") a += 1;
+        if (bounds[1] === ")") b -= 1;
+      }
+      return [a, b];
+    }
+  }
+  if (typeof v === "string") {
+    const m = v.match(/^\s*([\[\(])\s*(-?\d+)\s*,\s*(-?\d+)\s*([\]\)])\s*$/);
+    if (!m) return undefined;
+    const [, lb, s1, s2, rb] = m;
+    let a = Number(s1),
+      b = Number(s2);
+    if (lb === "(") a += 1;
+    if (rb === ")") b -= 1;
+    return [a, b];
+  }
+  return undefined;
+}
+function normalizeBand(
+  v: [number, number] | undefined,
+  fb: [number, number] = [30, 70]
+): [number, number] {
+  const src = v ?? fb;
+  let a = Math.max(0, Math.min(100, Number(src[0])));
+  let b = Math.max(0, Math.min(100, Number(src[1])));
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return fb;
+  if (a > b) [a, b] = [b, a];
+  if (a === b) b = Math.min(100, a + 1);
+  return [a, b];
+}
+function isEntityRow(x: unknown): x is EntityRow {
+  return !!x && typeof (x as any).id === "string";
 }
 
 export default function AquariumBox({
@@ -67,23 +130,28 @@ export default function AquariumBox({
   const [bgUrl, setBgUrl] = useState<string | null>(null);
   const [bgReady, setBgReady] = useState(false);
   const [themeLoading, setThemeLoading] = useState(false);
+  const [noTank, setNoTank] = useState(false);
 
   /** 인벤토리/엔티티 */
   const [invRows, setInvRows] = useState<InvRow[]>([]);
   const [entityMap, setEntityMap] = useState<Record<string, EntityRow>>({});
   const [loading, setLoading] = useState(false);
 
-  /** 위치/인터랙션 */
-  const [slots, setSlots] = useState<Slot[]>([]);
+  /** 위치/레이아웃 (Record) */
+  const [slots, setSlots] = useState<Record<string, Slot>>({});
   const [appearingKeys, setAppearingKeys] = useState<string[]>([]);
-  const [hoverKey, setHoverKey] = useState<string | null>(null);
+
+  /** 드래그 상태 */
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const [dragKey, setDragKey] = useState<string | null>(null);
-  const dragOffsetRef = useRef<{ ox: number; oy: number }>({ ox: 0, oy: 0 });
+  const dragOffsetRef = useRef<{ dxPct: number; dyPct: number }>({
+    dxPct: 0,
+    dyPct: 0,
+  });
 
   /** 컨테이너 스케일 */
-  const containerRef = useRef<HTMLDivElement | null>(null);
   const [containerScale, setContainerScale] = useState(1);
-
   useEffect(() => {
     if (!fitToContainer) return;
     const el = containerRef.current;
@@ -97,12 +165,13 @@ export default function AquariumBox({
     return () => ro.disconnect();
   }, [fitToContainer]);
 
-  /* ======== 1) 이 탱크의 theme_id로만 배경 로드 ======== */
+  /* ======== 1) 테마 로드 ======== */
   useEffect(() => {
     (async () => {
       setThemeLoading(true);
       setBgReady(false);
       setBgUrl(null);
+      setNoTank(false);
       try {
         if (!coupleId || !tankNo) return;
 
@@ -114,7 +183,12 @@ export default function AquariumBox({
           .maybeSingle();
         if (tErr) throw tErr;
 
-        const themeId = tank?.theme_id;
+        if (!tank) {
+          setNoTank(true);
+          return;
+        }
+
+        const themeId = tank.theme_id;
         if (themeId == null) {
           setBgUrl(
             "data:image/svg+xml;utf8," +
@@ -157,7 +231,7 @@ export default function AquariumBox({
     })();
   }, [coupleId, tankNo]);
 
-  /* ======== 2) 인벤토리(1행=1마리) & 엔티티 ======== */
+  /* ======== 2) 인벤토리 & 엔티티 ======== */
   const loadTank = useCallback(async () => {
     if (!coupleId || !tankNo) return;
     setLoading(true);
@@ -182,21 +256,27 @@ export default function AquariumBox({
         setEntityMap({});
         return;
       }
+
       const { data: ents, error: entErr } = await supabase
         .from("aquarium_entities")
-        .select("id, name_ko, rarity, size, swim_y, is_movable")
+        .select("id, name_ko, rarity, size, swim_y, is_movable, price")
         .in("id", ids);
       if (entErr) throw entErr;
 
       const map: Record<string, EntityRow> = {};
       for (const row of ents ?? []) {
+        const parsed = normalizeBand(
+          parseIntRangeToBand((row as any).swim_y),
+          [30, 70]
+        );
         map[String(row.id)] = {
           id: String(row.id),
           name_ko: (row as any).name_ko ?? null,
           rarity: (row as any).rarity ?? null,
           size: (row as any).size ?? null,
-          swim_y: (row as any).swim_y ?? null,
+          swim_y: parsed, // 항상 튜플
           is_movable: (row as any).is_movable ?? null,
+          price: (row as any).price ?? null,
         };
       }
       setEntityMap(map);
@@ -217,7 +297,6 @@ export default function AquariumBox({
       if (!d) return;
       if (d.coupleId !== coupleId) return;
       if (d.tankNo && d.tankNo !== tankNo) return;
-      // 이 어항의 변경이면 재조회
       loadTank();
     };
     window.addEventListener("aquarium-updated", onUpd as EventListener);
@@ -229,52 +308,56 @@ export default function AquariumBox({
     loadTank();
   }, [loadTank]);
 
-  /* ======== 3) 렌더 리스트 (경로 규칙으로 이미지 구성) ======== */
-  const fishes = useMemo(() => {
+  /* ======== 3) 렌더용 리스트 ======== */
+  const fishes = useMemo<RenderFish[]>(() => {
     return invRows
-      .map((row) => entityMap[row.entity_id])
-      .filter(Boolean)
-      .map((ent) => ({
-        id: ent.id,
-        labelKo: ent.name_ko ?? ent.id,
-        image: entityImagePath(ent), // ✅ 규칙 기반 경로
-        rarity: ent.rarity,
-        size: ent.size,
-        swimY: ent.swim_y,
-        isMovable: ent.is_movable,
-      }));
+      .map((row) => {
+        const ent = entityMap[row.entity_id];
+        if (!ent) return null;
+        return {
+          slotKey: row.id!, // ★ 안정 키 (DB row id)
+          entityId: ent.id,
+          labelKo: ent.name_ko ?? ent.id,
+          image: entityImagePath(ent),
+          rarity: ent.rarity ?? undefined,
+          size: ent.size ?? undefined,
+          swimY: ent.swim_y,
+          isMovable: ent.is_movable ?? undefined,
+          price: ent.price ?? undefined,
+        };
+      })
+      .filter((x): x is RenderFish => x !== null);
   }, [invRows, entityMap]);
 
-  /* ======== 4) 슬롯 배치 ======== */
+  /* ======== 4) 초기 랜덤 배치 ======== */
   useEffect(() => {
     setSlots((prev) => {
-      const next: Slot[] = [];
-      for (let i = 0; i < fishes.length; i++) {
-        const id = fishes[i]!.id;
-        const key = `${id}-${i}`;
-        const found = prev.find((s) => s.key === key);
-        if (found) next.push(found);
-        else {
-          const ent = entityMap[id];
-          const swim = (ent?.swim_y as any) ?? [30, 70];
-          const minY = Number(swim?.[0] ?? 30);
-          const maxY = Number(swim?.[1] ?? 70);
-          const safeMinY = clamp(minY, 0, 100);
-          const safeMaxY = clamp(maxY, 0, 100);
-          const topPct = clamp(randInRange(safeMinY, safeMaxY), 0, 100);
-          const sizeMul = Number(ent?.size ?? 1);
-          const sidePad = Math.min(8 + sizeMul * 2, 12);
+      const next: Record<string, Slot> = { ...prev };
+
+      // 새로 추가된 물고기에 한해서 좌표 생성
+      for (const f of fishes) {
+        if (!next[f.slotKey]) {
+          const [minY, maxY] = f.swimY;
+          const topPct = clamp(randInRange(minY, maxY), 0, 100);
+          const sidePad = Math.min(8 + Number(f.size ?? 1) * 2, 12);
           const leftPct = clamp(randInRange(sidePad, 100 - sidePad), 0, 100);
-          next.push({ key, id, leftPct, topPct });
+          next[f.slotKey] = { leftPct, topPct };
         }
       }
+
+      // 사라진 물고기 슬롯 정리(옵션)
+      for (const k in next) {
+        if (!fishes.some((ff) => ff.slotKey === k)) delete next[k];
+      }
+
       return next;
     });
-  }, [fishes, entityMap]);
+  }, [fishes]);
 
+  // 등장 애니메이션 표시
   useEffect(() => {
     if (fishes.length === 0) return;
-    const lastKey = `${fishes.at(-1)!.id}-${fishes.length - 1}`;
+    const lastKey = fishes.at(-1)!.slotKey;
     setAppearingKeys((p) => [...p, lastKey]);
     const t = setTimeout(
       () => setAppearingKeys((p) => p.filter((k) => k !== lastKey)),
@@ -283,77 +366,110 @@ export default function AquariumBox({
     return () => clearTimeout(t);
   }, [fishes.length]);
 
-  /* ======== 5) 드래그(로컬) ======== */
-  const getPointerPct = (evt: MouseEvent | TouchEvent) => {
-    const el = containerRef.current;
-    if (!el) return { xPct: 0, yPct: 0 };
+  /* ======== 5) 드래그 로직 (데스크탑 전용) ======== */
+  const pctFromClient = (clientX: number, clientY: number) => {
+    const el = stageRef.current; // ★ 여기 기준
+    if (!el) return { leftPct: 50, topPct: 50 };
     const rect = el.getBoundingClientRect();
-    let clientX: number, clientY: number;
-    if ("touches" in evt) {
-      const t = evt.touches[0] ?? evt.changedTouches[0];
-      clientX = t?.clientX ?? 0;
-      clientY = t?.clientY ?? 0;
-    } else {
-      clientX = (evt as MouseEvent).clientX;
-      clientY = (evt as MouseEvent).clientY;
-    }
     const x = clamp(((clientX - rect.left) / rect.width) * 100, 0, 100);
     const y = clamp(((clientY - rect.top) / rect.height) * 100, 0, 100);
-    return { xPct: x, yPct: y };
+    return { leftPct: x, topPct: y };
   };
-  const startDrag = (
-    key: string,
-    e: React.MouseEvent | React.TouchEvent,
-    slot: Slot
-  ) => {
-    setDragKey(key);
-    const native = e.nativeEvent as any as MouseEvent | TouchEvent;
-    const { xPct, yPct } = getPointerPct(native);
-    dragOffsetRef.current = { ox: xPct - slot.leftPct, oy: yPct - slot.topPct };
-  };
-  const handleMoveWhileDrag = (evt: MouseEvent | TouchEvent) => {
-    if (!dragKey) return;
-    if ("touches" in evt) evt.preventDefault();
-    const { xPct, yPct } = getPointerPct(evt);
-    const { ox, oy } = dragOffsetRef.current;
-    const nx = clamp(xPct - ox, 0, 100);
-    const ny = clamp(yPct - oy, 0, 100);
-    setSlots((prev) =>
-      prev.map((s) =>
-        s.key === dragKey ? { ...s, leftPct: nx, topPct: ny } : s
-      )
-    );
-  };
-  const endDrag = () => setDragKey(null);
-  useEffect(() => {
-    const onMove = (e: MouseEvent | TouchEvent) => handleMoveWhileDrag(e);
-    const onUp = () => endDrag();
+
+  const dragKeyRef = useRef<string | null>(null);
+
+  const onMouseDownSprite = (slotKey: string) => (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const stageEl = stageRef.current;
+    const wrapEl = e.currentTarget as HTMLDivElement;
+
+    const { leftPct: mx, topPct: my } = pctFromClient(e.clientX, e.clientY);
+
+    if (stageEl && wrapEl) {
+      const stageRect = stageEl.getBoundingClientRect();
+      const wrapRect = wrapEl.getBoundingClientRect();
+
+      // ★ 현재 화면상 위치(애니메이션 포함)를 %로 환산
+      const effLeftPct = clamp(
+        ((wrapRect.left - stageRect.left) / stageRect.width) * 100,
+        0,
+        100
+      );
+      const effTopPct = clamp(
+        ((wrapRect.top - stageRect.top) / stageRect.height) * 100,
+        0,
+        100
+      );
+
+      // ★ 1) 먼저 슬롯을 "현재 보이는 위치"로 고정 (jump 방지 핵심)
+      setSlots((prev) => ({
+        ...prev,
+        [slotKey]: { leftPct: effLeftPct, topPct: effTopPct },
+      }));
+
+      // ★ 2) 오프셋 계산 (마우스와 물고기 사이 간격)
+      dragOffsetRef.current = {
+        dxPct: effLeftPct - mx,
+        dyPct: effTopPct - my,
+      };
+    } else {
+      // 폴백
+      const s = slots[slotKey] ?? { leftPct: 50, topPct: 50 };
+      dragOffsetRef.current = { dxPct: s.leftPct - mx, dyPct: s.topPct - my };
+    }
+
+    // ★ 3) 마지막에 드래그 시작 플래그 설정(애니메이션 off는 이 다음 렌더에서)
+    dragKeyRef.current = slotKey;
+    setDragKey(slotKey);
+
     window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    window.addEventListener("touchmove", onMove as any, { passive: false });
-    window.addEventListener("touchend", onUp);
-    window.addEventListener("touchcancel", onUp);
+    window.addEventListener("mouseup", onUp, { once: true });
+    document.body.style.cursor = "grabbing";
+  };
+
+  const onMove = (e: MouseEvent) => {
+    const activeKey = dragKeyRef.current; // ★
+    if (!activeKey) return;
+
+    const { leftPct: mx, topPct: my } = pctFromClient(e.clientX, e.clientY);
+    const { dxPct, dyPct } = dragOffsetRef.current;
+    const nx = clamp(mx + dxPct, 0, 100);
+    const ny = clamp(my + dyPct, 0, 100);
+
+    setSlots((prev) => ({
+      ...prev,
+      [activeKey]: { leftPct: nx, topPct: ny },
+    }));
+  };
+
+  // onUp
+  const onUp = () => {
+    document.body.style.cursor = "";
+    dragKeyRef.current = null; // ★ ref 초기화
+    setDragKey(null);
+    window.removeEventListener("mousemove", onMove);
+  };
+
+  useEffect(() => {
     return () => {
       window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-      window.removeEventListener("touchmove", onMove as any);
-      window.removeEventListener("touchend", onUp);
-      window.removeEventListener("touchcancel", onUp);
+      document.body.style.cursor = "";
     };
-  }, [dragKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* ======== render ======== */
   const showBgSkeleton = themeLoading || !bgUrl || !bgReady;
 
   return (
     <div className="w-full">
-      <style>{`.drag-pause * { animation-play-state: paused !important; }`}</style>
-
       <div
         ref={containerRef}
         className={cn(
-          "relative rounded-xl overflow-hidden will-change-transform transform-gpu mx-auto",
-          dragKey ? "cursor-grabbing select-none" : ""
+          "relative rounded-xl overflow-hidden will-change-transform transform-gpu mx-auto"
         )}
         style={{ height: "74vh", width: "min(100%, calc(85vw ))" }}
       >
@@ -362,7 +478,7 @@ export default function AquariumBox({
           <img
             src={bgUrl}
             alt=""
-            className="absolute inset-0 w-full h-full object-cover z-0"
+            className="absolute inset-0 w-full h-full object-cover z-0 select-none pointer-events-none"
             onLoad={() => setBgReady(true)}
             onError={(e) => {
               const el = e.currentTarget as HTMLImageElement;
@@ -374,14 +490,24 @@ export default function AquariumBox({
                 );
               setBgReady(true);
             }}
+            draggable={false}
           />
         )}
         {showBgSkeleton && (
           <div className="absolute inset-0 bg-slate-200 dark:bg-zinc-800 animate-pulse z-0" />
         )}
 
+        {/* ★ 탱크 없음 안내 */}
+        {noTank && (
+          <div className="absolute inset-0 z-10 grid place-items-center bg-black/10">
+            <div className="rounded-lg bg-white/90 px-4 py-3 text-sm shadow border">
+              우리만의 어항을 만들어보세요.
+            </div>
+          </div>
+        )}
+
         {/* 물고기 레이어 */}
-        <div className="absolute inset-0">
+        <div className="absolute inset-0" ref={stageRef}>
           {loading ? (
             <div className="absolute inset-0 grid place-items-center">
               <div className="px-3 py-1.5 rounded-md bg-white/80 border shadow text-sm">
@@ -389,55 +515,34 @@ export default function AquariumBox({
               </div>
             </div>
           ) : (
-            fishes.map((f, i) => {
-              const slot = slots[i] ?? {
-                key: `${f.id}-${i}`,
-                id: f.id,
-                leftPct: 50,
-                topPct: 50,
-              };
-              const isAppearing = appearingKeys.includes(slot.key);
-              const isHovered = hoverKey === slot.key;
-              const isDragging = dragKey === slot.key;
+            fishes.map((f) => {
+              const slot = slots[f.slotKey] ?? { leftPct: 50, topPct: 50 };
+              const isAppearing = appearingKeys.includes(f.slotKey);
+              const isDragging = dragKey === f.slotKey;
 
-              const ev = {
-                onMouseDown: (e: React.MouseEvent) =>
-                  startDrag(slot.key, e, slot),
-                onTouchStart: (e: React.TouchEvent) =>
-                  startDrag(slot.key, e, slot),
-                onMouseUp: () => endDrag(),
-                onTouchEnd: () => endDrag(),
-                onMouseEnter: () => setHoverKey(slot.key),
-                onMouseLeave: () => setHoverKey(null),
+              const fishData: SpriteFish = {
+                id: f.entityId,
+                labelKo: f.labelKo,
+                image: f.image,
+                rarity: f.rarity,
+                size: f.size,
+                swimY: f.swimY,
+                isMovable: f.isMovable,
+                price: f.price,
               };
 
               return (
-                <div
-                  key={slot.key}
-                  {...ev}
-                  className={cn(
-                    isDragging ? "drag-pause cursor-grabbing" : "cursor-pointer"
-                  )}
-                  style={{ touchAction: "none" }}
-                >
-                  <FishSprite
-                    fish={
-                      {
-                        id: f.id,
-                        labelKo: f.labelKo,
-                        image: f.image, // ✅ 규칙 경로 사용
-                        rarity: f.rarity ?? undefined,
-                        size: f.size ?? undefined,
-                        swimY: (f.swimY as any) ?? undefined,
-                        isMovable: f.isMovable ?? undefined,
-                      } as any
-                    }
-                    overridePos={{ leftPct: slot.leftPct, topPct: slot.topPct }}
-                    popIn={isAppearing}
-                    isHovered={isHovered || isDragging}
-                    containerScale={fitToContainer ? containerScale : 1}
-                  />
-                </div>
+                <FishSprite
+                  key={f.slotKey}
+                  fish={fishData}
+                  overridePos={slot}
+                  popIn={isAppearing}
+                  containerScale={fitToContainer ? containerScale : 1}
+                  onMouseDown={onMouseDownSprite(f.slotKey)}
+                  isDragging={isDragging}
+                  /** 드롭 후 그 자리에서 보브만 유지 (수직 왕복 off) */
+                  lockTop={true}
+                />
               );
             })
           )}

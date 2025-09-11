@@ -82,12 +82,10 @@ export default function AquariumDetailButton({
   tankNo,
   className,
   buttonLabel = "상세보기",
-  onChanged,
 }: {
   tankNo: number; // ✅ 현재 탱크 번호
   className?: string;
   buttonLabel?: string;
-  onChanged?: () => void; // 부모 페이지 refresh 훅
 }) {
   const { couple } = useCoupleContext();
   const { user } = useUser();
@@ -291,7 +289,6 @@ export default function AquariumDetailButton({
         }
       } catch {}
       await loadSummary();
-      onChanged?.();
 
       setConfirm(null);
     } catch (e: any) {
@@ -321,7 +318,7 @@ export default function AquariumDetailButton({
       } else {
         toast.success(`${moveDlg.label} ${moved}마리 이동 완료`);
         await loadSummary();
-        onChanged?.();
+
         emitAquariumUpdated(coupleId, tankNo);
       }
       setMoveDlg(null);
