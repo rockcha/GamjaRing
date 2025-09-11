@@ -3,45 +3,107 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import {
-  FISHES,
-  type FishInfo,
-  type FishRarity,
-  RARITY_CAPTURE,
-} from "./fishes";
 import { Anchor, X, Info, Book } from "lucide-react";
+import supabase from "@/lib/supabase";
 import {
   INGREDIENT_EMOJI,
   type IngredientTitle,
 } from "@/features/kitchen/type";
 import { Button } from "@/components/ui/button";
 
+/* ─ Types ─ */
+type FishRarity = "일반" | "희귀" | "에픽" | "전설";
+
+type DbEntity = {
+  id: string;
+  name_ko: string | null;
+  price: number | null;
+  size: number | null;
+  food: string | null;
+  swim_y: string | null;
+  is_movable: boolean | null;
+  rarity: FishRarity;
+  description: string | null;
+};
+
+/* ─ Helpers ─ */
+const RARITY_CAPTURE: Record<FishRarity, number> = {
+  일반: 0.4,
+  희귀: 0.15,
+  에픽: 0.04,
+  전설: 0.01,
+};
+const rarityOrder: Record<FishRarity, number> = {
+  일반: 0,
+  희귀: 1,
+  에픽: 2,
+  전설: 3,
+};
+
+function rarityDir(r: FishRarity) {
+  return r === "일반"
+    ? "common"
+    : r === "희귀"
+    ? "rare"
+    : r === "에픽"
+    ? "epic"
+    : "legend";
+}
+function parseInt4Range(lit: string | null | undefined): [number, number] {
+  if (!lit) return [30, 70];
+  const m = lit.match(/(-?\d+)\s*[,]\s*(-?\d+)/);
+  return m ? [parseInt(m[1], 10), parseInt(m[2], 10)] : [30, 70];
+}
+function buildImageSrc(id: string, rarity: FishRarity) {
+  return `/aquarium/${rarityDir(rarity)}/${id}.png`;
+}
+const fmt = (n: number | null | undefined) =>
+  typeof n === "number" && isFinite(n) ? n.toLocaleString("ko-KR") : "—";
+
+/* ─ Component ─ */
 type RarityFilter = "전체" | FishRarity;
 
 export default function MarineDexModal() {
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false); // SSR-safe portal mount
-  useEffect(() => setMounted(true), []);
+  const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   const [rarity, setRarity] = useState<RarityFilter>("전체");
+  const [rows, setRows] = useState<DbEntity[]>([]);
+  useEffect(() => setMounted(true), []);
 
-  const rarityOrder: Record<FishRarity, number> = {
-    일반: 0,
-    희귀: 1,
-    에픽: 2,
-    전설: 3,
-  };
+  useEffect(() => {
+    if (!open || rows.length > 0 || loading) return;
+    (async () => {
+      try {
+        setLoading(true);
+        setErr(null);
+        const { data, error } = await supabase
+          .from("aquarium_entities")
+          .select(
+            "id,name_ko,price,size,food,swim_y,is_movable,rarity,description"
+          );
+        if (error) throw error;
+        setRows((data ?? []) as unknown as DbEntity[]);
+      } catch (e: any) {
+        setErr(e?.message ?? "도감 데이터를 불러오지 못했어요.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [open, rows.length, loading]);
 
   const list = useMemo(() => {
     const filtered =
-      rarity === "전체" ? FISHES : FISHES.filter((f) => f.rarity === rarity);
+      rarity === "전체" ? rows : rows.filter((f) => f.rarity === rarity);
     return [...filtered].sort((a, b) => {
-      const ra = rarityOrder[a.rarity];
-      const rb = rarityOrder[b.rarity];
+      const ra = rarityOrder[a.rarity],
+        rb = rarityOrder[b.rarity];
       if (ra !== rb) return ra - rb;
-      return a.labelKo.localeCompare(b.labelKo, "ko");
+      return (a.name_ko ?? a.id).localeCompare(b.name_ko ?? b.id, "ko");
     });
-  }, [rarity]);
+  }, [rows, rarity]);
 
   const rarityChipCls = (r: FishRarity) =>
     r === "일반"
@@ -66,8 +128,7 @@ export default function MarineDexModal() {
       return active
         ? "bg-slate-700 text-white border-slate-800"
         : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50";
-
-    const map: Record<FishRarity, { on: string; off: string }> = {
+    const map = {
       일반: {
         on: "bg-neutral-700 text-white border-neutral-800",
         off: "bg-white text-neutral-700 border-neutral-300 hover:bg-neutral-50",
@@ -84,9 +145,11 @@ export default function MarineDexModal() {
         on: "bg-amber-600 text-white border-amber-700",
         off: "bg-white text-amber-700 border-amber-300 hover:bg-amber-50",
       },
-    };
-    return active ? map[f].on : map[f].off;
+    } as const;
+    return active ? map[f as FishRarity].on : map[f as FishRarity].off;
   };
+
+  const filters: RarityFilter[] = ["전체", "일반", "희귀", "에픽", "전설"];
 
   const captureHeader =
     rarity === "전체" ? null : (
@@ -99,8 +162,6 @@ export default function MarineDexModal() {
       </div>
     );
 
-  const filters: RarityFilter[] = ["전체", "일반", "희귀", "에픽", "전설"];
-
   const modal =
     open && mounted
       ? createPortal(
@@ -110,10 +171,7 @@ export default function MarineDexModal() {
             role="dialog"
             onClick={() => setOpen(false)}
           >
-            {/* backdrop */}
             <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px]" />
-
-            {/* content */}
             <div
               className="relative z-10 flex items-center justify-center w-full h-full p-4"
               onClick={(e) => e.stopPropagation()}
@@ -158,15 +216,24 @@ export default function MarineDexModal() {
                       );
                     })}
                   </div>
+                  {loading && (
+                    <div className="text-xs text-gray-500">불러오는 중…</div>
+                  )}
+                  {err && (
+                    <div className="text-xs text-red-600">
+                      오류: {String(err)}
+                    </div>
+                  )}
                 </div>
 
                 {/* list */}
                 <div className="flex-1 overflow-y-auto pr-1">
                   <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
                     {list.map((f) => {
-                      const ingEmoji =
-                        INGREDIENT_EMOJI[f.ingredient as IngredientTitle] ??
-                        "❓";
+                      const imgSrc = buildImageSrc(f.id, f.rarity);
+                      const [y1, y2] = parseInt4Range(f.swim_y);
+                      const ing = (f.food ?? "") as IngredientTitle;
+                      const ingEmoji = INGREDIENT_EMOJI[ing] ?? "🫧";
 
                       return (
                         <div
@@ -177,13 +244,18 @@ export default function MarineDexModal() {
                         >
                           <div className="relative rounded-lg overflow-hidden border">
                             <img
-                              src={f.image}
-                              alt={f.labelKo}
+                              src={imgSrc}
+                              alt={f.name_ko ?? f.id}
                               className="w-full aspect-square object-contain bg-white"
                               draggable={false}
                               loading="lazy"
+                              onError={(ev) => {
+                                ev.currentTarget.onerror = null;
+                                ev.currentTarget.src =
+                                  "/aquarium/placeholder.png";
+                              }}
+                              title={`수영 높이: ${y1}~${y2}%`}
                             />
-
                             {/* 좌상단: 희귀도 */}
                             <div className="absolute left-2 top-2">
                               <span
@@ -194,12 +266,11 @@ export default function MarineDexModal() {
                                 {f.rarity}
                               </span>
                             </div>
-
                             {/* 우상단: 필요 재료 이모지 */}
                             <div
                               className="absolute right-2 top-2 w-9 h-9 rounded-full bg-white/95 border border-gray-200 shadow-sm flex items-center justify-center text-lg"
-                              title={`필요 재료: ${f.ingredient}`}
-                              aria-label={`필요 재료: ${f.ingredient}`}
+                              title={`필요 재료: ${f.food ?? "미정"}`}
+                              aria-label={`필요 재료: ${f.food ?? "미정"}`}
                             >
                               <span className="translate-y-[1px]">
                                 {ingEmoji}
@@ -207,17 +278,29 @@ export default function MarineDexModal() {
                             </div>
                           </div>
 
-                          {/* 이름 + 설명 */}
+                          {/* 이름 + 가격 + 설명 */}
                           <div className="mt-3">
                             <div className="flex items-center gap-2">
                               <span className="inline-flex items-center rounded-md border px-2.5 py-1 text-[11px] font-bold bg-white text-zinc-900">
-                                {f.labelKo}
+                                {f.name_ko ?? f.id}
                               </span>
                             </div>
 
-                            <p className="mt-2 text-xs text-gray-700 line-clamp-2">
-                              {f.description}
-                            </p>
+                            {/* 🪙 가격 */}
+                            <div className="mt-1 flex items-center gap-1 text-[11px] text-gray-700">
+                              <span role="img" aria-label="gold">
+                                🪙
+                              </span>
+                              <span className="font-semibold">
+                                {fmt(f.price)}
+                              </span>
+                            </div>
+
+                            {f.description && (
+                              <p className="mt-2 text-xs text-gray-700 line-clamp-2">
+                                {f.description}
+                              </p>
+                            )}
                           </div>
                         </div>
                       );
@@ -225,7 +308,6 @@ export default function MarineDexModal() {
                   </div>
                 </div>
 
-                {/* footer note */}
                 <div className="mt-3 text-[11px] text-gray-500 flex items-center gap-1">
                   <Anchor className="w-3.5 h-3.5" />
                   도감은 정보 제공용입니다. 야생(포획 대상) 어종은 바다 탐험에서
@@ -240,7 +322,6 @@ export default function MarineDexModal() {
 
   return (
     <>
-      {/* trigger */}
       <Button
         variant="outline"
         title="도감 열기"
@@ -250,7 +331,6 @@ export default function MarineDexModal() {
         <Book className="mr-2 h-4 w-4" />
         도감
       </Button>
-
       {modal}
     </>
   );

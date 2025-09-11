@@ -1,270 +1,259 @@
-// src/pages/AquariumPage.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import AquariumBox from "@/features/aquarium/AquariumBox";
-import MarineDexModal from "@/features/aquarium/MarineDexModal";
-
-import { toast } from "sonner";
+import { useEffect, useState } from "react";
 import supabase from "@/lib/supabase";
 import { useCoupleContext } from "@/contexts/CoupleContext";
-import { sendUserNotification } from "@/utils/notification/sendUserNotification";
-import { useUser } from "@/contexts/UserContext";
-import { FISH_BY_ID } from "@/features/aquarium/fishes";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
+  Check,
+  X,
+  PlusCircle,
+} from "lucide-react";
+
+import AquariumBox from "@/features/aquarium/AquariumBox";
 import ThemeShopButton from "@/features/aquarium/ThemeShopButton";
+import MarineDexModal from "@/features/aquarium/MarineDexModal";
+import AquariumDetailButton from "@/features/aquarium/AquariumDetailButton";
 
-/* ------------------------------
-   ✅ TankSkeleton
-   - 로딩 텍스트가 항상 즉시 표시
-   - 물 배경은 약간 늦게(fade-in)
------------------------------- */
-function TankSkeleton({ text }: { text: string }) {
-  const [showBg, setShowBg] = useState(false);
-
-  useEffect(() => {
-    const id = setTimeout(() => setShowBg(true), 150); // 텍스트 먼저 노출
-    return () => clearTimeout(id);
-  }, []);
-
-  return (
-    <div
-      className="relative w-full rounded-xl overflow-hidden"
-      style={{ aspectRatio: "800 / 420" }}
-      aria-live="polite"
-      aria-busy="true"
-    >
-      {/* 텍스트 레이어: 항상 즉시 렌더 */}
-      <div className="text-3xl absolute inset-0 flex items-center justify-center z-10">
-        {text}
-      </div>
-    </div>
-  );
-}
+/** 어항 가격 (RPC 파라미터로 전달) */
+const TANK_PRICE = 200;
 
 export default function AquariumPage() {
-  const { user } = useUser();
-  const { couple, gold, spendGold, fetchCoupleData } = useCoupleContext();
-
-  const [fishIds, setFishIds] = useState<string[]>([]);
-  const [goldDelta, setGoldDelta] = useState<number | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
-
+  const { couple, fetchCoupleData } = useCoupleContext();
   const coupleId = couple?.id ?? null;
 
-  const loadingMessages = useMemo(
-    () => [
-      "🫧 어항 청소중 …",
-      "🍽️ 물고기 밥 주는 중 …",
-      "🌿 수초 정리중 …",
-      "💧 물 교체중 …",
-      "🔧 필터 점검중 …",
-      "🪸 산호 배치중 …",
-    ],
-    []
-  );
+  /** 커플의 탱크 목록 */
+  const [tanks, setTanks] = useState<
+    Array<{ tank_no: number; title: string; theme_id: number | null }>
+  >([]);
+  /** 현재 선택 index (0-based, 항상 첫 탱크부터) */
+  const [idx, setIdx] = useState(0);
+
+  /** 제목 편집 상태 */
+  const cur = tanks[idx] ?? null;
+  const [editing, setEditing] = useState(false);
+  const [titleInput, setTitleInput] = useState("");
 
   useEffect(() => {
-    if (!loading) return;
-    setLoadingMsgIndex(Math.floor(Math.random() * loadingMessages.length));
-    const itv = setInterval(
-      () => setLoadingMsgIndex((i) => (i + 1) % loadingMessages.length),
-      1400
-    );
-    return () => clearInterval(itv);
-  }, [loading, loadingMessages.length]);
+    if (!cur) return;
+    setTitleInput(cur.title ?? "");
+  }, [cur?.tank_no]);
 
-  // ✅ couple_aquarium에서 물고기 가져오기 (없으면 행 생성)
+  /** 탱크 목록 로드 */
+  const loadTanks = async () => {
+    if (!coupleId) return;
+    const { data, error } = await supabase
+      .from("aquarium_tanks")
+      .select("tank_no, title, theme_id")
+      .eq("couple_id", coupleId)
+      .order("tank_no", { ascending: true });
+
+    if (error) {
+      toast.error(`어항 목록을 불러오지 못했어요: ${error.message}`);
+      setTanks([]);
+      return;
+    }
+    const rows = (data ?? []) as Array<{
+      tank_no: number;
+      title: string;
+      theme_id: number | null;
+    }>;
+
+    setTanks(rows);
+    // 항상 1번(=index 0)부터 보이도록 보정
+    setIdx(0);
+  };
+
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      setLoading(true);
-      try {
-        if (!coupleId) {
-          if (mounted) setFishIds([]);
-          return;
-        }
-
-        const { data, error } = await supabase
-          .from("couple_aquarium")
-          .select("aquarium_fishes")
-          .eq("couple_id", coupleId)
-          .maybeSingle();
-
-        if (!mounted) return;
-
-        if (error || !data) {
-          await supabase.from("couple_aquarium").upsert(
-            {
-              couple_id: coupleId,
-              aquarium_fishes: [],
-            },
-            { onConflict: "couple_id" }
-          );
-          setFishIds([]);
-        } else {
-          const arr = Array.isArray(data.aquarium_fishes)
-            ? (data.aquarium_fishes as string[])
-            : [];
-          setFishIds(arr);
-        }
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
+    loadTanks();
   }, [coupleId]);
 
-  useEffect(() => {
-    if (goldDelta === null) return;
-    const t = setTimeout(() => setGoldDelta(null), 900);
-    return () => clearTimeout(t);
-  }, [goldDelta]);
-
-  const handleBuy = async (fishId: string, cost: number) => {
-    if (!coupleId) {
-      alert("커플 정보가 없습니다. 로그인/연동 상태를 확인해주세요.");
+  /** 제목 저장 */
+  const saveTitle = async () => {
+    if (!coupleId || !cur) return;
+    const next = (titleInput ?? "").trim().slice(0, 30);
+    const { error } = await supabase
+      .from("aquarium_tanks")
+      .update({ title: next })
+      .eq("couple_id", coupleId)
+      .eq("tank_no", cur.tank_no);
+    if (error) {
+      toast.error(`이름 변경 실패: ${error.message}`);
       return;
     }
-    if (gold < cost) {
-      toast.warning("골드가 부족합니다!");
-      return;
-    }
+    setTanks((arr) =>
+      arr.map((t) => (t.tank_no === cur.tank_no ? { ...t, title: next } : t))
+    );
+    setEditing(false);
+    toast.success("어항 이름을 저장했어요!");
+  };
 
-    const { error: spendErr } = await spendGold(cost);
-    if (spendErr) {
-      toast.warning(spendErr.message);
-      return;
-    }
-
-    const nextFishIds = [...fishIds, fishId];
-    setFishIds(nextFishIds);
-
-    const { error: upErr } = await supabase
-      .from("couple_aquarium")
-      .upsert(
-        { couple_id: coupleId, aquarium_fishes: nextFishIds },
-        { onConflict: "couple_id" }
-      );
-
-    if (upErr) {
-      toast.warning(`구매 저장 실패: ${upErr.message}`);
-      setFishIds(fishIds);
-      await fetchCoupleData();
-      return;
-    }
-
-    setGoldDelta(-cost);
-
+  /** 어항 구매 (RPC) */
+  const buyTank = async () => {
     try {
-      const itemName = (FISH_BY_ID[fishId]?.labelKo ?? fishId).toString();
-      if (user?.id && user?.partner_id) {
-        await sendUserNotification({
-          senderId: user.id,
-          receiverId: user.partner_id,
-          type: "물품구매",
-          itemName,
-        } as any);
+      const { data, error } = await supabase.rpc("buy_aquarium", {
+        p_price: TANK_PRICE,
+        p_title: null,
+        p_theme_id: 12, // 기본 테마 id (필요 시 변경)
+      });
+      if (error) throw error;
+
+      if (data?.ok !== true) {
+        const reason = data?.error ?? "unknown";
+        if (reason === "not_enough_gold") toast.warning("골드가 부족합니다!");
+        else toast.error(`구매 실패: ${String(reason)}`);
+        return;
       }
-    } catch (e) {
-      console.warn("알림 전송 실패(무시 가능):", e);
-    }
 
-    toast.success("구매 완료!");
+      toast.success("새 어항을 구매했어요!");
+      await loadTanks();
+      await fetchCoupleData?.();
+
+      // 방금 생성된 탱크 번호로 이동 (tank_no는 1-based → index로 변환)
+      const newNo = Number(data?.tank?.tank_no ?? 1);
+      setIdx(Math.max(0, newNo - 1));
+    } catch (e: any) {
+      toast.error(`구매 중 오류: ${e?.message ?? e}`);
+    }
   };
 
-  const handleSell = async ({
-    index,
-    fishId,
-    sellPrice,
-  }: {
-    index: number;
-    fishId: string;
-    sellPrice: number;
-  }) => {
-    if (!coupleId) return;
+  /** 인덱스 이동 */
+  const total = tanks.length || 1;
+  const prev = () => setIdx((i) => (total ? (i - 1 + total) % total : 0));
+  const next = () => setIdx((i) => (total ? (i + 1) % total : 0));
 
-    if (index < 0 || index >= fishIds.length || fishIds[index] !== fishId) {
-      index = fishIds.lastIndexOf(fishId);
-      if (index === -1) return;
-    }
-
-    const next = fishIds.slice(0, index).concat(fishIds.slice(index + 1));
-    setFishIds(next);
-
-    const { error: upErr1 } = await supabase
-      .from("couple_aquarium")
-      .upsert(
-        { couple_id: coupleId, aquarium_fishes: next },
-        { onConflict: "couple_id" }
-      );
-
-    if (upErr1) {
-      alert(`판매 저장 실패: ${upErr1.message}`);
-      setFishIds(fishIds);
-      await fetchCoupleData();
-      return;
-    }
-
-    const newGold = gold + sellPrice;
-    const { error: upErr2 } = await supabase
-      .from("couples")
-      .update({ gold: newGold })
-      .eq("id", coupleId);
-
-    if (upErr2) {
-      console.warn("골드 지급 실패:", upErr2.message);
-    } else {
-      setGoldDelta(sellPrice);
-    }
-    await fetchCoupleData();
-  };
-
-  const currentLoadingText = useMemo(() => {
-    if (loadingMessages.length === 0) return "🫧 어항 청소중 …";
-    const i =
-      ((loadingMsgIndex % loadingMessages.length) + loadingMessages.length) %
-      loadingMessages.length;
-    return loadingMessages[i]!;
-  }, [loadingMessages, loadingMsgIndex]);
-
-  const fishCount = fishIds.length;
+  /** AquariumBox와 동일 프레임(정중앙, 고정 크기) — 오버레이 기준 컨테이너 */
+  const frameStyle = { height: "74vh", width: "min(100%, calc(85vw ))" };
 
   return (
-    // 🔽 헤더 높이를 모를 때: CSS 변수로 반응형 헤더 추정값 제공
-    //    기본 64px, md: 72px, lg: 80px
-    <div
-      className="[--hdr:64px] md:[--hdr:72px] lg:[--hdr:80px] min-h-[calc(100svh-var(--hdr))] w-full
-                   flex flex-col "
-    >
-      <div className="w-full space-y-3 flex-1 ">
-        {/* ✅ 어항 + 상단 고정 오버레이 (로딩/비로딩 공통) */}
-        <div className="relative w-full mt-4">
-          {/* 탱크 본체 */}
-          {loading ? (
-            <TankSkeleton text={currentLoadingText} />
-          ) : (
-            <AquariumBox
-              fishIds={fishIds}
-              isLoading={false}
-              loadingText={currentLoadingText}
-              onSell={handleSell}
-            />
-          )}
+    <div className="min-h-[calc(100svh-64px)] w-full flex flex-col">
+      <div className="relative w-full mt-4">
+        {/* 본체: 현재 탱크만 렌더 */}
+        {cur ? (
+          <AquariumBox tankNo={cur.tank_no} fitToContainer />
+        ) : (
+          <div
+            className="relative rounded-xl overflow-hidden mx-auto grid place-items-center"
+            style={frameStyle}
+          >
+            <div className="px-3 py-1.5 rounded-md bg-white/80 border shadow text-sm">
+              어항을 불러오는 중…
+            </div>
+          </div>
+        )}
 
-          {/* 🔒 상단-왼쪽 고정 오버레이 */}
-          <div className="absolute right-2 top-2 z-20 flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full bg-sky-100/90 backdrop-blur-sm text-sky-900 border border-sky-200 px-2.5 py-1 text-xs shadow-sm">
-              <span>🐟</span>
-              <b className="tabular-nums">{fishCount}</b>
-            </span>
-            <ThemeShopButton />
-            {/* 도감 버튼 (작게) */}
-            <MarineDexModal />
+        {/* 📌 AquariumBox 기준 오버레이 (어항 위에 정확히 겹침) */}
+        <div
+          className="absolute top-0 left-0 right-0 mx-auto"
+          style={frameStyle}
+        >
+          <div className="relative h-full w-full">
+            {/* 상단 중앙: 제목(편집) + 어항 구매 버튼(가격 with gold 이모지) */}
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 pointer-events-auto">
+              {!editing ? (
+                <button
+                  className="group inline-flex items-center gap-2 rounded-full bg-black/35 text-white text-xs sm:text-sm px-3 py-1 backdrop-blur-sm"
+                  onClick={() => setEditing(true)}
+                  title="어항 이름 수정"
+                >
+                  <span className="font-semibold tracking-wide">
+                    {cur?.title || "이름 없는 어항"}
+                  </span>
+                  <Pencil className="w-3.5 h-3.5 opacity-80 group-hover:opacity-100" />
+                </button>
+              ) : (
+                <div className="inline-flex items-center gap-1 bg-white/90 border rounded-full px-2 py-1 shadow">
+                  <input
+                    value={titleInput}
+                    onChange={(e) => setTitleInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") saveTitle();
+                      if (e.key === "Escape") setEditing(false);
+                    }}
+                    className="bg-transparent px-1 text-sm outline-none w-48"
+                    maxLength={30}
+                    autoFocus
+                  />
+                  <button
+                    className="p-1 hover:bg-emerald-50 rounded"
+                    onClick={saveTitle}
+                    title="저장"
+                  >
+                    <Check className="w-4 h-4 text-emerald-600" />
+                  </button>
+                  <button
+                    className="p-1 hover:bg-rose-50 rounded"
+                    onClick={() => setEditing(false)}
+                    title="취소"
+                  >
+                    <X className="w-4 h-4 text-rose-600" />
+                  </button>
+                </div>
+              )}
+
+              {/* 어항 구매 (가격 + 골드 이모지) */}
+              <button
+                onClick={buyTank}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full",
+                  "bg-white/90 border px-2 py-1 text-xs shadow hover:bg-white"
+                )}
+                title={`어항 구매 (🪙${TANK_PRICE.toLocaleString("ko-KR")})`}
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span className="font-medium">
+                  어항 구매 ·{" "}
+                  <span className="tabular-nums">
+                    🪙{TANK_PRICE.toLocaleString("ko-KR")}
+                  </span>
+                </span>
+              </button>
+            </div>
+
+            {/* 좌상단: 도감(위) + 테마샵(아래) + 상세 버튼 — 박스 기준 고정 */}
+            <div className="absolute left-2 top-2 z-40 flex flex-col gap-2 pointer-events-auto">
+              <MarineDexModal />
+              {cur && <ThemeShopButton tankNo={cur.tank_no} />}
+              {/* ✅ 현재 탱크 번호를 그대로 전달 */}
+              {cur && <AquariumDetailButton tankNo={cur.tank_no} />}
+            </div>
+
+            {/* 우상단: 현재/전체 + 좌우 이동 — 박스 기준 고정 */}
+            <div className="absolute right-2 top-2 z-30 flex items-center gap-1 pointer-events-auto">
+              {total > 1 ? (
+                <div className="inline-flex items-center rounded-full bg-white/75 border backdrop-blur-sm text-gray-900 text-xs shadow overflow-hidden">
+                  <button
+                    className="px-1.5 py-1 hover:bg-gray-100"
+                    onClick={prev}
+                    aria-label="이전 어항"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <span className="px-2 tabular-nums">
+                    {/* 화면 표시는 항상 1부터: 실제 tank_no 사용 */}
+                    {cur?.tank_no ?? 1}/{total}
+                  </span>
+                  <button
+                    className="px-1.5 py-1 hover:bg-gray-100"
+                    onClick={next}
+                    aria-label="다음 어항"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <span className="inline-flex items-center rounded-full bg-white/75 border backdrop-blur-sm text-gray-900 text-xs shadow px-2 py-1 tabular-nums">
+                  1/1
+                </span>
+              )}
+            </div>
           </div>
         </div>
+        {/* END overlay */}
       </div>
     </div>
   );

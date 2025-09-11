@@ -71,9 +71,9 @@ export default function MapModalButton() {
             {/* 상단 타이틀 바 */}
             <div className="flex items-center justify-center gap-2  px-4 pt-4 bg-white/90 backdrop-blur-sm">
               <img
-                src="/map.gif"
+                src="/island.gif"
                 alt=""
-                className="h-5 w-5 rounded-[4px] object-cover"
+                className="h-10 w-10 rounded-[10px] "
                 draggable={false}
                 aria-hidden
               />

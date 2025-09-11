@@ -1,23 +1,32 @@
 // src/features/aquarium/AquariumBox.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { FISH_BY_ID } from "./fishes";
-import FishSprite from "./FishSprite";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import supabase from "@/lib/supabase";
 import { useCoupleContext } from "@/contexts/CoupleContext";
-import AquariumDetailButton from "./AquariumDetailButton";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import FishSprite from "./FishSprite";
 
+/* ---------- types ---------- */
 type Slot = { key: string; id: string; leftPct: number; topPct: number };
-type SellPayload = { index: number; fishId: string; sellPrice: number };
 
-// (참고용 상수이지만 초기 표시엔 쓰지 않음)
-const BASE_THEME_ID = 12;
-const BASE_THEME_TITLE = "수중 정원";
-const themeImageUrl = (title: string) =>
-  `/aquarium/themes/${encodeURIComponent(title)}.png`;
+type EntityRow = {
+  id: string;
+  name_ko: string | null;
+  rarity: string | null;
+  size: number | null;
+  swim_y: [number, number] | null;
+  is_movable: boolean | null;
+};
 
-/* ── 유틸 ─────────────────────────────────────────────── */
+type InvRow = {
+  id?: string; // 인벤토리 고유 id (1행=1마리)
+  entity_id: string; // 렌더에 사용할 엔티티 id
+  created_at?: string;
+};
+
+/* ---------- utils ---------- */
 function randInRange(min: number, max: number) {
   if (max < min) [min, max] = [max, min];
   return min + Math.random() * (max - min);
@@ -25,204 +34,116 @@ function randInRange(min: number, max: number) {
 function clamp(v: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, v));
 }
+const themeImageUrl = (title: string) =>
+  `/aquarium/themes/${encodeURIComponent(title)}.png`;
 
-function SpawnBurst({ leftPct, topPct }: { leftPct: number; topPct: number }) {
-  const particles = Array.from({ length: 18 }).map((_, i) => ({
-    id: i,
-    dx: Math.random() * 48 - 24,
-    dy: Math.random() * -48 - 12,
-    delay: Math.random() * 140,
-    scale: 0.8 + Math.random() * 1.2,
-    char: ["💦", "✨", "🐟", "💧"][Math.floor(Math.random() * 4)],
-  }));
-
-  return (
-    <>
-      <div
-        className="absolute pointer-events-none will-change-transform transform-gpu"
-        style={{
-          left: `${leftPct}%`,
-          top: `${topPct}%`,
-          transform: "translate(-50%, -50%) translateZ(0)",
-        }}
-      >
-        <div
-          className="absolute -translate-x-1/2 -translate-y-1/2"
-          style={{ left: 0, top: 0 }}
-        >
-          <div className="w-12 h-12 rounded-full border-2 border-white/60 animate-[ringPulse_800ms_ease-out_forwards]" />
-          <div className="absolute inset-0 w-20 h-20 rounded-full border-2 border-white/40 animate-[ringPulse_1000ms_ease-out_forwards]" />
-          <div className="absolute inset-0 w-28 h-28 rounded-full border-2 border-white/20 animate-[ringPulse_1200ms_ease-out_forwards]" />
-        </div>
-
-        {particles.map((p) => (
-          <span
-            key={p.id}
-            className="absolute text-[18px] will-change-transform transform-gpu opacity-0"
-            style={{
-              left: 0,
-              top: 0,
-              animation: `burst 820ms ease-out ${p.delay}ms forwards`,
-              transform: `translateZ(0) translate(0,0) scale(${p.scale})`,
-              ["--dx" as any]: `${p.dx}px`,
-              ["--dy" as any]: `${p.dy}px`,
-            }}
-          >
-            {p.char}
-          </span>
-        ))}
-      </div>
-
-      <style>
-        {`
-          @keyframes ringPulse {
-            0%   { opacity: .6; transform: translateZ(0) scale(0.6); }
-            100% { opacity: 0;  transform: translateZ(0) scale(1.6); }
-          }
-          @keyframes burst {
-            0%   { opacity: 0; transform: translateZ(0) translate(0,0) scale(0.7); }
-            25%  { opacity: 1; }
-            100% { opacity: 0; transform: translateZ(0) translate(var(--dx,0), var(--dy,0)) scale(1); }
-          }
-          @keyframes popIn {
-            0%   { opacity: 0; transform: scale(0.6) rotate(-8deg); filter: blur(4px); }
-            60%  { opacity: 1; transform: scale(1.1) rotate(2deg);  filter: blur(0); }
-            100% { opacity: 1; transform: scale(1)   rotate(0deg); }
-          }
-        `}
-      </style>
-    </>
-  );
+/** 희귀도 → 폴더명 매핑 (ko/en 모두 허용) */
+function rarityToFolder(
+  r?: string | null
+): "common" | "rare" | "epic" | "legend" {
+  const x = (r ?? "").trim().toLowerCase();
+  if (x === "희귀" || x === "rare") return "rare";
+  if (x === "에픽" || x === "epic") return "epic";
+  if (x === "전설" || x === "legend" || x === "legendary") return "legend";
+  return "common"; // 기본값
+}
+/** 엔티티 → 이미지 경로 생성 */
+function entityImagePath(ent: Pick<EntityRow, "id" | "rarity">) {
+  const folder = rarityToFolder(ent.rarity);
+  return `/aquarium/${folder}/${encodeURIComponent(ent.id)}.png`;
 }
 
 export default function AquariumBox({
-  fishIds: fishIdsProp,
-  isLoading: isLoadingProp = false,
-  loadingText,
-  onSell,
-  readOnly = false,
-  aspectRatio = "800 / 410",
+  tankNo,
   fitToContainer = false,
-  showDetailButton = true,
 }: {
-  fishIds?: string[];
-  isLoading?: boolean;
-  loadingText?: string;
-  onSell?: (payload: SellPayload) => Promise<void> | void;
-  readOnly?: boolean;
-  aspectRatio?: string;
+  tankNo: number;
   fitToContainer?: boolean;
-  showDetailButton?: boolean;
 }) {
-  const { couple, fetchCoupleData } = useCoupleContext();
+  const { couple } = useCoupleContext();
   const coupleId = couple?.id ?? null;
 
-  const [fishIdsInternal, setFishIdsInternal] = useState<string[]>([]);
-
-  const [loadingInternal, setLoadingInternal] = useState(false);
-
-  // ✅ 테마 상태
-  const [themeTitle, setThemeTitle] = useState<string | null>(null);
+  /** 테마(배경) */
   const [bgUrl, setBgUrl] = useState<string | null>(null);
   const [bgReady, setBgReady] = useState(false);
   const [themeLoading, setThemeLoading] = useState(false);
 
-  const fishIds = fishIdsProp ?? fishIdsInternal;
-  const isLoading = isLoadingProp || loadingInternal;
+  /** 인벤토리/엔티티 */
+  const [invRows, setInvRows] = useState<InvRow[]>([]);
+  const [entityMap, setEntityMap] = useState<Record<string, EntityRow>>({});
+  const [loading, setLoading] = useState(false);
 
-  const [themeRefreshTick, setThemeRefreshTick] = useState(0);
+  /** 위치/인터랙션 */
+  const [slots, setSlots] = useState<Slot[]>([]);
+  const [appearingKeys, setAppearingKeys] = useState<string[]>([]);
+  const [hoverKey, setHoverKey] = useState<string | null>(null);
+  const [dragKey, setDragKey] = useState<string | null>(null);
+  const dragOffsetRef = useRef<{ ox: number; oy: number }>({ ox: 0, oy: 0 });
+
+  /** 컨테이너 스케일 */
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [containerScale, setContainerScale] = useState(1);
+
   useEffect(() => {
-    const handler = () => setThemeRefreshTick((n) => n + 1);
-    window.addEventListener("aquarium-theme-applied", handler);
-    return () => window.removeEventListener("aquarium-theme-applied", handler);
-  }, []);
+    if (!fitToContainer) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect;
+      if (!rect) return;
+      setContainerScale(Math.max(0.8, Math.min(2.0, rect.width / 800)));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [fitToContainer]);
 
-  /* ── DB: 어항 물고기/브리드 카운트 ───────────────────── */
+  /* ======== 1) 이 탱크의 theme_id로만 배경 로드 ======== */
   useEffect(() => {
-    let mounted = true;
-
-    (async () => {
-      if (fishIdsProp) return; // 외부 주입 모드
-      if (!coupleId) {
-        setFishIdsInternal([]);
-
-        return;
-      }
-      try {
-        setLoadingInternal(true);
-        const { data, error } = await supabase
-          .from("couple_aquarium")
-          .select("aquarium_fishes")
-          .eq("couple_id", coupleId)
-          .maybeSingle();
-
-        if (!mounted) return;
-
-        if (error || !data) {
-          await supabase
-            .from("couple_aquarium")
-            .upsert(
-              { couple_id: coupleId, aquarium_fishes: [] },
-              { onConflict: "couple_id" }
-            );
-          setFishIdsInternal([]);
-        } else {
-          const arr = Array.isArray(data.aquarium_fishes)
-            ? (data.aquarium_fishes as string[])
-            : [];
-          setFishIdsInternal(arr);
-        }
-      } finally {
-        if (mounted) setLoadingInternal(false);
-      }
-    })();
-
-    return () => {
-      mounted = false;
-    };
-  }, [coupleId, fishIdsProp]);
-
-  /* ── DB: 테마 로드 (theme_id → title → 이미지 URL) ───── */
-  useEffect(() => {
-    let mounted = true;
-
     (async () => {
       setThemeLoading(true);
       setBgReady(false);
       setBgUrl(null);
-      setThemeTitle(null);
-
       try {
-        if (!coupleId) return;
+        if (!coupleId || !tankNo) return;
 
-        const cur = await supabase
-          .from("couple_aquarium")
+        const { data: tank, error: tErr } = await supabase
+          .from("aquarium_tanks")
           .select("theme_id")
           .eq("couple_id", coupleId)
+          .eq("tank_no", tankNo)
           .maybeSingle();
+        if (tErr) throw tErr;
 
-        let themeId = cur.data?.theme_id as number | null;
+        const themeId = tank?.theme_id;
+        if (themeId == null) {
+          setBgUrl(
+            "data:image/svg+xml;utf8," +
+              encodeURIComponent(
+                `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1536 1024'><rect width='100%' height='100%' fill='#0284c7'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='white' font-size='28'>이 탱크에 테마가 설정되지 않았어요</text></svg>`
+              )
+          );
+          setBgReady(true);
+          return;
+        }
 
-        if (!Number.isFinite(themeId)) themeId = BASE_THEME_ID;
-
-        const th = await supabase
+        const { data: th, error: thErr } = await supabase
           .from("aquarium_themes")
           .select("title")
-          .eq("id", themeId!)
+          .eq("id", themeId)
           .maybeSingle();
+        if (thErr) throw thErr;
 
-        const title =
-          th.data?.title && typeof th.data.title === "string"
-            ? th.data.title
-            : BASE_THEME_TITLE;
-
-        if (!mounted) return;
-
-        setThemeTitle(title);
-        setBgUrl(themeImageUrl(title));
+        if (th?.title) setBgUrl(themeImageUrl(th.title));
+        else {
+          setBgUrl(
+            "data:image/svg+xml;utf8," +
+              encodeURIComponent(
+                `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1536 1024'><rect width='100%' height='100%' fill='#0ea5e9'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='white' font-size='28'>테마 정보를 찾을 수 없어요</text></svg>`
+              )
+          );
+          setBgReady(true);
+        }
       } catch {
-        if (!mounted) return;
-        setThemeTitle("이미지 로드 실패");
         setBgUrl(
           "data:image/svg+xml;utf8," +
             encodeURIComponent(
@@ -234,109 +155,139 @@ export default function AquariumBox({
         setThemeLoading(false);
       }
     })();
+  }, [coupleId, tankNo]);
 
-    return () => {
-      mounted = false;
+  /* ======== 2) 인벤토리(1행=1마리) & 엔티티 ======== */
+  const loadTank = useCallback(async () => {
+    if (!coupleId || !tankNo) return;
+    setLoading(true);
+    try {
+      const { data: inv, error: invErr } = await supabase
+        .from("couple_aquarium_inventory")
+        .select("id, entity_id, created_at")
+        .eq("couple_id", coupleId)
+        .eq("tank_no", tankNo)
+        .order("created_at", { ascending: true });
+      if (invErr) throw invErr;
+
+      const rows: InvRow[] = (inv ?? []).map((r: any) => ({
+        id: r.id ?? undefined,
+        entity_id: String(r.entity_id),
+        created_at: r.created_at ?? undefined,
+      }));
+      setInvRows(rows);
+
+      const ids = Array.from(new Set(rows.map((r) => r.entity_id)));
+      if (ids.length === 0) {
+        setEntityMap({});
+        return;
+      }
+      const { data: ents, error: entErr } = await supabase
+        .from("aquarium_entities")
+        .select("id, name_ko, rarity, size, swim_y, is_movable")
+        .in("id", ids);
+      if (entErr) throw entErr;
+
+      const map: Record<string, EntityRow> = {};
+      for (const row of ents ?? []) {
+        map[String(row.id)] = {
+          id: String(row.id),
+          name_ko: (row as any).name_ko ?? null,
+          rarity: (row as any).rarity ?? null,
+          size: (row as any).size ?? null,
+          swim_y: (row as any).swim_y ?? null,
+          is_movable: (row as any).is_movable ?? null,
+        };
+      }
+      setEntityMap(map);
+    } catch (e: any) {
+      toast.error(`어항 데이터를 불러오지 못했어요: ${e?.message ?? e}`);
+      setInvRows([]);
+      setEntityMap({});
+    } finally {
+      setLoading(false);
+    }
+  }, [coupleId, tankNo]);
+
+  useEffect(() => {
+    const onUpd = (e: Event) => {
+      const ev = e as CustomEvent<{ coupleId: string; tankNo?: number }>;
+      if (!coupleId) return;
+      const d = ev.detail;
+      if (!d) return;
+      if (d.coupleId !== coupleId) return;
+      if (d.tankNo && d.tankNo !== tankNo) return;
+      // 이 어항의 변경이면 재조회
+      loadTank();
     };
-  }, [coupleId, themeRefreshTick]);
+    window.addEventListener("aquarium-updated", onUpd as EventListener);
+    return () =>
+      window.removeEventListener("aquarium-updated", onUpd as EventListener);
+  }, [coupleId, tankNo, loadTank]);
 
-  /** 외부에서도 부를 수 있게 새로고침 함수 노출 */
-  const refreshFromDB = async () => {
-    if (!coupleId) return;
-    const { data } = await supabase
-      .from("couple_aquarium")
-      .select("aquarium_fishes")
-      .eq("couple_id", coupleId)
-      .maybeSingle();
-    const arr = Array.isArray(data?.aquarium_fishes)
-      ? (data!.aquarium_fishes as string[])
-      : [];
-    setFishIdsInternal(arr);
+  useEffect(() => {
+    loadTank();
+  }, [loadTank]);
 
-    await fetchCoupleData?.();
-  };
+  /* ======== 3) 렌더 리스트 (경로 규칙으로 이미지 구성) ======== */
+  const fishes = useMemo(() => {
+    return invRows
+      .map((row) => entityMap[row.entity_id])
+      .filter(Boolean)
+      .map((ent) => ({
+        id: ent.id,
+        labelKo: ent.name_ko ?? ent.id,
+        image: entityImagePath(ent), // ✅ 규칙 기반 경로
+        rarity: ent.rarity,
+        size: ent.size,
+        swimY: ent.swim_y,
+        isMovable: ent.is_movable,
+      }));
+  }, [invRows, entityMap]);
 
-  /* ── 보유수/슬롯/연출 ───────────────────────────────── */
-  const countsById = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const id of fishIds) m.set(id, (m.get(id) ?? 0) + 1);
-    return m;
-  }, [fishIds]);
-
-  const [slots, setSlots] = useState<Slot[]>([]);
-  const [appearingKeys, setAppearingKeys] = useState<string[]>([]);
-  const [hoverKey, setHoverKey] = useState<string | null>(null);
-
+  /* ======== 4) 슬롯 배치 ======== */
   useEffect(() => {
     setSlots((prev) => {
       const next: Slot[] = [];
-      for (let i = 0; i < fishIds.length; i++) {
-        const id = fishIds[i] as string;
-        if (!id) continue;
-
+      for (let i = 0; i < fishes.length; i++) {
+        const id = fishes[i]!.id;
         const key = `${id}-${i}`;
         const found = prev.find((s) => s.key === key);
-        if (found) {
-          next.push(found);
-        } else {
-          const fish = FISH_BY_ID[id];
-          const [minY, maxY] = fish?.swimY ?? [10, 90];
+        if (found) next.push(found);
+        else {
+          const ent = entityMap[id];
+          const swim = (ent?.swim_y as any) ?? [30, 70];
+          const minY = Number(swim?.[0] ?? 30);
+          const maxY = Number(swim?.[1] ?? 70);
           const safeMinY = clamp(minY, 0, 100);
           const safeMaxY = clamp(maxY, 0, 100);
           const topPct = clamp(randInRange(safeMinY, safeMaxY), 0, 100);
-
-          const size = fish?.size ?? 1;
-          const sidePad = Math.min(8 + size * 2, 12);
+          const sizeMul = Number(ent?.size ?? 1);
+          const sidePad = Math.min(8 + sizeMul * 2, 12);
           const leftPct = clamp(randInRange(sidePad, 100 - sidePad), 0, 100);
-
           next.push({ key, id, leftPct, topPct });
         }
       }
       return next;
     });
-  }, [fishIds]);
+  }, [fishes, entityMap]);
 
   useEffect(() => {
-    if (fishIds.length === 0) return;
-    const lastKey = `${fishIds[fishIds.length - 1]}-${fishIds.length - 1}`;
+    if (fishes.length === 0) return;
+    const lastKey = `${fishes.at(-1)!.id}-${fishes.length - 1}`;
     setAppearingKeys((p) => [...p, lastKey]);
     const t = setTimeout(
       () => setAppearingKeys((p) => p.filter((k) => k !== lastKey)),
       900
     );
     return () => clearTimeout(t);
-  }, [fishIds]);
+  }, [fishes.length]);
 
-  /* ── 컨테이너 스케일 계산 ───────────────────────────── */
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [containerScale, setContainerScale] = useState(1); // 기준 800px
-
-  useEffect(() => {
-    if (!fitToContainer) return;
-    const el = containerRef.current;
-    if (!el) return;
-
-    const ro = new ResizeObserver((entries) => {
-      const rect = entries[0]?.contentRect;
-      if (!rect) return;
-      const width = rect.width;
-      const scale = Math.max(0.8, Math.min(2.0, width / 800));
-      setContainerScale(scale);
-    });
-
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [fitToContainer]);
-
-  /* ── 드래그 (롱프레스 없이 즉시 시작) ─────────────────── */
-  const [dragKey, setDragKey] = useState<string | null>(null);
-  const dragOffsetRef = useRef<{ ox: number; oy: number }>({ ox: 0, oy: 0 });
-
+  /* ======== 5) 드래그(로컬) ======== */
   const getPointerPct = (evt: MouseEvent | TouchEvent) => {
     const el = containerRef.current;
     if (!el) return { xPct: 0, yPct: 0 };
     const rect = el.getBoundingClientRect();
-
     let clientX: number, clientY: number;
     if ("touches" in evt) {
       const t = evt.touches[0] ?? evt.changedTouches[0];
@@ -346,27 +297,23 @@ export default function AquariumBox({
       clientX = (evt as MouseEvent).clientX;
       clientY = (evt as MouseEvent).clientY;
     }
-
     const x = clamp(((clientX - rect.left) / rect.width) * 100, 0, 100);
     const y = clamp(((clientY - rect.top) / rect.height) * 100, 0, 100);
     return { xPct: x, yPct: y };
   };
-
   const startDrag = (
     key: string,
     e: React.MouseEvent | React.TouchEvent,
     slot: Slot
   ) => {
-    if (readOnly) return;
     setDragKey(key);
     const native = e.nativeEvent as any as MouseEvent | TouchEvent;
     const { xPct, yPct } = getPointerPct(native);
     dragOffsetRef.current = { ox: xPct - slot.leftPct, oy: yPct - slot.topPct };
   };
-
   const handleMoveWhileDrag = (evt: MouseEvent | TouchEvent) => {
     if (!dragKey) return;
-    if ("touches" in evt) evt.preventDefault(); // 모바일 스크롤 방지
+    if ("touches" in evt) evt.preventDefault();
     const { xPct, yPct } = getPointerPct(evt);
     const { ox, oy } = dragOffsetRef.current;
     const nx = clamp(xPct - ox, 0, 100);
@@ -377,19 +324,15 @@ export default function AquariumBox({
       )
     );
   };
-
   const endDrag = () => setDragKey(null);
-
   useEffect(() => {
     const onMove = (e: MouseEvent | TouchEvent) => handleMoveWhileDrag(e);
     const onUp = () => endDrag();
-
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
-    window.addEventListener("touchmove", onMove, { passive: false });
+    window.addEventListener("touchmove", onMove as any, { passive: false });
     window.addEventListener("touchend", onUp);
     window.addEventListener("touchcancel", onUp);
-
     return () => {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
@@ -399,52 +342,26 @@ export default function AquariumBox({
     };
   }, [dragKey]);
 
-  /* ── 로딩 화면(물고기 데이터) ───────────────────────── */
-  if (isLoading) {
-    return (
-      <div className="w-full">
-        <div
-          className="relative rounded-xl overflow-hidden mx-auto"
-          style={{ height: "73vh", width: "min(100%, calc(73vh * 1.5))" }}
-        >
-          <div className="absolute inset-0 bg-slate-200 dark:bg-zinc-800 animate-pulse" />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="px-4 py-2 rounded-lg bg-white/70 text-slate-700 font-medium shadow">
-              {loadingText ?? "🫧 어항 준비중 …"}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+  /* ======== render ======== */
   const showBgSkeleton = themeLoading || !bgUrl || !bgReady;
 
   return (
     <div className="w-full">
-      {/* 드래그 시 애니메이션 일시정지용 전역 스타일 */}
       <style>{`.drag-pause * { animation-play-state: paused !important; }`}</style>
 
-      {/* 1536×1024 (3:2) 비율, 높이 75vh */}
       <div
         ref={containerRef}
-        className={`relative rounded-xl overflow-hidden will-change-transform transform-gpu mx-auto  ${
+        className={cn(
+          "relative rounded-xl overflow-hidden will-change-transform transform-gpu mx-auto",
           dragKey ? "cursor-grabbing select-none" : ""
-        }`}
+        )}
         style={{ height: "74vh", width: "min(100%, calc(85vw ))" }}
       >
-        {/* 좌상단 상세보기 버튼 (판매 후 콜백으로 새로고침) */}
-        {showDetailButton && (
-          <div className="absolute left-2 top-2 z-20">
-            <AquariumDetailButton onChanged={refreshFromDB} />
-          </div>
-        )}
-
-        {/* 배경 이미지 */}
+        {/* 배경 */}
         {bgUrl && (
           <img
             src={bgUrl}
-            alt={themeTitle ?? ""}
+            alt=""
             className="absolute inset-0 w-full h-full object-cover z-0"
             onLoad={() => setBgReady(true)}
             onError={(e) => {
@@ -459,59 +376,71 @@ export default function AquariumBox({
             }}
           />
         )}
-
-        {/* 이미지 로딩 전 스켈레톤 */}
         {showBgSkeleton && (
-          <div className="absolute inset-0 bg-slate-200 dark:bg-zinc-800 animate-pulse" />
+          <div className="absolute inset-0 bg-slate-200 dark:bg-zinc-800 animate-pulse z-0" />
         )}
 
-        {/* 물고기/이펙트 레이어 */}
-        <div
-          className={` 
-            readOnly ? "absolute inset-0 pointer-events-none" 
-          }`}
-        >
-          {slots.map((slot) => {
-            const fish = FISH_BY_ID[slot.id];
-            if (!fish) return null;
-            const isAppearing = appearingKeys.includes(slot.key);
-            const isHovered = hoverKey === slot.key;
-            const isDragging = dragKey === slot.key;
-
-            // 즉시 드래그 시작 (모달 오픈 로직 제거)
-            const eventProps = {
-              onMouseDown: (e: React.MouseEvent) =>
-                startDrag(slot.key, e, slot),
-              onTouchStart: (e: React.TouchEvent) =>
-                startDrag(slot.key, e, slot),
-              onMouseUp: () => endDrag(),
-              onTouchEnd: () => endDrag(),
-            };
-
-            return (
-              <div
-                key={slot.key}
-                {...eventProps}
-                onMouseEnter={() => setHoverKey(slot.key)}
-                onMouseLeave={() => setHoverKey(null)}
-                className={`${
-                  isDragging ? "drag-pause cursor-grabbing" : "cursor-pointer"
-                }`}
-                style={{ touchAction: "none" }}
-              >
-                {isAppearing && (
-                  <SpawnBurst leftPct={slot.leftPct} topPct={slot.topPct} />
-                )}
-                <FishSprite
-                  fish={fish}
-                  overridePos={{ leftPct: slot.leftPct, topPct: slot.topPct }}
-                  popIn={isAppearing}
-                  isHovered={isHovered || isDragging}
-                  containerScale={fitToContainer ? containerScale : 1}
-                />
+        {/* 물고기 레이어 */}
+        <div className="absolute inset-0">
+          {loading ? (
+            <div className="absolute inset-0 grid place-items-center">
+              <div className="px-3 py-1.5 rounded-md bg-white/80 border shadow text-sm">
+                어항 청소하는 중...🫧
               </div>
-            );
-          })}
+            </div>
+          ) : (
+            fishes.map((f, i) => {
+              const slot = slots[i] ?? {
+                key: `${f.id}-${i}`,
+                id: f.id,
+                leftPct: 50,
+                topPct: 50,
+              };
+              const isAppearing = appearingKeys.includes(slot.key);
+              const isHovered = hoverKey === slot.key;
+              const isDragging = dragKey === slot.key;
+
+              const ev = {
+                onMouseDown: (e: React.MouseEvent) =>
+                  startDrag(slot.key, e, slot),
+                onTouchStart: (e: React.TouchEvent) =>
+                  startDrag(slot.key, e, slot),
+                onMouseUp: () => endDrag(),
+                onTouchEnd: () => endDrag(),
+                onMouseEnter: () => setHoverKey(slot.key),
+                onMouseLeave: () => setHoverKey(null),
+              };
+
+              return (
+                <div
+                  key={slot.key}
+                  {...ev}
+                  className={cn(
+                    isDragging ? "drag-pause cursor-grabbing" : "cursor-pointer"
+                  )}
+                  style={{ touchAction: "none" }}
+                >
+                  <FishSprite
+                    fish={
+                      {
+                        id: f.id,
+                        labelKo: f.labelKo,
+                        image: f.image, // ✅ 규칙 경로 사용
+                        rarity: f.rarity ?? undefined,
+                        size: f.size ?? undefined,
+                        swimY: (f.swimY as any) ?? undefined,
+                        isMovable: f.isMovable ?? undefined,
+                      } as any
+                    }
+                    overridePos={{ leftPct: slot.leftPct, topPct: slot.topPct }}
+                    popIn={isAppearing}
+                    isHovered={isHovered || isDragging}
+                    containerScale={fitToContainer ? containerScale : 1}
+                  />
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
     </div>

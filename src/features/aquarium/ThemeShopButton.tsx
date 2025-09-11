@@ -1,4 +1,3 @@
-// src/features/shop/ThemeShopButton.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -17,13 +16,12 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-  SelectValue,
-} from "@/components/ui/select";
+
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
+import { Label } from "@/components/ui/label";
+import { emitAquariumUpdated } from "./aquarium";
+
 import { useCoupleContext } from "@/contexts/CoupleContext";
 
 type ThemeRow = { id: number; title: string; price: number };
@@ -32,15 +30,18 @@ function imageUrlFromTitle(title: string) {
   return `/aquarium/themes/${encodeURIComponent(title)}.png`;
 }
 
-// 기본 테마(수중 정원)
+// 기본 테마
 const BASE_THEME_ID = 12;
 const BASE_THEME_TITLE = "수중 정원";
 
 type FilterKind = "all" | "owned" | "unowned";
 
 export default function ThemeShopButton({
+  tankNo,
   className = "",
 }: {
+  /** ✅ 현재 어항 번호(필수) */
+  tankNo: number;
   className?: string;
 }) {
   const { couple } = useCoupleContext();
@@ -50,20 +51,26 @@ export default function ThemeShopButton({
 
   const [loading, setLoading] = useState(false);
   const [themes, setThemes] = useState<ThemeRow[]>([]);
-  const [currentThemeId, setCurrentThemeId] = useState<number | null>(null);
 
+  /** ✅ 현재 어항의 theme_id / title */
+  const [currentThemeId, setCurrentThemeId] = useState<number | null>(null);
+  const [tankTitle, setTankTitle] = useState<string>("");
+
+  /** 보유 테마 */
   const [ownedIds, setOwnedIds] = useState<number[]>([]);
   const ownedSet = useMemo(() => new Set(ownedIds), [ownedIds]);
 
+  /** ✅ 라디오 그룹 필터 */
   const [filter, setFilter] = useState<FilterKind>("all");
+
   const [busyBuyId, setBusyBuyId] = useState<number | null>(null);
   const [busyApplyId, setBusyApplyId] = useState<number | null>(null);
 
   // 모달 열릴 때 데이터 적재
   useEffect(() => {
     if (!open) return;
-
     let cancelled = false;
+
     (async () => {
       try {
         setLoading(true);
@@ -77,16 +84,26 @@ export default function ThemeShopButton({
         const all = (themesRes.data ?? []) as ThemeRow[];
         if (!cancelled) setThemes(all);
 
-        // 2) 현재 테마
-        if (coupleId) {
-          const curRes = await supabase
-            .from("couple_aquarium")
-            .select("theme_id")
+        // 2) 현재 어항의 theme / title
+        if (coupleId && tankNo != null) {
+          const curTankRes = await supabase
+            .from("aquarium_tanks")
+            .select("theme_id,title")
             .eq("couple_id", coupleId)
+            .eq("tank_no", tankNo)
             .maybeSingle();
-          if (!cancelled) setCurrentThemeId(curRes.data?.theme_id ?? null);
+
+          if (!cancelled) {
+            setCurrentThemeId(
+              (curTankRes.data?.theme_id as number | null) ?? null
+            );
+            setTankTitle(curTankRes.data?.title ?? `어항 ${tankNo}`);
+          }
         } else {
-          if (!cancelled) setCurrentThemeId(null);
+          if (!cancelled) {
+            setCurrentThemeId(null);
+            setTankTitle(`어항 ${tankNo}`);
+          }
         }
 
         // 3) 보유 목록 (+기본 테마 보장)
@@ -129,7 +146,7 @@ export default function ThemeShopButton({
     return () => {
       cancelled = true;
     };
-  }, [open, coupleId]);
+  }, [open, coupleId, tankNo]);
 
   const sorted = useMemo(
     () => themes.slice().sort((a, b) => a.price - b.price),
@@ -142,32 +159,45 @@ export default function ThemeShopButton({
     return sorted;
   }, [filter, sorted, ownedSet]);
 
-  // 구매 (RPC)
-  async function buyTheme(t: ThemeRow) {
-    if (!coupleId) {
-      toast.error("커플 정보를 찾을 수 없어요.");
-      return;
-    }
-    if (t.id === BASE_THEME_ID || t.title === BASE_THEME_TITLE) {
-      toast.message("기본 테마는 구매할 수 없어요.");
-      return;
-    }
+  /** ✅ 구매(RPC): 결제(미보유시에만) + 현재 어항에 즉시 적용 */
+  async function buyThemeAndApply(t: ThemeRow) {
+    if (!coupleId) return toast.error("커플 정보를 찾을 수 없어요.");
+    if (tankNo == null) return toast.error("어항 번호를 확인할 수 없어요.");
+    const isBase = t.id === BASE_THEME_ID || t.title === BASE_THEME_TITLE;
+
     try {
       setBusyBuyId(t.id);
-      const { data, error } = await supabase.rpc("buy_aquarium_theme", {
+      const { data, error } = await supabase.rpc("buy_theme_and_apply", {
         p_theme_id: t.id,
+        p_tank_no: tankNo,
       });
       if (error) throw error;
 
-      const r = (data?.[0] ?? {}) as { purchased?: boolean; price?: number };
-      if (r.purchased) {
-        toast.success(
-          `구매 완료! -${(r.price ?? t.price).toLocaleString()} 골드`
-        );
-        setOwnedIds((prev) => (prev.includes(t.id) ? prev : [...prev, t.id]));
-      } else {
-        toast.message("이미 보유한 테마예요.");
+      const ok = data?.ok === true;
+      if (!ok) {
+        const reason = data?.error ?? "unknown";
+        if (reason === "not_enough_gold")
+          return toast.warning("골드가 부족합니다!");
+        if (reason === "tank_not_found")
+          return toast.error("해당 어항을 찾을 수 없어요.");
+        if (reason === "theme_not_found")
+          return toast.error("테마 정보를 찾을 수 없어요.");
+        return toast.error(`구매 실패: ${String(reason)}`);
       }
+
+      const purchased = !!data?.purchased;
+      const price = Number(data?.price ?? t.price);
+
+      if (purchased && !isBase) {
+        toast.success(`구매 완료! -${price.toLocaleString()} 골드`);
+      } else {
+        toast.message("이미 보유한 테마예요. 적용만 했어요.");
+      }
+
+      // 로컬 상태 반영
+      setOwnedIds((prev) => (prev.includes(t.id) ? prev : [...prev, t.id]));
+      setCurrentThemeId(t.id);
+      window.dispatchEvent(new CustomEvent("aquarium-theme-applied"));
     } catch (e: any) {
       toast.error(e?.message ?? "구매에 실패했어요");
     } finally {
@@ -175,34 +205,28 @@ export default function ThemeShopButton({
     }
   }
 
-  // 적용 (보유한 테마만, 현재 적용되어 있으면 불가)
+  /** ✅ 적용(보유 테마만): 현재 어항(tankNo)의 theme_id 업데이트 */
   async function applyTheme(t: ThemeRow) {
-    if (!coupleId) {
-      toast.error("커플 정보를 찾을 수 없어요.");
-      return;
-    }
-    if (!ownedSet.has(t.id)) {
-      toast.error("보유하지 않은 테마는 적용할 수 없어요.");
-      return;
-    }
-    if (currentThemeId === t.id) {
-      toast.message("이미 적용된 테마예요.");
-      return;
-    }
+    if (!coupleId) return toast.error("커플 정보를 찾을 수 없어요.");
+    if (!ownedSet.has(t.id))
+      return toast.error("보유하지 않은 테마는 적용할 수 없어요.");
+    if (currentThemeId === t.id) return toast.message("이미 적용된 테마예요.");
+
     try {
       setBusyApplyId(t.id);
       const up = await supabase
-        .from("couple_aquarium")
-        .upsert([{ couple_id: coupleId, theme_id: t.id }], {
-          onConflict: "couple_id",
-        })
+        .from("aquarium_tanks")
+        .update({ theme_id: t.id })
+        .eq("couple_id", coupleId)
+        .eq("tank_no", tankNo)
         .select("theme_id")
         .single();
 
       if (up.error) throw up.error;
       setCurrentThemeId(t.id);
       toast.success("테마를 적용했어요!");
-      window.dispatchEvent(new CustomEvent("aquarium-theme-applied"));
+
+      emitAquariumUpdated(coupleId, tankNo);
     } catch (e: any) {
       toast.error(e?.message ?? "테마 적용에 실패했어요");
     } finally {
@@ -231,27 +255,39 @@ export default function ThemeShopButton({
         <DialogHeader className="px-6 pt-6">
           <DialogTitle>아쿠아리움 테마 상점</DialogTitle>
           <DialogDescription>
-            테마를 살펴보고 마음에 드는 스타일을 골드로 구매하거나 적용하세요.
+            테마를 살펴보고 마음에 드는 스타일을 골드로 구매하거나 현재 어항에
+            적용하세요.
           </DialogDescription>
+
+          {/* ✅ 현재 어항 정보 */}
+          <div className="mt-2 text-sm text-muted-foreground">
+            현재 어항 <b className="text-foreground">#{tankNo}</b> —{" "}
+            <span>{tankTitle}</span>
+          </div>
         </DialogHeader>
 
-        {/* 필터 바 */}
+        {/* ✅ 라디오 그룹 필터 */}
         <div className="px-6 pb-3">
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex items-center justify-end gap-4">
             <span className="text-sm text-muted-foreground">보기</span>
-            <Select
+            <RadioGroup
+              className="flex items-center gap-4"
               value={filter}
               onValueChange={(v: FilterKind) => setFilter(v)}
             >
-              <SelectTrigger className="w-36">
-                <SelectValue placeholder="전체" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">전체</SelectItem>
-                <SelectItem value="owned">보유</SelectItem>
-                <SelectItem value="unowned">미보유</SelectItem>
-              </SelectContent>
-            </Select>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem id="f-all" value="all" />
+                <Label htmlFor="f-all">전체</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem id="f-owned" value="owned" />
+                <Label htmlFor="f-owned">보유</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem id="f-unowned" value="unowned" />
+                <Label htmlFor="f-unowned">미보유</Label>
+              </div>
+            </RadioGroup>
           </div>
         </div>
 
@@ -338,11 +374,10 @@ export default function ThemeShopButton({
                             {t.price.toLocaleString()}
                           </div>
 
-                          {/* 액션: 보유 → 적용 / 미보유 → 구매 */}
+                          {/* 액션: 보유 → 적용 / 미보유 → 구매+적용 */}
                           {isOwned ? (
                             <Button
                               size="sm"
-                              // ✅ 적용 버튼은 sky-800 기본색 + 호버 이펙트
                               variant="default"
                               className={[
                                 "text-white border-0",
@@ -364,7 +399,6 @@ export default function ThemeShopButton({
                           ) : (
                             <Button
                               size="sm"
-                              // ✅ 구매 버튼도 부드러운 호버/프레스 이펙트
                               variant={isBase ? "secondary" : "default"}
                               className={[
                                 !isBase
@@ -375,7 +409,7 @@ export default function ThemeShopButton({
                                 isBase ? "cursor-not-allowed opacity-70" : "",
                               ].join(" ")}
                               disabled={isBase || busyBuyId === t.id}
-                              onClick={() => buyTheme(t)}
+                              onClick={() => buyThemeAndApply(t)}
                             >
                               {isBase
                                 ? "구매 불가"

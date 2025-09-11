@@ -1,8 +1,9 @@
 // src/features/aquarium/rollFish.ts
-import { FISHES, type FishRarity } from "../aquarium/fishes";
+import supabase from "@/lib/supabase";
 import type { IngredientTitle } from "@/features/kitchen/type";
 
-/** 등급/실패 가중치 (합 100) */
+export type FishRarity = "일반" | "희귀" | "에픽" | "전설";
+
 const ROLL_TABLE: Array<{ key: "FAIL" | FishRarity; weight: number }> = [
   { key: "FAIL", weight: 40 },
   { key: "일반", weight: 40 },
@@ -11,48 +12,47 @@ const ROLL_TABLE: Array<{ key: "FAIL" | FishRarity; weight: number }> = [
   { key: "전설", weight: 1 },
 ];
 
-export type RollResult =
-  | { ok: true; rarity: FishRarity; fishId: string }
-  | { ok: false }; // 실패
-
-/** 내부: 가중치 추첨 (기본 Math.random 사용) */
 function rollKey(): "FAIL" | FishRarity {
-  const total = ROLL_TABLE.reduce((s, r) => s + r.weight, 0); // 100
-  let t = Math.random() * total; // [0, 100)
-  for (const row of ROLL_TABLE) {
-    if (t < row.weight) return row.key;
-    t -= row.weight;
+  const total = ROLL_TABLE.reduce((s, r) => s + r.weight, 0);
+  let t = Math.random() * total;
+  for (const r of ROLL_TABLE) {
+    if (t < r.weight) return r.key;
+    t -= r.weight;
   }
   return "FAIL";
 }
 
-/**
- * 재료를 넣고 확률 기반으로 물고기 id를 뽑는다.
- * 1) 등급/실패 가챠 → 2) 등급+재료 풀에서 랜덤 선택 → 3) id 반환
- *    ※ 선택 등급에 재료 매칭 풀이 없으면 무조건 실패 처리
- *    ※ 야생 포함 고정, RNG는 Math.random 고정
- */
-export function rollFishByIngredient(ingredient: IngredientTitle): RollResult {
+export type RollResult =
+  | { ok: true; rarity: FishRarity; fishId: string }
+  | { ok: false };
+
+export async function rollFishByIngredient(
+  ingredient: IngredientTitle
+): Promise<RollResult> {
   const key = rollKey();
   if (key === "FAIL") return { ok: false };
 
-  // (선택된 등급) + (재료 일치) + (야생 포함 고정)
-  const pool = FISHES.filter(
-    (f) =>
-      f.rarity === key && f.ingredient === ingredient /* includeWild 고정 */
-  );
+  // DB에서 후보 풀 조회 (필요한 칼럼만)
+  const { data, error } = await supabase
+    .from("aquarium_entities")
+    .select("id")
+    .eq("rarity", key) // enum/텍스트 컬럼에 맞춰 그대로 비교
+    .eq("food", ingredient);
 
-  if (pool.length === 0) return { ok: false };
+  if (error) {
+    console.warn("rollFish query error:", error);
+    return { ok: false };
+  }
+  if (!data || data.length === 0) return { ok: false };
 
-  const idx = Math.floor(Math.random() * pool.length);
-  const pick = pool[idx]!; // pool.length > 0 이므로 안전
+  const pick = data[Math.floor(Math.random() * data.length)];
   return { ok: true, rarity: key, fishId: pick.id };
 }
 
 /** id만 원하면 이 헬퍼 사용 (실패 시 null) */
-export function rollFishIdByIngredient(
+export async function rollFishIdByIngredient(
   ingredient: IngredientTitle
-): string | null {
-  const res = rollFishByIngredient(ingredient);
-  return res.ok ? res.fishId : null;
+): Promise<string | null> {
+  const r = await rollFishByIngredient(ingredient);
+  return r.ok ? r.fishId : null;
 }

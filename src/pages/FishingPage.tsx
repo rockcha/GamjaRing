@@ -1,3 +1,4 @@
+// src/app/games/fishing/FishingPage.tsx
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
@@ -10,8 +11,10 @@ import { sendUserNotification } from "@/utils/notification/sendUserNotification"
 
 import IngredientFishingSection from "@/features/fishing/IngredientFishingSection";
 import MarineDexModal from "@/features/aquarium/MarineDexModal";
-import { rollFishByIngredient } from "@/features/fishing/rollfish";
-import { FISHES } from "@/features/aquarium/fishes";
+import {
+  rollFishByIngredient,
+  type RollResult,
+} from "@/features/fishing/rollfish";
 import { consumeIngredients } from "@/features/kitchen/kitchenApi";
 import type { IngredientTitle } from "@/features/kitchen/type";
 
@@ -23,12 +26,12 @@ import ResultDialog, {
 
 /* =======================
    DnD MIME
-   ======================= */
+======================= */
 const DND_MIME = "application/x-ingredient";
 
 /* =======================
    시간대별 배경
-   ======================= */
+======================= */
 type TimeSlot = "morning" | "noon" | "evening" | "night";
 function getTimeSlot(d: Date): TimeSlot {
   const hh = d.getHours();
@@ -66,7 +69,7 @@ function slotLabel(slot: TimeSlot) {
 
 /* =======================
    (개그 전용) 낚시 중 멘트
-   ======================= */
+======================= */
 export const FUNNY_LINES = [
   "문어는 비밀번호를 여덟 자리로 고집합니다. 팔이 책임져요.",
   "게는 직진하라 했더니 옆으로 직진했습니다.",
@@ -112,7 +115,7 @@ export const FUNNY_LINES = [
 
 /* =======================
    낚시중 오버레이 (랜덤 GIF)
-   ======================= */
+======================= */
 function FishingOverlay({ visible }: { visible: boolean }) {
   const [text, setText] = useState<string>("바다의 농담을 건지는 중…");
   const [gifIndex, setGifIndex] = useState<number>(1);
@@ -121,7 +124,7 @@ function FishingOverlay({ visible }: { visible: boolean }) {
     if (!visible) return;
     const pickLine = () =>
       setText(FUNNY_LINES[Math.floor(Math.random() * FUNNY_LINES.length)]!);
-    const pickGif = () => setGifIndex(1 + Math.floor(Math.random() * 16)); // 1~10
+    const pickGif = () => setGifIndex(1 + Math.floor(Math.random() * 16));
     pickGif();
     pickLine();
     const id = window.setInterval(pickLine, 3000);
@@ -154,8 +157,31 @@ function FishingOverlay({ visible }: { visible: boolean }) {
 }
 
 /* =======================
-   메인 페이지 (모바일 고려 제거)
-   ======================= */
+   유틸: 이미지 경로/희귀도 변환
+======================= */
+const rarityMap: Record<string, Rarity> = {
+  일반: "일반",
+  희귀: "희귀",
+  에픽: "에픽",
+  전설: "전설",
+  레어: "희귀",
+};
+function rarityDir(r: Rarity) {
+  return r === "일반"
+    ? "common"
+    : r === "희귀"
+    ? "rare"
+    : r === "에픽"
+    ? "epic"
+    : "legend";
+}
+function buildImageSrc(id: string, rarity: Rarity) {
+  return `/aquarium/${rarityDir(rarity)}/${id}.png`;
+}
+
+/* =======================
+   메인 페이지
+======================= */
 export default function FishingPage() {
   const [slot, setSlot] = useState<TimeSlot>(() => getTimeSlot(new Date()));
   useEffect(() => {
@@ -178,21 +204,12 @@ export default function FishingPage() {
   // 드롭 하이라이트
   const [dragOver, setDragOver] = useState(false);
 
-  // rarity 문자열 정규화 (데이터에 '레어'가 올 수도 있으므로)
-  const rarityMap: Record<string, Rarity> = {
-    일반: "일반",
-    희귀: "희귀",
-    에픽: "에픽",
-    전설: "전설",
-    레어: "희귀",
-  };
-
   // ⏱️ 희귀도별 대기시간
   function durationByRarity(rarity: Rarity | null): number {
     if (rarity === "전설") return 30_000;
     if (rarity === "에픽") return 15_000;
     if (rarity === "희귀") return 8_000;
-    return 5_000; // 그 외/실패 최소 5초
+    return 5_000;
   }
 
   // 배경 드롭 핸들러들
@@ -236,7 +253,7 @@ export default function FishingPage() {
       setOverlay(true);
 
       try {
-        // 재료 차감
+        // 1) 재료 차감
         if (coupleId) {
           await consumeIngredients(coupleId, { [payload.title]: 1 } as Record<
             IngredientTitle,
@@ -249,71 +266,78 @@ export default function FishingPage() {
           );
         }
 
-        // 결과 계산
-        const res = rollFishByIngredient(payload.title);
+        // 2) 결과 계산 (DB 기반 roll)
+        const res: RollResult = await rollFishByIngredient(payload.title);
+
         let computed: DialogFishResult;
-        let fishObj: (typeof FISHES)[number] | null = null;
+        let fishRow: {
+          id: string;
+          name_ko: string;
+          rarity: Rarity;
+          image: string;
+        } | null = null;
 
         if (!res.ok) {
           computed = { type: "FAIL" };
         } else {
-          fishObj = FISHES.find((f) => f.id === res.fishId) || null;
-          if (!fishObj) {
+          // DB에서 최소 컬럼만 조회 (image는 규칙으로 생성)
+          const { data: row, error: qErr } = await supabase
+            .from("aquarium_entities")
+            .select("id, name_ko, rarity")
+            .eq("id", res.fishId)
+            .maybeSingle();
+
+          if (qErr || !row) {
             computed = { type: "FAIL" };
           } else {
-            const normalizedRarity: Rarity =
-              rarityMap[fishObj.rarity] ?? "일반";
+            const rar: Rarity = rarityMap[row.rarity as string] ?? "일반";
+            const img = buildImageSrc(row.id, rar);
+            fishRow = {
+              id: row.id,
+              name_ko: row.name_ko ?? row.id,
+              rarity: rar,
+              image: img,
+            };
             computed = {
               type: "SUCCESS",
-              id: fishObj.id,
-              labelKo: fishObj.labelKo,
-              image: fishObj.image,
-              rarity: normalizedRarity,
+              id: fishRow.id,
+              labelKo: fishRow.name_ko,
+              image: fishRow.image || "/aquarium/fish_placeholder.png",
+              rarity: fishRow.rarity,
               ingredient: `${payload.emoji} ${payload.title}`,
             };
           }
         }
 
-        // 희귀도에 따른 대기시간만 유지
+        // 3) 희귀도에 따른 대기시간 유지
         const rarityForDelay: Rarity | null =
           computed.type === "SUCCESS" ? computed.rarity : null;
         const durationMs = durationByRarity(rarityForDelay);
-
-        // 대기
         await new Promise((r) => setTimeout(r, durationMs));
 
-        // 오버레이 종료 + 결과 표시
+        // 4) 오버레이 종료 + 결과 표시
         setOverlay(false);
         setResult(computed);
         setResultOpen(true);
 
-        // 저장/알림은 성공시에만 처리
-        if (computed.type === "SUCCESS" && fishObj && coupleId) {
+        // 5) 저장/알림은 성공시에만 처리 — 테이블에 직접 INSERT
+        if (computed.type === "SUCCESS" && fishRow && coupleId) {
           try {
-            const { data: row, error: selErr } = await supabase
-              .from("couple_aquarium")
-              .select("aquarium_fishes")
-              .eq("couple_id", coupleId)
-              .maybeSingle();
-            if (selErr) throw selErr;
+            const { error: insErr } = await supabase
+              .from("couple_aquarium_inventory")
+              .insert({
+                couple_id: coupleId,
+                entity_id: fishRow.id,
+                tank_no: 1, // 기본 1번 어항
+              })
+              .select("id")
+              .single();
 
-            const prevList: string[] = Array.isArray(row?.aquarium_fishes)
-              ? (row!.aquarium_fishes as string[])
-              : [];
-            const nextFishIds = [...prevList, fishObj.id];
-
-            const { error: upErr } = await supabase
-              .from("couple_aquarium")
-              .upsert(
-                { couple_id: coupleId, aquarium_fishes: nextFishIds },
-                { onConflict: "couple_id" }
-              );
-
-            if (upErr) {
-              toast.warning(`결과 저장 실패: ${upErr.message}`);
+            if (insErr) {
+              toast.warning(`인벤토리 반영 실패: ${insErr.message}`);
             } else {
               try {
-                const itemName = fishObj.labelKo.toString();
+                const itemName = fishRow.name_ko.toString();
                 if (user?.id && user?.partner_id) {
                   await sendUserNotification({
                     senderId: user.id,
@@ -328,8 +352,8 @@ export default function FishingPage() {
               await fetchCoupleData?.();
             }
           } catch (e: any) {
-            console.warn("낚시 결과 저장 중 오류:", e?.message ?? e);
-            toast.warning("결과 저장 중 오류가 발생했어요.");
+            console.warn("인벤토리 저장 중 오류:", e?.message ?? e);
+            toast.warning("인벤토리 저장 중 오류가 발생했어요.");
           }
         }
       } catch (err: any) {
@@ -340,9 +364,6 @@ export default function FishingPage() {
     [overlay, coupleId, fetchCoupleData, user?.id, user?.partner_id]
   );
 
-  /* =======================
-     레이아웃 (모바일용 컴포넌트/버튼 모두 제거)
-     ======================= */
   return (
     <div
       className={cn(
