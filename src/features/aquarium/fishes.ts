@@ -909,7 +909,7 @@ export const FISHES: FishInfo[] = [
     image: img("희귀", "krabby_patty_secret.png"),
     size: 1.4,
     ingredient: "케찹",
-    swimY: [80, 94],
+    swimY: [40, 68],
     isWild: false,
     isMovable: true,
     rarity: "희귀",

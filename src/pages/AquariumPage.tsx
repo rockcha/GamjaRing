@@ -237,7 +237,7 @@ export default function AquariumPage() {
     //    기본 64px, md: 72px, lg: 80px
     <div
       className="[--hdr:64px] md:[--hdr:72px] lg:[--hdr:80px] min-h-[calc(100svh-var(--hdr))] w-full
-                   flex flex-col bg-sky-200"
+                   flex flex-col "
     >
       <div className="w-full space-y-3 flex-1 ">
         {/* ✅ 어항 + 상단 고정 오버레이 (로딩/비로딩 공통) */}
@@ -262,16 +262,7 @@ export default function AquariumPage() {
             </span>
             <ThemeShopButton />
             {/* 도감 버튼 (작게) */}
-            <MarineDexModal
-              gold={gold}
-              onBuy={handleBuy}
-              // @ts-expect-error: 내부에서 Button에 스프레드해주는 형태로 적용
-              buttonProps={{
-                size: "sm",
-                className:
-                  "h-7 px-2.5 rounded-full bg-white/85 hover:bg-white text-slate-700 border border-slate-200 shadow-sm backdrop-blur-sm",
-              }}
-            />
+            <MarineDexModal />
           </div>
         </div>
       </div>

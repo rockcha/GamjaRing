@@ -12,7 +12,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { NotebookPen, LogIn, LogOut, Loader2 } from "lucide-react";
+import { NotebookPen, LogIn, LogOut, Loader2, Settings } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 import { useNavigate } from "react-router-dom";
 import UserMemoModal from "@/features/memo/UserFloatingMemo";
@@ -193,7 +193,6 @@ export default function CoupleBalanceCard({
       setPopoverOpen(false);
       await logout();
       window.location.replace("/login");
-      // 완전한 이동(히스토리 정리)
     } catch (e) {
       console.error("로그아웃 실패:", e);
       setAuthBusy(false);
@@ -310,10 +309,25 @@ export default function CoupleBalanceCard({
             <span className="text-sm font-medium">메모장</span>
           </button>
 
+          {/* 👉 추가: 마이페이지 (/setting) */}
+          <button
+            className={cn(
+              "mt-1 w-full flex items-center gap-2 rounded-md px-2 py-2 transition",
+              "hover:bg-neutral-50"
+            )}
+            onClick={() => {
+              setPopoverOpen(false);
+              navigate("/settings");
+            }}
+          >
+            <Settings className="h-4 w-4" />
+            <span className="text-sm font-medium">마이페이지</span>
+          </button>
+
           {/* 구분선 */}
           <div className="my-2 h-px bg-neutral-200" />
 
-          {/* 로그인 / 로그아웃 (하단 고정 느낌) */}
+          {/* 로그인 / 로그아웃 */}
           {isLoggedIn ? (
             <button
               className={cn(
@@ -347,7 +361,7 @@ export default function CoupleBalanceCard({
         </PopoverContent>
       </Popover>
 
-      {/* 메모장 모달 (모달 컴포넌트는 open/onOpenChange props를 지원해야 합니다) */}
+      {/* 메모장 모달 */}
       <UserMemoModal open={memoOpen} onOpenChange={setMemoOpen} />
     </>
   );

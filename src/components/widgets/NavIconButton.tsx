@@ -4,17 +4,15 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-type IconType = React.ComponentType<React.SVGProps<SVGSVGElement>>;
-
-/** 툴팁 없이 아이콘 + 텍스트가 기본 노출되는 단순 네비 아이템 */
+/** 이모지 + 라벨 단순 네비 버튼 (가로 배치/랩핑용) */
 export function NavItem({
-  icon: Icon,
+  emoji,
   label,
   disabled = false,
   onClick,
   className,
 }: {
-  icon: IconType;
+  emoji: string; // ✅ 이모지로 받기
   label: string;
   disabled?: boolean;
   onClick?: () => void;
@@ -27,15 +25,16 @@ export function NavItem({
       disabled={disabled}
       aria-disabled={disabled}
       className={cn(
-        "w-full inline-flex items-center rounded-md px-2.5 py-2 text-sm",
-        "bg-white/70 border hover:bg-amber-200 transition",
-        "text-slate-800 border-slate-200",
-        "disabled:opacity-50 disabled:cursor-not-allowed",
+        "inline-flex h-9 shrink-0 items-center rounded-lg px-2.5 py-1.5",
+        "text-xs sm:text-[13px] bg-white/70 border text-slate-800 border-slate-200",
+        "hover:bg-amber-100 transition disabled:opacity-50 disabled:cursor-not-allowed",
         className
       )}
     >
-      <Icon className="h-4 w-4" aria-hidden />
-      <span className="ml-2 truncate">{label}</span>
+      <span aria-hidden className="text-base sm:text-[18px] leading-none">
+        {emoji}
+      </span>
+      <span className="ml-1.5 sm:ml-2 truncate">{label}</span>
     </button>
   );
 }

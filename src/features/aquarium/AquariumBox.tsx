@@ -431,7 +431,7 @@ export default function AquariumBox({
         className={`relative rounded-xl overflow-hidden will-change-transform transform-gpu mx-auto  ${
           dragKey ? "cursor-grabbing select-none" : ""
         }`}
-        style={{ height: "75vh", width: "min(100%, calc(75vh * 1.5))" }}
+        style={{ height: "74vh", width: "min(100%, calc(85vw ))" }}
       >
         {/* 좌상단 상세보기 버튼 (판매 후 콜백으로 새로고침) */}
         {showDetailButton && (
