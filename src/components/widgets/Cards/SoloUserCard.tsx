@@ -23,10 +23,10 @@ import {
   CalendarClock,
   MessageSquareHeart,
   Music4,
-  FlaskConical,
+  Wheat,
+  Fish,
 } from "lucide-react";
 
-// ✅ Carousel
 import {
   Carousel,
   CarouselContent,
@@ -36,15 +36,21 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 
-// 이미지 named import
-import { section1, section2, section3, section4 } from "@/assets/solo";
+import {
+  section1,
+  section2,
+  section3,
+  section4,
+  section5,
+} from "@/assets/solo";
 
 type Props = { className?: string };
+
+const AUTOPLAY_MS = 4000;
 
 export default function SoloUserCard({ className }: Props) {
   const { user } = useUser();
   const { isCoupled, requestCouple } = useCoupleContext();
-
   if (isCoupled) return null;
 
   const [dlgOpen, setDlgOpen] = useState(false);
@@ -54,20 +60,34 @@ export default function SoloUserCard({ className }: Props) {
   const isLoggedIn = !!user?.id;
   const canSend = isLoggedIn && nickname.trim().length > 0 && !sending;
 
-  // Carousel index
+  // Carousel index + API
   const [api, setApi] = useState<CarouselApi | null>(null);
   const [activeIdx, setActiveIdx] = useState(0);
+  const [isHovering, setIsHovering] = useState(false);
+
   useEffect(() => {
     if (!api) return;
+
     const onSelect = () => setActiveIdx(api.selectedScrollSnap());
     onSelect();
     api.on("select", onSelect);
+
+    // ❌ return () => api.off("select", onSelect);
+    // ✅ cleanup은 'void'를 반환하도록 감싸주세요
     return () => {
       api.off("select", onSelect);
     };
   }, [api]);
 
-  // 순서: 질문답변 → 공유 캘린더 → 타로-노래 → 실험실
+  // 🔁 자동 넘김 (+ 호버 시 일시정지)
+  useEffect(() => {
+    if (!api) return;
+    if (isHovering) return; // hover 시 정지
+    const id = setInterval(() => api.scrollNext(), AUTOPLAY_MS);
+    return () => clearInterval(id);
+  }, [api, isHovering]);
+
+  // Features
   const features = useMemo(
     () => [
       {
@@ -83,16 +103,22 @@ export default function SoloUserCard({ className }: Props) {
         img: section2,
       },
       {
-        icon: <Music4 className="h-5 w-5" />,
-        title: "타로-노래",
-        desc: "오늘의 기분과 어울리는 타로 & 추천 음악",
+        icon: <Wheat className="h-5 w-5" />,
+        title: "농장과 조리실",
+        desc: "재료를 모으고 조리실에서 요리를 완성",
         img: section3,
       },
       {
-        icon: <FlaskConical className="h-5 w-5" />,
-        title: "실험실",
-        desc: "여러가지 컨텐츠를 실험중이예요",
+        icon: <Fish className="h-5 w-5" />,
+        title: "낚시와 수족관 관리",
+        desc: "낚시하고 수족관에서 생물을 수집·관리",
         img: section4,
+      },
+      {
+        icon: <Music4 className="h-5 w-5" />,
+        title: "그 밖의 여러 기능들",
+        desc: "간단한 미니게임과 타로카드, 날씨 열람, 우리만의 음악까지",
+        img: section5,
       },
     ],
     []
@@ -108,9 +134,9 @@ export default function SoloUserCard({ className }: Props) {
     setSending(true);
     try {
       const { error } = await requestCouple(nickname.trim());
-      if (error)
+      if (error) {
         toast.error(error.message || "요청 전송 중 오류가 발생했습니다.");
-      else {
+      } else {
         toast.success("커플 요청을 전송했습니다 💌");
         setDlgOpen(false);
         setNickname("");
@@ -123,69 +149,98 @@ export default function SoloUserCard({ className }: Props) {
   return (
     <>
       <Card className={cn("bg-white overflow-hidden", className)}>
-        <CardHeader className="pb-3 text-center">
+        <CardHeader className="pb-1 text-center">
           <CardTitle className="text-xl text-[#3d2b1f] flex items-center justify-center gap-2">
-            <HeartHandshake className="h-5 w-5 text-amber-600" />
             감자링에 오신 걸 환영합니다!
           </CardTitle>
-          <p className="text-sm text-[#6b533b] mt-2">
-            커플이 되어야 모든 기능을 사용할 수 있어요.
-          </p>
+
+          {/* 시선집중 CTA */}
+          <div className="mt-4 flex justify-center">
+            <Button
+              size="sm"
+              onClick={handleOpen}
+              title="커플 신청하기"
+              aria-label="커플 신청하기"
+              className={cn(
+                // base
+                "relative group gap-2 rounded-full px-5 py-2.5",
+                "font-semibold text-white transition-all duration-200",
+                // gradient + ring + shadow
+                "bg-gradient-to-r from-amber-500 via-rose-400 to-pink-500",
+                "shadow-lg shadow-amber-500/30 ring-1 ring-white/20",
+                // hover / active
+                "hover:scale-[1.03] active:scale-[0.98]",
+                "hover:shadow-rose-400/40",
+                // subtle glow (radial) using ::before
+                "overflow-hidden",
+                "before:absolute before:inset-[-25%]",
+                "before:content-[''] before:rounded-[50%]",
+                "before:bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.35),transparent_60%)]",
+                "before:opacity-0 group-hover:before:opacity-100 before:transition-opacity before:duration-300 before:blur-xl"
+              )}
+            >
+              <HeartHandshake className="h-4 w-4 drop-shadow" />
+              커플 신청하기
+            </Button>
+          </div>
         </CardHeader>
 
-        <CardContent className="pt-4">
-          <Carousel
-            setApi={setApi}
-            className="w-full max-w-2xl md:max-w-3xl mx-auto"
-            opts={{ loop: true, align: "start" }}
+        <CardContent className="pt-3">
+          <div
+            onMouseEnter={() => setIsHovering(true)}
+            onMouseLeave={() => setIsHovering(false)}
+            className="rounded-xl"
           >
-            <CarouselContent>
-              {features.map((f, i) => (
-                <CarouselItem key={i} className="">
-                  <div className="rounded-2xl border p-3">
-                    {/* 대표 이미지 (크게 + hover scale) */}
-                    <div className="relative overflow-hidden rounded-xl bg-neutral-100">
-                      {/* 더 크게 보이도록 4/3 비율 */}
-                      <div className="aspect-[4/3]">
-                        <img
-                          src={f.img}
-                          alt={f.title}
-                          className="
-                            w-full h-full object-cover
-                            transition-transform duration-300 ease-out transform-gpu
-                            hover:scale-[1.03]
-                          "
-                          loading="lazy"
-                          decoding="async"
-                        />
-                      </div>
-
-                      {/* 인덱스 배지 */}
-                      <div className="absolute bottom-2 left-2">
-                        <span className="px-2 py-1 text-xs rounded-md bg-white/90 border">
-                          {i + 1} / {features.length}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* 타이틀 & 설명 */}
-                    <div className="mt-3 flex items-start gap-2">
-                      <div className="shrink-0 text-amber-700">{f.icon}</div>
-                      <div className="min-w-0">
-                        <div className="text-[15px] font-semibold text-[#3d2b1f]">
-                          {f.title}
+            <Carousel
+              setApi={setApi}
+              className="w-full max-w-2xl md:max-w-3xl mx-auto"
+              opts={{ loop: true, align: "start" }}
+            >
+              <CarouselContent>
+                {features.map((f, i) => (
+                  <CarouselItem key={i}>
+                    <div className="rounded-2xl border p-3 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+                      {/* 아이콘/제목/설명 */}
+                      <div className="mb-3 flex items-start gap-2">
+                        <div className="shrink-0 text-amber-700">{f.icon}</div>
+                        <div className="min-w-0">
+                          <div className="text-[15px] font-semibold text-[#3d2b1f]">
+                            {f.title}
+                          </div>
+                          <p className="text-xs text-[#6b533b] mt-1">
+                            {f.desc}
+                          </p>
                         </div>
-                        <p className="text-xs text-[#6b533b] mt-1">{f.desc}</p>
+                      </div>
+
+                      {/* 대표 이미지 */}
+                      <div className="relative overflow-hidden rounded-xl bg-neutral-100">
+                        <div className="aspect-[16/9]">
+                          <img
+                            src={f.img}
+                            alt={f.title}
+                            className="w-full h-full object-cover transition-transform duration-300 ease-out transform-gpu hover:scale-[1.03]"
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        </div>
+
+                        {/* 인덱스 배지 */}
+                        <div className="absolute bottom-2 left-2">
+                          <span className="px-2 py-1 text-xs rounded-md bg-white/90 border">
+                            {i + 1} / {features.length}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </CarouselItem>
-              ))}
-            </CarouselContent>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
 
-            <CarouselPrevious className="left-1 top-1/2 -translate-y-1/2 hover:cursor-pointer" />
-            <CarouselNext className="right-1 top-1/2 -translate-y-1/2 hover:cursor-pointer" />
-          </Carousel>
+              <CarouselPrevious className="left-1 top-1/2 -translate-y-1/2 hover:cursor-pointer" />
+              <CarouselNext className="right-1 top-1/2 -translate-y-1/2 hover:cursor-pointer" />
+            </Carousel>
+          </div>
 
           {/* 도트 인디케이터 */}
           <div className="mt-3 flex justify-center gap-1.5">
@@ -200,29 +255,14 @@ export default function SoloUserCard({ className }: Props) {
             ))}
           </div>
 
+          {/* 하단 TIP */}
           <p className="mt-4 text-xs text-[#6b533b] text-center">
-            TIP: 커플 연결 후 질문·답변, 캘린더, 타로-노래, 실험실 등 모든
-            기능이 활성화됩니다.
+            TIP: 커플이 되어야 모든 기능을 이용할 수 있어요.
           </p>
         </CardContent>
       </Card>
 
-      {/* 좌하단 플로팅 CTA */}
-      <Button
-        size="sm"
-        onClick={handleOpen}
-        className={cn(
-          "fixed bottom-4 left-4 z-50 gap-2 rounded-full shadow-lg hover:cursor-pointer",
-          "px-4 py-2"
-        )}
-        title="커플 신청하기"
-        aria-label="커플 신청하기"
-      >
-        <HeartHandshake className="h-4 w-4" />
-        커플 신청하기
-      </Button>
-
-      {/* 닉네임 입력 다이얼로그 */}
+      {/* 닉네임 다이얼로그 */}
       <Dialog
         open={dlgOpen}
         onOpenChange={(v) => {

@@ -85,7 +85,9 @@ export default function AquariumPreviewCard({
 
           {/* 탱크 선택 (옵션 라벨은 각 탱크 title) */}
           <label className="text-xs flex items-center gap-2">
-            <span className="text-muted-foreground hidden sm:inline">탱크</span>
+            <span className="text-muted-foreground hidden sm:inline">
+              수족관 선택
+            </span>
             <select
               className="border rounded-md px-2 py-1 text-sm bg-background"
               disabled={loading || !tanks.length}
@@ -105,7 +107,7 @@ export default function AquariumPreviewCard({
       </CardHeader>
 
       <CardContent className="p-1">
-        <AquariumBox tankNo={selectedTankNo} fitToContainer heightVh={60} />
+        <AquariumBox tankNo={selectedTankNo} fitToContainer heightVh={40} />
       </CardContent>
     </Card>
   );

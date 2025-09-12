@@ -17,6 +17,7 @@ import DaysTogetherBadge from "../DaysTogetherBadge";
 import TodayQuestionInline from "../widgets/Cards/TodayQuestionCard";
 
 import { NavItem } from "../widgets/NavIconButton";
+import OddEvenShortcut from "@/features/mini_games/OddEvenShortcut";
 
 // ------------------------------ 네비 정의/가드 ------------------------------
 type SimpleNavDef = {
@@ -101,6 +102,11 @@ const RightCluster = memo(function RightCluster() {
         className="h-6 my-auto hidden md:block"
       />
       <WeatherCard />
+      <Separator
+        orientation="vertical"
+        className="h-6 my-auto hidden md:block"
+      />
+      <OddEvenShortcut />
       <CoupleBalanceCard showDelta dense />
     </div>
   );

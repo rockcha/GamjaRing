@@ -1,10 +1,8 @@
 // src/components/NoticeCenterFloatingButton.tsx
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-
-// shadcn/ui
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,24 +11,22 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-
 import supabase from "@/lib/supabase";
 
-// ===== 타입 =====
+// ===== 타입 & 유틸 =====
 export type NoticeType = "update" | "event" | "caution";
 export type Notice = {
   id: string;
   title: string;
   type: NoticeType;
   content: string;
-  created_at: string;
+  created_at: string; // ISO
 };
 
-// ===== type → 스타일/이모지 매핑 =====
+// type → 스타일/이모지 매핑
 const TYPE_META: Record<
   NoticeType,
   { label: string; emoji: string; cardClass: string }
@@ -71,7 +67,6 @@ function stripTitle(raw: string) {
   let s = (raw ?? "").trim();
   // 앞쪽 이모지/아이콘 제거
   s = s.replace(/^(?:[🚨⚠️ℹ️✅⭐️📢🔥✨🛠️🎉]+)\s*/u, "");
-  // 괄호/대괄호로 둘러싼 카테고리 + 콜론/대시 제거
   const wordGroup = STRIP_WORDS.join("|");
   const re = new RegExp(
     `^(?:[\\[\\(【\\(]?\\s*(?:${wordGroup})\\s*[\\]\\)】\\)]?\\s*[:：-]?\\s*)+`,
@@ -91,7 +86,8 @@ const isToday = (iso: string) => {
   return fmtDate(iso) === today;
 };
 
-// ===== Floating Notice Center =====
+/* ... (NoticeType/Notice/TYPE_META/stripTitle/fmtDate/isToday 기존 그대로) ... */
+
 export default function NoticeCenterFloatingButton({
   className,
   buttonEmoji = "📢",
@@ -107,6 +103,7 @@ export default function NoticeCenterFloatingButton({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<Notice[]>([]);
+  const [hasUnread, setHasUnread] = useState(false);
 
   const ordered = useMemo(
     () =>
@@ -117,9 +114,39 @@ export default function NoticeCenterFloatingButton({
     [items]
   );
 
+  // ✅ 안 읽은 공지 여부 체크
+  const checkUnread = useCallback(async () => {
+    const { data, error } = await supabase.rpc("devnote_has_unread");
+    if (!error) setHasUnread(!!data);
+  }, []);
+
+  // 진입 시 1회 + 주기적 체크(옵션)
+  useEffect(() => {
+    void checkUnread();
+    const t = setInterval(checkUnread, 60_000); // 1분 간격
+    return () => clearInterval(t);
+  }, [checkUnread]);
+
+  // 공지 insert 실시간 반영(옵션: Realtime 켜져 있어야 함)
+  useEffect(() => {
+    const ch = supabase
+      .channel("notices-insert")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notices" },
+        () => void checkUnread()
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [checkUnread]);
+
+  // 모달 열면: 목록 불러오고 → 전부 읽음 처리
   useEffect(() => {
     if (!open) return;
     let mounted = true;
+
     (async () => {
       try {
         setLoading(true);
@@ -132,6 +159,10 @@ export default function NoticeCenterFloatingButton({
         if (error) throw error;
         if (!mounted) return;
         setItems((data as Notice[]) ?? []);
+
+        // ✅ 지금까지의 공지를 전부 읽음 처리
+        await supabase.rpc("devnote_mark_all_read");
+        setHasUnread(false);
       } catch (e: any) {
         console.error(e);
         setError(e?.message ?? "공지 불러오기에 실패했습니다.");
@@ -139,6 +170,7 @@ export default function NoticeCenterFloatingButton({
         setLoading(false);
       }
     })();
+
     return () => {
       mounted = false;
     };
@@ -146,17 +178,27 @@ export default function NoticeCenterFloatingButton({
 
   return (
     <div className={cn("fixed left-3 bottom-3 z-50", className)}>
-      {/* Floating button */}
-      <Button
-        size="sm"
-        variant="default"
-        onClick={() => setOpen(true)}
-        className="rounded-2xl shadow-lg px-3 py-2 h-auto text-sm gap-2 bg-popover text-popover-foreground border border-border hover:bg-accent hover:text-accent-foreground"
-        aria-label={buttonLabel}
-      >
-        <span aria-hidden>{buttonEmoji}</span>
-        <span>{buttonLabel}</span>
-      </Button>
+      {/* 버튼 + 빨간 점 */}
+      <div className="relative">
+        <Button
+          size="sm"
+          variant="default"
+          onClick={() => setOpen(true)}
+          className="rounded-2xl shadow-lg px-3 py-2 h-auto text-sm gap-2 bg-popover text-popover-foreground border border-border hover:bg-accent hover:text-accent-foreground"
+          aria-label={buttonLabel}
+        >
+          <span aria-hidden>{buttonEmoji}</span>
+          <span>{buttonLabel}</span>
+        </Button>
+
+        {/* 🔴 우상단 점 + 깜빡임 */}
+        {hasUnread && (
+          <>
+            <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
+            <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-500 opacity-70 animate-ping" />
+          </>
+        )}
+      </div>
 
       {/* Modal */}
       <Dialog open={open} onOpenChange={setOpen}>
@@ -165,32 +207,23 @@ export default function NoticeCenterFloatingButton({
             <DialogTitle className="flex items-center gap-2">
               <span>📢 개발자 공지사항</span>
             </DialogTitle>
-
-            {/* 설명 + 이모지 전설(같은 줄) */}
             <DialogDescription>
               <span className="text-[13px]">최신순으로 공지입니다.</span>
               <span className="mx-2 text-muted-foreground">|</span>
               <span className="text-[12px] text-muted-foreground inline-flex items-center gap-3 flex-wrap align-middle">
                 <span>
-                  {TYPE_META.update.emoji}
-                  <span className="mx-1">:</span>
-                  {TYPE_META.update.label}
+                  🛠️<span className="mx-1">:</span>업데이트
                 </span>
                 <span>
-                  {TYPE_META.event.emoji}
-                  <span className="mx-1">:</span>
-                  {TYPE_META.event.label}
+                  🎉<span className="mx-1">:</span>이벤트
                 </span>
                 <span>
-                  {TYPE_META.caution.emoji}
-                  <span className="mx-1">:</span>
-                  {TYPE_META.caution.label}
+                  ⚠️<span className="mx-1">:</span>주의
                 </span>
               </span>
             </DialogDescription>
           </DialogHeader>
 
-          {/* Body */}
           {loading ? (
             <div className="space-y-4">
               <Skeleton className="h-6 w-40" />
@@ -209,8 +242,8 @@ export default function NoticeCenterFloatingButton({
             <ScrollArea className="max-h-[60vh] pr-3">
               <ul className="space-y-4">
                 {ordered.map((n) => {
-                  const meta = TYPE_META[n.type];
                   const cleanTitle = stripTitle(n.title);
+                  const meta = TYPE_META[n.type];
                   return (
                     <li
                       key={n.id}
@@ -222,7 +255,6 @@ export default function NoticeCenterFloatingButton({
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <div className="mt-1 flex items-center justify-between gap-2 w-full">
-                            {/* 이모지 + 정제된 제목 (타입 라벨 제거) */}
                             <h3 className="text-base font-semibold leading-snug break-words flex items-center gap-2 min-w-0">
                               <span className="mr-1" aria-hidden>
                                 {meta.emoji}
@@ -234,14 +266,12 @@ export default function NoticeCenterFloatingButton({
                                 </span>
                               )}
                             </h3>
-
                             <span className="text-xs text-muted-foreground whitespace-nowrap">
                               {fmtDate(n.created_at)}
                             </span>
                           </div>
                         </div>
                       </div>
-
                       <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap break-words">
                         {n.content}
                       </p>
@@ -256,10 +286,3 @@ export default function NoticeCenterFloatingButton({
     </div>
   );
 }
-
-/* ============================
-   사용 예시
-   ----------------------------
-   <NoticeCenterFloatingButton className="left-4 bottom-4" />
-   or 레이아웃 컴포넌트에 추가
-============================ */

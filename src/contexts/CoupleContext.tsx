@@ -135,7 +135,7 @@ export const CoupleProvider = ({ children }: { children: React.ReactNode }) => {
           user1_id: user.id,
           user2_id: partnerId,
           started_at: today,
-          gold: 200,
+          gold: 500,
         })
         .select("*")
         .single();
@@ -160,21 +160,35 @@ export const CoupleProvider = ({ children }: { children: React.ReactNode }) => {
       if (u1.error) return { error: new Error(u1.error.message) };
       if (u2.error) return { error: new Error(u2.error.message) };
 
-      // couple_points 생성
-      await createCouplePoints(coupleId);
+      /* ✅ 커플 연결 직후 기본 어항 1개 생성 (theme_id=12) */
+      {
+        const { error: aqErr } = await supabase
+          .from("aquarium_tanks")
+          .upsert({
+            couple_id: coupleId,
+            tank_no: 1,
+            title: "우리의 첫 어항",
+            theme_id: 12,
+          })
+          .select("id")
+          .single();
+        if (aqErr)
+          console.error("[CoupleContext] aquarium_theme insert error:", aqErr);
+      }
 
+      // couple_points 생성
+      // await createCouplePoints(coupleId);
       // 상태 동기화
       await fetchUser();
       setCouple(coupleRow as Couple);
       await fetchCoupleData();
-
       // 새 커플 감자 개수 초기 로드
       try {
         const n = await getPotatoCount(coupleId);
         setPotatoCount(n);
       } catch (e) {
         console.error("[CoupleContext] initial getPotatoCount error:", e);
-        setPotatoCount(0);
+        setPotatoCount(5);
       }
 
       return { error: null, couple: coupleRow as Couple };

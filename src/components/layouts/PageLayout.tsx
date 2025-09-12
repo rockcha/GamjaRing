@@ -38,7 +38,7 @@ export default function PageLayout({
     "/kitchen": "조리실",
     "/potatoField": "농장",
     "/fishing": "바다낚시",
-    "/odd_even": "홀짝게임",
+    "/oddEven": "홀짝게임",
   };
 
   // 경로 정규화(뒤 슬래시 제거)

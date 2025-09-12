@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import supabase from "@/lib/supabase";
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { toast } from "sonner";
@@ -27,15 +34,15 @@ type InvRow = {
 };
 
 type RenderFish = {
-  slotKey: string; // ★ 안정 키 (InvRow.id)
+  slotKey: string;
   entityId: string;
   labelKo: string;
   image: string;
-  rarity?: string | null;
-  size?: number | null;
+  rarity: string | null;
+  size: number | null;
   swimY: [number, number];
-  isMovable?: boolean | null;
-  price?: number | null;
+  isMovable: boolean | null;
+  price: number | null;
 };
 
 /* ---------- utils ---------- */
@@ -116,11 +123,38 @@ function isEntityRow(x: unknown): x is EntityRow {
   return !!x && typeof (x as any).id === "string";
 }
 
+/* ======== 핵심 추가: 시드 랜덤 기본 슬롯 생성기 ======== */
+function seededRand(seedStr: string) {
+  // 간단한 FNV-1a + 섞기
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < seedStr.length; i++) {
+    h ^= seedStr.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return () => {
+    h += 0x6d2b79f5;
+    let r = Math.imul(h ^ (h >>> 15), 1 | h);
+    r ^= r + Math.imul(r ^ (r >>> 7), 61 | h);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function seededInitialSlot(
+  key: string,
+  swimY: [number, number],
+  size: number | null
+): Slot {
+  const rnd = seededRand(key);
+  const [minY, maxY] = swimY;
+  const topPct = clamp(minY + (maxY - minY) * rnd(), 0, 100);
+  const sidePad = Math.min(8 + Number(size ?? 1) * 2, 12);
+  const leftPct = clamp(sidePad + (100 - sidePad * 2) * rnd(), 0, 100);
+  return { leftPct, topPct };
+}
+
 export default function AquariumBox({
   tankNo,
   fitToContainer = false,
-
-  heightVh = 74,
+  heightVh = 80,
 }: {
   tankNo: number;
   fitToContainer?: boolean;
@@ -315,36 +349,35 @@ export default function AquariumBox({
   const fishes = useMemo<RenderFish[]>(() => {
     return invRows
       .map((row) => {
+        if (!row.id) return null; // ★ id 없으면 스킵(안정 키 보장)
         const ent = entityMap[row.entity_id];
         if (!ent) return null;
+
         return {
-          slotKey: row.id!, // ★ 안정 키 (DB row id)
+          slotKey: row.id, // 안정 키
           entityId: ent.id,
           labelKo: ent.name_ko ?? ent.id,
           image: entityImagePath(ent),
-          rarity: ent.rarity ?? undefined,
-          size: ent.size ?? undefined,
+          rarity: ent.rarity ?? null,
+          size: ent.size ?? null,
           swimY: ent.swim_y,
-          isMovable: ent.is_movable ?? undefined,
-          price: ent.price ?? undefined,
+          isMovable: ent.is_movable ?? null,
+          price: ent.price ?? null,
         };
       })
       .filter((x): x is RenderFish => x !== null);
   }, [invRows, entityMap]);
 
-  /* ======== 4) 초기 랜덤 배치 ======== */
-  useEffect(() => {
+  /* ======== 4) 초기 랜덤 배치 (페인트 전 확정) ======== */
+  useLayoutEffect(() => {
+    if (fishes.length === 0) return;
     setSlots((prev) => {
       const next: Record<string, Slot> = { ...prev };
 
-      // 새로 추가된 물고기에 한해서 좌표 생성
+      // 새 물고기만 시드 랜덤 좌표 생성
       for (const f of fishes) {
         if (!next[f.slotKey]) {
-          const [minY, maxY] = f.swimY;
-          const topPct = clamp(randInRange(minY, maxY), 0, 100);
-          const sidePad = Math.min(8 + Number(f.size ?? 1) * 2, 12);
-          const leftPct = clamp(randInRange(sidePad, 100 - sidePad), 0, 100);
-          next[f.slotKey] = { leftPct, topPct };
+          next[f.slotKey] = seededInitialSlot(f.slotKey, f.swimY, f.size);
         }
       }
 
@@ -352,7 +385,6 @@ export default function AquariumBox({
       for (const k in next) {
         if (!fishes.some((ff) => ff.slotKey === k)) delete next[k];
       }
-
       return next;
     });
   }, [fishes]);
@@ -395,7 +427,7 @@ export default function AquariumBox({
       const stageRect = stageEl.getBoundingClientRect();
       const wrapRect = wrapEl.getBoundingClientRect();
 
-      // ★ 현재 화면상 위치(애니메이션 포함)를 %로 환산
+      // 현재 보이는 위치(애니메이션 포함)를 %로 환산
       const effLeftPct = clamp(
         ((wrapRect.left - stageRect.left) / stageRect.width) * 100,
         0,
@@ -407,24 +439,24 @@ export default function AquariumBox({
         100
       );
 
-      // ★ 1) 먼저 슬롯을 "현재 보이는 위치"로 고정 (jump 방지 핵심)
+      // 1) 먼저 슬롯을 "현재 보이는 위치"로 고정 (jump 방지 핵심)
       setSlots((prev) => ({
         ...prev,
         [slotKey]: { leftPct: effLeftPct, topPct: effTopPct },
       }));
 
-      // ★ 2) 오프셋 계산 (마우스와 물고기 사이 간격)
+      // 2) 오프셋 계산 (마우스와 물고기 사이 간격)
       dragOffsetRef.current = {
         dxPct: effLeftPct - mx,
         dyPct: effTopPct - my,
       };
     } else {
       // 폴백
-      const s = slots[slotKey] ?? { leftPct: 50, topPct: 50 };
+      const s = slots[slotKey] ?? seededInitialSlot(slotKey, [30, 70], null);
       dragOffsetRef.current = { dxPct: s.leftPct - mx, dyPct: s.topPct - my };
     }
 
-    // ★ 3) 마지막에 드래그 시작 플래그 설정(애니메이션 off는 이 다음 렌더에서)
+    // 3) 드래그 시작
     dragKeyRef.current = slotKey;
     setDragKey(slotKey);
 
@@ -434,7 +466,7 @@ export default function AquariumBox({
   };
 
   const onMove = (e: MouseEvent) => {
-    const activeKey = dragKeyRef.current; // ★
+    const activeKey = dragKeyRef.current;
     if (!activeKey) return;
 
     const { leftPct: mx, topPct: my } = pctFromClient(e.clientX, e.clientY);
@@ -448,10 +480,9 @@ export default function AquariumBox({
     }));
   };
 
-  // onUp
   const onUp = () => {
     document.body.style.cursor = "";
-    dragKeyRef.current = null; // ★ ref 초기화
+    dragKeyRef.current = null;
     setDragKey(null);
     window.removeEventListener("mousemove", onMove);
   };
@@ -484,7 +515,7 @@ export default function AquariumBox({
           <img
             src={bgUrl}
             alt=""
-            className="absolute inset-0 w-full h-full object-cover z-0 select-none pointer-events-none"
+            className="absolute inset-0 w-full h-full  object-cover z-0 select-none pointer-events-none"
             onLoad={() => setBgReady(true)}
             onError={(e) => {
               const el = e.currentTarget as HTMLImageElement;
@@ -522,7 +553,11 @@ export default function AquariumBox({
             </div>
           ) : (
             fishes.map((f) => {
-              const slot = slots[f.slotKey] ?? { leftPct: 50, topPct: 50 };
+              // ★ 슬롯이 없으면 "즉시" 시드 랜덤 기본 슬롯 사용 → 50/50 프레임 노출 방지
+              const slot =
+                slots[f.slotKey] ??
+                seededInitialSlot(f.slotKey, f.swimY, f.size);
+
               const isAppearing = appearingKeys.includes(f.slotKey);
               const isDragging = dragKey === f.slotKey;
 

@@ -159,20 +159,34 @@ export default function AquariumPage() {
 
   return (
     <div className="min-h-[calc(100svh-64px)] w-full flex flex-col">
-      <div className="relative w-full mt-4">
-        {/* 본체: 현재 탱크만 렌더 */}
-        {cur ? (
-          <AquariumBox tankNo={cur.tank_no} />
-        ) : (
+      <div className="relative mx-20 mt-4 border-2">
+        <div
+          aria-hidden
+          className="absolute inset-0 z-0 pointer-events-none flex items-center justify-center"
+        >
           <div
-            className="relative rounded-xl overflow-hidden mx-auto grid place-items-center"
+            className="relative rounded-xl overflow-hidden"
             style={frameStyle}
           >
-            <div className="px-3 py-1.5 rounded-md bg-white/80 border shadow text-sm">
-              어항을 불러오는 중…
-            </div>
+            <div className="h-full w-full bg-[url('/aquarium/aquarium_background.png')] bg-cover bg-center" />
           </div>
-        )}
+        </div>
+
+        {/* 본체: 현재 탱크만 렌더 (앞쪽에 오게 z-10) */}
+        <div className="relative z-10">
+          {cur ? (
+            <AquariumBox tankNo={cur.tank_no} />
+          ) : (
+            <div
+              className="relative rounded-xl overflow-hidden mx-auto grid place-items-center"
+              style={frameStyle}
+            >
+              <div className="px-3 py-1.5 rounded-md bg-white/80 border shadow text-sm">
+                어항을 불러오는 중…
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* 📌 AquariumBox 기준 오버레이 (어항 위에 정확히 겹침) */}
         <div

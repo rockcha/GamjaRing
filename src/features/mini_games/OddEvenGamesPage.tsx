@@ -14,15 +14,7 @@ import { useUser } from "@/contexts/UserContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-  Play,
-  X,
-  ShieldAlert,
-  Loader2,
-  Trophy,
-  RotateCcw,
-  RefreshCcw,
-} from "lucide-react";
+import { Play, X, ShieldAlert, Loader2, Trophy, RotateCcw } from "lucide-react";
 
 type Session = {
   id: string;
@@ -44,10 +36,7 @@ export default function OddEvenGamesPage() {
 
   const [session, setSession] = useState<Session | null>(null);
 
-  /** 커플 세션이 진행 중이지만, 내 로컬 세션은 없는 경우(=연인이 플레이 중으로 간주) */
-  const [blockedByPartner, setBlockedByPartner] = useState(false);
-
-  /** RPC / 시작 버튼 등 공통 체크 로딩 */
+  /** 공통 로딩(시작/체크 버튼) */
   const [checking, setChecking] = useState(false);
 
   /* ───────── Betting Modal ───────── */
@@ -89,7 +78,7 @@ export default function OddEvenGamesPage() {
     }
   }, [session?.reward]);
 
-  /* ───────── Sync: Gold + Session ───────── */
+  /* ───────── Sync: Gold ───────── */
   const refreshGold = useCallback(async () => {
     if (!coupleId) return;
     try {
@@ -108,62 +97,36 @@ export default function OddEvenGamesPage() {
     }
   }, [coupleId]);
 
-  /**
-   * 커플 세션 상태를 동기화:
-   * - 세션 있으면 session 채우고 blockedByPartner=false
-   * - 세션 없으면 session=null, blockedByPartner=false
-   * - 세션이 있는데 내 로컬 session이 없을 수 없으므로(백엔드는 커플=1세션), 화면 분기:
-   *   -> 이 컴포넌트에서 "내가 참여 중인 세션"만 session으로 잡음
-   *   -> "세션은 존재하나 내 화면에서 session==null"인 경우는 없음
-   * 실제 차단 로직은 "세션 존재 & 내가 아직 시작 전" 타이밍에서 onClickBet에서 처리.
-   */
+  /* ───────── NEW: Sync Session ───────── */
   const refreshSession = useCallback(async () => {
-    if (!coupleId) {
-      setSession(null);
-      setBlockedByPartner(false);
-      return;
-    }
     try {
-      setChecking(true);
+      // 백엔드에 있는 세션 조회 RPC (예: odd_even_is_playing)
       const { data, error } = await supabase.rpc("odd_even_is_playing");
       if (error) throw error;
 
-      if (data?.is_playing) {
-        const s = data?.session;
-        const newSession: Session = {
-          id: s?.id,
-          bet: Number(s?.bet ?? 0),
-          step: Number(s?.step ?? 1),
-          reward: Number(s?.reward ?? 0),
-        };
-        setSession(newSession);
-
-        // 내가 이미 세션 화면에 들어온 경우(=session 존재)에는 차단 배너 필요 없음
-        setBlockedByPartner(false);
+      if (data?.is_playing && data?.session) {
+        const s = data.session;
+        setSession({
+          id: s.id,
+          bet: Number(s.bet ?? 0),
+          step: Number(s.step ?? 1),
+          reward: Number(s.reward ?? 0),
+        });
       } else {
         setSession(null);
-        setBlockedByPartner(false); // 커플 세션이 없으니 차단 해제
       }
-    } catch {
-      // 조회 실패 시 세션을 알 수 없으니, 과도한 차단을 피하기 위해 해제
+    } catch (e) {
+      console.error(e);
+      // 조회 실패 시 UI가 막히지 않도록 기본값 처리
       setSession(null);
-      setBlockedByPartner(false);
-    } finally {
-      setChecking(false);
     }
-  }, [coupleId]);
+  }, []);
 
+  // 최초 진입 시(새로고침 등) 세션/골드 동기화
   useEffect(() => {
+    void refreshGold();
     void refreshSession();
-  }, [refreshSession]);
-
-  /** 5초마다 커플 세션 상태 폴링 (상대방이 종료하면 자동 해제) */
-  useEffect(() => {
-    const t = setInterval(() => {
-      void refreshSession();
-    }, 5000);
-    return () => clearInterval(t);
-  }, [refreshSession]);
+  }, [refreshGold, refreshSession]);
 
   /* ───────── Betting Flow ───────── */
   const onClickBet = useCallback(async () => {
@@ -173,31 +136,16 @@ export default function OddEvenGamesPage() {
     }
     try {
       setChecking(true);
-      const { data, error } = await supabase.rpc("odd_even_is_playing");
-      if (error) throw error;
-
-      if (data?.is_playing) {
-        const s = data?.session;
-        setBlockedByPartner(true);
-        toast.error(
-          `연인이 지금 플레이 중이에요 (단계 ${s?.step ?? "?"}, 보상 ${Number(
-            s?.reward ?? 0
-          ).toLocaleString("ko-KR")}G)`
-        );
-        await refreshSession();
-        return;
-      }
-
       await refreshGold();
       setBet(100);
       setBetModalOpen(true);
     } catch (e) {
       console.error(e);
-      toast.error("진행 여부 확인에 실패했어요.");
+      toast.error("베팅 준비 중 오류가 발생했어요.");
     } finally {
       setChecking(false);
     }
-  }, [user?.id, coupleId, refreshGold, refreshSession]);
+  }, [user?.id, coupleId, refreshGold]);
 
   const betValid = useMemo(() => {
     if (!gold && gold !== 0) return false;
@@ -214,22 +162,6 @@ export default function OddEvenGamesPage() {
     try {
       setStarting(true);
 
-      // 시작 직전 재확인: 커플 세션 존재 시 시작 차단
-      const pre = await supabase.rpc("odd_even_is_playing");
-      if (pre.error) throw pre.error;
-      if (pre.data?.is_playing) {
-        const s = pre.data?.session;
-        setBlockedByPartner(true);
-        setBetModalOpen(false);
-        toast.error(
-          `연인이 지금 플레이 중이에요 (단계 ${s?.step ?? "?"}, 보상 ${Number(
-            s?.reward ?? 0
-          ).toLocaleString("ko-KR")}G)`
-        );
-        await refreshSession();
-        return;
-      }
-
       const { data, error } = await supabase.rpc("odd_even_start", {
         p_bet: bet,
       });
@@ -245,17 +177,13 @@ export default function OddEvenGamesPage() {
         setBetModalOpen(false);
         setWin(null);
         setLastRoll(null);
-        setBlockedByPartner(false);
         toast.success(
           `게임 시작! 베팅: ${Number(bet).toLocaleString("ko-KR")}G`
         );
       } else {
         const err = data?.error ?? "unknown";
         if (err === "not_enough_gold") toast.error("골드가 부족해요.");
-        else if (err === "already_playing") {
-          setBlockedByPartner(true);
-          toast.error("연인이 지금 플레이 중이에요.");
-        } else if (err === "invalid_bet")
+        else if (err === "invalid_bet")
           toast.error("베팅 금액이 올바르지 않아요.");
         else toast.error("게임 시작에 실패했어요.");
       }
@@ -265,6 +193,7 @@ export default function OddEvenGamesPage() {
     } finally {
       setStarting(false);
       await refreshGold();
+      // 세션도 한번 동기화(백엔드 상태와 UI 일치)
       await refreshSession();
     }
   }, [bet, betValid, refreshGold, refreshSession]);
@@ -338,7 +267,6 @@ export default function OddEvenGamesPage() {
         toast.success("단계 상승! 보상이 2배가 되었습니다.");
       } else {
         toast.error("단계 상승에 실패했어요.");
-        await refreshSession();
       }
     } catch (e) {
       console.error(e);
@@ -346,7 +274,7 @@ export default function OddEvenGamesPage() {
     } finally {
       setGuessing(false);
     }
-  }, [session, win, refreshSession]);
+  }, [session, win]);
 
   const onClaim = useCallback(async () => {
     if (!session || win !== true) return;
@@ -363,7 +291,6 @@ export default function OddEvenGamesPage() {
         );
         setSession(null);
         await refreshGold();
-        await refreshSession();
       } else {
         toast.error("보상 수령에 실패했어요.");
       }
@@ -373,8 +300,9 @@ export default function OddEvenGamesPage() {
     } finally {
       setGuessing(false);
     }
-  }, [session, win, refreshGold, refreshSession]);
+  }, [session, win, refreshGold]);
 
+  /* ▼ 실패 모달 닫기: 세션 + 골드 모두 동기화(원래 화면 복귀) */
   const closeFailModal = useCallback(async () => {
     setResultModalOpen(false);
     setFailedThisRound(false);
@@ -405,33 +333,28 @@ export default function OddEvenGamesPage() {
         "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ring-1",
         session
           ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-          : blockedByPartner
-          ? "bg-amber-50 text-amber-700 ring-amber-200"
-          : "bg-rose-50 text-rose-700 ring-rose-200"
+          : "bg-slate-50 text-slate-700 ring-slate-200"
       )}
       aria-live="polite"
     >
       <span
         className={cn(
           "h-2 w-2 rounded-full",
-          session
-            ? "bg-emerald-500"
-            : blockedByPartner
-            ? "bg-amber-500"
-            : "bg-rose-500"
+          session ? "bg-emerald-500" : "bg-slate-400"
         )}
       />
-      {session
-        ? "진행 중"
-        : blockedByPartner
-        ? "연인이 진행 중"
-        : "진행 중 아님"}
+      {session ? "진행 중" : "대기 중"}
     </span>
   );
 
   /* ───────── Render ───────── */
   return (
-    <div className={cn("min-h-[calc(100dvh-80px)] w-full")}>
+    <div
+      className={cn(
+        "min-h-[calc(100dvh-80px)] w-full",
+        "bg-[radial-gradient(1200px_600px_at_50%_-100px,rgba(253,230,138,0.25),transparent_60%)]"
+      )}
+    >
       <div className="mx-auto w-full max-w-4xl px-4 py-10">
         {/* 헤더 */}
         <header className="mx-auto mb-6 flex max-w-3xl flex-col items-center justify-center gap-3">
@@ -442,33 +365,6 @@ export default function OddEvenGamesPage() {
             베팅하고 홀/짝을 맞춰보세요
           </p>
         </header>
-
-        {/* 차단 배너 (내 세션은 없고, 커플 세션만 존재 → 시작 버튼 막음) */}
-        {!session && blockedByPartner && (
-          <div className="mx-auto mb-6 w-full max-w-3xl rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
-            <div className="flex items-start gap-3">
-              <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-              <div className="flex-1">
-                <div className="font-semibold">
-                  연인이 지금 플레이 중이에요.
-                </div>
-                <div className="mt-0.5 text-sm">
-                  상대가 게임을 종료하거나 보상을 받으면 다시 시작할 수 있어요.
-                </div>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-amber-200 text-amber-700 hover:bg-amber-100"
-                onClick={() => void refreshSession()}
-                disabled={checking}
-              >
-                <RefreshCcw className="mr-1.5 h-4 w-4" />
-                새로고침
-              </Button>
-            </div>
-          </div>
-        )}
 
         {/* 세션 없음 */}
         {!session && (
@@ -482,10 +378,11 @@ export default function OddEvenGamesPage() {
 
             <Button
               onClick={onClickBet}
-              disabled={checking || !coupleId || blockedByPartner}
+              disabled={checking || !coupleId}
               className={cn(
-                "rounded-2xl bg-amber-600 px-8 py-6 text-lg font-bold text-white shadow-sm transition hover:bg-amber-700 disabled:opacity-60",
-                (!coupleId || blockedByPartner) && "cursor-not-allowed"
+                "btn-glow rounded-2xl bg-amber-600 px-8 py-6 text-lg font-bold text-white shadow-sm transition",
+                "hover:scale-[1.02] hover:bg-amber-700 active:scale-[0.99]",
+                !coupleId && "cursor-not-allowed opacity-60"
               )}
             >
               {checking ? (
@@ -519,7 +416,7 @@ export default function OddEvenGamesPage() {
         {session && (
           <section
             className={cn(
-              "mx-auto mt-4 max-w-3xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm transition-colors",
+              "mx-auto mt-4 max-w-3xl rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-8 shadow-sm transition-colors",
               win === true && "flash-success",
               failedThisRound && "flash-fail"
             )}
@@ -570,7 +467,8 @@ export default function OddEvenGamesPage() {
                     disabled={guessing}
                     onClick={() => onGuess("odd")}
                     className={cn(
-                      "rounded-2xl bg-indigo-600 px-8 py-6 text-xl font-extrabold text-white shadow-sm transition hover:bg-indigo-700"
+                      "rounded-2xl bg-indigo-600 px-8 py-6 text-xl font-extrabold text-white shadow-sm transition",
+                      "hover:bg-indigo-700 hover:scale-[1.01] active:scale-[0.99]"
                     )}
                     aria-label="홀 선택 (⚀⚂⚄)"
                   >
@@ -581,7 +479,8 @@ export default function OddEvenGamesPage() {
                     disabled={guessing}
                     onClick={() => onGuess("even")}
                     className={cn(
-                      "rounded-2xl bg-blue-600 px-8 py-6 text-xl font-extrabold text-white shadow-sm transition hover:bg-blue-700"
+                      "rounded-2xl bg-blue-600 px-8 py-6 text-xl font-extrabold text-white shadow-sm transition",
+                      "hover:bg-blue-700 hover:scale-[1.01] active:scale-[0.99]"
                     )}
                     aria-label="짝 선택 (⚁⚃⚅)"
                   >
@@ -811,24 +710,69 @@ export default function OddEvenGamesPage() {
     100% { transform: translateY(0) scale(1); }
   }
 
-  /* 정답 / 오답 플래시 이팩트 */
+  /* ✅ 성공/실패 타격감 강화 (로직 변경 없음) */
   .flash-success {
-    animation: flash-success 800ms ease-out;
+    position: relative; overflow: hidden;
+    animation: success-pulse 900ms ease-out;
   }
+  .flash-success::before {
+    content:""; position:absolute; inset:-2px; pointer-events:none;
+    background: radial-gradient(closest-side, rgba(16,185,129,.18), transparent 60%);
+    animation: success-vignette 700ms ease-out forwards;
+  }
+  .flash-success::after {
+    content:""; position:absolute; left:50%; top:50%; pointer-events:none;
+    width:24px; height:24px; border:4px solid rgba(16,185,129,.85);
+    border-radius:9999px; transform:translate(-50%,-50%) scale(.2);
+    filter: drop-shadow(0 0 12px rgba(16,185,129,.55));
+    animation: success-ring 700ms ease-out forwards;
+  }
+  @keyframes success-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(16,185,129,0); transform: scale(1); }
+    20%  { box-shadow: 0 0 0 16px rgba(16,185,129,.25); transform: scale(1.01); }
+    100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); transform: scale(1); }
+  }
+  @keyframes success-ring {
+    to { transform: translate(-50%,-50%) scale(18); opacity:0; }
+  }
+  @keyframes success-vignette {
+    0% { opacity:0; } 20% { opacity:1; } 100% { opacity:0; }
+  }
+
   .flash-fail {
-    animation: flash-fail 800ms ease-out;
+    position: relative; overflow: hidden;
+    animation: fail-pulse 900ms ease-out, fail-shake 600ms cubic-bezier(.36,.07,.19,.97);
   }
-  @keyframes flash-success {
-    0%   { box-shadow: 0 0 0 0 rgba(16,185,129,0.0); background-color: #ffffff; }
-    15%  { box-shadow: 0 0 0 6px rgba(16,185,129,0.25); background-color: rgba(16,185,129,0.06); }
-    60%  { box-shadow: 0 0 0 0 rgba(16,185,129,0.0); }
-    100% { background-color: #ffffff; }
+  .flash-fail::after {
+    content:""; position:absolute; inset:-2px; pointer-events:none;
+    background: radial-gradient(closest-side, rgba(244,63,94,.20), transparent 60%), rgba(244,63,94,.05);
+    animation: fail-vignette 700ms ease-out forwards;
   }
-  @keyframes flash-fail {
-    0%   { box-shadow: 0 0 0 0 rgba(244,63,94,0.0); background-color: #ffffff; }
-    15%  { box-shadow: 0 0 0 6px rgba(244,63,94,0.25); background-color: rgba(244,63,94,0.06); }
-    60%  { box-shadow: 0 0 0 0 rgba(244,63,94,0.0); }
-    100% { background-color: #ffffff; }
+  @keyframes fail-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(244,63,94,0); }
+    20%  { box-shadow: 0 0 0 16px rgba(244,63,94,.28); }
+    100% { box-shadow: 0 0 0 0 rgba(244,63,94,0); }
+  }
+  @keyframes fail-vignette {
+    0% { opacity:0; } 15% { opacity:1; } 100% { opacity:0; }
+  }
+  @keyframes fail-shake {
+    10%, 90% { transform: translateX(-2px); }
+    20%, 80% { transform: translateX(4px); }
+    30%, 50%, 70% { transform: translateX(-10px); }
+    40%, 60% { transform: translateX(10px); }
+  }
+
+  /* 메인 CTA 은은한 발광(기존 유지) */
+  .btn-glow { position: relative; }
+  .btn-glow::after {
+    content: ""; position: absolute; inset: -2px;
+    border-radius: 1rem; pointer-events: none;
+    box-shadow: 0 0 0 0 rgba(251,191,36,0.0);
+    transition: box-shadow .25s ease;
+  }
+  .btn-glow:hover::after {
+    box-shadow: 0 0 24px 6px rgba(251,191,36,0.35);
   }
 `}</style>
     </div>
