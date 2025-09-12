@@ -224,8 +224,7 @@ export default function ThemeShopButton({
       if (up.error) throw up.error;
       setCurrentThemeId(t.id);
       toast.success("테마를 적용했어요!");
-
-      emitAquariumUpdated(coupleId, tankNo);
+      window.location.reload();
     } catch (e: any) {
       toast.error(e?.message ?? "테마 적용에 실패했어요");
     } finally {
