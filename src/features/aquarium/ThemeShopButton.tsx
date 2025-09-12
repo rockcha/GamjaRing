@@ -246,7 +246,12 @@ export default function ThemeShopButton({
           variant="outline"
           title="테마 상점 열기"
         >
-          <Store className="mr-2 h-4 w-4" />
+          <img
+            src="/aquarium/themes/shop.gif"
+            alt="테마 상점 아이콘"
+            className=" h-7 w-7"
+            draggable={false}
+          />
           테마 상점
         </Button>
       </DialogTrigger>

@@ -42,8 +42,8 @@ export default function MapModalButton() {
         onClick={handleOpenClick}
         className={cn(
           "fixed right-4 bottom-4 z-[60]",
-          "h-14 w-14 rounded-full border bg-white/95",
-          "shadow-sm hover:shadow-md hover:bg-white transition-all grid place-items-center",
+          "h-14 w-14 rounded-full border bg-white",
+          "shadow-sm hover:shadow-xl  transition-all grid place-items-center",
           "animate-[mapBreath_3.5s_ease-in-out_infinite]",
           pulseOnce &&
             "after:absolute after:inset-0 after:rounded-full after:animate-[mapPulseOnce_1.2s_ease-out] after:content-['']"
@@ -52,7 +52,7 @@ export default function MapModalButton() {
         <img
           src="/map.gif"
           alt="Map"
-          className="h-7 w-7 rounded-sm object-cover"
+          className="h-10 w-10 rounded-sm object-cover"
           draggable={false}
         />
       </button>
@@ -70,11 +70,11 @@ export default function MapModalButton() {
             style={{ width: "min(70vw, 70vh)" }}
           >
             {/* 상단 타이틀 바 */}
-            <div className="flex items-center justify-center gap-2 px-4 pt-4 bg-white/90 backdrop-blur-sm">
+            <div className="flex items-center justify-start gap-2 pt-2 pl-1  bg-white/90 backdrop-blur-sm">
               <img
                 src="/island.gif"
                 alt=""
-                className="h-10 w-10 rounded-[10px]"
+                className="h-12 w-12 rounded-[10px]"
                 draggable={false}
                 aria-hidden
               />
@@ -250,7 +250,7 @@ function MapCanvas({ onClose }: { onClose: () => void }) {
       )}
 
       {/* 상단 안내 배지 */}
-      <div className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 rounded-full bg-black/35 px-3 py-1 text-[11px] text-white backdrop-blur">
+      <div className="pointer-events-none absolute left-1/2 top-4 -translate-x-1/2 rounded-full bg-black/35 px-3 py-1 text-[11px] text-white backdrop-blur">
         지도를 클릭해 이동하세요
       </div>
     </div>

@@ -83,7 +83,7 @@ export default function AquariumDetailButton({
   className,
   buttonLabel = "상세보기",
 }: {
-  tankNo: number; // ✅ 현재 탱크 번호
+  tankNo: number;
   className?: string;
   buttonLabel?: string;
 }) {
@@ -97,7 +97,6 @@ export default function AquariumDetailButton({
   const [searchText, setSearchText] = useState("");
   const searchRef = useRef<HTMLInputElement | null>(null);
 
-  // 집계된 아이템들
   const [items, setItems] = useState<
     Array<{
       id: string;
@@ -109,7 +108,6 @@ export default function AquariumDetailButton({
     }>
   >([]);
 
-  // 판매 모달
   const [confirm, setConfirm] = useState<{
     entityId: string;
     label: string;
@@ -120,7 +118,6 @@ export default function AquariumDetailButton({
     qty: number;
   } | null>(null);
 
-  // 이동 모달
   const [moveDlg, setMoveDlg] = useState<{
     entityId: string;
     label: string;
@@ -131,12 +128,10 @@ export default function AquariumDetailButton({
     tanks: Array<{ tank_no: number; title: string; fish_cnt: number }>;
   } | null>(null);
 
-  // 이미지 미리보기
   const [preview, setPreview] = useState<{ src: string; alt: string } | null>(
     null
   );
 
-  // 스크롤 잠금
   useEffect(() => {
     if (open || confirm || preview || moveDlg) {
       const prev = document.body.style.overflow;
@@ -145,7 +140,6 @@ export default function AquariumDetailButton({
     }
   }, [open, confirm, preview, moveDlg]);
 
-  // 열릴 때 로딩 + 포커스
   useEffect(() => {
     if (open) {
       void loadSummary();
@@ -163,7 +157,6 @@ export default function AquariumDetailButton({
         p_couple_id: coupleId,
         p_tank_no: tankNo,
       });
-
       if (error) throw error;
 
       const rows = (data ?? []) as Array<{
@@ -176,26 +169,36 @@ export default function AquariumDetailButton({
 
       const mapped = rows.map((r) => {
         const rarity = (r.rarity as FishRarity) ?? "일반";
+        const price = Number(r.price ?? 0);
         return {
           id: r.entity_id,
           label: r.name_ko ?? r.entity_id,
           rarity,
-          price: Number(r.price ?? 0),
-          count: Number(r.cnt ?? 0), // <- 여기!
+          price,
+          count: Number(r.cnt ?? 0),
           image: buildImageSrc(r.entity_id, rarity),
         };
       });
-      // 정렬: 희귀도 → 이름
-      const order: Record<FishRarity, number> = {
-        전설: 0,
-        에픽: 1,
-        희귀: 2,
+
+      // ✅ 정렬: 가격(오름차순) → 희귀도 → 이름
+      const rarityRank: Record<FishRarity, number> = {
         일반: 3,
+        희귀: 2,
+        에픽: 1,
+        전설: 0,
       };
+      const priceNum = (n: number) =>
+        typeof n === "number" && isFinite(n) ? n : Number.POSITIVE_INFINITY;
+
       mapped.sort((a, b) => {
-        const rr = order[a.rarity] - order[b.rarity];
-        return rr !== 0 ? rr : a.label.localeCompare(b.label, "ko");
+        const pa = priceNum(a.price);
+        const pb = priceNum(b.price);
+        if (pa !== pb) return pa - pb;
+        const rr = rarityRank[a.rarity] - rarityRank[b.rarity];
+        if (rr !== 0) return rr;
+        return a.label.localeCompare(b.label, "ko");
       });
+
       setItems(mapped);
     } catch (e: any) {
       console.error(e);
@@ -223,7 +226,7 @@ export default function AquariumDetailButton({
       label: it.label,
       image: it.image,
       rarity: it.rarity,
-      unitSell: Math.floor(it.price / 2), // 판매 단가 규칙과 RPC가 일치해야 함
+      unitSell: Math.floor(it.price / 2),
       countBefore: it.count,
       qty: 1,
     });
@@ -271,25 +274,23 @@ export default function AquariumDetailButton({
       const gold = Number(data?.[0]?.gained_gold ?? 0);
 
       toast.success(
-        `${confirm.label} ${sold}마리 판매 (+${gold.toLocaleString(
+        `${confirm.label} ${sold + 1} 마리 판매 (+${gold.toLocaleString(
           "ko-KR"
         )} 골드)`
       );
       emitAquariumUpdated(coupleId, tankNo);
 
-      // 알림(선택)
       try {
         if (user?.id && (user as any)?.partner_id) {
           await sendUserNotification({
             senderId: user.id,
             receiverId: (user as any).partner_id,
             type: "물품판매",
-            itemName: `${confirm.label} ${sold}마리`,
+            itemName: `${confirm.label} ${sold + 1}마리`,
           });
         }
       } catch {}
       await loadSummary();
-
       setConfirm(null);
     } catch (e: any) {
       console.error(e);
@@ -318,7 +319,6 @@ export default function AquariumDetailButton({
       } else {
         toast.success(`${moveDlg.label} ${moved}마리 이동 완료`);
         await loadSummary();
-
         emitAquariumUpdated(coupleId, tankNo);
       }
       setMoveDlg(null);
@@ -332,6 +332,7 @@ export default function AquariumDetailButton({
 
   /* ---------- UI ---------- */
   const portalTarget = usePortalTarget();
+  const totalCount = items.reduce((a, b) => a + b.count, 0);
 
   return (
     <>
@@ -344,7 +345,7 @@ export default function AquariumDetailButton({
           "inline-flex items-center gap-1",
           className
         )}
-        title={`아쿠아리움 ${tankNo}번 상세보기`}
+        title={`${tankNo}번 아쿠아리움 상세보기`}
       >
         <Info className="w-4 h-4" />
         {buttonLabel}
@@ -376,9 +377,14 @@ export default function AquariumDetailButton({
               <div className="sticky top-0 z-10 -mx-5 px-5 pt-4 pb-3 mb-4 bg-white/90 backdrop-blur border-b border-gray-100">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-bold">아쿠아리움 {tankNo}번</h3>
-                    <span className="text-sm text-slate-600">
-                      총 <b>{items.reduce((a, b) => a + b.count, 0)}</b>마리
+                    {/* 제목 변경: 1번 아쿠아리움 */}
+                    <h3 className="text-lg font-bold">{tankNo}번 아쿠아리움</h3>
+                    {/* 총 마리 수: 🐟 n마리 */}
+                    <span className="text-sm text-slate-600 inline-flex items-center gap-1">
+                      <span role="img" aria-label="물고기">
+                        🐟
+                      </span>
+                      <b>{totalCount}</b>마리
                     </span>
                   </div>
                   <button
@@ -390,7 +396,9 @@ export default function AquariumDetailButton({
                   </button>
                 </div>
 
-                <div className="mt-3 flex items-center justify-center gap-3 flex-wrap">
+                {/* 검색(좌) ─ 희귀도 선택(우) 같은 행 */}
+                <div className="mt-3 flex items-center gap-3">
+                  {/* 좌측: 검색 */}
                   <div className="relative">
                     <Search className="w-4 h-4 absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
@@ -401,26 +409,30 @@ export default function AquariumDetailButton({
                       className="pl-7 pr-2 py-1.5 text-sm border rounded-md bg-white w-[220px]"
                     />
                   </div>
-                  <label
-                    htmlFor="rarityFilter"
-                    className="text-sm text-slate-600"
-                  >
-                    희귀도
-                  </label>
-                  <select
-                    id="rarityFilter"
-                    value={rarityFilter}
-                    onChange={(e) =>
-                      setRarityFilter(e.target.value as RarityFilter)
-                    }
-                    className="text-sm border rounded-md px-2 py-1 bg-white"
-                  >
-                    <option value="전체">전체</option>
-                    <option value="일반">일반</option>
-                    <option value="희귀">희귀</option>
-                    <option value="에픽">에픽</option>
-                    <option value="전설">전설</option>
-                  </select>
+
+                  {/* 우측으로 밀기 */}
+                  <div className="ml-auto flex items-center gap-2">
+                    <label
+                      htmlFor="rarityFilter"
+                      className="text-sm text-slate-600"
+                    >
+                      희귀도
+                    </label>
+                    <select
+                      id="rarityFilter"
+                      value={rarityFilter}
+                      onChange={(e) =>
+                        setRarityFilter(e.target.value as RarityFilter)
+                      }
+                      className="text-sm border rounded-md px-2 py-1 bg-white"
+                    >
+                      <option value="전체">전체</option>
+                      <option value="일반">일반</option>
+                      <option value="희귀">희귀</option>
+                      <option value="에픽">에픽</option>
+                      <option value="전설">전설</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 

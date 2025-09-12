@@ -33,6 +33,8 @@ export default function AquariumPage() {
   /** 현재 선택 index (0-based, 항상 첫 탱크부터) */
   const [idx, setIdx] = useState(0);
 
+  const [themeTitle, setThemeTitle] = useState<string>("");
+
   /** 제목 편집 상태 */
   const cur = tanks[idx] ?? null;
   const [editing, setEditing] = useState(false);
@@ -42,6 +44,32 @@ export default function AquariumPage() {
     if (!cur) return;
     setTitleInput(cur.title ?? "");
   }, [cur?.tank_no]);
+
+  useEffect(() => {
+    // cur가 바뀔 때마다 테마 제목 갱신
+    const loadThemeTitle = async () => {
+      if (!cur?.theme_id) {
+        setThemeTitle(""); // 테마 미지정
+        return;
+      }
+      try {
+        // 테이블명이 다르면 여기만 바꿔줘요: "aquarium_themes" → 실제 테이블명
+        const { data, error } = await supabase
+          .from("aquarium_themes")
+          .select("title")
+          .eq("id", cur.theme_id)
+          .maybeSingle();
+
+        if (error) throw error;
+        setThemeTitle(data?.title ?? "");
+      } catch (e: any) {
+        console.error(e);
+        setThemeTitle(""); // 실패 시 비움
+      }
+    };
+
+    loadThemeTitle();
+  }, [cur?.theme_id]);
 
   /** 탱크 목록 로드 */
   const loadTanks = async () => {
@@ -214,16 +242,39 @@ export default function AquariumPage() {
               </button>
             </div>
 
+            {/* 좌하단: 현재 테마 제목 배지 */}
+            {cur && (
+              <div className="absolute left-2 bottom-2 z-10 pointer-events-none">
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full",
+                    "bg-white/80 border backdrop-blur px-2.5 py-1 text-xs text-slate-800 shadow"
+                  )}
+                  title={
+                    themeTitle ? `현재 테마: ${themeTitle}` : "현재 테마: 기본"
+                  }
+                >
+                  <span aria-hidden className="text-[13px]">
+                    현재 테마 :
+                  </span>
+                  <b className="font-semibold">{themeTitle || "기본 테마"}</b>
+                </span>
+              </div>
+            )}
+
             {/* 좌상단: 도감(위) + 테마샵(아래) + 상세 버튼 — 박스 기준 고정 */}
-            <div className="absolute left-2 top-2 z-40 flex  gap-2 pointer-events-auto">
+            <div className="absolute left-2 top-2 z-10 flex  gap-2 pointer-events-auto">
               <MarineDexModal />
               {cur && <ThemeShopButton tankNo={cur.tank_no} />}
               {/* ✅ 현재 탱크 번호를 그대로 전달 */}
+            </div>
+
+            <div className="absolute right-2 bottom-2 z-10 flex  gap-2 pointer-events-auto">
               {cur && <AquariumDetailButton tankNo={cur.tank_no} />}
             </div>
 
             {/* 우상단: 현재/전체 + 좌우 이동 — 박스 기준 고정 */}
-            <div className="absolute right-2 top-2 z-30 flex items-center gap-1 pointer-events-auto">
+            <div className="absolute right-2 top-2 z-10 flex items-center gap-1 pointer-events-auto">
               {total > 1 ? (
                 <div className="inline-flex items-center rounded-full bg-white/75 border backdrop-blur-sm text-gray-900 text-xs shadow overflow-hidden">
                   <button

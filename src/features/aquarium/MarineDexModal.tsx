@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Anchor, X, Info, Book } from "lucide-react";
+import { Anchor, X, Info } from "lucide-react"; // ← Book 제거
 import supabase from "@/lib/supabase";
 import {
   INGREDIENT_EMOJI,
@@ -51,7 +51,7 @@ function rarityDir(r: FishRarity) {
 }
 function parseInt4Range(lit: string | null | undefined): [number, number] {
   if (!lit) return [30, 70];
-  const m = lit.match(/(-?\d+)\s*[,]\s*(-?\d+)/);
+  const m = lit?.match(/(-?\d+)\s*[,]\s*(-?\d+)/);
   return m ? [parseInt(m[1], 10), parseInt(m[2], 10)] : [30, 70];
 }
 function buildImageSrc(id: string, rarity: FishRarity) {
@@ -97,11 +97,31 @@ export default function MarineDexModal() {
   const list = useMemo(() => {
     const filtered =
       rarity === "전체" ? rows : rows.filter((f) => f.rarity === rarity);
+
+    const rarityRank: Record<FishRarity, number> = {
+      일반: 0,
+      희귀: 1,
+      에픽: 2,
+      전설: 3,
+    };
+    const priceNum = (n: number | null | undefined) =>
+      typeof n === "number" && isFinite(n) ? n : Number.POSITIVE_INFINITY;
+
     return [...filtered].sort((a, b) => {
-      const ra = rarityOrder[a.rarity],
-        rb = rarityOrder[b.rarity];
+      // 1) 가격 오름차순
+      const pa = priceNum(a.price);
+      const pb = priceNum(b.price);
+      if (pa !== pb) return pa - pb;
+
+      // 2) (동가) 희귀도
+      const ra = rarityRank[a.rarity],
+        rb = rarityRank[b.rarity];
       if (ra !== rb) return ra - rb;
-      return (a.name_ko ?? a.id).localeCompare(b.name_ko ?? b.id, "ko");
+
+      // 3) (동가) 이름/ID
+      const an = a.name_ko ?? a.id;
+      const bn = b.name_ko ?? b.id;
+      return an.localeCompare(bn, "ko");
     });
   }, [rows, rarity]);
 
@@ -176,7 +196,7 @@ export default function MarineDexModal() {
               className="relative z-10 flex items-center justify-center w-full h-full p-4"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="relative bg-white rounded-2xl shadow-2xl w-[860px] max-w-[92vw] max-h-[82vh] p-5 flex flex-col">
+              <div className="relative bg-[#FAF7F2] rounded-2xl shadow-2xl w-[860px] max-w-[92vw] max-h-[82vh] p-5 flex flex-col">
                 {/* header */}
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -228,7 +248,7 @@ export default function MarineDexModal() {
 
                 {/* list */}
                 <div className="flex-1 overflow-y-auto pr-1">
-                  <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2">
                     {list.map((f) => {
                       const imgSrc = buildImageSrc(f.id, f.rarity);
                       const [y1, y2] = parseInt4Range(f.swim_y);
@@ -238,7 +258,7 @@ export default function MarineDexModal() {
                       return (
                         <div
                           key={f.id}
-                          className={`rounded-xl border p-3 text-left ${rarityCardBg(
+                          className={`rounded-xl border-2 p-3 text-left ${rarityCardBg(
                             f.rarity
                           )}`}
                         >
@@ -246,7 +266,7 @@ export default function MarineDexModal() {
                             <img
                               src={imgSrc}
                               alt={f.name_ko ?? f.id}
-                              className="w-full aspect-square object-contain bg-white"
+                              className="w-full aspect-square object-contain "
                               draggable={false}
                               loading="lazy"
                               onError={(ev) => {
@@ -328,7 +348,13 @@ export default function MarineDexModal() {
         onClick={() => setOpen(true)}
         className="transition-transform duration-150 hover:scale-[1.02] active:scale-100 hover:shadow-sm"
       >
-        <Book className="mr-2 h-4 w-4" />
+        {/* 루시드 Book 대신 GIF 아이콘 */}
+        <img
+          src="/aquarium/marine_dex.gif"
+          alt="도감 아이콘"
+          className=" h-7 w-7"
+          draggable={false}
+        />
         도감
       </Button>
       {modal}

@@ -1,3 +1,4 @@
+// src/features/kitchen/IngredientFishingSection.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -19,8 +20,7 @@ const DND_MIME = "application/x-ingredient";
 /* ------------------------------- */
 let dragGhostEl: HTMLDivElement | null = null;
 
-function setEmojiDragImage(e: React.DragEvent, emoji: string, fontPx = 28) {
-  // 기존 고스트 정리
+function setEmojiDragImage(e: React.DragEvent, emoji: string, fontPx = 48) {
   if (dragGhostEl) {
     dragGhostEl.remove();
     dragGhostEl = null;
@@ -28,22 +28,17 @@ function setEmojiDragImage(e: React.DragEvent, emoji: string, fontPx = 28) {
   const ghost = document.createElement("div");
   ghost.textContent = emoji;
   ghost.style.position = "fixed";
-  ghost.style.top = "-1000px"; // Safari 대응: DOM에 있어야 함
+  ghost.style.top = "-1000px";
   ghost.style.left = "-1000px";
   ghost.style.fontSize = `${fontPx}px`;
   ghost.style.lineHeight = "1";
   ghost.style.pointerEvents = "none";
   ghost.style.userSelect = "none";
   ghost.style.background = "transparent";
-  ghost.style.padding = "0";
-  ghost.style.margin = "0";
   document.body.appendChild(ghost);
   dragGhostEl = ghost;
-
-  // 중앙 기준으로 오프셋
   e.dataTransfer!.setDragImage(ghost, fontPx / 2, fontPx / 2);
 }
-
 function cleanupDragGhost() {
   if (dragGhostEl) {
     dragGhostEl.remove();
@@ -53,8 +48,7 @@ function cleanupDragGhost() {
 
 type Props = {
   className?: string;
-  /** 낚시 중일 때 true로 전달 → 드래그 비활성 */
-  dragDisabled?: boolean;
+  dragDisabled?: boolean; // 낚시 중일 때 true → 드래그 off
 };
 
 type IngredientCell = {
@@ -168,7 +162,7 @@ export default function IngredientFishingSection({
       ? "bg-violet-50 border-violet-200"
       : "bg-amber-50 border-amber-200";
 
-  // 최대 8개만 미리보기
+  // 최대 12개만 미리보기
   const MAX_SHOW = 12;
   const shown = useMemo(
     () => (selected ? capturable.slice(0, MAX_SHOW) : []),
@@ -184,17 +178,17 @@ export default function IngredientFishingSection({
     const payload = JSON.stringify({ title: cell.title, emoji: cell.emoji });
     e.dataTransfer.setData(DND_MIME, payload);
     e.dataTransfer.effectAllowed = "copy";
-    setEmojiDragImage(e, cell.emoji, 64);
+    setEmojiDragImage(e, cell.emoji, 48);
   };
 
   return (
     <section className={cn("flex flex-col gap-3 min-h-0", className)}>
       {/* 헤더 */}
       <div className="flex items-center">
-        <span className="inline-flex h-8 w-8 items-center justify-center">
-          <PackageOpen className="h-4 w-4 text-amber-700" />
+        <span className="inline-flex h-7 w-7 items-center justify-center">
+          <PackageOpen className="h-5 w-5 text-amber-700" />
         </span>
-        <h3 className="text-sm font-semibold text-zinc-800">재료통</h3>
+        <h3 className="text-base font-semibold text-zinc-800">재료통</h3>
         <span className="ml-auto text-xs text-muted-foreground">
           {loading
             ? "불러오는 중…"
@@ -204,14 +198,19 @@ export default function IngredientFishingSection({
         </span>
       </div>
 
-      {/* 반응형 재료 그리드 */}
+      {/* ✅ 더 촘촘한 반응형 그리드 (작게 시작 → 화면 따라 점진 확대) */}
       <div
-        className="grid gap-2 rounded-2xl
-                  grid-cols-[repeat(auto-fill,minmax(72px,1fr))]
-                  sm:grid-cols-[repeat(auto-fill,minmax(80px,1fr))]"
+        className={cn(
+          "grid rounded-2xl",
+          "gap-[6px] sm:gap-2",
+          // xs: 56px, sm: 64px, md+: 72px 최소칸
+          "grid-cols-[repeat(auto-fit,minmax(56px,1fr))]",
+          "sm:grid-cols-[repeat(auto-fit,minmax(64px,1fr))]",
+          "md:grid-cols-[repeat(auto-fit,minmax(72px,1fr))]"
+        )}
       >
         {cells.length === 0 && (
-          <div className="col-span-full text-sm text-muted-foreground border rounded-xl p-4 text-center">
+          <div className="col-span-full text-xs sm:text-sm text-muted-foreground border rounded-xl p-3 sm:p-4 text-center">
             보유한 재료가 없어요.
           </div>
         )}
@@ -225,7 +224,6 @@ export default function IngredientFishingSection({
               key={c.title}
               onClick={() => {
                 setSelected({ title: c.title, emoji: c.emoji });
-                // ✅ 탭(클릭) 시 선택 이벤트 브로드캐스트 (모바일 칩에서 수신)
                 window.dispatchEvent(
                   new CustomEvent("ingredient-picked", {
                     detail: { title: c.title, emoji: c.emoji },
@@ -236,8 +234,11 @@ export default function IngredientFishingSection({
               onDragStart={(e) => handleDragStart(e, c)}
               onDragEnd={cleanupDragGhost}
               className={cn(
-                "relative w-full aspect-square rounded-xl border bg-white shadow-sm overflow-hidden",
-                "flex flex-col items-center justify-center gap-1 p-2",
+                "relative w-full aspect-square rounded-lg border bg-white shadow-sm overflow-hidden",
+                "flex flex-col items-center justify-center",
+                // 패딩/갭도 반응형 축소
+                "p-[6px] sm:p-2",
+                "gap-[2px] sm:gap-1",
                 "transition will-change-transform hover:shadow-md hover:-translate-y-0.5",
                 isSel
                   ? "ring-2 ring-amber-500 border-amber-300 bg-amber-50"
@@ -248,16 +249,16 @@ export default function IngredientFishingSection({
               )}
               title={`${c.title} ×${c.count}`}
             >
-              {/* 이모지 */}
+              {/* 이모지(작게 시작해서 화면폭에 맞춰 확대) */}
               <span
                 data-emoji
-                className="leading-none select-none text-[clamp(20px,4.2vw,28px)]"
+                className="leading-none select-none text-[clamp(16px,3.8vw,32px)]"
               >
                 {c.emoji}
               </span>
 
-              {/* 수량 */}
-              <span className="absolute right-1.5 bottom-1.5 text-[10px] text-amber-700 font-semibold tabular-nums">
+              {/* 수량(조금 더 작게) */}
+              <span className="absolute right-1 bottom-1 text-[10px] sm:text-[11px] text-amber-700 font-semibold tabular-nums">
                 ×{c.count}
               </span>
 
@@ -273,17 +274,17 @@ export default function IngredientFishingSection({
       </div>
 
       {/* 선택 정보 & 포획 가능 어종 */}
-      <div className="flex gap-2 mt-4">
-        <FishIcon className="w-4 h-4 text-sky-600" />
+      <div className="flex gap-2 mt-3 sm:mt-4">
+        <FishIcon className="w-5 h-5 text-sky-600" />
         <span className="text-sm font-semibold text-zinc-800">
           포획 가능 어종
         </span>
       </div>
 
-      <div className="rounded-2xl border p-3 flex flex-col min-h-[240px] sm:min-h-[280px] lg:min-h-[220px] ">
-        <div className="mt-3 flex items-center gap-2">
+      <div className="rounded-2xl border p-2 sm:p-3 flex flex-col min-h-[200px] sm:min-h-[240px] lg:min-h-[220px]">
+        <div className="mt-1.5 sm:mt-2 flex items-center gap-2">
           <span className="text-xs text-amber-700 font-semibold">
-            {`${Math.min(capturable.length, MAX_SHOW)}종 / 최대 8종`}
+            {`${Math.min(capturable.length, MAX_SHOW)}종 / 최대 12종`}
           </span>
         </div>
 
@@ -291,18 +292,18 @@ export default function IngredientFishingSection({
         <div className="mt-2 flex-1 min-h-0 overflow-y-auto">
           {selected ? (
             capturable.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 xs:grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1">
                 {shown.map((f) => (
                   <div
                     key={f.id}
                     className={cn(
-                      "rounded-xl border p-2",
+                      "rounded-xl border p-1",
                       "w-full aspect-square",
                       rarityCardCls(f.rarity as FishRarity)
                     )}
                     title={f.labelKo}
                   >
-                    <div className="rounded-lg overflow-hidden border bg-white w-full h-full">
+                    <div className="rounded-lg overflow-hidden w-full h-full">
                       <img
                         src={f.image}
                         alt={f.labelKo}
