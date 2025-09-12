@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
+import supabase from "@/lib/supabase";
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { fetchKitchen } from "@/features/kitchen/kitchenApi";
 import {
@@ -10,7 +11,6 @@ import {
   INGREDIENT_TITLES,
   type IngredientTitle,
 } from "@/features/kitchen/type";
-import { FISHES, type FishRarity } from "@/features/aquarium/fishes";
 import { PackageOpen, Fish as FishIcon } from "lucide-react";
 
 const DND_MIME = "application/x-ingredient";
@@ -46,6 +46,35 @@ function cleanupDragGhost() {
   }
 }
 
+/* ------------------------------- */
+/* Types & Helpers (DB 기준)       */
+/* ------------------------------- */
+export type FishRarity = "일반" | "희귀" | "에픽" | "전설";
+
+type DbEntity = {
+  id: string;
+  name_ko: string | null;
+  price: number | null;
+  size: number | null;
+  food: string | null;
+  swim_y: string | null;
+  is_movable: boolean | null;
+  rarity: FishRarity;
+};
+
+function rarityDir(r: FishRarity) {
+  return r === "일반"
+    ? "common"
+    : r === "희귀"
+    ? "rare"
+    : r === "에픽"
+    ? "epic"
+    : "legend";
+}
+function buildImageSrc(id: string, rarity: FishRarity) {
+  return `/aquarium/${rarityDir(rarity)}/${id}.png`;
+}
+
 type Props = {
   className?: string;
   dragDisabled?: boolean; // 낚시 중일 때 true → 드래그 off
@@ -73,6 +102,11 @@ export default function IngredientFishingSection({
     emoji: string;
   } | null>(null);
 
+  // DB에서 선택 재료로 포획 가능한 어종
+  const [capRows, setCapRows] = useState<DbEntity[]>([]);
+  const [capLoading, setCapLoading] = useState(false);
+  const [capErr, setCapErr] = useState<string | null>(null);
+
   const EMOJI_BY_TITLE = useMemo(
     () =>
       Object.fromEntries(
@@ -83,7 +117,9 @@ export default function IngredientFishingSection({
     []
   );
 
-  // 인벤 불러오기
+  /* ------------------------------- */
+  /* 인벤 불러오기                   */
+  /* ------------------------------- */
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -131,6 +167,9 @@ export default function IngredientFishingSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.title]);
 
+  /* ------------------------------- */
+  /* 그리드 표시용 셀 계산           */
+  /* ------------------------------- */
   const cells: IngredientCell[] = useMemo(() => {
     const list = INGREDIENT_TITLES.map((t) => ({
       title: t,
@@ -147,12 +186,46 @@ export default function IngredientFishingSection({
     return list;
   }, [invMap, EMOJI_BY_TITLE]);
 
-  // 선택 재료로 포획 가능한 "모든 어종"
-  const capturable = useMemo(() => {
-    if (!selected) return [];
-    return FISHES.filter((f) => f.ingredient === selected.title);
-  }, [selected]);
+  /* ------------------------------- */
+  /* 선택 재료 → DB에서 포획 대상 조회 */
+  /* ------------------------------- */
+  useEffect(() => {
+    if (!selected?.title) {
+      setCapRows([]);
+      setCapErr(null);
+      return;
+    }
+    let alive = true;
+    (async () => {
+      try {
+        setCapLoading(true);
+        setCapErr(null);
+        const { data, error } = await supabase
+          .from("aquarium_entities")
+          .select("id,name_ko,price,size,food,swim_y,is_movable,rarity")
+          .eq("food", selected.title) // 재료 일치
+          .eq("is_movable", true) // 포획 대상만 (필요에 따라 제거 가능)
+          .order("price", { ascending: true });
 
+        if (error) throw error;
+        if (!alive) return;
+        setCapRows((data ?? []) as DbEntity[]);
+      } catch (e: any) {
+        if (!alive) return;
+        setCapErr(e?.message ?? "포획 가능 어종을 불러오지 못했어요.");
+        setCapRows([]);
+      } finally {
+        if (alive) setCapLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [selected?.title]);
+
+  /* ------------------------------- */
+  /* 렌더링 관련 유틸               */
+  /* ------------------------------- */
   const rarityCardCls = (r: FishRarity) =>
     r === "일반"
       ? "bg-neutral-50 border-neutral-200"
@@ -164,12 +237,11 @@ export default function IngredientFishingSection({
 
   // 최대 12개만 미리보기
   const MAX_SHOW = 12;
-  const shown = useMemo(
-    () => (selected ? capturable.slice(0, MAX_SHOW) : []),
-    [selected, capturable]
-  );
+  const shown = useMemo(() => capRows.slice(0, MAX_SHOW), [capRows]);
 
-  // 드래그 스타트 (이모지만 프리뷰)
+  /* ------------------------------- */
+  /* 드래그 스타트 (이모지만 프리뷰) */
+  /* ------------------------------- */
   const handleDragStart = (e: React.DragEvent, cell: IngredientCell) => {
     if (dragDisabled || cell.count <= 0) {
       e.preventDefault();
@@ -198,12 +270,11 @@ export default function IngredientFishingSection({
         </span>
       </div>
 
-      {/* ✅ 더 촘촘한 반응형 그리드 (작게 시작 → 화면 따라 점진 확대) */}
+      {/* ✅ 더 촘촘한 반응형 그리드 */}
       <div
         className={cn(
           "grid rounded-2xl",
           "gap-[6px] sm:gap-2",
-          // xs: 56px, sm: 64px, md+: 72px 최소칸
           "grid-cols-[repeat(auto-fit,minmax(56px,1fr))]",
           "sm:grid-cols-[repeat(auto-fit,minmax(64px,1fr))]",
           "md:grid-cols-[repeat(auto-fit,minmax(72px,1fr))]"
@@ -236,7 +307,6 @@ export default function IngredientFishingSection({
               className={cn(
                 "relative w-full aspect-square rounded-lg border bg-white shadow-sm overflow-hidden",
                 "flex flex-col items-center justify-center",
-                // 패딩/갭도 반응형 축소
                 "p-[6px] sm:p-2",
                 "gap-[2px] sm:gap-1",
                 "transition will-change-transform hover:shadow-md hover:-translate-y-0.5",
@@ -249,19 +319,15 @@ export default function IngredientFishingSection({
               )}
               title={`${c.title} ×${c.count}`}
             >
-              {/* 이모지(작게 시작해서 화면폭에 맞춰 확대) */}
               <span
                 data-emoji
                 className="leading-none select-none text-[clamp(16px,3.8vw,32px)]"
               >
                 {c.emoji}
               </span>
-
-              {/* 수량(조금 더 작게) */}
               <span className="absolute right-1 bottom-1 text-[10px] sm:text-[11px] text-amber-700 font-semibold tabular-nums">
                 ×{c.count}
               </span>
-
               {dragDisabled && (
                 <span
                   className="absolute inset-0 bg-white/50 backdrop-blur-[1px]"
@@ -279,19 +345,28 @@ export default function IngredientFishingSection({
         <span className="text-sm font-semibold text-zinc-800">
           포획 가능 어종
         </span>
+        <span className="ml-auto text-xs text-muted-foreground">
+          {capLoading
+            ? "불러오는 중…"
+            : selected
+            ? `${Math.min(shown.length, 12)}종 / 최대 12종`
+            : ""}
+        </span>
       </div>
 
       <div className="rounded-2xl border p-2 sm:p-3 flex flex-col min-h-[200px] sm:min-h-[240px] lg:min-h-[220px]">
         <div className="mt-1.5 sm:mt-2 flex items-center gap-2">
-          <span className="text-xs text-amber-700 font-semibold">
-            {`${Math.min(capturable.length, MAX_SHOW)}종 / 최대 12종`}
-          </span>
+          {capErr && (
+            <span className="text-xs text-red-600">오류: {capErr}</span>
+          )}
         </div>
 
         {/* 프리뷰 */}
         <div className="mt-2 flex-1 min-h-0 overflow-y-auto">
           {selected ? (
-            capturable.length > 0 ? (
+            capLoading ? (
+              <div className="text-xs text-muted-foreground">불러오는 중…</div>
+            ) : shown.length > 0 ? (
               <div className="grid grid-cols-2 xs:grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1">
                 {shown.map((f) => (
                   <div
@@ -301,15 +376,19 @@ export default function IngredientFishingSection({
                       "w-full aspect-square",
                       rarityCardCls(f.rarity as FishRarity)
                     )}
-                    title={f.labelKo}
+                    title={f.name_ko ?? f.id}
                   >
                     <div className="rounded-lg overflow-hidden w-full h-full">
                       <img
-                        src={f.image}
-                        alt={f.labelKo}
+                        src={buildImageSrc(f.id, f.rarity)}
+                        alt={f.name_ko ?? f.id}
                         className="w-full h-full object-contain"
                         draggable={false}
                         loading="lazy"
+                        onError={(ev) => {
+                          ev.currentTarget.onerror = null;
+                          ev.currentTarget.src = "/aquarium/placeholder.png";
+                        }}
                       />
                     </div>
                   </div>

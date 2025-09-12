@@ -46,7 +46,7 @@ export async function rollFishByIngredient(
   if (!data || data.length === 0) return { ok: false };
 
   const pick = data[Math.floor(Math.random() * data.length)];
-  return { ok: true, rarity: key, fishId: pick.id };
+  return { ok: true, rarity: key, fishId: pick?.id };
 }
 
 /** id만 원하면 이 헬퍼 사용 (실패 시 null) */

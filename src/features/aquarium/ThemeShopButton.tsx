@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { emitAquariumUpdated } from "./aquarium";
+
 import { useCoupleContext } from "@/contexts/CoupleContext";
 
 type ThemeRow = { id: number; title: string; price: number };
@@ -60,7 +60,7 @@ export default function ThemeShopButton({
   const ownedSet = useMemo(() => new Set(ownedIds), [ownedIds]);
 
   /** ✅ 라디오 그룹 필터 (기본: 보유) */
-  const [filter, setFilter] = useState<FilterKind>("owned");
+  const [filter, setFilter] = useState<FilterKind>("unowned");
 
   const [busyBuyId, setBusyBuyId] = useState<number | null>(null);
   const [busyApplyId, setBusyApplyId] = useState<number | null>(null);
