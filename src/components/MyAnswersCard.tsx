@@ -184,11 +184,11 @@ export default function MyAnswersCard() {
                   {/* ✅ 우상단 이모지/없음 배지 */}
                   <div className="absolute top-2 right-2 pointer-events-none">
                     {item.emoji_type_id == null ? (
-                      <div className="h-8 w-8 grid place-items-center rounded-full bg-white border shadow">
+                      <div className="h-8 w-8 grid place-items-center rounded-full bg-[#FAF7F2] border shadow">
                         <span className="text-[10px] text-muted-foreground"></span>
                       </div>
                     ) : (
-                      <div className="h-8 w-8 grid place-items-center rounded-full bg-white border shadow text-lg">
+                      <div className="h-8 w-8 grid place-items-center rounded-full bg-[#FAF7F2] border shadow text-lg">
                         {emojiChar ?? "…"}
                       </div>
                     )}

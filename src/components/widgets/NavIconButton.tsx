@@ -26,7 +26,7 @@ export function NavItem({
       aria-disabled={disabled}
       className={cn(
         "inline-flex h-9 shrink-0 items-center rounded-lg px-2.5 py-1.5",
-        "text-xs sm:text-[13px] bg-white/70  text-slate-800 shadow-lg",
+        "text-xs sm:text-[13px] bg-[#FAF7F2]  text-slate-800 border border-neutral-200",
         "hover:bg-amber-100 transition disabled:opacity-50 disabled:cursor-not-allowed",
         className
       )}

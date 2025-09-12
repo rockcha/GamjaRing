@@ -340,7 +340,7 @@ export default function AquariumDetailButton({
         type="button"
         onClick={() => setOpen(true)}
         className={cn(
-          "rounded-full bg-white/90 backdrop-blur px-3 py-1.5",
+          "rounded-full bg-[#FAF7F2] backdrop-blur px-3 py-1.5",
           "text-sm font-semibold text-slate-800 shadow border hover:bg-white",
           "inline-flex items-center gap-1",
           className
@@ -366,7 +366,7 @@ export default function AquariumDetailButton({
           >
             <div
               className={cn(
-                "w-[1000px] max-w-[95vw] max-h-[85vh] overflow-auto rounded-2xl bg-white p-5 shadow-xl relative transition-transform",
+                "w-[1000px] max-w-[95vw] max-h-[85vh] overflow-auto rounded-2xl bg-[#FAF7F2] p-5 shadow-xl relative transition-transform",
                 open ? "scale-100" : "scale-95"
               )}
               onClick={(e) => e.stopPropagation()}
@@ -374,7 +374,7 @@ export default function AquariumDetailButton({
               aria-modal="true"
             >
               {/* Header */}
-              <div className="sticky top-0 z-10 -mx-5 px-5 pt-4 pb-3 mb-4 bg-white/90 backdrop-blur border-b border-gray-100">
+              <div className="sticky top-0 z-10 -mx-5 px-5 pt-4 pb-3 mb-4 bg-[#FAF7F2] backdrop-blur border-b border-gray-100">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {/* 제목 변경: 1번 아쿠아리움 */}

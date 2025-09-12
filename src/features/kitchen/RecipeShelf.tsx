@@ -47,7 +47,7 @@ export default function RecipeShelf({
 
   return (
     <div className="flex flex-col">
-      <div className="rounded-xl border bg-white/90 shadow-sm">
+      <div className="rounded-xl border bg-[#FAF7F2] shadow-sm">
         {/* 상단 타이틀 바 (아이콘 변경 + '레시피' 강조) */}
         <div className="px-3 py-2  flex items-center gap-2 ">
           <span className="inline-flex p-2  items-center justify-center ">

@@ -110,7 +110,7 @@ export default function Inventory({
   }
 
   return (
-    <section className="relative flex flex-col rounded-2xl border bg-white shadow-sm">
+    <section className="relative flex flex-col rounded-2xl border bg-[#FAF7F2] shadow-sm">
       {/* 헤더 */}
       <header>
         <div className="flex items-center justify-between px-4 py-3">
@@ -274,7 +274,7 @@ export default function Inventory({
           {selRecipe && (
             <div className="space-y-4">
               <div className="flex items-start gap-3">
-                <div className="h-16 w-16 rounded-2xl border bg-white grid place-items-center text-4xl">
+                <div className="h-16 w-16 rounded-2xl border bg-[#FAF7F2] grid place-items-center text-4xl">
                   {selEmoji}
                 </div>
                 <div className="flex-1 min-w-0">

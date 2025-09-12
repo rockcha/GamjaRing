@@ -166,7 +166,7 @@ export default function BrowseProducersButton({
                       <div
                         key={p.id}
                         className={cn(
-                          "group relative rounded-xl border p-3 bg-white",
+                          "group relative rounded-xl border p-3 bg-[#FAF7F2]",
                           "hover:shadow-sm transition"
                         )}
                       >

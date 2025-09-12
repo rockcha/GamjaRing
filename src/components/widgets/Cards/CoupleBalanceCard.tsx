@@ -149,7 +149,7 @@ export default function CoupleBalanceCard({
   }, [potatoSafe, isLoading, showDelta]);
 
   const cardCls = cn(
-    "relative rounded-2xl border border-slate-200/70 bg-white/70 backdrop-blur-sm shadow-sm hover:shadow-md transition",
+    "relative rounded-2xl  bg-[#FAF7F2]  shadow-lg hover:shadow-2xl transition",
     dense ? "p-2.5" : "p-3 sm:p-3.5",
     "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70",
     className

@@ -313,7 +313,7 @@ export default function QuestionPage() {
 
   return (
     <main className="mx-auto w-full max-w-screen-lg px-4 md:px-6 ">
-      <Card className="relative mx-auto bg-white border shadow-sm max-w-3xl">
+      <Card className="relative mx-auto bg-[#FAF7F2] border shadow-sm max-w-3xl">
         {loading ? (
           <>
             {/* 헤더 영역 스켈레톤(높이 안정화) */}
