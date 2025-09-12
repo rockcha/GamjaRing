@@ -12,12 +12,24 @@ import {
   Check,
   X,
   PlusCircle,
+  RefreshCcw, // ✅ 추가: 새로고침 아이콘
 } from "lucide-react";
 
 import AquariumBox from "@/features/aquarium/AquariumBox";
 import ThemeShopButton from "@/features/aquarium/ThemeShopButton";
 import MarineDexModal from "@/features/aquarium/MarineDexModal";
 import AquariumDetailButton from "@/features/aquarium/AquariumDetailButton";
+
+/* ✅ shadcn/ui */
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 /** 어항 가격 (RPC 파라미터로 전달) */
 const TANK_PRICE = 200;
@@ -39,6 +51,10 @@ export default function AquariumPage() {
   const cur = tanks[idx] ?? null;
   const [editing, setEditing] = useState(false);
   const [titleInput, setTitleInput] = useState("");
+
+  /* ✅ 구매 확인 다이얼로그 상태 */
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [isBuying, setIsBuying] = useState(false);
 
   useEffect(() => {
     if (!cur) return;
@@ -120,8 +136,10 @@ export default function AquariumPage() {
     toast.success("어항 이름을 저장했어요!");
   };
 
-  /** 어항 구매 (RPC) */
-  const buyTank = async () => {
+  /** 어항 구매 (RPC) — 다이얼로그에서 최종 실행 */
+  const confirmBuy = async () => {
+    if (isBuying) return;
+    setIsBuying(true);
     try {
       const { data, error } = await supabase.rpc("buy_aquarium", {
         p_price: TANK_PRICE,
@@ -146,6 +164,9 @@ export default function AquariumPage() {
       setIdx(Math.max(0, newNo - 1));
     } catch (e: any) {
       toast.error(`구매 중 오류: ${e?.message ?? e}`);
+    } finally {
+      setIsBuying(false);
+      setConfirmOpen(false);
     }
   };
 
@@ -159,7 +180,7 @@ export default function AquariumPage() {
 
   return (
     <div className="min-h-[calc(100svh-64px)] w-full flex flex-col">
-      <div className="relative mx-20 mt-4 border-2">
+      <div className="relative mx-20 mt-4 ">
         <div
           aria-hidden
           className="absolute inset-0 z-0 pointer-events-none flex items-center justify-center"
@@ -239,7 +260,7 @@ export default function AquariumPage() {
 
               {/* 어항 구매 (가격 + 골드 이모지) */}
               <button
-                onClick={buyTank}
+                onClick={() => setConfirmOpen(true)}
                 className={cn(
                   "inline-flex items-center gap-1 rounded-full",
                   "bg-white/90 border px-2 py-1 text-xs shadow hover:bg-white"
@@ -258,7 +279,7 @@ export default function AquariumPage() {
 
             {/* 좌하단: 현재 테마 제목 배지 */}
             {cur && (
-              <div className="absolute left-2 bottom-2 z-10 pointer-events-none">
+              <div className="absolute left-2 bottom-0 flex flex-col gap-2 z-10 pointer-events-none">
                 <span
                   className={cn(
                     "inline-flex items-center gap-1 rounded-full",
@@ -273,21 +294,29 @@ export default function AquariumPage() {
                   </span>
                   <b className="font-semibold">{themeTitle || "기본 테마"}</b>
                 </span>
+                {/* ✅ 페이지 기준 우상단 고정: 어항 청소하기(새로고침) */}
+                <Button
+                  className=" z-50 shadow pointer-events-auto"
+                  variant="secondary"
+                  onClick={() => window.location.reload()}
+                  title="페이지를 새로고침합니다"
+                >
+                  <RefreshCcw className="w-4 h-4 mr-1.5" />
+                  새로고침
+                </Button>
               </div>
             )}
 
-            {/* 좌상단: 도감(위) + 테마샵(아래) + 상세 버튼 — 박스 기준 고정 */}
+            {/* 좌상단: 도감 + 테마샵 + 상세 버튼 */}
             <div className="absolute left-2 top-2 z-10 flex  gap-2 pointer-events-auto">
               <MarineDexModal />
               {cur && <ThemeShopButton tankNo={cur.tank_no} />}
-              {/* ✅ 현재 탱크 번호를 그대로 전달 */}
-            </div>
-
-            <div className="absolute right-2 bottom-2 z-10 flex  gap-2 pointer-events-auto">
               {cur && <AquariumDetailButton tankNo={cur.tank_no} />}
             </div>
 
-            {/* 우상단: 현재/전체 + 좌우 이동 — 박스 기준 고정 */}
+            <div className="absolute right-2 bottom-2 z-10 flex  gap-2 pointer-events-auto"></div>
+
+            {/* 우상단: 현재/전체 + 좌우 이동 */}
             <div className="absolute right-2 top-2 z-10 flex items-center gap-1 pointer-events-auto">
               {total > 1 ? (
                 <div className="inline-flex items-center rounded-full bg-white/75 border backdrop-blur-sm text-gray-900 text-xs shadow overflow-hidden">
@@ -299,7 +328,6 @@ export default function AquariumPage() {
                     <ChevronLeft className="w-4 h-4" />
                   </button>
                   <span className="px-2 tabular-nums">
-                    {/* 화면 표시는 항상 1부터: 실제 tank_no 사용 */}
                     {cur?.tank_no ?? 1}/{total}
                   </span>
                   <button
@@ -320,6 +348,33 @@ export default function AquariumPage() {
         </div>
         {/* END overlay */}
       </div>
+
+      {/* ✅ 구매 확인 다이얼로그 */}
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>아쿠아리움을 한 칸 추가하시겠습니까?</DialogTitle>
+            <DialogDescription>
+              새 어항을 구매하면 골드가 차감돼요. 가격:{" "}
+              <b className="tabular-nums">
+                🪙{TANK_PRICE.toLocaleString("ko-KR")}
+              </b>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button onClick={confirmBuy} disabled={isBuying}>
+              {isBuying ? "구매 중..." : "구매"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmOpen(false)}
+              disabled={isBuying}
+            >
+              닫기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

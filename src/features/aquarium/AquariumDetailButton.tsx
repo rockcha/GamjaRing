@@ -81,7 +81,7 @@ function usePortalTarget() {
 export default function AquariumDetailButton({
   tankNo,
   className,
-  buttonLabel = "상세보기",
+  buttonLabel = "아쿠아리움 관리하기",
 }: {
   tankNo: number;
   className?: string;

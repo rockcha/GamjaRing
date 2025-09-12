@@ -18,10 +18,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-
 import { Label } from "@/components/ui/label";
 import { emitAquariumUpdated } from "./aquarium";
-
 import { useCoupleContext } from "@/contexts/CoupleContext";
 
 type ThemeRow = { id: number; title: string; price: number };
@@ -34,7 +32,8 @@ function imageUrlFromTitle(title: string) {
 const BASE_THEME_ID = 12;
 const BASE_THEME_TITLE = "수중 정원";
 
-type FilterKind = "all" | "owned" | "unowned";
+// ✅ 전체 제거: 보유 / 미보유만
+type FilterKind = "owned" | "unowned";
 
 export default function ThemeShopButton({
   tankNo,
@@ -60,8 +59,8 @@ export default function ThemeShopButton({
   const [ownedIds, setOwnedIds] = useState<number[]>([]);
   const ownedSet = useMemo(() => new Set(ownedIds), [ownedIds]);
 
-  /** ✅ 라디오 그룹 필터 */
-  const [filter, setFilter] = useState<FilterKind>("all");
+  /** ✅ 라디오 그룹 필터 (기본: 보유) */
+  const [filter, setFilter] = useState<FilterKind>("owned");
 
   const [busyBuyId, setBusyBuyId] = useState<number | null>(null);
   const [busyApplyId, setBusyApplyId] = useState<number | null>(null);
@@ -153,10 +152,10 @@ export default function ThemeShopButton({
     [themes]
   );
 
+  // ✅ 보유 / 미보유만 필터링
   const visible = useMemo(() => {
-    if (filter === "owned") return sorted.filter((t) => ownedSet.has(t.id));
     if (filter === "unowned") return sorted.filter((t) => !ownedSet.has(t.id));
-    return sorted;
+    return sorted.filter((t) => ownedSet.has(t.id)); // default owned
   }, [filter, sorted, ownedSet]);
 
   /** ✅ 구매(RPC): 결제(미보유시에만) + 현재 어항에 즉시 적용 */
@@ -271,7 +270,7 @@ export default function ThemeShopButton({
           </div>
         </DialogHeader>
 
-        {/* ✅ 라디오 그룹 필터 */}
+        {/* ✅ 라디오 그룹 필터 (보유 / 미보유) */}
         <div className="px-6 pb-3">
           <div className="flex items-center justify-end gap-4">
             <span className="text-sm text-muted-foreground">보기</span>
@@ -280,10 +279,6 @@ export default function ThemeShopButton({
               value={filter}
               onValueChange={(v: FilterKind) => setFilter(v)}
             >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem id="f-all" value="all" />
-                <Label htmlFor="f-all">전체</Label>
-              </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem id="f-owned" value="owned" />
                 <Label htmlFor="f-owned">보유</Label>
