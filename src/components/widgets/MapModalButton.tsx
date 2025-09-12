@@ -6,6 +6,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useUser } from "@/contexts/UserContext";
 import { useCoupleContext } from "@/contexts/CoupleContext";
+import { useNavigate } from "react-router-dom";
 
 /**
  * 조건
@@ -63,17 +64,16 @@ export default function MapModalButton() {
             "w-auto max-w-none animate-[dialogIn_180ms_ease-out]"
           )}
         >
-          {/* 모달 콘텐츠 래퍼: 정사각 기반 너비 */}
           <div
             className="flex flex-col items-stretch"
             style={{ width: "min(70vw, 70vh)" }}
           >
             {/* 상단 타이틀 바 */}
-            <div className="flex items-center justify-center gap-2  px-4 pt-4 bg-white/90 backdrop-blur-sm">
+            <div className="flex items-center justify-center gap-2 px-4 pt-4 bg-white/90 backdrop-blur-sm">
               <img
                 src="/island.gif"
                 alt=""
-                className="h-10 w-10 rounded-[10px] "
+                className="h-10 w-10 rounded-[10px]"
                 draggable={false}
                 aria-hidden
               />
@@ -85,7 +85,7 @@ export default function MapModalButton() {
             {/* 내부 지도: 정사각 */}
             <div className="p-1">
               <div
-                className="relative overflow-hidden rounded-xl "
+                className="relative overflow-hidden rounded-xl"
                 style={{ width: "100%", height: "min(70vw, 70vh)" }}
               >
                 <MapCanvas onClose={() => setOpen(false)} />
@@ -118,6 +118,8 @@ export default function MapModalButton() {
    내부: 지도 캔버스 + 폴리곤 핫스팟 + 커서 라벨
    ========================= */
 function MapCanvas({ onClose }: { onClose: () => void }) {
+  const navigate = useNavigate();
+
   const hotspots: Array<{
     id: "farm" | "port" | "aquarium" | "kitchen";
     label: string;
@@ -150,9 +152,27 @@ function MapCanvas({ onClose }: { onClose: () => void }) {
     },
   ];
 
+  // 내부 경로는 React Router 내비게이션, 외부는 브라우저 네비게이션
   const go = (href: string) => {
-    onClose();
-    window.location.href = href;
+    if (!href) return;
+
+    const isInternal =
+      href.startsWith("/") &&
+      !/^https?:\/\//i.test(href) &&
+      !/^\/{2}/.test(href);
+
+    if (isInternal) {
+      navigate(href); // 먼저 이동 (user gesture 유지)
+      try {
+        onClose?.();
+      } catch {}
+    } else {
+      // 외부 링크는 동기적 네비게이션 우선
+      window.location.assign(href);
+      try {
+        onClose?.();
+      } catch {}
+    }
   };
 
   const containerRef = React.useRef<HTMLDivElement | null>(null);
@@ -170,7 +190,7 @@ function MapCanvas({ onClose }: { onClose: () => void }) {
 
   return (
     <div ref={containerRef} className="absolute inset-0">
-      {/* 지도 이미지: 전체 보이도록 */}
+      {/* 지도 이미지 */}
       <img
         src="/map.png"
         alt="월드 맵"
@@ -178,13 +198,16 @@ function MapCanvas({ onClose }: { onClose: () => void }) {
         draggable={false}
       />
 
-      {/* 핫스팟 (hover 시 커서 라벨만 표기) */}
+      {/* 핫스팟 */}
       <div className="absolute inset-0">
         {hotspots.map((hs) => (
           <button
             key={hs.id}
             type="button"
-            onClick={() => go(hs.href)}
+            onClick={(e) => {
+              e.preventDefault(); // 폴리곤 영역 클릭 시 의도치 않은 포커스/스크롤 방지
+              go(hs.href);
+            }}
             onMouseEnter={(e) => updateHover(e, hs.label)}
             onMouseMove={(e) => updateHover(e, hs.label)}
             onMouseLeave={() => setHoverInfo(null)}
@@ -209,8 +232,8 @@ function MapCanvas({ onClose }: { onClose: () => void }) {
         <div
           className={cn(
             "pointer-events-none absolute z-10",
-            "px-3.5 py-2 rounded-md  text-base ",
-            "bg-black/55  text-white"
+            "px-3.5 py-2 rounded-md text-base",
+            "bg-black/55 text-white"
           )}
           style={{
             left: hoverInfo.x,
