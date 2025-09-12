@@ -119,9 +119,12 @@ function isEntityRow(x: unknown): x is EntityRow {
 export default function AquariumBox({
   tankNo,
   fitToContainer = false,
+
+  heightVh = 74,
 }: {
   tankNo: number;
   fitToContainer?: boolean;
+  heightVh?: number;
 }) {
   const { couple } = useCoupleContext();
   const coupleId = couple?.id ?? null;
@@ -471,7 +474,10 @@ export default function AquariumBox({
         className={cn(
           "relative rounded-xl overflow-hidden will-change-transform transform-gpu mx-auto"
         )}
-        style={{ height: "74vh", width: "min(100%, calc(85vw ))" }}
+        style={{
+          height: `${heightVh}vh`,
+          width: "min(100%, calc(85vw ))",
+        }}
       >
         {/* 배경 */}
         {bgUrl && (

@@ -1,3 +1,4 @@
+// src/components/MapModalButton.tsx
 "use client";
 
 import * as React from "react";
@@ -152,7 +153,8 @@ function MapCanvas({ onClose }: { onClose: () => void }) {
     },
   ];
 
-  // 내부 경로는 React Router 내비게이션, 외부는 브라우저 네비게이션
+  // 내부 경로: SPA navigate → 다음 프레임에 모달 닫기
+  // 외부 경로: 브라우저 네비게이션 폴백
   const go = (href: string) => {
     if (!href) return;
 
@@ -162,16 +164,14 @@ function MapCanvas({ onClose }: { onClose: () => void }) {
       !/^\/{2}/.test(href);
 
     if (isInternal) {
-      navigate(href); // 먼저 이동 (user gesture 유지)
-      try {
-        onClose?.();
-      } catch {}
+      navigate(href); // 1) 이동 먼저 (user gesture 유지)
+      requestAnimationFrame(() => {
+        try {
+          onClose?.(); // 2) 다음 프레임에 모달 닫기 (FF 안정화)
+        } catch {}
+      });
     } else {
-      // 외부 링크는 동기적 네비게이션 우선
-      window.location.assign(href);
-      try {
-        onClose?.();
-      } catch {}
+      window.location.assign(href); // 외부 링크는 브라우저 네비게이션
     }
   };
 
@@ -198,14 +198,17 @@ function MapCanvas({ onClose }: { onClose: () => void }) {
         draggable={false}
       />
 
-      {/* 핫스팟 */}
+      {/* 핫스팟: a 태그로 폴백 확보 */}
       <div className="absolute inset-0">
         {hotspots.map((hs) => (
-          <button
+          <a
             key={hs.id}
-            type="button"
+            href={hs.href}
             onClick={(e) => {
-              e.preventDefault(); // 폴리곤 영역 클릭 시 의도치 않은 포커스/스크롤 방지
+              const isInternal =
+                hs.href.startsWith("/") && !/^https?:\/\//i.test(hs.href);
+              if (!isInternal) return; // 외부 링크는 기본 동작
+              e.preventDefault(); // 내부만 우리가 제어
               go(hs.href);
             }}
             onMouseEnter={(e) => updateHover(e, hs.label)}
@@ -223,7 +226,7 @@ function MapCanvas({ onClose }: { onClose: () => void }) {
               className="absolute inset-0 rounded-[12px] bg-white/0 group-hover:bg-white/5 transition-colors"
             />
             <span className="invisible"> </span>
-          </button>
+          </a>
         ))}
       </div>
 

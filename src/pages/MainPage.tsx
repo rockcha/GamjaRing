@@ -55,7 +55,7 @@ export default function MainPage() {
         </div>
 
         {/* 오른쪽: 질문 + 일정 */}
-        <div className="flex flex-col gap-2 min-w-0">
+        <div className="flex flex-col  min-w-0">
           <AquariumPreviewCard />
         </div>
       </div>

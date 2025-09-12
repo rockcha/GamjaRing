@@ -112,10 +112,12 @@ export default function CoupleImageCard({
 
   const isDisabled = !user?.id || !isCoupled;
 
+  const lastAttemptRef = useRef<Record<string, number>>({});
+
   // 캐시/쿨다운
   const cacheRef = useRef<Record<string, CacheEntry>>(readCache());
   const failRef = useRef<Record<string, number>>({});
-  const FAIL_COOLDOWN_SEC = 10 * 60;
+  const FAIL_COOLDOWN_SEC = 60;
 
   const inRange = (i: number) => i >= 0 && i < MAX_SLOTS;
   const updateSlot = (i: number, updater: (prev: Slot) => Slot) =>
@@ -173,13 +175,26 @@ export default function CoupleImageCard({
     return signed;
   }, []);
 
+  const [listedOnce, setListedOnce] = useState(false);
+  const prevCoupleIdRef = useRef<string | null>(null);
+
   // ===== 기존 파일 목록 로드 =====
   const loadExisting = useCallback(async () => {
-    if (!coupleId || !isCoupled) {
-      setSlots(Array.from({ length: MAX_SLOTS }, emptySlot));
-      setInitialLoading(false);
+    // ✅ 컨텍스트 과도기: (로그인 O) && (isCoupled === true) && (coupleId 없음) → 아무것도 안함
+    const contextNotReady = !!user?.id && isCoupled === true && !coupleId;
+    if (contextNotReady) return;
+
+    // ✅ '진짜' 미연동/접근불가가 확정된 경우에만 로딩 종료
+    if (!coupleId || isCoupled !== true) {
+      // 이전에 유효 coupleId로 렌더된 적이 있다면, 빈슬롯으로 덮어쓰지 않는다
+      if (!prevCoupleIdRef.current) {
+        setSlots(Array.from({ length: MAX_SLOTS }, emptySlot));
+        setInitialLoading(false);
+        setListedOnce(true);
+      }
       return;
     }
+
     try {
       setError(null);
 
@@ -192,7 +207,7 @@ export default function CoupleImageCard({
       const leftOver: string[] = [];
 
       for (const f of files ?? []) {
-        const m = f.name.match(/^slot-(\d)\.(png|jpe?g|webp|gif|bmp|avif)$/i);
+        const m = f.name.match(/^slot-(\d+)\.(png|jpe?g|webp|gif|bmp|avif)$/i);
         if (m) {
           const idx = Number(m[1]);
           if (idx >= 0 && idx < next.length)
@@ -208,7 +223,7 @@ export default function CoupleImageCard({
         next[i]!.path = `${coupleId}/${name}`;
       }
 
-      // 캐시에서 URL 주입하되, 만료 임박이면 주입하지 않음
+      // 캐시 주입
       const cached = cacheRef.current;
       const hydrated = next.map((s) => {
         if (!s.path) return s;
@@ -221,14 +236,16 @@ export default function CoupleImageCard({
         return s;
       });
 
+      prevCoupleIdRef.current = coupleId; // 현재 유효 컨텍스트 기억
       setSlots(hydrated);
     } catch (e: any) {
       setError(e?.message ?? "이미지를 불러오는 중 오류가 발생했어요.");
-      setSlots(Array.from({ length: MAX_SLOTS }, emptySlot));
+      // 실패 시에도 이전 UI를 날리지 않음 (사용자 깜빡임 방지)
     } finally {
       setInitialLoading(false);
+      setListedOnce(true); // '시도'는 끝났음
     }
-  }, [coupleId, isCoupled]);
+  }, [user?.id, coupleId, isCoupled]);
 
   useEffect(() => {
     loadExisting();
@@ -255,27 +272,37 @@ export default function CoupleImageCard({
       if (s.url) return;
 
       const path = s.path;
-      try {
-        // 1) 서명 URL 발급
-        const signed = await getSignedUrlCached(path);
+      const now = nowSec();
 
-        // 2) UI에 즉시 반영 (사용자는 바로 본다)
+      // 쿨다운 동안이라면 "조금 있다가" 다시 시도 예약
+      if (failRef.current[path] && failRef.current[path] > now) {
+        const waitMs = (failRef.current[path] - now) * 1000;
+        // 최근 예약과 중복 방지
+        if (
+          !lastAttemptRef.current[path] ||
+          now - lastAttemptRef.current[path] > 5
+        ) {
+          lastAttemptRef.current[path] = now;
+          setTimeout(() => ensureUrlFor(idx), Math.min(waitMs, 1500)); // 1.5s 내 재시도
+        }
+        return;
+      }
+
+      try {
+        const signed = await getSignedUrlCached(path);
         updateSlot(idx, (prev) => ({ ...prev, url: signed }));
 
-        // 3) 백그라운드 확인 + 타임아웃 가드
         try {
           await tryLoadWithTimeout(signed, 3500);
         } catch {
-          // 4) 한 번은 강제 재발급 후 교체
-          try {
-            const fresh = await refreshSignedUrlForce(path);
-            updateSlot(idx, (prev) => ({ ...prev, url: fresh }));
-          } catch {
-            // 무시: 다음 인터랙션에서 또 시도됨
-          }
+          const fresh = await refreshSignedUrlForce(path);
+          updateSlot(idx, (prev) => ({ ...prev, url: fresh }));
         }
-      } catch {
-        // 실패 쿨다운 중이면 다음 인터랙션/슬라이드 이동 시 재시도
+      } catch (e) {
+        // 첫 실패 시 짧은 backoff로 재시도 예약
+        if (!failRef.current[path]) {
+          setTimeout(() => ensureUrlFor(idx), 800);
+        }
       }
     },
     [slots, getSignedUrlCached, refreshSignedUrlForce]
@@ -480,7 +507,7 @@ export default function CoupleImageCard({
                       {/* 이미지 컨테이너 */}
                       <div className="relative w-full rounded-md border bg-white/40">
                         <div className="w-full flex items-center justify-center p-2">
-                          {s.path && shouldLoad ? (
+                          {s.path ? (
                             hasImg ? (
                               <img
                                 key={s.path ?? `img-${idx}`}
@@ -507,7 +534,7 @@ export default function CoupleImageCard({
                                 <Skeleton className="w-full h-[220px] sm:h-[260px] rounded-md" />
                               </div>
                             )
-                          ) : (
+                          ) : listedOnce ? (
                             <button
                               type="button"
                               disabled={isDisabled || s.uploading}
@@ -529,6 +556,10 @@ export default function CoupleImageCard({
                                   : "이미지 추가"}
                               </span>
                             </button>
+                          ) : (
+                            <div className="w-full grid place-items-center">
+                              <Skeleton className="w-full h-[220px] sm:h-[260px] rounded-md" />
+                            </div>
                           )}
                         </div>
 
@@ -539,14 +570,14 @@ export default function CoupleImageCard({
                         )}
 
                         {s.path && !isDisabled && (
-                          <div className="absolute right-2 bottom-2 flex items-center gap-1">
+                          <div className="absolute right-2 bottom-2 flex items-center ">
                             <Button
                               size="sm"
                               variant="ghost"
                               onClick={() => openPickerFor(idx)}
                               disabled={s.uploading || s.deleting}
                               title="이미지 교체"
-                              className="bg-white hover:cursor-pointer"
+                              className="border bg-white hover:cursor-pointer"
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -556,14 +587,14 @@ export default function CoupleImageCard({
                               onClick={() => handleDelete(idx)}
                               disabled={s.uploading || s.deleting}
                               title="이미지 삭제"
-                              className="bg-white hover:cursor-pointer"
+                              className=" border bg-white hover:cursor-pointer"
                             >
                               <Trash2 className="h-4 w-4 text-rose-600" />
                             </Button>
                           </div>
                         )}
 
-                        <div className="absolute bottom-2 left-2">
+                        <div className="absolute top-2 right-2">
                           <span className="px-2 py-1 text-xs rounded-md bg-white/95 shadow-sm border">
                             {idx + 1} / {MAX_SLOTS}
                           </span>
