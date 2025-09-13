@@ -5,6 +5,9 @@ import { CoupleProvider } from "@/contexts/CoupleContext";
 
 import { Toaster } from "./components/ui/sonner";
 
+import IOSAddToHomeToast from "./features/pwa/IOSAddToHomeToast";
+import UpdateToast from "./features/pwa/UpdateToast";
+
 import PageLayout from "./components/layouts/PageLayout";
 import AppInit from "./AppInit";
 import IntroPage from "@/pages/IntroPage";
@@ -58,6 +61,8 @@ export default function App() {
 
           {/* ✅ 여기! Routes 바깥에 전역으로 한 번만 */}
           <Toaster position="bottom-right" richColors />
+          <IOSAddToHomeToast />
+          <UpdateToast />
         </BrowserRouter>
       </CoupleProvider>
     </UserProvider>

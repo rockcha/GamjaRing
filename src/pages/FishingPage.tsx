@@ -1,7 +1,20 @@
 // src/app/games/fishing/FishingPage.tsx
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+/**
+ * FishingPage — readability‑focused refactor
+ * ------------------------------------------------------------
+ * 1) 섹션/주석으로 구조를 명확히 분리
+ * 2) 유틸/상수/타입 정리, 네이밍 일관화
+ * 3) 빠른 조기 반환(early return)과 예외 처리 정리
+ * 4) 모바일 시인성/터치 고려한 마크업(기존 DnD 유지)
+ * 5) React 훅/의존성 배열 정리, setTimeout/Interval 정리
+ */
+
+/* ────────────────────────────────────────────────────────────
+ * Imports
+ * ──────────────────────────────────────────────────────────── */
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import supabase from "@/lib/supabase";
@@ -24,53 +37,25 @@ import ResultDialog, {
   type Rarity,
 } from "@/features/fishing/ResultDialog";
 
-/* =======================
-   DnD MIME
-======================= */
-const DND_MIME = "application/x-ingredient";
+/* ────────────────────────────────────────────────────────────
+ * Constants & Types
+ * ──────────────────────────────────────────────────────────── */
+const DND_MIME = "application/x-ingredient" as const;
 
-/* =======================
-   시간대별 배경
-======================= */
-type TimeSlot = "morning" | "noon" | "evening" | "night";
-function getTimeSlot(d: Date): TimeSlot {
-  const hh = d.getHours();
-  const mm = d.getMinutes();
-  if ((hh > 5 && hh < 11) || (hh === 5 && mm >= 0) || (hh === 11 && mm === 0))
-    return "morning";
-  if ((hh > 11 && hh < 17) || (hh === 11 && mm >= 1) || (hh === 17 && mm === 0))
-    return "noon";
-  if ((hh > 17 && hh < 20) || (hh === 17 && mm >= 1) || (hh === 20 && mm <= 30))
-    return "evening";
-  return "night";
-}
-function bgSrcBySlot(slot: TimeSlot) {
-  switch (slot) {
-    case "morning":
-      return "/aquarium/fishing_morning.png";
-    case "noon":
-      return "/aquarium/fishing_noon.png";
-    case "evening":
-      return "/aquarium/fishing_evening.png";
-    case "night":
-    default:
-      return "/aquarium/fishing_night.png";
-  }
-}
-function slotLabel(slot: TimeSlot) {
-  return slot === "morning"
-    ? "아침"
-    : slot === "noon"
-    ? "낮"
-    : slot === "evening"
-    ? "저녁"
-    : "밤";
-}
+// 시간대(배경) 구간
+export type TimeSlot = "morning" | "noon" | "evening" | "night";
 
-/* =======================
-   (개그 전용) 낚시 중 멘트
-======================= */
-export const FUNNY_LINES = [
+// 희귀도별 대기시간(ms)
+const RARITY_DELAY_MS: Record<Rarity | "DEFAULT", number> = {
+  전설: 10_000,
+  에픽: 8_000,
+  희귀: 6_000,
+  일반: 4_000,
+  DEFAULT: 4_000,
+};
+
+// (개그 전용) 낚시 중 멘트
+const FUNNY_LINES = [
   "문어는 비밀번호를 여덟 자리로 고집합니다. 팔이 책임져요.",
   "게는 직진하라 했더니 옆으로 직진했습니다.",
   "돌고래는 웃는 얼굴로 시험지 내고, 선생님도 웃게 만듭니다.",
@@ -113,9 +98,71 @@ export const FUNNY_LINES = [
   "소라의 집은 전세 아니고 평생 월세—대신 관리비는 파도입니다.",
 ] as const;
 
-/* =======================
-   낚시중 오버레이 (랜덤 GIF)
-======================= */
+/* ────────────────────────────────────────────────────────────
+ * Utilities
+ * ──────────────────────────────────────────────────────────── */
+function getTimeSlot(d: Date): TimeSlot {
+  const hh = d.getHours();
+  const mm = d.getMinutes();
+  if ((hh > 5 && hh < 11) || (hh === 5 && mm >= 0) || (hh === 11 && mm === 0))
+    return "morning";
+  if ((hh > 11 && hh < 17) || (hh === 11 && mm >= 1) || (hh === 17 && mm === 0))
+    return "noon";
+  if ((hh > 17 && hh < 20) || (hh === 17 && mm >= 1) || (hh === 20 && mm <= 30))
+    return "evening";
+  return "night";
+}
+
+function bgSrcBySlot(slot: TimeSlot) {
+  switch (slot) {
+    case "morning":
+      return "/aquarium/fishing_morning.png";
+    case "noon":
+      return "/aquarium/fishing_noon.png";
+    case "evening":
+      return "/aquarium/fishing_evening.png";
+    case "night":
+    default:
+      return "/aquarium/fishing_night.png";
+  }
+}
+
+function slotLabel(slot: TimeSlot) {
+  return slot === "morning"
+    ? "아침"
+    : slot === "noon"
+    ? "낮"
+    : slot === "evening"
+    ? "저녁"
+    : "밤";
+}
+
+// 희귀도 → 디렉토리
+function rarityDir(r: Rarity) {
+  return r === "일반"
+    ? "common"
+    : r === "희귀"
+    ? "rare"
+    : r === "에픽"
+    ? "epic"
+    : "legend";
+}
+
+function buildImageSrc(id: string, rarity: Rarity) {
+  return `/aquarium/${rarityDir(rarity)}/${id}.png`;
+}
+
+const rarityMap: Record<string, Rarity> = {
+  일반: "일반",
+  희귀: "희귀",
+  에픽: "에픽",
+  전설: "전설",
+  레어: "희귀",
+};
+
+/* ────────────────────────────────────────────────────────────
+ * Sub‑components
+ * ──────────────────────────────────────────────────────────── */
 function FishingOverlay({ visible }: { visible: boolean }) {
   const [text, setText] = useState<string>("바다의 농담을 건지는 중…");
   const [gifIndex, setGifIndex] = useState<number>(1);
@@ -125,13 +172,16 @@ function FishingOverlay({ visible }: { visible: boolean }) {
     const pickLine = () =>
       setText(FUNNY_LINES[Math.floor(Math.random() * FUNNY_LINES.length)]!);
     const pickGif = () => setGifIndex(1 + Math.floor(Math.random() * 16));
+
     pickGif();
     pickLine();
+
     const id = window.setInterval(pickLine, 3000);
     return () => window.clearInterval(id);
   }, [visible]);
 
   if (!visible) return null;
+
   return (
     <div className="fixed inset-0 z-[1000] grid place-items-center bg-black/25 backdrop-blur-[2px]">
       <div className="w-[min(92vw,520px)] max-h-[80vh] overflow-auto rounded-2xl bg-white backdrop-blur border p-6 text-center shadow-xl">
@@ -156,34 +206,19 @@ function FishingOverlay({ visible }: { visible: boolean }) {
   );
 }
 
-/* =======================
-   유틸: 이미지 경로/희귀도 변환
-======================= */
-const rarityMap: Record<string, Rarity> = {
-  일반: "일반",
-  희귀: "희귀",
-  에픽: "에픽",
-  전설: "전설",
-  레어: "희귀",
-};
-function rarityDir(r: Rarity) {
-  return r === "일반"
-    ? "common"
-    : r === "희귀"
-    ? "rare"
-    : r === "에픽"
-    ? "epic"
-    : "legend";
-}
-function buildImageSrc(id: string, rarity: Rarity) {
-  return `/aquarium/${rarityDir(rarity)}/${id}.png`;
-}
-
-/* =======================
-   메인 페이지
-======================= */
+/* ────────────────────────────────────────────────────────────
+ * Main Component
+ * ──────────────────────────────────────────────────────────── */
 export default function FishingPage() {
+  /* 1) Context & Auth */
+  const { user } = useUser();
+  const { couple, fetchCoupleData } = useCoupleContext();
+  const coupleId = couple?.id ?? null;
+
+  /* 2) TimeSlot & Background */
   const [slot, setSlot] = useState<TimeSlot>(() => getTimeSlot(new Date()));
+  const bg = useMemo(() => bgSrcBySlot(slot), [slot]);
+
   useEffect(() => {
     const id = window.setInterval(
       () => setSlot(getTimeSlot(new Date())),
@@ -191,28 +226,23 @@ export default function FishingPage() {
     );
     return () => window.clearInterval(id);
   }, []);
-  const bg = bgSrcBySlot(slot);
 
-  const { user } = useUser();
-  const { couple, fetchCoupleData } = useCoupleContext();
-  const coupleId = couple?.id ?? null;
-
+  /* 3) UI State */
   const [overlay, setOverlay] = useState(false);
   const [result, setResult] = useState<DialogFishResult | null>(null);
   const [resultOpen, setResultOpen] = useState(false);
+  const [dragOver, setDragOver] = useState(false); // 드롭 하이라이트
 
-  // 드롭 하이라이트
-  const [dragOver, setDragOver] = useState(false);
+  /* 4) Helpers */
+  const getDelayByRarity = (rar: Rarity | null) =>
+    RARITY_DELAY_MS[rar ?? "DEFAULT"];
 
-  // ⏱️ 희귀도별 대기시간
-  function durationByRarity(rarity: Rarity | null): number {
-    if (rarity === "전설") return 10_000;
-    if (rarity === "에픽") return 8_000;
-    if (rarity === "희귀") return 6_000;
-    return 4_000;
-  }
+  const clearOverlayAfter = async (ms: number) => {
+    await new Promise((r) => setTimeout(r, ms));
+    setOverlay(false);
+  };
 
-  // 배경 드롭 핸들러들
+  /* 5) DnD Handlers */
   const onDragOver = useCallback(
     (e: React.DragEvent) => {
       if (overlay) return;
@@ -223,6 +253,7 @@ export default function FishingPage() {
     },
     [overlay]
   );
+
   const onDragEnter = useCallback(
     (e: React.DragEvent) => {
       if (overlay) return;
@@ -230,6 +261,7 @@ export default function FishingPage() {
     },
     [overlay]
   );
+
   const onDragLeave = useCallback(() => setDragOver(false), []);
 
   const onDrop = useCallback(
@@ -239,8 +271,9 @@ export default function FishingPage() {
 
       const raw = e.dataTransfer.getData(DND_MIME);
       if (!raw) return;
-
       e.preventDefault();
+
+      // 1) 페이로드 안전 파싱
       let payload: { title: IngredientTitle; emoji: string } | null = null;
       try {
         payload = JSON.parse(raw);
@@ -249,11 +282,11 @@ export default function FishingPage() {
       }
       if (!payload) return;
 
-      // 오버레이 시작
+      // 2) 오버레이 시작
       setOverlay(true);
 
       try {
-        // 1) 재료 차감
+        // 2-1) 재료 차감
         if (coupleId) {
           await consumeIngredients(coupleId, { [payload.title]: 1 } as Record<
             IngredientTitle,
@@ -266,7 +299,7 @@ export default function FishingPage() {
           );
         }
 
-        // 2) 결과 계산 (DB 기반 roll)
+        // 2-2) 결과 계산
         const res: RollResult = await rollFishByIngredient(payload.title);
 
         let computed: DialogFishResult;
@@ -280,7 +313,6 @@ export default function FishingPage() {
         if (!res.ok) {
           computed = { type: "FAIL" };
         } else {
-          // DB에서 최소 컬럼만 조회 (image는 규칙으로 생성)
           const { data: row, error: qErr } = await supabase
             .from("aquarium_entities")
             .select("id, name_ko, rarity")
@@ -309,18 +341,16 @@ export default function FishingPage() {
           }
         }
 
-        // 3) 희귀도에 따른 대기시간 유지
-        const rarityForDelay: Rarity | null =
-          computed.type === "SUCCESS" ? computed.rarity : null;
-        const durationMs = durationByRarity(rarityForDelay);
-        await new Promise((r) => setTimeout(r, durationMs));
+        // 2-3) 연출 대기
+        await clearOverlayAfter(
+          getDelayByRarity(computed.type === "SUCCESS" ? computed.rarity : null)
+        );
 
-        // 4) 오버레이 종료 + 결과 표시
-        setOverlay(false);
+        // 2-4) 결과 노출
         setResult(computed);
         setResultOpen(true);
 
-        // 5) 저장/알림은 성공시에만 처리 — 테이블에 직접 INSERT
+        // 2-5) 성공 시 인벤토리 저장 + 알림
         if (computed.type === "SUCCESS" && fishRow && coupleId) {
           try {
             const { error: insErr } = await supabase
@@ -328,7 +358,7 @@ export default function FishingPage() {
               .insert({
                 couple_id: coupleId,
                 entity_id: fishRow.id,
-                tank_no: 1, // 기본 1번 어항
+                tank_no: 1,
               })
               .select("id")
               .single();
@@ -346,13 +376,13 @@ export default function FishingPage() {
                     itemName,
                   } as any);
                 }
-              } catch (e) {
-                console.warn("알림 전송 실패(무시 가능):", e);
+              } catch (notifyErr) {
+                console.warn("알림 전송 실패(무시 가능):", notifyErr);
               }
               await fetchCoupleData?.();
             }
-          } catch (e: any) {
-            console.warn("인벤토리 저장 중 오류:", e?.message ?? e);
+          } catch (saveErr: any) {
+            console.warn("인벤토리 저장 중 오류:", saveErr?.message ?? saveErr);
             toast.warning("인벤토리 저장 중 오류가 발생했어요.");
           }
         }
@@ -364,6 +394,7 @@ export default function FishingPage() {
     [overlay, coupleId, fetchCoupleData, user?.id, user?.partner_id]
   );
 
+  /* 6) Render */
   return (
     <div
       className={cn(
@@ -372,10 +403,10 @@ export default function FishingPage() {
         "md:grid-cols-12 md:grid-rows-1 gap-3"
       )}
     >
-      {/* 좌측 재료 패널 */}
+      {/* 좌측 재료 패널 (데스크톱에만 표시) */}
       <aside
         className={cn(
-          "col-span-3 rounded-2xl border bg-white p-3 flex flex-col gap-3",
+          "hidden md:flex col-span-3 rounded-2xl border bg-white p-3 flex-col gap-3",
           "overflow-y-auto overscroll-contain min-h-0"
         )}
       >
@@ -391,16 +422,17 @@ export default function FishingPage() {
         onDragEnter={onDragEnter}
         onDragLeave={onDragLeave}
         onDrop={onDrop}
+        aria-label="낚시 배경 영역"
       >
         {/* 배경 이미지 */}
         <img
           src={bg}
-          alt="fishing background"
+          alt={`fishing background: ${slotLabel(slot)}`}
           className="absolute inset-0 w-full h-full object-cover"
           draggable={false}
         />
 
-        {/* 비네트 */}
+        {/* 비네트(가독성 보조) */}
         <div className="pointer-events-none absolute inset-0 [background:radial-gradient(60%_60%_at_50%_40%,rgba(0,0,0,0)_0%,rgba(0,0,0,.25)_100%)] md:[background:radial-gradient(55%_65%_at_50%_35%,rgba(0,0,0,0)_0%,rgba(0,0,0,.18)_100%)]" />
 
         {/* 상단 중앙 시간대 배지 */}
@@ -415,7 +447,7 @@ export default function FishingPage() {
           <MarineDexModal />
         </div>
 
-        {/* 드롭 가이드 */}
+        {/* 드롭 가이드(센터) */}
         {!overlay && (
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
             <div
@@ -431,7 +463,7 @@ export default function FishingPage() {
           </div>
         )}
 
-        {/* 오버레이 / 결과 패널 */}
+        {/* 오버레이 / 결과 */}
         <FishingOverlay visible={overlay} />
         <ResultDialog
           open={resultOpen}
