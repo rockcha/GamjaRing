@@ -3,13 +3,21 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Anchor, X, Info } from "lucide-react"; // ← Book 제거
+import { Anchor, X, Info } from "lucide-react";
 import supabase from "@/lib/supabase";
 import {
   INGREDIENT_EMOJI,
   type IngredientTitle,
 } from "@/features/kitchen/type";
 import { Button } from "@/components/ui/button";
+
+// ✅ shadcn tooltip 임포트
+import {
+  TooltipProvider,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 
 /* ─ Types ─ */
 type FishRarity = "일반" | "희귀" | "에픽" | "전설";
@@ -108,17 +116,14 @@ export default function MarineDexModal() {
       typeof n === "number" && isFinite(n) ? n : Number.POSITIVE_INFINITY;
 
     return [...filtered].sort((a, b) => {
-      // 1) 가격 오름차순
       const pa = priceNum(a.price);
       const pb = priceNum(b.price);
       if (pa !== pb) return pa - pb;
 
-      // 2) (동가) 희귀도
       const ra = rarityRank[a.rarity],
         rb = rarityRank[b.rarity];
       if (ra !== rb) return ra - rb;
 
-      // 3) (동가) 이름/ID
       const an = a.name_ko ?? a.id;
       const bn = b.name_ko ?? b.id;
       return an.localeCompare(bn, "ko");
@@ -196,144 +201,179 @@ export default function MarineDexModal() {
               className="relative z-10 flex items-center justify-center w-full h-full p-4"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="relative bg-[#FAF7F2] rounded-2xl shadow-2xl w-[860px] max-w-[92vw] max-h-[82vh] p-5 flex flex-col">
-                {/* header */}
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h2 className="text-xl font-bold">해양생물 도감</h2>
-                    <p className="text-xs text-gray-500 mt-1">
-                      모든 어종을 한눈에 보고, 등급별로 탐색해 보세요.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setOpen(false)}
-                    className="inline-flex items-center justify-center rounded-md p-2 text-gray-500 hover:bg-gray-100"
-                    aria-label="닫기"
-                    title="닫기"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                {captureHeader}
-
-                {/* filters */}
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {filters.map((f) => {
-                      const active = rarity === f;
-                      return (
-                        <button
-                          key={f}
-                          onClick={() => setRarity(f)}
-                          className={`px-3 py-1 rounded-full border text-sm transition ${filterBtnCls(
-                            f,
-                            active
-                          )}`}
-                        >
-                          {f}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {loading && (
-                    <div className="text-xs text-gray-500">불러오는 중…</div>
-                  )}
-                  {err && (
-                    <div className="text-xs text-red-600">
-                      오류: {String(err)}
+              {/* ✅ TooltipProvider를 모달 내부 전체를 감싸도록 배치 */}
+              <TooltipProvider
+                delayDuration={150}
+                disableHoverableContent={false}
+              >
+                <div className="relative bg-[#FAF7F2] rounded-2xl shadow-2xl w-[860px] max-w-[92vw] max-h-[82vh] p-5 flex flex-col">
+                  {/* header */}
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h2 className="text-xl font-bold">해양생물 도감</h2>
+                      <p className="text-xs text-gray-500 mt-1">
+                        모든 어종을 한눈에 보고, 등급별로 탐색해 보세요.
+                      </p>
                     </div>
-                  )}
-                </div>
+                    <button
+                      onClick={() => setOpen(false)}
+                      className="inline-flex items-center justify-center rounded-md p-2 text-gray-500 hover:bg-gray-100"
+                      aria-label="닫기"
+                      title="닫기"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
 
-                {/* list */}
-                <div className="flex-1 overflow-y-auto pr-1">
-                  <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2">
-                    {list.map((f) => {
-                      const imgSrc = buildImageSrc(f.id, f.rarity);
-                      const [y1, y2] = parseInt4Range(f.swim_y);
-                      const ing = (f.food ?? "") as IngredientTitle;
-                      const ingEmoji = INGREDIENT_EMOJI[ing] ?? "🫧";
+                  {captureHeader}
 
-                      return (
-                        <div
-                          key={f.id}
-                          className={`rounded-xl border-2 p-3 text-left ${rarityCardBg(
-                            f.rarity
-                          )}`}
-                        >
-                          <div className="relative rounded-lg overflow-hidden border">
-                            <img
-                              src={imgSrc}
-                              alt={f.name_ko ?? f.id}
-                              className="w-full aspect-square object-contain "
-                              draggable={false}
-                              loading="lazy"
-                              onError={(ev) => {
-                                ev.currentTarget.onerror = null;
-                                ev.currentTarget.src =
-                                  "/aquarium/placeholder.png";
-                              }}
-                              title={`수영 높이: ${y1}~${y2}%`}
-                            />
-                            {/* 좌상단: 희귀도 */}
-                            <div className="absolute left-2 top-2">
-                              <span
-                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${rarityChipCls(
-                                  f.rarity
-                                )}`}
+                  {/* filters */}
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {filters.map((f) => {
+                        const active = rarity === f;
+                        return (
+                          <button
+                            key={f}
+                            onClick={() => setRarity(f)}
+                            className={`px-3 py-1 rounded-full border text-sm transition ${filterBtnCls(
+                              f,
+                              active
+                            )}`}
+                          >
+                            {f}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {loading && (
+                      <div className="text-xs text-gray-500">불러오는 중…</div>
+                    )}
+                    {err && (
+                      <div className="text-xs text-red-600">
+                        오류: {String(err)}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* list */}
+                  <div className="flex-1 overflow-y-auto pr-1">
+                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2">
+                      {list.map((f) => {
+                        const imgSrc = buildImageSrc(f.id, f.rarity);
+                        const [y1, y2] = parseInt4Range(f.swim_y);
+                        const ing = (f.food ?? "") as IngredientTitle;
+                        const ingEmoji = INGREDIENT_EMOJI[ing] ?? "🫧";
+
+                        const shortText =
+                          f.description && f.description.length > 44
+                            ? f.description.slice(0, 44) + "…"
+                            : f.description ?? "";
+
+                        return (
+                          <div
+                            key={f.id}
+                            className={`rounded-xl border-2 p-3 text-left ${rarityCardBg(
+                              f.rarity
+                            )}`}
+                          >
+                            <div className="relative rounded-lg overflow-hidden border">
+                              <img
+                                src={imgSrc}
+                                alt={f.name_ko ?? f.id}
+                                className="w-full aspect-square object-contain "
+                                draggable={false}
+                                loading="lazy"
+                                onError={(ev) => {
+                                  ev.currentTarget.onerror = null;
+                                  ev.currentTarget.src =
+                                    "/aquarium/placeholder.png";
+                                }}
+                                title={`수영 높이: ${y1}~${y2}%`}
+                              />
+                              {/* 좌상단: 희귀도 */}
+                              <div className="absolute left-2 top-2">
+                                <span
+                                  className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${rarityChipCls(
+                                    f.rarity
+                                  )}`}
+                                >
+                                  {f.rarity}
+                                </span>
+                              </div>
+                              {/* 우상단: 필요 재료 이모지 */}
+                              <div
+                                className="absolute right-2 top-2 w-9 h-9 rounded-full bg-white/95 border border-gray-200 shadow-sm flex items-center justify-center text-lg"
+                                title={`필요 재료: ${f.food ?? "미정"}`}
+                                aria-label={`필요 재료: ${f.food ?? "미정"}`}
                               >
-                                {f.rarity}
-                              </span>
+                                <span className="translate-y-[1px]">
+                                  {ingEmoji}
+                                </span>
+                              </div>
                             </div>
-                            {/* 우상단: 필요 재료 이모지 */}
-                            <div
-                              className="absolute right-2 top-2 w-9 h-9 rounded-full bg-white/95 border border-gray-200 shadow-sm flex items-center justify-center text-lg"
-                              title={`필요 재료: ${f.food ?? "미정"}`}
-                              aria-label={`필요 재료: ${f.food ?? "미정"}`}
-                            >
-                              <span className="translate-y-[1px]">
-                                {ingEmoji}
-                              </span>
+
+                            {/* 이름 + 가격 + 설명 */}
+                            <div className="mt-3">
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex items-center rounded-md border px-2.5 py-1 text-[11px] font-bold bg-white text-zinc-900">
+                                  {f.name_ko ?? f.id}
+                                </span>
+                              </div>
+
+                              {/* 🪙 가격 */}
+                              <div className="mt-1 flex items-center gap-1 text-[11px] text-gray-700">
+                                <span role="img" aria-label="gold">
+                                  🪙
+                                </span>
+                                <span className="font-semibold">
+                                  {fmt(f.price)}
+                                </span>
+                              </div>
+
+                              {/* ✅ 설명: 줄임표 + 툴팁(풀 텍스트) */}
+                              {f.description && (
+                                <Tooltip>
+                                  {/* Trigger는 asChild로 줄임 설명/아이콘 래핑 */}
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      type="button"
+                                      className="mt-2 flex items-center gap-1 text-xs text-gray-700 hover:text-gray-900"
+                                      // 버튼이 포커스 가능해야 키보드 접근성 + Tooltip 유지가 쉬움
+                                    >
+                                      <span className="line-clamp-2 text-left">
+                                        {shortText || "설명 보기"}
+                                      </span>
+                                      <Info className="w-3.5 h-3.5 shrink-0" />
+                                    </button>
+                                  </TooltipTrigger>
+
+                                  {/* Portal로 body에 렌더 + 높은 z-index로 모달 위에 */}
+                                  <TooltipContent
+                                    side="top"
+                                    align="start"
+                                    sideOffset={8}
+                                    // 모달 z-[9999] 보다 큰 값
+                                    className="z-[10050] max-w-80 whitespace-pre-wrap break-words leading-relaxed text-[12px]"
+                                  >
+                                    {f.description}
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
                             </div>
                           </div>
+                        );
+                      })}
+                    </div>
+                  </div>
 
-                          {/* 이름 + 가격 + 설명 */}
-                          <div className="mt-3">
-                            <div className="flex items-center gap-2">
-                              <span className="inline-flex items-center rounded-md border px-2.5 py-1 text-[11px] font-bold bg-white text-zinc-900">
-                                {f.name_ko ?? f.id}
-                              </span>
-                            </div>
-
-                            {/* 🪙 가격 */}
-                            <div className="mt-1 flex items-center gap-1 text-[11px] text-gray-700">
-                              <span role="img" aria-label="gold">
-                                🪙
-                              </span>
-                              <span className="font-semibold">
-                                {fmt(f.price)}
-                              </span>
-                            </div>
-
-                            {f.description && (
-                              <p className="mt-2 text-xs text-gray-700 line-clamp-2">
-                                {f.description}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
+                  <div className="mt-3 text-[11px] text-gray-500 flex items-center gap-1">
+                    <Anchor className="w-3.5 h-3.5" />
+                    도감은 정보 제공용입니다. 야생(포획 대상) 어종은 바다
+                    탐험에서 만날 수 있어요.
                   </div>
                 </div>
-
-                <div className="mt-3 text-[11px] text-gray-500 flex items-center gap-1">
-                  <Anchor className="w-3.5 h-3.5" />
-                  도감은 정보 제공용입니다. 야생(포획 대상) 어종은 바다 탐험에서
-                  만날 수 있어요.
-                </div>
-              </div>
+              </TooltipProvider>
             </div>
           </div>,
           document.body
@@ -348,11 +388,10 @@ export default function MarineDexModal() {
         onClick={() => setOpen(true)}
         className="transition-transform duration-150 hover:scale-[1.02] active:scale-100 hover:shadow-sm"
       >
-        {/* 루시드 Book 대신 GIF 아이콘 */}
         <img
           src="/aquarium/marine_dex.gif"
           alt="도감 아이콘"
-          className=" h-7 w-7"
+          className="h-7 w-7"
           draggable={false}
         />
         도감

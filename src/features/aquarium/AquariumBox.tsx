@@ -25,6 +25,7 @@ type EntityRow = {
   swim_y: [number, number]; // 0=위, 100=아래 (항상 존재)
   is_movable: boolean | null;
   price: number | null;
+  glow_color: string | null; // ← 추가: hue 키워드('none' 기본)
 };
 
 type InvRow = {
@@ -43,6 +44,7 @@ type RenderFish = {
   swimY: [number, number];
   isMovable: boolean | null;
   price: number | null;
+  glowColor: string | null; // ← 추가
 };
 
 /* ---------- utils ---------- */
@@ -296,7 +298,9 @@ export default function AquariumBox({
 
       const { data: ents, error: entErr } = await supabase
         .from("aquarium_entities")
-        .select("id, name_ko, rarity, size, swim_y, is_movable, price")
+        .select(
+          "id, name_ko, rarity, size, swim_y, is_movable, price, glow_color"
+        ) // ← glow_color 추가
         .in("id", ids);
       if (entErr) throw entErr;
 
@@ -314,6 +318,7 @@ export default function AquariumBox({
           swim_y: parsed, // 항상 튜플
           is_movable: (row as any).is_movable ?? null,
           price: (row as any).price ?? null,
+          glow_color: (row as any).glow_color ?? null, // ← 저장
         };
       }
       setEntityMap(map);
@@ -363,6 +368,7 @@ export default function AquariumBox({
           swimY: ent.swim_y,
           isMovable: ent.is_movable ?? null,
           price: ent.price ?? null,
+          glowColor: ent.glow_color ?? null, // ← 전달
         };
       })
       .filter((x): x is RenderFish => x !== null);
@@ -570,6 +576,7 @@ export default function AquariumBox({
                 swimY: f.swimY,
                 isMovable: f.isMovable,
                 price: f.price,
+                glowColor: f.glowColor, // ← hue 전달
               };
 
               return (

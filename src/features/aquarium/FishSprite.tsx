@@ -43,39 +43,82 @@ function mulberry32(seed: number) {
   return function rand() {
     t += 0x6d2b79f5;
     let r = Math.imul(t ^ (t >>> 15), 1 | t);
-    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+    r ^= r + Math.imul(r ^ (r >>> 7), 61 | t);
     return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
   };
 }
 
-/** 등급별 글로우 */
-function getGlowForRarity(rarity?: string | null): {
+/* =========================
+   HUE 팔레트 & 유틸
+   ========================= */
+const HUE_MAP = {
+  sky: { base: "#0ea5e9", light: "#7dd3fc", dark: "#0369a1" },
+  blue: { base: "#3b82f6", light: "#93c5fd", dark: "#1d4ed8" },
+  indigo: { base: "#6366f1", light: "#a5b4fc", dark: "#4338ca" },
+  violet: { base: "#8b5cf6", light: "#c4b5fd", dark: "#6d28d9" },
+  purple: { base: "#a855f7", light: "#d8b4fe", dark: "#7e22ce" },
+  fuchsia: { base: "#d946ef", light: "#f0abfc", dark: "#a21caf" },
+  pink: { base: "#ec4899", light: "#f9a8d4", dark: "#9d174d" },
+  rose: { base: "#f43f5e", light: "#fda4af", dark: "#9f1239" },
+  red: { base: "#ef4444", light: "#fca5a5", dark: "#991b1b" },
+  orange: { base: "#f97316", light: "#fdba74", dark: "#9a3412" },
+  amber: { base: "#f59e0b", light: "#fcd34d", dark: "#92400e" },
+  yellow: { base: "#eab308", light: "#fde047", dark: "#854d0e" },
+  lime: { base: "#84cc16", light: "#d9f99d", dark: "#3f6212" },
+  green: { base: "#22c55e", light: "#86efac", dark: "#166534" },
+  emerald: { base: "#10b981", light: "#6ee7b7", dark: "#065f46" },
+  teal: { base: "#14b8a6", light: "#5eead4", dark: "#115e59" },
+  cyan: { base: "#06b6d4", light: "#67e8f9", dark: "#155e75" },
+  slate: { base: "#64748b", light: "#cbd5e1", dark: "#334155" },
+  gray: { base: "#6b7280", light: "#d1d5db", dark: "#374151" },
+  zinc: { base: "#71717a", light: "#d4d4d8", dark: "#3f3f46" },
+  neutral: { base: "#737373", light: "#d4d4d4", dark: "#404040" },
+} as const;
+type HueKey = keyof typeof HUE_MAP;
+
+function hexToRgba(hex: string, alpha = 1) {
+  const raw = (hex || "").replace("#", "").trim().toLowerCase();
+  // 허용: 3자리/6자리 16진수만, 아니면 기본값
+  const m =
+    /^[0-9a-f]{3}$/.test(raw) || /^[0-9a-f]{6}$/.test(raw) ? raw : "000";
+
+  const r = parseInt(
+    m.length >= 6 ? m.slice(0, 2) : m.charAt(0) + m.charAt(0),
+    16
+  );
+  const g = parseInt(
+    m.length >= 6 ? m.slice(2, 4) : m.charAt(1) + m.charAt(1),
+    16
+  );
+  const b = parseInt(
+    m.length >= 6 ? m.slice(4, 6) : m.charAt(2) + m.charAt(2),
+    16
+  );
+  const a = Math.max(0, Math.min(1, alpha));
+
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+/** hue 키워드 기반의 은은한 글로우 */
+function getGlowForHue(hue?: string | null): {
   dropFilter: string;
   haloColor: string | null;
   haloOpacity: number;
 } {
-  const r = (rarity || "").toLowerCase();
-  if (r === "epic" || r === "에픽") {
-    const base = 0.65;
-    const c8 = `rgba(167,139,250,${base})`;
-    const c4 = `rgba(167,139,250,${Math.max(0, base - 0.25)})`;
-    return {
-      dropFilter: `drop-shadow(0 0 6px ${c8}) drop-shadow(0 0 14px ${c4})`,
-      haloColor: `rgba(167,139,250,${Math.max(0, base - 0.15)})`,
-      haloOpacity: 0.65,
-    };
+  const key = (hue ?? "").toLowerCase().trim();
+  if (!key || key === "none") {
+    return { dropFilter: "", haloColor: null, haloOpacity: 0 };
   }
-  if (r === "legendary" || r === "전설" || r === "legend") {
-    const base = 0.65;
-    const c8 = `rgba(250,204,21,${base})`;
-    const c4 = `rgba(245,158,11,${Math.max(0, base - 0.25)})`;
-    return {
-      dropFilter: `drop-shadow(0 0 6px ${c8}) drop-shadow(0 0 14px ${c4})`,
-      haloColor: `rgba(250,204,21,${Math.max(0, base - 0.15)})`,
-      haloOpacity: 0.65,
-    };
-  }
-  return { dropFilter: "", haloColor: null, haloOpacity: 0 };
+  const set = (HUE_MAP as any)[key as HueKey] ?? HUE_MAP.blue;
+
+  // 은은하지만 확실히 보이도록 적당한 강도
+  const inner = hexToRgba(set.base, 0.38); // 가까운 글로우
+  const outer = hexToRgba(set.light, 0.29); // 퍼지는 글로우
+  const halo = hexToRgba(set.light, 0.38); // 라디얼 오라
+  return {
+    dropFilter: `drop-shadow(0 0 10px ${inner}) drop-shadow(0 0 22px ${outer})`,
+    haloColor: halo,
+    haloOpacity: 0.6,
+  };
 }
 
 /** 타입 */
@@ -88,6 +131,7 @@ export type SpriteFish = {
   swimY: [number, number]; // 0=위, 100=아래
   isMovable?: boolean | null;
   price?: number | null;
+  glowColor?: string | null; // hue 키워드('blue' | 'none' 등)
 };
 
 export default function FishSprite({
@@ -135,8 +179,8 @@ export default function FishSprite({
     if (!isMovable) return;
     const id = window.setInterval(() => {
       if (rand() < 0.15) setFacingLeft((v) => !v);
-    }, flipEveryX);
-    return () => clearInterval(id);
+    }, flipEveryX as number);
+    return () => window.clearInterval(id);
   }, [flipEveryX, rand, isMovable]);
 
   /** 크기 */
@@ -158,8 +202,8 @@ export default function FishSprite({
 
   const yawDurationSec = useMemo(() => {
     if (!isMovable) return 0;
-    const base = Math.max(2.6, motion.speedSec * 0.45);
-    return +(base * (0.85 + rand() * 0.5)).toFixed(2);
+    const baseDur = Math.max(2.6, motion.speedSec * 0.45);
+    return +(baseDur * (0.85 + rand() * 0.5)).toFixed(2);
   }, [isMovable, motion.speedSec, rand]);
 
   const spinDurationSec = useMemo(
@@ -181,7 +225,8 @@ export default function FishSprite({
     const wrap = wrapperRef.current;
     const img = imgRef.current;
     if (!wrap || !img) return;
-    const container = (wrap.offsetParent as HTMLElement) ?? wrap.parentElement;
+    const container =
+      ((wrap.offsetParent as HTMLElement | null) ?? wrap.parentElement) || null;
     if (!container) return;
 
     const parentH = container.clientHeight;
@@ -204,15 +249,13 @@ export default function FishSprite({
       let highPx = (highPct / 100) * parentH + FLOOR_BIAS_PX;
       lowPx = clampPx(lowPx);
       highPx = clampPx(highPx);
-      const minPx = Math.min(lowPx, highPx);
-      const maxPx = Math.max(lowPx, highPx);
-      setTopBasePx(minPx);
-      setYRangePx(Math.max(0, maxPx - minPx));
+      const minPx2 = Math.min(lowPx, highPx);
+      const maxPx2 = Math.max(lowPx, highPx);
+      setTopBasePx(minPx2);
+      setYRangePx(Math.max(0, maxPx2 - minPx2));
     } else {
       // 드롭 후 or 고정체: overrideTop을 기준으로 고정(보브만)
       const desiredTopRaw = (overridePos.topPct / 100) * parentH;
-      const SAFE_PAD = 2;
-      const imgH = img.clientHeight * sy;
       const desiredTop = Math.min(
         Math.max(desiredTopRaw, SAFE_PAD),
         Math.max(SAFE_PAD, parentH - imgH - SAFE_PAD)
@@ -226,12 +269,14 @@ export default function FishSprite({
     recomputeTopAndRange();
     const ro: ResizeObserver | null =
       typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(() => requestAnimationFrame(recomputeTopAndRange))
+        ? new ResizeObserver(() =>
+            requestAnimationFrame(() => recomputeTopAndRange())
+          )
         : null;
     if (ro) {
       const wrap = wrapperRef.current;
       const container = wrap
-        ? (wrap.offsetParent as HTMLElement) ?? wrap.parentElement
+        ? (wrap.offsetParent as HTMLElement | null) ?? wrap.parentElement
         : null;
       if (container) ro.observe(container);
       if (imgRef.current) ro.observe(imgRef.current);
@@ -267,9 +312,12 @@ export default function FishSprite({
   const tiltDeg = isMovable && !isDragging ? tiltDegBase * dir : 0;
   const zIndex = isDragging ? 50 : isMovable ? 2 : 1;
 
+  // hue 키워드: camel/snake 모두 대응(호환성)
+  const hueKey = (fish as any).glowColor ?? (fish as any).glow_color ?? null;
+
   const { dropFilter, haloColor, haloOpacity } = useMemo(
-    () => getGlowForRarity(fish.rarity),
-    [fish.rarity]
+    () => getGlowForHue(hueKey),
+    [hueKey]
   );
 
   return (
@@ -281,7 +329,7 @@ export default function FishSprite({
         top:
           topBasePx != null
             ? `${topBasePx}px`
-            : `${lockTop ? overridePos.topPct : fish.swimY[0]}%`,
+            : `${lockTop ? overridePos.topPct : fish.swimY?.[0] ?? 40}%`,
         animation: popAnim,
         ["--travel" as any]: `${motion.travel}%`,
         zIndex,
@@ -322,74 +370,65 @@ export default function FishSprite({
               transform: `rotate(${tiltDeg}deg)`,
               transformOrigin: "50% 50%",
               transition: "transform 220ms ease-out",
+              position: "relative", // stacking context
+              zIndex: 0,
             }}
           >
-            <div
-              className="will-change-transform transform-gpu"
-              style={{
-                animation:
-                  isMovable && !isDragging
-                    ? `yaw ${yawDurationSec}s ease-in-out ${motion.delay}s infinite`
-                    : "none",
-                transformOrigin: "50% 50%",
-                ["--yawAmp" as any]: `${yawAmpDeg}deg`,
-                ["--dir" as any]: dir,
-                position: "relative",
-              }}
-            >
-              {haloColor && !isDragging && (
-                <div
-                  aria-hidden
-                  style={{
-                    position: "absolute",
-                    inset: "-24%",
-                    pointerEvents: "none",
-                    borderRadius: "50%",
-                    background: `radial-gradient(closest-side, ${haloColor} 0%, transparent 65%)`,
-                    opacity: haloOpacity,
-                    filter: "blur(10px)",
-                    transition: "opacity 220ms ease",
-                  }}
-                />
-              )}
-
-              {/* 호버 살짝 확대 */}
+            {/* 은은한 색상 Halo — 이미지 아래쪽 레이어 */}
+            {haloColor && !isDragging && (
               <div
-                className={
-                  isDragging
-                    ? ""
-                    : "transition-transform duration-200 ease-out hover:scale-[1.1] will-change-transform transform-gpu"
-                }
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  inset: "-26%",
+                  pointerEvents: "none",
+                  borderRadius: "50%",
+                  background: `radial-gradient(closest-side, ${haloColor} 0%, transparent 65%)`,
+                  opacity: haloOpacity,
+                  filter: "blur(20px)",
+                  transition: "opacity 220ms ease",
+                  mixBlendMode: "screen",
+                  zIndex: 0,
+                }}
+              />
+            )}
+
+            {/* 호버 살짝 확대 + 이미지 레이어를 위로 */}
+            <div
+              className={
+                isDragging
+                  ? ""
+                  : "transition-transform duration-200 ease-out hover:scale-[1.1] will-change-transform transform-gpu"
+              }
+              style={{ position: "relative", zIndex: 1 }}
+            >
+              <div
+                className="will-change-transform transform-gpu"
+                style={{
+                  animation:
+                    isTrash && !isDragging
+                      ? `slow-spin ${spinDurationSec}s linear ${spinDelay}s infinite`
+                      : "none",
+                  transformOrigin: "50% 50%",
+                  ["--spinSign" as any]: spinSignRef.current,
+                }}
               >
-                <div
-                  className="will-change-transform transform-gpu"
+                <img
+                  ref={imgRef}
+                  src={fish.image}
+                  alt={fish.labelKo}
+                  className="select-none will-change-transform transform-gpu pointer-events-none"
                   style={{
-                    animation:
-                      isTrash && !isDragging
-                        ? `slow-spin ${spinDurationSec}s linear ${spinDelay}s infinite`
-                        : "none",
+                    width: widthCss,
+                    height: "auto",
+                    transform: `scale(${sx}, ${sy})`,
+                    transition: "transform 240ms ease-out",
                     transformOrigin: "50% 50%",
-                    // 변경 전: ["--spinSign" as any]: Math.random() < 0.5 ? -1 : 1,
-                    // 변경 후(고정값):
-                    ["--spinSign" as any]: spinSignRef.current,
+                    // 기본 그림자 + 색상 글로우
+                    filter: `drop-shadow(0 2px 2px rgba(0,0,0,.25)) ${dropFilter}`,
                   }}
-                >
-                  <img
-                    ref={imgRef}
-                    src={fish.image}
-                    alt={fish.labelKo}
-                    className="select-none will-change-transform transform-gpu pointer-events-none"
-                    style={{
-                      width: widthCss,
-                      height: "auto",
-                      transform: `scale(${sx}, ${sy})`,
-                      transition: "transform 240ms ease-out",
-                      transformOrigin: "50% 50%",
-                      filter: `drop-shadow(0 2px 2px rgba(0,0,0,.25)) ${dropFilter}`,
-                    }}
-                    draggable={false}
-                  />
-                </div>
+                  draggable={false}
+                />
               </div>
             </div>
           </div>
