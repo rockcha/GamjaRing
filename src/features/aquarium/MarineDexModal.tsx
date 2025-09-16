@@ -5,13 +5,10 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Anchor, X, Info } from "lucide-react";
 import supabase from "@/lib/supabase";
-import {
-  INGREDIENT_EMOJI,
-  type IngredientTitle,
-} from "@/features/kitchen/type";
 import { Button } from "@/components/ui/button";
+import { useCoupleContext } from "@/contexts/CoupleContext";
 
-// ✅ shadcn tooltip 임포트
+// shadcn tooltip
 import {
   TooltipProvider,
   Tooltip,
@@ -27,7 +24,6 @@ type DbEntity = {
   name_ko: string | null;
   price: number | null;
   size: number | null;
-  food: string | null;
   swim_y: string | null;
   is_movable: boolean | null;
   rarity: FishRarity;
@@ -40,12 +36,6 @@ const RARITY_CAPTURE: Record<FishRarity, number> = {
   희귀: 0.15,
   에픽: 0.04,
   전설: 0.01,
-};
-const rarityOrder: Record<FishRarity, number> = {
-  일반: 0,
-  희귀: 1,
-  에픽: 2,
-  전설: 3,
 };
 
 function rarityDir(r: FishRarity) {
@@ -72,6 +62,9 @@ const fmt = (n: number | null | undefined) =>
 type RarityFilter = "전체" | FishRarity;
 
 export default function MarineDexModal() {
+  const { couple } = useCoupleContext();
+  const coupleId = couple?.id ?? null;
+
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -79,8 +72,14 @@ export default function MarineDexModal() {
 
   const [rarity, setRarity] = useState<RarityFilter>("전체");
   const [rows, setRows] = useState<DbEntity[]>([]);
+  // ✅ caught_count 포함해서 관리 (1 이상이면 잡은 적 있음)
+  const [caughtCountMap, setCaughtCountMap] = useState<Map<string, number>>(
+    new Map()
+  );
+
   useEffect(() => setMounted(true), []);
 
+  // 1) 도감 전체 목록 (처음 열 때 1회 로드)
   useEffect(() => {
     if (!open || rows.length > 0 || loading) return;
     (async () => {
@@ -89,9 +88,7 @@ export default function MarineDexModal() {
         setErr(null);
         const { data, error } = await supabase
           .from("aquarium_entities")
-          .select(
-            "id,name_ko,price,size,food,swim_y,is_movable,rarity,description"
-          );
+          .select("id,name_ko,price,size,swim_y,is_movable,rarity,description");
         if (error) throw error;
         setRows((data ?? []) as unknown as DbEntity[]);
       } catch (e: any) {
@@ -100,12 +97,41 @@ export default function MarineDexModal() {
         setLoading(false);
       }
     })();
-  }, [open, rows.length, loading]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
+  // 2) 커플별 포획 여부/횟수 (모달 열릴 때마다 새로고침)
+  useEffect(() => {
+    if (!open) return;
+    (async () => {
+      try {
+        if (!coupleId) {
+          setCaughtCountMap(new Map());
+          return;
+        }
+        // ✅ 테이블명 올바르게: couple_aquarium_collection
+        const { data, error } = await supabase
+          .from("couple_aquarium_collection")
+          .select("entity_id, caught_count")
+          .eq("couple_id", coupleId);
+        if (error) throw error;
+
+        const m = new Map<string, number>();
+        for (const row of data ?? []) {
+          m.set(String(row.entity_id), Number(row.caught_count ?? 0));
+        }
+        setCaughtCountMap(m);
+      } catch (e) {
+        console.warn("포획여부 조회 실패:", e);
+        setCaughtCountMap(new Map());
+      }
+    })();
+  }, [open, coupleId]);
+
+  // 정렬/필터
   const list = useMemo(() => {
     const filtered =
       rarity === "전체" ? rows : rows.filter((f) => f.rarity === rarity);
-
     const rarityRank: Record<FishRarity, number> = {
       일반: 0,
       희귀: 1,
@@ -119,11 +145,9 @@ export default function MarineDexModal() {
       const pa = priceNum(a.price);
       const pb = priceNum(b.price);
       if (pa !== pb) return pa - pb;
-
       const ra = rarityRank[a.rarity],
         rb = rarityRank[b.rarity];
       if (ra !== rb) return ra - rb;
-
       const an = a.name_ko ?? a.id;
       const bn = b.name_ko ?? b.id;
       return an.localeCompare(bn, "ko");
@@ -182,7 +206,10 @@ export default function MarineDexModal() {
         <Info className="w-4 h-4 text-sky-600" />
         <span className="text-gray-700">
           포획 확률 :{" "}
-          <b>{Math.round(RARITY_CAPTURE[rarity as FishRarity] * 100)}% 미만</b>
+          <b>
+            {Math.round((RARITY_CAPTURE[rarity as FishRarity] ?? 0) * 100)}%
+            미만
+          </b>
         </span>
       </div>
     );
@@ -201,7 +228,6 @@ export default function MarineDexModal() {
               className="relative z-10 flex items-center justify-center w-full h-full p-4"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* ✅ TooltipProvider를 모달 내부 전체를 감싸도록 배치 */}
               <TooltipProvider
                 delayDuration={150}
                 disableHoverableContent={false}
@@ -262,8 +288,17 @@ export default function MarineDexModal() {
                       {list.map((f) => {
                         const imgSrc = buildImageSrc(f.id, f.rarity);
                         const [y1, y2] = parseInt4Range(f.swim_y);
-                        const ing = (f.food ?? "") as IngredientTitle;
-                        const ingEmoji = INGREDIENT_EMOJI[ing] ?? "🫧";
+                        const caughtCount = caughtCountMap.get(f.id) ?? 0;
+                        const isCaught = caughtCount > 0;
+
+                        // ✅ PNG만 확실히 어둡게 (실루엣 느낌)
+                        // - grayscale 로 색을 제거
+                        // - brightness-50 로 전체 밝기 다운
+                        // - contrast-150 로 윤곽만 약간 강조
+                        // - opacity-25 로 존재감 낮추기
+                        const imgDimCls = isCaught
+                          ? ""
+                          : "grayscale brightness-50 contrast-150 opacity-25";
 
                         const shortText =
                           f.description && f.description.length > 44
@@ -281,12 +316,14 @@ export default function MarineDexModal() {
                               <img
                                 src={imgSrc}
                                 alt={f.name_ko ?? f.id}
-                                className="w-full aspect-square object-contain "
+                                className={`w-full aspect-square object-contain ${imgDimCls}`}
                                 draggable={false}
                                 loading="lazy"
                                 onError={(ev) => {
-                                  ev.currentTarget.onerror = null;
-                                  ev.currentTarget.src =
+                                  (
+                                    ev.currentTarget as HTMLImageElement
+                                  ).onerror = null;
+                                  (ev.currentTarget as HTMLImageElement).src =
                                     "/aquarium/placeholder.png";
                                 }}
                                 title={`수영 높이: ${y1}~${y2}%`}
@@ -299,16 +336,6 @@ export default function MarineDexModal() {
                                   )}`}
                                 >
                                   {f.rarity}
-                                </span>
-                              </div>
-                              {/* 우상단: 필요 재료 이모지 */}
-                              <div
-                                className="absolute right-2 top-2 w-9 h-9 rounded-full bg-white/95 border border-gray-200 shadow-sm flex items-center justify-center text-lg"
-                                title={`필요 재료: ${f.food ?? "미정"}`}
-                                aria-label={`필요 재료: ${f.food ?? "미정"}`}
-                              >
-                                <span className="translate-y-[1px]">
-                                  {ingEmoji}
                                 </span>
                               </div>
                             </div>
@@ -331,15 +358,13 @@ export default function MarineDexModal() {
                                 </span>
                               </div>
 
-                              {/* ✅ 설명: 줄임표 + 툴팁(풀 텍스트) */}
+                              {/* 설명 + 툴팁 */}
                               {f.description && (
                                 <Tooltip>
-                                  {/* Trigger는 asChild로 줄임 설명/아이콘 래핑 */}
                                   <TooltipTrigger asChild>
                                     <button
                                       type="button"
                                       className="mt-2 flex items-center gap-1 text-xs text-gray-700 hover:text-gray-900"
-                                      // 버튼이 포커스 가능해야 키보드 접근성 + Tooltip 유지가 쉬움
                                     >
                                       <span className="line-clamp-2 text-left">
                                         {shortText || "설명 보기"}
@@ -347,13 +372,10 @@ export default function MarineDexModal() {
                                       <Info className="w-3.5 h-3.5 shrink-0" />
                                     </button>
                                   </TooltipTrigger>
-
-                                  {/* Portal로 body에 렌더 + 높은 z-index로 모달 위에 */}
                                   <TooltipContent
                                     side="top"
                                     align="start"
                                     sideOffset={8}
-                                    // 모달 z-[9999] 보다 큰 값
                                     className="z-[10050] max-w-80 whitespace-pre-wrap break-words leading-relaxed text-[12px]"
                                   >
                                     {f.description}

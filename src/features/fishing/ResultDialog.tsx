@@ -19,7 +19,7 @@ export type FishResult =
       labelKo: string;
       image: string;
       rarity: Rarity;
-      ingredient?: string | null;
+      ingredient?: string | null; // ← 남겨두되 표시만 제거
     };
 
 export const RARITY_STYLE: Record<Rarity, string> = {
@@ -178,32 +178,37 @@ export default function ResultDialog({
   result,
   onClose,
   failReasons,
+  tanksCount = 1,
+  onConfirmPut, // (tankNo) => void
+  saving = false,
 }: {
   open: boolean;
   result: FishResult | null;
   onClose: () => void;
   failReasons?: readonly string[];
+  tanksCount?: number;
+  onConfirmPut?: (tankNo: number) => void;
+  saving?: boolean;
 }) {
   const reduceMotion = useReducedMotion();
 
-  /** ✅ 표시용 결과를 락(고정) */
   const [lockedResult, setLockedResult] = React.useState<FishResult | null>(
     null
   );
   const [imgReady, setImgReady] = React.useState<boolean>(false);
   const isSuccess = isSuccessResult(lockedResult);
 
-  /** 실패 멘트도 락된 결과 기준으로 고정 */
   const [failMsg, setFailMsg] = React.useState<string>("");
+  const [tankNo, setTankNo] = React.useState<number>(1);
 
   // 다이얼로그가 열릴 때 결과를 한번만 고정
   React.useEffect(() => {
     if (!open) return;
-    if (lockedResult) return; // 이미 락됨
+    if (lockedResult) return;
+    if (!result) return;
 
-    if (!result) return; // 아직 외부 결과가 안 왔으면 대기
+    setTankNo((prev) => (prev < 1 ? 1 : prev > tanksCount ? tanksCount : prev));
 
-    // 성공 결과면 이미지 프리로드 후 고정 → 깜빡임 방지
     if (result.type === "SUCCESS" && result.image) {
       const img = new Image();
       img.onload = () => {
@@ -211,17 +216,15 @@ export default function ResultDialog({
         setImgReady(true);
       };
       img.onerror = () => {
-        // 이미지가 실패해도 최소한의 경험 제공
         setLockedResult(result);
         setImgReady(true);
       };
       img.src = result.image;
     } else {
-      // 실패 결과는 프리로드 필요 없음
       setLockedResult(result);
       setImgReady(true);
     }
-  }, [open, result, lockedResult]);
+  }, [open, result, lockedResult, tanksCount]);
 
   // 닫힐 때 초기화
   React.useEffect(() => {
@@ -229,6 +232,7 @@ export default function ResultDialog({
       setLockedResult(null);
       setImgReady(false);
       setFailMsg("");
+      setTankNo(1);
     }
   }, [open]);
 
@@ -251,15 +255,26 @@ export default function ResultDialog({
     setFailMsg(list[Math.floor(Math.random() * list.length)]!);
   }, [open, lockedResult, failReasons]);
 
-  // 로딩 상태(락/이미지 준비 전)엔 내용 숨김 + 미니 로더
   const contentReady = !!lockedResult && imgReady;
 
+  /* 닫힘 요청 처리: 배경 클릭/ESC/확인 버튼 */
+  const handleRequestClose = React.useCallback(
+    (nextOpen: boolean) => {
+      if (nextOpen) return; // 열릴 때 무시
+      if (isSuccess && onConfirmPut && !saving) {
+        onConfirmPut(tankNo); // 자동 저장
+      } else {
+        onClose();
+      }
+    },
+    [isSuccess, onConfirmPut, saving, tankNo, onClose]
+  );
+
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+    <Dialog open={open} onOpenChange={handleRequestClose}>
       <DialogContent className="sm:max-w-md p-0 overflow-hidden rounded-2xl">
         <div className="relative p-6 pb-16">
           {!contentReady ? (
-            // ✅ 프리로드가 끝날 때까지 플레이스홀더만 (이미지/콘텐츠 미렌더)
             <div className="h-36 flex items-center justify-center text-sm text-muted-foreground">
               로딩 중…
             </div>
@@ -295,7 +310,8 @@ export default function ResultDialog({
                 {/* 콘텐츠 */}
                 {isSuccess ? (
                   <div className="space-y-3">
-                    <div className="relative mx-auto w-24 h-24">
+                    {/* ✅ 이미지 더 크게 (w-32 h-32) */}
+                    <div className="relative mx-auto w-32 h-32">
                       <EpicLegendFX rarity={lockedResult.rarity} />
                       <motion.img
                         src={
@@ -303,7 +319,7 @@ export default function ResultDialog({
                         }
                         alt={lockedResult.labelKo}
                         className={cn(
-                          "relative z-[2] mx-auto w-24 h-24 object-contain rounded-lg border bg-white",
+                          "relative z-[2] mx-auto w-32 h-32 object-contain rounded-lg border bg-white",
                           RARITY_STYLE[lockedResult.rarity]
                         )}
                         draggable={false}
@@ -331,10 +347,51 @@ export default function ResultDialog({
                       </span>
                     </div>
 
-                    {lockedResult.ingredient && (
-                      <p className="text-xs text-muted-foreground">
-                        사용 재료: {lockedResult.ingredient}
-                      </p>
+                    {/* 1) 사용 재료 표시 제거됨 */}
+
+                    {/* 담을 어항 선택 + 안내 */}
+                    {tanksCount > 1 ? (
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-center gap-2 text-sm">
+                          <label className="text-muted-foreground">
+                            담을 어항:
+                          </label>
+                          <select
+                            className="rounded-md border px-2 py-1 bg-white"
+                            value={tankNo}
+                            onChange={(e) =>
+                              setTankNo(
+                                Math.max(
+                                  1,
+                                  Math.min(
+                                    Number(e.target.value || 1),
+                                    tanksCount
+                                  )
+                                )
+                              )
+                            }
+                            disabled={saving}
+                          >
+                            {Array.from({ length: tanksCount }).map((_, i) => (
+                              <option key={i + 1} value={i + 1}>
+                                {i + 1} 번
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground text-center">
+                          보관할 아쿠아리움을 선택해주세요
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="text-xs text-muted-foreground">
+                          담을 어항: 1번
+                        </div>
+                        <p className="text-[11px] text-muted-foreground text-center">
+                          보관할 아쿠아리움을 선택해주세요
+                        </p>
+                      </>
                     )}
                   </div>
                 ) : (
@@ -346,18 +403,24 @@ export default function ResultDialog({
             </AnimatePresence>
           )}
 
-          {/* 고정 하단 닫기 버튼 */}
+          {/* 고정 하단 버튼들 */}
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-white to-white/60" />
-          <button
-            autoFocus
-            onClick={onClose}
-            className={cn(
-              "absolute bottom-3 right-3 inline-flex items-center rounded-md",
-              "border px-3 py-1.5 text-sm hover:bg-gray-50 shadow-sm"
-            )}
-          >
-            닫기
-          </button>
+
+          <div className="absolute bottom-3 right-3 flex gap-2">
+            {/* 2) "이 어항에 담기" 버튼 제거됨 */}
+
+            {/* 3) 닫기 → 확인 (자동 저장 트리거) */}
+            <button
+              autoFocus
+              onClick={() => handleRequestClose(false)}
+              disabled={saving}
+              className={cn(
+                "inline-flex items-center rounded-md border px-3 py-1.5 text-sm hover:bg-gray-50 shadow-sm"
+              )}
+            >
+              확인
+            </button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

@@ -12,7 +12,7 @@ import {
   Check,
   X,
   PlusCircle,
-  RefreshCcw, // ✅ 추가: 새로고침 아이콘
+  RefreshCcw,
 } from "lucide-react";
 
 import AquariumBox from "@/features/aquarium/AquariumBox";
@@ -20,7 +20,7 @@ import ThemeShopButton from "@/features/aquarium/ThemeShopButton";
 import MarineDexModal from "@/features/aquarium/MarineDexModal";
 import AquariumDetailButton from "@/features/aquarium/AquariumDetailButton";
 
-/* ✅ shadcn/ui */
+/* shadcn/ui */
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -30,6 +30,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 /** 어항 가격 (RPC 파라미터로 전달) */
 const TANK_PRICE = 200;
@@ -52,13 +53,18 @@ export default function AquariumPage() {
   const [editing, setEditing] = useState(false);
   const [titleInput, setTitleInput] = useState("");
 
-  /* ✅ 구매 확인 다이얼로그 상태 */
+  /* 구매 확인 다이얼로그 상태 */
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isBuying, setIsBuying] = useState(false);
+
+  /* 번호 이동 입력 상태 */
+  const total = tanks.length || 1;
+  const [gotoInput, setGotoInput] = useState<string>("");
 
   useEffect(() => {
     if (!cur) return;
     setTitleInput(cur.title ?? "");
+    setGotoInput(""); // 현재 탱크가 바뀌면 입력칸은 비워 UX 단순화
   }, [cur?.tank_no]);
 
   useEffect(() => {
@@ -69,7 +75,6 @@ export default function AquariumPage() {
         return;
       }
       try {
-        // 테이블명이 다르면 여기만 바꿔줘요: "aquarium_themes" → 실제 테이블명
         const { data, error } = await supabase
           .from("aquarium_themes")
           .select("title")
@@ -171,9 +176,19 @@ export default function AquariumPage() {
   };
 
   /** 인덱스 이동 */
-  const total = tanks.length || 1;
   const prev = () => setIdx((i) => (total ? (i - 1 + total) % total : 0));
   const next = () => setIdx((i) => (total ? (i + 1) % total : 0));
+
+  /** 번호 점프 */
+  const jumpTo = (n: number) => {
+    if (!Number.isFinite(n)) return;
+    if (tanks.length === 0) return;
+    if (n < 1 || n > tanks.length) {
+      toast.error(`1부터 ${tanks.length}번 사이로 입력해주세요.`);
+      return;
+    }
+    setIdx(n - 1);
+  };
 
   /** AquariumBox와 동일 프레임(정중앙, 고정 크기) — 오버레이 기준 컨테이너 */
   const frameStyle = { height: "74vh", width: "min(100%, calc(85vw ))" };
@@ -215,7 +230,7 @@ export default function AquariumPage() {
           style={frameStyle}
         >
           <div className="relative h-full w-full">
-            {/* 상단 중앙: 제목(편집) + 어항 구매 버튼(가격 with gold 이모지) */}
+            {/* 상단 중앙: 제목(편집) + 어항 구매 버튼(가격 with 골드 이모지) */}
             <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 pointer-events-auto">
               {!editing ? (
                 <button
@@ -277,7 +292,7 @@ export default function AquariumPage() {
               </button>
             </div>
 
-            {/* 좌하단: 현재 테마 제목 배지 */}
+            {/* 좌하단: 현재 테마 제목 배지 + 새로고침 */}
             {cur && (
               <div className="absolute left-2 bottom-0 flex flex-col gap-2 z-10 pointer-events-none">
                 <span
@@ -294,7 +309,6 @@ export default function AquariumPage() {
                   </span>
                   <b className="font-semibold">{themeTitle || "기본 테마"}</b>
                 </span>
-                {/* ✅ 페이지 기준 우상단 고정: 어항 청소하기(새로고침) */}
                 <Button
                   className=" z-50 shadow pointer-events-auto"
                   variant="secondary"
@@ -314,42 +328,69 @@ export default function AquariumPage() {
               {cur && <AquariumDetailButton tankNo={cur.tank_no} />}
             </div>
 
-            <div className="absolute right-2 bottom-2 z-10 flex  gap-2 pointer-events-auto"></div>
+            {/* ✅ 좌/우 화살표 — AquariumBox 좌우 중앙 */}
+            {tanks.length > 1 && (
+              <>
+                <button
+                  className={cn(
+                    "absolute left-2 top-1/2 -translate-y-1/2 z-20",
+                    "pointer-events-auto rounded-full bg-white/70 hover:bg-white",
+                    "border shadow p-2"
+                  )}
+                  onClick={prev}
+                  aria-label="이전 어항"
+                  title="이전 어항"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button
+                  className={cn(
+                    "absolute right-2 top-1/2 -translate-y-1/2 z-20",
+                    "pointer-events-auto rounded-full bg-white/70 hover:bg-white",
+                    "border shadow p-2"
+                  )}
+                  onClick={next}
+                  aria-label="다음 어항"
+                  title="다음 어항"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </>
+            )}
 
-            {/* 우상단: 현재/전체 + 좌우 이동 */}
-            <div className="absolute right-2 top-2 z-10 flex items-center gap-1 pointer-events-auto">
-              {total > 1 ? (
-                <div className="inline-flex items-center rounded-full bg-white/75 border backdrop-blur-sm text-gray-900 text-xs shadow overflow-hidden">
-                  <button
-                    className="px-1.5 py-1 hover:bg-gray-100"
-                    onClick={prev}
-                    aria-label="이전 어항"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <span className="px-2 tabular-nums">
-                    {cur?.tank_no ?? 1}/{total}
-                  </span>
-                  <button
-                    className="px-1.5 py-1 hover:bg-gray-100"
-                    onClick={next}
-                    aria-label="다음 어항"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
-                <span className="inline-flex items-center rounded-full bg-white/75 border backdrop-blur-sm text-gray-900 text-xs shadow px-2 py-1 tabular-nums">
-                  1/1
-                </span>
-              )}
+            {/* ✅ 우상단: 번호 입력만 (Enter로 이동) */}
+            <div className="absolute right-2 top-2 z-10 pointer-events-auto">
+              <div className="inline-flex items-center rounded-full bg-white/75 border backdrop-blur-sm text-gray-900 text-xs shadow px-2 py-1">
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={tanks.length || 1}
+                  value={gotoInput}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/[^\d]/g, "");
+                    setGotoInput(v);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      const n = parseInt(gotoInput || "", 10);
+                      if (Number.isNaN(n)) return;
+                      jumpTo(n);
+                    }
+                  }}
+                  placeholder={String(cur?.tank_no ?? 1)}
+                  className="h-7 w-14 text-center text-xs border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  aria-label={`어항 번호 입력 (1-${tanks.length || 1})`}
+                />
+                <span className="ml-1 opacity-70">/ {tanks.length || 1}</span>
+              </div>
             </div>
           </div>
         </div>
         {/* END overlay */}
       </div>
 
-      {/* ✅ 구매 확인 다이얼로그 */}
+      {/* 구매 확인 다이얼로그 */}
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>

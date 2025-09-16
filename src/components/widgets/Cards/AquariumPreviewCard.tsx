@@ -2,8 +2,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 import supabase from "@/lib/supabase";
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import AquariumBox from "@/features/aquarium/AquariumBox";
@@ -23,6 +31,8 @@ export default function AquariumPreviewCard({
   const [tanks, setTanks] = useState<TankRow[]>([]);
   const [selectedTankNo, setSelectedTankNo] = useState<number>(defaultTankNo);
   const [loading, setLoading] = useState<boolean>(false);
+
+  const navigate = useNavigate();
 
   const selectedTitle = useMemo(() => {
     const t = tanks.find((x) => x.tank_no === selectedTankNo);
@@ -109,6 +119,20 @@ export default function AquariumPreviewCard({
       <CardContent className="p-1">
         <AquariumBox tankNo={selectedTankNo} fitToContainer heightVh={40} />
       </CardContent>
+
+      <Separator />
+
+      <CardFooter className="p-4 pt-3">
+        <div className="w-full flex justify-end">
+          <Button
+            onClick={() => navigate("/aquarium")}
+            className="min-w-[140px]"
+            aria-label="아쿠아리움으로 가기"
+          >
+            아쿠아리움으로 가기
+          </Button>
+        </div>
+      </CardFooter>
     </Card>
   );
 }

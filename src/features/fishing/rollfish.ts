@@ -27,29 +27,27 @@ export type RollResult =
   | { ok: false };
 
 export async function rollFishByIngredient(
-  ingredient: IngredientTitle
+  _ingredient: IngredientTitle // 현재 로직에서는 사용하지 않음 (호환성 유지)
 ): Promise<RollResult> {
   const key = rollKey();
   if (key === "FAIL") return { ok: false };
 
-  // DB에서 후보 풀 조회 (필요한 칼럼만)
-  const { data, error } = await supabase
-    .from("aquarium_entities")
-    .select("id")
-    .eq("rarity", key) // enum/텍스트 컬럼에 맞춰 그대로 비교
-    .eq("food", ingredient);
+  // ✅ RPC로 희귀도 풀에서 DB가 랜덤 1개 선택
+  const { data, error } = await supabase.rpc<string>(
+    "pick_random_entity_by_rarity",
+    { p_rarity: key }
+  );
 
   if (error) {
-    console.warn("rollFish query error:", error);
+    console.warn("rollFish rpc error:", error);
     return { ok: false };
   }
-  if (!data || data.length === 0) return { ok: false };
+  if (!data) return { ok: false }; // 해당 희귀도에 후보가 없을 때
 
-  const pick = data[Math.floor(Math.random() * data.length)];
-  return { ok: true, rarity: key, fishId: pick?.id };
+  return { ok: true, rarity: key, fishId: data };
 }
 
-/** id만 원하면 이 헬퍼 사용 (실패 시 null) */
+/** id만 필요할 때 (실패 시 null) */
 export async function rollFishIdByIngredient(
   ingredient: IngredientTitle
 ): Promise<string | null> {
