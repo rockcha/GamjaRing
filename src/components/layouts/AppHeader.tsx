@@ -1,8 +1,8 @@
 // src/components/layouts/AppHeader.tsx
 "use client";
 
-import React, { memo, useCallback, useRef } from "react";
-import { HeartHandshake } from "lucide-react"; // 상단 타이틀 아이콘만 유지
+import React, { memo, useCallback } from "react";
+import { HeartHandshake } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import WeatherCard from "../widgets/WeatherCard";
@@ -21,9 +21,18 @@ import OddEvenShortcut from "@/features/mini_games/OddEvenShortcut";
 
 // ------------------------------ 네비 정의/가드 ------------------------------
 type SimpleNavDef = {
-  id: "home" | "info" | "questions" | "bundle" | "scheduler";
+  id:
+    | "home"
+    | "info"
+    | "questions"
+    | "bundle"
+    | "scheduler"
+    | "farm"
+    | "kitchen"
+    | "aquarium"
+    | "fishing";
   label: string;
-  emoji: string; // ✅ 이모지
+  emoji: string;
 };
 
 const SIMPLE_NAV: readonly SimpleNavDef[] = [
@@ -32,6 +41,12 @@ const SIMPLE_NAV: readonly SimpleNavDef[] = [
   { id: "questions", label: "답변하기", emoji: "💬" },
   { id: "bundle", label: "답변꾸러미", emoji: "📦" },
   { id: "scheduler", label: "스케쥴러", emoji: "📅" },
+
+  // ✅ 새 항목
+  { id: "farm", label: "농장", emoji: "🌾" }, // or 🥔
+  { id: "kitchen", label: "조리실", emoji: "🍳" },
+  { id: "aquarium", label: "아쿠아리움", emoji: "🐠" },
+  { id: "fishing", label: "낚시터", emoji: "🎣" },
 ] as const;
 
 const GUARDS: Record<
@@ -43,6 +58,12 @@ const GUARDS: Record<
   questions: { requireLogin: true, requireCouple: true },
   bundle: { requireLogin: true, requireCouple: true },
   scheduler: { requireLogin: true, requireCouple: true },
+
+  // ✅ 커플/로그인 가드(상황 맞게 조정하세요)
+  farm: { requireLogin: true, requireCouple: true },
+  kitchen: { requireLogin: true, requireCouple: true },
+  aquarium: { requireLogin: true, requireCouple: true },
+  fishing: { requireLogin: true, requireCouple: true },
 };
 
 const FALLBACK_ROUTE: Record<string, string> = {
@@ -51,6 +72,12 @@ const FALLBACK_ROUTE: Record<string, string> = {
   questions: "/questions",
   bundle: "/bundle",
   scheduler: "/scheduler",
+
+  // ✅ 라우트 매핑(프로젝트 실제 경로에 맞춰 조정)
+  farm: "/potatoField", // 또는 "/farm"
+  kitchen: "/kitchen",
+  aquarium: "/aquarium",
+  fishing: "/fishing",
 };
 
 // ------------------------------ 상단 클러스터 ------------------------------
@@ -124,7 +151,7 @@ export default function AppHeader({
   const uid = user?.id ?? null;
   const coupled = !!user?.couple_id;
 
-  const disabledByState = useCallback(
+  const disabledByState = React.useCallback(
     (id: string) => {
       const g = GUARDS[id] || {};
       if (g.requireLogin && !uid) return true;
@@ -134,7 +161,7 @@ export default function AppHeader({
     [uid, coupled]
   );
 
-  const go = useCallback(
+  const go = React.useCallback(
     (id: string) => {
       const g = GUARDS[id] || {};
       if (g.requireLogin && !uid) {
@@ -175,17 +202,17 @@ export default function AppHeader({
         </div>
       </div>
 
-      {/* ✅ 하단: 좌우 반반 레이아웃 (가로 스크롤 없음) */}
+      {/* ✅ 하단: 좌우 반반 레이아웃 */}
       <div className="border-t bg-white/65 backdrop-blur-md supports-[backdrop-filter]:bg-white/55">
         <div className="mx-auto w-full max-w-screen-2xl py-3 px-3 sm:px-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
-            {/* 좌측: 네비(랩핑 그리드, 가로 스크롤 없음) */}
+            {/* 좌측: 네비 (이모지 크기만큼 자동 줄바꿈) */}
             <nav aria-label="주 네비게이션" className="min-w-0">
               <div
                 className={cn(
-                  "grid gap-2",
-                  // 화면 폭에 따라 자동 줄바꿈. 가로 스크롤 X
-                  "grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-5"
+                  "grid gap-2 justify-start content-start",
+                  // 👇 버튼 크기만큼 칼럼 자동 생성 + 줄바꿈
+                  "grid-cols-[repeat(auto-fit,minmax(2.25rem,max-content))]"
                 )}
               >
                 {SIMPLE_NAV.map(({ id, label, emoji }) => (
@@ -195,13 +222,13 @@ export default function AppHeader({
                     label={label}
                     disabled={disabledByState(id)}
                     onClick={() => go(id)}
-                    className="w-full"
+                    // ⛔️ 'w-full' 제거 → 정사각 아이콘 크기 유지
                   />
                 ))}
               </div>
             </nav>
 
-            {/* 우측: TodayQuestion 카드 그대로 */}
+            {/* 우측: TodayQuestion 카드 */}
             <div className="min-w-0">
               <TodayQuestionInline />
             </div>

@@ -68,7 +68,7 @@ export default function IngredientFishingSection({
 
   const [loading, setLoading] = useState(false);
   const [baitCount, setBaitCount] = useState<number>(0);
-  const [unitPrice, setUnitPrice] = useState<number>(10);
+  const [unitPrice, setUnitPrice] = useState<number>(20);
 
   // 구매 다이얼로그
   const [buyOpen, setBuyOpen] = useState(false);
@@ -92,7 +92,7 @@ export default function IngredientFishingSection({
         .maybeSingle();
       if (error) throw error;
       setBaitCount(data?.bait_count ?? 0);
-      setUnitPrice(data?.unit_price ?? 10);
+      setUnitPrice(data?.unit_price ?? 20);
     } catch (e: any) {
       console.warn(e);
       setBaitCount(0);

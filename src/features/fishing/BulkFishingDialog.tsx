@@ -297,9 +297,10 @@ export default function BulkFishingDialog({
           {/* 🧱 바디: 스크롤 영역 */}
           <div className="px-6 py-4 overflow-auto">
             <Card className="p-4">
-              <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
+              {/* 한 줄 배치 + 모바일 줄바꿈 */}
+              <div className="flex flex-wrap items-end gap-3">
                 {/* 보유 미끼 */}
-                <div className="sm:col-span-3">
+                <div className="w-[140px] sm:w-[160px]">
                   <label className="text-xs text-muted-foreground">
                     보유 미끼
                   </label>
@@ -309,7 +310,7 @@ export default function BulkFishingDialog({
                 </div>
 
                 {/* 사용할 개수 */}
-                <div className="sm:col-span-2">
+                <div className="w-[140px] sm:w-[160px]">
                   <label className="text-xs text-muted-foreground">
                     사용 개수
                   </label>
@@ -317,7 +318,7 @@ export default function BulkFishingDialog({
                     type="number"
                     min={1}
                     max={Math.max(1, baitCount)}
-                    className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                    className="mt-1 w-full h-9 rounded-md border px-3 text-sm"
                     value={count}
                     onChange={(e) =>
                       setCount(Math.max(1, Number(e.target.value || 1)))
@@ -327,12 +328,12 @@ export default function BulkFishingDialog({
                 </div>
 
                 {/* 담을 어항 */}
-                <div className="sm:col-span-5">
+                <div className="w-[160px] sm:w-[180px]">
                   <label className="text-xs text-muted-foreground">
                     담을 어항
                   </label>
                   <select
-                    className="mt-1 w-full rounded-md border px-3 py-2 text-sm bg-white"
+                    className="mt-1 w-full h-9 rounded-md border px-3 text-sm bg-white"
                     value={targetTankNo}
                     onChange={(e) =>
                       setTargetTankNo(
@@ -352,12 +353,13 @@ export default function BulkFishingDialog({
                   </select>
                 </div>
 
-                <div className="sm:col-span-5 flex justify-end">
+                {/* 오른쪽 정렬 버튼 (남는 공간 밀어내기) */}
+                <div className="ms-auto">
                   <Button
                     onClick={runBulkFishing}
                     disabled={busy || baitCount <= 0}
                     className={cn(
-                      "min-w-[140px]",
+                      "h-9 min-w-[120px]",
                       busy ? "opacity-80 cursor-not-allowed" : ""
                     )}
                   >
