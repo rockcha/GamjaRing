@@ -7,7 +7,6 @@ import PotatoFieldGrid from "@/features/potato_field/PotatoFieldGrid";
 import { ensureRow, getPotatoCount } from "@/features/potato_field/utils";
 import ProducerSection from "@/features/producer/ProducerSection";
 import { cn } from "@/lib/utils";
-import PotatoExchange from "@/components/widgets/PotatoExchange";
 
 /* ───────────────────────────── page ───────────────────────────── */
 
@@ -38,23 +37,6 @@ export default function PotatoFieldPage() {
 
   return (
     <div className="relative w-full px-3 sm:px-4 md:px-6 py-4">
-      {/* ▶ PotatoFieldPage 컨테이너 기준 오른쪽 상단 고정 */}
-      <div className="absolute right-6 top-3 z-50">
-        <div
-          className={cn(
-            "rounded-lg   bg-white/70 backdrop-blur",
-            "shadow-sm hover:shadow-md transition-shadow",
-            "px-2.5 py-1.5"
-          )}
-          role="region"
-          aria-label="감자 교환 위젯"
-        >
-          <div className="flex items-center gap-2">
-            <PotatoExchange />
-          </div>
-        </div>
-      </div>
-
       {/* 레이아웃: 모바일 1컬럼 → md↑ 7:3 */}
       <div className="grid w-full items-start gap-6 md:gap-8 md:grid-cols-10">
         {/* ── 생산시설 ───────────────────────── */}
@@ -110,17 +92,19 @@ function SectionHeader({
   className?: string;
 }) {
   return (
-    <div className={cn("flex items-end justify-between gap-4", className)}>
+    <div className={cn("flex items-center justify-between gap-3", className)}>
       <div className="min-w-0">
-        <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight">
-          <span aria-hidden className="text-2xl leading-none">
+        <h2 className="flex items-center gap-2 text-lg md:text-xl font-bold text-slate-900">
+          <span aria-hidden className="text-2xl">
             {emoji}
           </span>
           <span className="truncate">{title}</span>
         </h2>
-        {subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}
+        {subtitle && (
+          <p className="mt-1 text-xs md:text-sm text-slate-500">{subtitle}</p>
+        )}
       </div>
-      {right ? <div className="shrink-0">{right}</div> : null}
+      {right}
     </div>
   );
 }
@@ -148,8 +132,7 @@ function SectionCard({
     <div
       className={cn(
         "rounded-2xl border border-slate-200/70 bg-white/60 backdrop-blur-sm",
-        "shadow-sm hover:shadow-md transition-shadow",
-        "px-3 sm:px-4 md:px-5 py-3 sm:py-4",
+        "shadow-sm px-3 sm:px-4 md:px-5 py-3 sm:py-4", // hover shadow 제거
         className
       )}
     >

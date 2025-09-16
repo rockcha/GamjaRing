@@ -2,6 +2,10 @@
 
 /**
  * FishingPage — bait-based fishing (single only here; bulk moved to component)
+ * - 시간대 로직 제거
+ * - aquarium_themes 에서 랜덤 title을 뽑아 /aquarium/themes/(title).png 사용
+ * - 중앙 오버레이: "현재 위치: {title}"
+ * - 배경 로딩 전/실패 시 플레이스홀더 표시 + 테마 변경 시 크로스페이드
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -32,8 +36,6 @@ import { Button } from "@/components/ui/button";
 /* ──────────────────────────────────────────────────────────── */
 const DND_MIME = "application/x-ingredient" as const;
 
-export type TimeSlot = "morning" | "noon" | "evening" | "night";
-
 const RARITY_DELAY_MS: Record<Rarity | "DEFAULT", number> = {
   전설: 10_000,
   에픽: 8_000,
@@ -42,58 +44,6 @@ const RARITY_DELAY_MS: Record<Rarity | "DEFAULT", number> = {
   DEFAULT: 4_000,
 };
 
-function getTimeSlot(d: Date): TimeSlot {
-  const hh = d.getHours();
-  const mm = d.getMinutes();
-  if ((hh > 5 && hh < 11) || (hh === 5 && mm >= 0) || (hh === 11 && mm === 0))
-    return "morning";
-  if ((hh > 11 && hh < 17) || (hh === 11 && mm >= 1) || (hh === 17 && mm === 0))
-    return "noon";
-  if ((hh > 17 && hh < 20) || (hh === 17 && mm >= 1) || (hh === 20 && mm <= 30))
-    return "evening";
-  return "night";
-}
-function bgSrcBySlot(slot: TimeSlot) {
-  switch (slot) {
-    case "morning":
-      return "/aquarium/fishing_morning.png";
-    case "noon":
-      return "/aquarium/fishing_noon.png";
-    case "evening":
-      return "/aquarium/fishing_evening.png";
-    case "night":
-    default:
-      return "/aquarium/fishing_night.png";
-  }
-}
-function slotLabel(slot: TimeSlot) {
-  return slot === "morning"
-    ? "아침"
-    : slot === "noon"
-    ? "낮"
-    : slot === "evening"
-    ? "저녁"
-    : "밤";
-}
-function rarityDir(r: Rarity) {
-  return r === "일반"
-    ? "common"
-    : r === "희귀"
-    ? "rare"
-    : r === "에픽"
-    ? "epic"
-    : "legend";
-}
-function buildImageSrc(id: string, rarity: Rarity) {
-  return `/aquarium/${rarityDir(rarity)}/${id}.png`;
-}
-const rarityMap: Record<string, Rarity> = {
-  일반: "일반",
-  희귀: "희귀",
-  에픽: "에픽",
-  전설: "전설",
-  레어: "희귀",
-};
 // rpc rows/row 안전 언랩
 function unwrapRpcRow<T>(data: T | T[] | null): T | null {
   return Array.isArray(data) ? data[0] ?? null : data ?? null;
@@ -141,15 +91,62 @@ export default function FishingPage() {
   const { couple, fetchCoupleData } = useCoupleContext();
   const coupleId = couple?.id ?? null;
 
-  /* 시간대 & 배경 */
-  const [slot, setSlot] = useState<TimeSlot>(() => getTimeSlot(new Date()));
-  const bg = useMemo(() => bgSrcBySlot(slot), [slot]);
+  /* 🔁 테마: aquarium_themes에서 랜덤 title 선택 */
+  const [themeTitle, setThemeTitle] = useState<string>("바다");
+  const nextSrc = useMemo(
+    () => `/aquarium/themes/${encodeURIComponent(themeTitle)}.png`,
+    [themeTitle]
+  );
+
+  // 배경 전환 상태(크로스페이드)
+  const FADE_MS = 2500;
+  const [currentSrc, setCurrentSrc] = useState<string>(nextSrc);
+  const [prevSrc, setPrevSrc] = useState<string | null>(null);
+  const [curLoaded, setCurLoaded] = useState(false);
+
+  // themeTitle 바뀌면 prev=현재, current=새로, curLoaded=false
   useEffect(() => {
-    const id = window.setInterval(
-      () => setSlot(getTimeSlot(new Date())),
-      30_000
-    );
-    return () => window.clearInterval(id);
+    setPrevSrc(currentSrc || null);
+    setCurrentSrc(nextSrc);
+    setCurLoaded(false);
+  }, [nextSrc]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 새 이미지가 로딩 완료되면 prev를 FADE_MS 뒤에 제거
+  useEffect(() => {
+    if (!curLoaded || !prevSrc) return;
+    const t = window.setTimeout(() => setPrevSrc(null), FADE_MS);
+    return () => window.clearTimeout(t);
+  }, [curLoaded, prevSrc]);
+
+  // 테마 타이틀 로드
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("aquarium_themes")
+          .select("title");
+        if (error) throw error;
+
+        const titles = (data ?? [])
+          .map((r: any) => r?.title)
+          .filter((t: any) => typeof t === "string" && t.length > 0);
+
+        if (!alive) return;
+        if (titles.length > 0) {
+          const idx = Math.floor(Math.random() * titles.length);
+          setThemeTitle(titles[idx] as string);
+        } else {
+          setThemeTitle("바다"); // 폴백
+        }
+      } catch (e) {
+        console.warn("themes load error:", e);
+        if (alive) setThemeTitle("바다");
+      }
+    })();
+    return () => {
+      alive = false;
+    };
   }, []);
 
   /* 어항 수 */
@@ -220,7 +217,7 @@ export default function FishingPage() {
   const [dragOver, setDragOver] = useState(false);
   const [savingDialogPut, setSavingDialogPut] = useState(false);
 
-  /* 일괄 낚시 오픈 상태만 보유 (구현은 분리 컴포넌트) */
+  /* 일괄 낚시 오픈 상태 */
   const [bulkOpen, setBulkOpen] = useState(false);
 
   /* 드래그 & 드롭 (단건 낚시) */
@@ -349,6 +346,7 @@ export default function FishingPage() {
   );
 
   /* 단건 결과 저장 */
+  const { user: u } = useUser(); // 동일 컨텍스트지만 명시적으로
   const handlePutToTank = useCallback(
     async (tankNo: number) => {
       if (!coupleId) return toast.error("커플 정보를 찾을 수 없어요.");
@@ -371,10 +369,10 @@ export default function FishingPage() {
           toast.warning(`인벤토리 반영 실패: ${insErr.message}`);
         } else {
           try {
-            if (user?.id && user?.partner_id) {
+            if (u?.id && u?.partner_id) {
               await sendUserNotification({
-                senderId: user.id,
-                receiverId: user.partner_id,
+                senderId: u.id,
+                receiverId: u.partner_id,
                 type: "낚시성공",
                 itemName: result.labelKo.toString(),
               } as any);
@@ -393,7 +391,7 @@ export default function FishingPage() {
         setSavingDialogPut(false);
       }
     },
-    [coupleId, result, user?.id, user?.partner_id, fetchCoupleData, tanksCount]
+    [coupleId, result, u?.id, u?.partner_id, fetchCoupleData, tanksCount]
   );
 
   /* Render */
@@ -408,7 +406,7 @@ export default function FishingPage() {
       {/* 좌측 패널 */}
       <aside
         className={cn(
-          "hidden md:flex col-span-3 rounded-2xl border bg-white p-3 flex-col gap-3",
+          "hidden md:flex col-span-3 rounded-2xl border bg-white p-3 my-2 flex-col gap-3",
           "overflow-y-auto overscroll-contain min-h-0"
         )}
       >
@@ -418,7 +416,7 @@ export default function FishingPage() {
       {/* 메인 낚시터 */}
       <main
         className={cn(
-          "col-span-9 relative rounded-2xl border overflow-hidden min-w-0 min-h-0"
+          "col-span-9 relative rounded-2xl border overflow-hidden min-w-0 min-h-0 my-2 "
         )}
         onDragOver={onDragOver}
         onDragEnter={onDragEnter}
@@ -426,19 +424,52 @@ export default function FishingPage() {
         onDrop={onDrop}
         aria-label="낚시 배경 영역"
       >
-        {/* 배경 */}
+        {/* 배경 레이어들: placeholder → prev → current (크로스페이드) */}
         <img
-          src={bg}
-          alt={`fishing background: ${slotLabel(slot)}`}
+          src="/aquarium/fishing-placeholder.png"
+          alt="fishing placeholder background"
           className="absolute inset-0 w-full h-full object-cover"
           draggable={false}
         />
+
+        {prevSrc && (
+          <img
+            src={prevSrc}
+            alt="previous theme background"
+            className={cn(
+              "absolute inset-0 w-full h-full object-cover transition-opacity",
+              curLoaded ? "opacity-0" : "opacity-100"
+            )}
+            style={{ transitionDuration: `${FADE_MS}ms` }}
+            draggable={false}
+          />
+        )}
+
+        <img
+          key={currentSrc}
+          src={currentSrc}
+          alt={`theme background: ${themeTitle}`}
+          className={cn(
+            "absolute inset-0 w-full h-full object-cover transition-opacity",
+            curLoaded ? "opacity-100" : "opacity-0"
+          )}
+          style={{ transitionDuration: `${FADE_MS}ms` }}
+          draggable={false}
+          onLoad={() => setCurLoaded(true)}
+          onError={() => {
+            // 실패 시에도 prev 유지 후, 페이드아웃 없이 그냥 placeholder로 폴백
+            setCurLoaded(false);
+            setPrevSrc(null);
+          }}
+        />
+
         {/* 비네트 */}
         <div className="pointer-events-none absolute inset-0 [background:radial-gradient(60%_60%_at_50%_40%,rgba(0,0,0,0)_0%,rgba(0,0,0,.25)_100%)] md:[background:radial-gradient(55%_65%_at_50%_35%,rgba(0,0,0,0)_0%,rgba(0,0,0,.18)_100%)]" />
-        {/* 시간대 배지 */}
-        <div className="relative z-10 h-full pointer-events-none">
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 rounded-full bg-black/35 text-white text-[10px] sm:text-xs px-2.5 py-1 backdrop-blur-sm">
-            현재 시간대: {slotLabel(slot)}
+
+        {/* 중앙 위치 배지 */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[240%] z-10 pointer-events-none">
+          <div className="rounded-full bg-black/40 text-white text-[11px] sm:text-xs px-3 py-1 backdrop-blur-sm">
+            현재 위치: {themeTitle}
           </div>
         </div>
 

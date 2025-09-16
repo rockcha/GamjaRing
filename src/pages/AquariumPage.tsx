@@ -232,6 +232,20 @@ export default function AquariumPage() {
           <div className="relative h-full w-full">
             {/* 상단 중앙: 제목(편집) + 어항 구매 버튼(가격 with 골드 이모지) */}
             <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 pointer-events-auto">
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full",
+                  "bg-white/80 border backdrop-blur px-2.5 py-1 text-xs text-slate-800 shadow"
+                )}
+                title={
+                  themeTitle ? `현재 테마: ${themeTitle}` : "현재 테마: 기본"
+                }
+              >
+                <span aria-hidden className="text-[13px]">
+                  현재 테마 :
+                </span>
+                <b className="font-semibold">{themeTitle || "기본 테마"}</b>
+              </span>
               {!editing ? (
                 <button
                   className="group inline-flex items-center gap-2 rounded-full bg-black/35 text-white text-xs sm:text-sm px-3 py-1 backdrop-blur-sm"
@@ -272,43 +286,11 @@ export default function AquariumPage() {
                   </button>
                 </div>
               )}
-
-              {/* 어항 구매 (가격 + 골드 이모지) */}
-              <button
-                onClick={() => setConfirmOpen(true)}
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-full",
-                  "bg-white/90 border px-2 py-1 text-xs shadow hover:bg-white"
-                )}
-                title={`어항 구매 (🪙${TANK_PRICE.toLocaleString("ko-KR")})`}
-              >
-                <PlusCircle className="w-4 h-4" />
-                <span className="font-medium">
-                  어항 구매 ·{" "}
-                  <span className="tabular-nums">
-                    🪙{TANK_PRICE.toLocaleString("ko-KR")}
-                  </span>
-                </span>
-              </button>
             </div>
 
             {/* 좌하단: 현재 테마 제목 배지 + 새로고침 */}
             {cur && (
               <div className="absolute left-2 bottom-0 flex flex-col gap-2 z-10 pointer-events-none">
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-full",
-                    "bg-white/80 border backdrop-blur px-2.5 py-1 text-xs text-slate-800 shadow"
-                  )}
-                  title={
-                    themeTitle ? `현재 테마: ${themeTitle}` : "현재 테마: 기본"
-                  }
-                >
-                  <span aria-hidden className="text-[13px]">
-                    현재 테마 :
-                  </span>
-                  <b className="font-semibold">{themeTitle || "기본 테마"}</b>
-                </span>
                 <Button
                   className=" z-50 shadow pointer-events-auto"
                   variant="secondary"
@@ -323,8 +305,6 @@ export default function AquariumPage() {
 
             {/* 좌상단: 도감 + 테마샵 + 상세 버튼 */}
             <div className="absolute left-2 top-2 z-10 flex  gap-2 pointer-events-auto">
-              <MarineDexModal />
-              {cur && <ThemeShopButton tankNo={cur.tank_no} />}
               {cur && <AquariumDetailButton tankNo={cur.tank_no} />}
             </div>
 
@@ -359,7 +339,7 @@ export default function AquariumPage() {
             )}
 
             {/* ✅ 우상단: 번호 입력만 (Enter로 이동) */}
-            <div className="absolute right-2 top-2 z-10 pointer-events-auto">
+            <div className="flex flex-col gap-1 absolute right-2 top-2 z-10 pointer-events-auto">
               <div className="inline-flex items-center rounded-full bg-white/75 border backdrop-blur-sm text-gray-900 text-xs shadow px-2 py-1">
                 <Input
                   type="number"
@@ -384,11 +364,52 @@ export default function AquariumPage() {
                 />
                 <span className="ml-1 opacity-70">/ {tanks.length || 1}</span>
               </div>
+              <button
+                onClick={() => setConfirmOpen(true)}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full mb-2",
+                  "bg-white/90 border px-2 py-1 text-xs shadow hover:bg-white"
+                )}
+                title={`어항 구매 (🪙${TANK_PRICE.toLocaleString("ko-KR")})`}
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span className="font-medium">
+                  추가하기 ·{" "}
+                  <span className="tabular-nums">
+                    🪙{TANK_PRICE.toLocaleString("ko-KR")}
+                  </span>
+                </span>
+              </button>
+              <MarineDexModal />
+              {cur && <ThemeShopButton tankNo={cur.tank_no} />}
             </div>
           </div>
         </div>
         {/* END overlay */}
       </div>
+
+      {tanks.length > 1 && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
+          <div className="flex items-center gap-1.5">
+            {tanks.map((t, i) => {
+              const active = i === idx;
+              return (
+                <span
+                  key={t.tank_no}
+                  className={cn(
+                    "h-1.5 w-1.5 rounded-full bg-white/70 border pointer-events-auto",
+                    active ? "scale-110 bg-amber-400" : "opacity-70"
+                  )}
+                  onClick={() => setIdx(i)}
+                  title={`${t.tank_no}번`}
+                  role="button"
+                  aria-label={`${t.tank_no}번으로 이동`}
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 구매 확인 다이얼로그 */}
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>

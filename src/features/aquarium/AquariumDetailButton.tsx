@@ -1,4 +1,3 @@
-// src/features/aquarium/AquariumDetailButton.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -15,15 +14,20 @@ import {
   BadgeDollarSign,
   AlertTriangle,
   Search,
-  Minus,
-  Plus,
   MoveRight,
+  CheckCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { emitAquariumUpdated } from "./aquarium";
+import {
+  BulkMoveDialog,
+  BulkSellDialog,
+  type BulkSelectEntry,
+} from "./Bulk-actions";
+import { usePortalTarget } from "./usePortalTarget";
 
 /* ---------- Types / helpers ---------- */
-type FishRarity = "일반" | "희귀" | "에픽" | "전설";
+export type FishRarity = "일반" | "희귀" | "에픽" | "전설";
 type RarityFilter = "전체" | FishRarity;
 
 const rarityDir = (r: FishRarity) =>
@@ -34,6 +38,7 @@ const rarityDir = (r: FishRarity) =>
     : r === "에픽"
     ? "epic"
     : "legend";
+
 const buildImageSrc = (id: string, rarity: FishRarity) =>
   `/aquarium/${rarityDir(rarity)}/${id}.png`;
 
@@ -70,13 +75,6 @@ function RarityBadge({ r }: { r: FishRarity }) {
   );
 }
 
-/* ---------- Portal util ---------- */
-function usePortalTarget() {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  return mounted ? document.body : null;
-}
-
 /* ---------- Component ---------- */
 export default function AquariumDetailButton({
   tankNo,
@@ -108,6 +106,7 @@ export default function AquariumDetailButton({
     }>
   >([]);
 
+  // 개별 판매 모달
   const [confirm, setConfirm] = useState<{
     entityId: string;
     label: string;
@@ -118,6 +117,7 @@ export default function AquariumDetailButton({
     qty: number;
   } | null>(null);
 
+  // 개별 이동 모달
   const [moveDlg, setMoveDlg] = useState<{
     entityId: string;
     label: string;
@@ -128,17 +128,83 @@ export default function AquariumDetailButton({
     tanks: Array<{ tank_no: number; title: string; fish_cnt: number }>;
   } | null>(null);
 
+  // 미리보기
   const [preview, setPreview] = useState<{ src: string; alt: string } | null>(
     null
   );
 
+  // ✅ 선택모드 & 선택 목록
+
+  const [selected, setSelected] = useState<Record<string, number>>({});
+  const selectedCount = useMemo(() => Object.keys(selected).length, [selected]);
+  const selectedItems: BulkSelectEntry[] = useMemo(() => {
+    const map = new Map(items.map((i) => [i.id, i]));
+    return Object.keys(selected)
+      .map((id) => {
+        const it = map.get(id);
+        if (!it) return null;
+        return {
+          id,
+          label: it.label,
+          image: it.image,
+          count: it.count,
+          price: it.price,
+          qty: Math.min(selected[id] ?? 1, it.count),
+        } as BulkSelectEntry;
+      })
+      .filter(Boolean) as BulkSelectEntry[];
+  }, [selected, items]);
+  function toggleSelect(it: { id: string; count: number }) {
+    setSelected((prev) => {
+      const next = { ...prev };
+      if (next[it.id]) delete next[it.id];
+      else next[it.id] = Math.min(1, it.count);
+      return next;
+    });
+  }
+  function clearSelection() {
+    setSelected({});
+  }
+  const [tankOptions, setTankOptions] = useState<
+    Array<{ tank_no: number; title: string; fish_cnt: number }>
+  >([]);
+
+  // 일괄 모달
+  const [bulkSellOpen, setBulkSellOpen] = useState(false);
+  const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
+
   useEffect(() => {
-    if (open || confirm || preview || moveDlg) {
+    if (!bulkMoveOpen || !coupleId) return;
+    (async () => {
+      try {
+        const { data, error } = await supabase.rpc("get_couple_tanks", {
+          p_couple_id: coupleId,
+        });
+        if (error) throw error;
+        setTankOptions(
+          (data ?? []) as Array<{
+            tank_no: number;
+            title: string;
+            fish_cnt: number;
+          }>
+        );
+      } catch (e) {
+        console.warn("get_couple_tanks 실패:", e);
+        setTankOptions([]);
+      }
+    })();
+  }, [bulkMoveOpen, coupleId]);
+
+  // body scroll lock
+  useEffect(() => {
+    if (open || confirm || preview || moveDlg || bulkSellOpen || bulkMoveOpen) {
       const prev = document.body.style.overflow;
       document.body.style.overflow = "hidden";
-      return () => (document.body.style.overflow = prev);
+      return () => {
+        document.body.style.overflow = prev;
+      };
     }
-  }, [open, confirm, preview, moveDlg]);
+  }, [open, confirm, preview, moveDlg, bulkSellOpen, bulkMoveOpen]);
 
   useEffect(() => {
     if (open) {
@@ -180,7 +246,6 @@ export default function AquariumDetailButton({
         };
       });
 
-      // ✅ 정렬: 가격(오름차순) → 희귀도 → 이름
       const rarityRank: Record<FishRarity, number> = {
         일반: 3,
         희귀: 2,
@@ -218,80 +283,32 @@ export default function AquariumDetailButton({
     });
   }, [items, rarityFilter, searchText]);
 
-  // 판매 시작
-  const askSell = (it: (typeof items)[number]) => {
-    if (it.count <= 0) return;
-    setConfirm({
-      entityId: it.id,
-      label: it.label,
-      image: it.image,
-      rarity: it.rarity,
-      unitSell: Math.floor(it.price / 2),
-      countBefore: it.count,
-      qty: 1,
-    });
-  };
-
-  // 이동 시작
-  const askMove = async (it: (typeof items)[number]) => {
-    if (!coupleId) return;
-    try {
-      const { data, error } = await supabase.rpc("get_couple_tanks", {
-        p_couple_id: coupleId,
-      });
-      if (error) throw error;
-
-      const tanks = (data ?? []).filter((t: any) => t.tank_no !== tankNo);
-      setMoveDlg({
-        entityId: it.id,
-        label: it.label,
-        image: it.image,
-        countBefore: it.count,
-        qty: 1,
-        tanks: tanks as any,
-        toTank: tanks[0]?.tank_no,
-      });
-    } catch (e: any) {
-      console.error(e);
-      toast.error("보유한 어항 목록을 불러오지 못했어요.");
-    }
-  };
-
-  // 실제 판매
-  const doSell = async () => {
-    if (!confirm || !coupleId) return;
+  // 일괄 판매 실행
+  const onBulkSell = async (entries: BulkSelectEntry[]) => {
+    if (!coupleId || entries.length === 0) return;
     try {
       setLoading(true);
-      const { data, error } = await supabase.rpc("sell_fish_from_tank", {
-        p_couple_id: coupleId,
-        p_tank_no: tankNo,
-        p_entity_id: confirm.entityId,
-        p_qty: confirm.qty,
-      });
-      if (error) throw error;
-
-      const sold = Number(data?.[0]?.sold_cnt ?? 0);
-      const gold = Number(data?.[0]?.gained_gold ?? 0);
-
-      toast.success(
-        `${confirm.label} ${sold + 1} 마리 판매 (+${gold.toLocaleString(
-          "ko-KR"
-        )} 골드)`
+      const jobs = entries.map((it) =>
+        supabase
+          .rpc("sell_fish_from_tank", {
+            p_couple_id: coupleId,
+            p_tank_no: tankNo,
+            p_entity_id: it.id,
+            p_qty: Math.min(it.qty, it.count),
+          })
+          .then(({ error }) => {
+            if (error) throw error;
+          })
       );
-      emitAquariumUpdated(coupleId, tankNo);
-
-      try {
-        if (user?.id && (user as any)?.partner_id) {
-          await sendUserNotification({
-            senderId: user.id,
-            receiverId: (user as any).partner_id,
-            type: "물품판매",
-            itemName: `${confirm.label} ${sold + 1}마리`,
-          });
-        }
-      } catch {}
+      const results = await Promise.allSettled(jobs);
+      const ok = results.filter((r) => r.status === "fulfilled").length;
+      const fail = results.length - ok;
+      toast.success(`판매 완료: 성공 ${ok} / 실패 ${fail}`);
       await loadSummary();
-      setConfirm(null);
+      emitAquariumUpdated(coupleId, tankNo);
+      setBulkSellOpen(false);
+
+      clearSelection();
     } catch (e: any) {
       console.error(e);
       toast.error(`판매 실패: ${e.message ?? e}`);
@@ -300,28 +317,33 @@ export default function AquariumDetailButton({
     }
   };
 
-  // 실제 이동
-  const doMove = async () => {
-    if (!moveDlg || !coupleId || !moveDlg.toTank) return;
+  // 일괄 이동 실행
+  const onBulkMove = async (entries: BulkSelectEntry[], toTank: number) => {
+    if (!coupleId || entries.length === 0) return;
     try {
       setLoading(true);
-      const { data, error } = await supabase.rpc("move_fish_between_tanks", {
-        p_couple_id: coupleId,
-        p_entity_id: moveDlg.entityId,
-        p_from_tank: tankNo,
-        p_qty: moveDlg.qty,
-        p_to_tank: moveDlg.toTank,
-      });
-      if (error) throw error;
-      const moved = Number(data ?? 0);
-      if (moved <= 0) {
-        toast.warning("이동할 수량이 없어요.");
-      } else {
-        toast.success(`${moveDlg.label} ${moved}마리 이동 완료`);
-        await loadSummary();
-        emitAquariumUpdated(coupleId, tankNo);
-      }
-      setMoveDlg(null);
+      const jobs = entries.map((it) =>
+        supabase
+          .rpc("move_fish_between_tanks", {
+            p_couple_id: coupleId,
+            p_entity_id: it.id,
+            p_from_tank: tankNo,
+            p_qty: Math.min(it.qty, it.count),
+            p_to_tank: toTank,
+          })
+          .then(({ error }) => {
+            if (error) throw error;
+          })
+      );
+      const results = await Promise.allSettled(jobs);
+      const ok = results.filter((r) => r.status === "fulfilled").length;
+      const fail = results.length - ok;
+      toast.success(`이동 완료: 성공 ${ok} / 실패 ${fail}`);
+      await loadSummary();
+      emitAquariumUpdated(coupleId, tankNo);
+      setBulkMoveOpen(false);
+
+      clearSelection();
     } catch (e: any) {
       console.error(e);
       toast.error(`이동 실패: ${e.message ?? e}`);
@@ -377,9 +399,7 @@ export default function AquariumDetailButton({
               <div className="sticky top-0 z-10 -mx-5 px-5 pt-4 pb-3 mb-4 bg-[#FAF7F2] backdrop-blur border-b border-gray-100">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    {/* 제목 변경: 1번 아쿠아리움 */}
                     <h3 className="text-lg font-bold">{tankNo}번 아쿠아리움</h3>
-                    {/* 총 마리 수: 🐟 n마리 */}
                     <span className="text-sm text-slate-600 inline-flex items-center gap-1">
                       <span role="img" aria-label="물고기">
                         🐟
@@ -396,9 +416,9 @@ export default function AquariumDetailButton({
                   </button>
                 </div>
 
-                {/* 검색(좌) ─ 희귀도 선택(우) 같은 행 */}
-                <div className="mt-3 flex items-center gap-3">
-                  {/* 좌측: 검색 */}
+                {/* 검색 & 희귀도 & 선택모드/일괄액션 */}
+                <div className="mt-3 flex items-center  gap-3">
+                  {/* 검색 */}
                   <div className="relative">
                     <Search className="w-4 h-4 absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
@@ -410,14 +430,8 @@ export default function AquariumDetailButton({
                     />
                   </div>
 
-                  {/* 우측으로 밀기 */}
-                  <div className="ml-auto flex items-center gap-2">
-                    <label
-                      htmlFor="rarityFilter"
-                      className="text-sm text-slate-600"
-                    >
-                      희귀도
-                    </label>
+                  {/* 희귀도 */}
+                  <div className=" flex items-center gap-2">
                     <select
                       id="rarityFilter"
                       value={rarityFilter}
@@ -433,6 +447,32 @@ export default function AquariumDetailButton({
                       <option value="전설">전설</option>
                     </select>
                   </div>
+                  {/* 일괄 버튼(상시 표시) */}
+                  <div className="mt-2 flex items-center gap-2 ml-auto">
+                    <div className="ms-auto flex items-center gap-2">
+                      <span className="text-sm text-slate-600">
+                        선택: <b>{selectedCount}</b>개
+                      </span>
+                      <Button
+                        variant="outline"
+                        className="h-8 px-3 text-sm border-rose-300 text-rose-800 hover:bg-rose-50"
+                        disabled={selectedCount === 0 || loading}
+                        onClick={() => setBulkSellOpen(true)}
+                      >
+                        <BadgeDollarSign className="w-4 h-4 mr-1" />
+                        판매
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="h-8 px-3 text-sm border-sky-300 text-sky-800 hover:bg-sky-50"
+                        disabled={selectedCount === 0 || loading}
+                        onClick={() => setBulkMoveOpen(true)}
+                      >
+                        <MoveRight className="w-4 h-4 mr-1" />
+                        이동
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -446,12 +486,12 @@ export default function AquariumDetailButton({
                   표시할 물고기가 없어요.
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-4 sm:gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
                   {filtered.map((it) => (
                     <div
                       key={it.id}
                       className={cn(
-                        "grid grid-cols-[auto_1fr_auto] items-center gap-4 rounded-2xl border p-4",
+                        "grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl border p-3",
                         RARITY_CARD_CLASS[it.rarity]
                       )}
                     >
@@ -459,18 +499,29 @@ export default function AquariumDetailButton({
                       <button
                         type="button"
                         className={cn(
-                          "group relative w-28 h-24 sm:w-32 sm:h-28 rounded-xl",
+                          "group relative w-24 h-20 sm:w-28 sm:h-24 rounded-xl",
                           "bg-white/85 backdrop-blur-[2px] shadow-sm overflow-hidden ring-1",
-                          RARITY_IMG_RING[it.rarity]
+                          RARITY_IMG_RING[it.rarity],
+                          "cursor-pointer"
                         )}
-                        onClick={() =>
-                          setPreview({ src: it.image, alt: it.label })
-                        }
-                        title={`${it.label} 확대 보기`}
+                        onClick={() => toggleSelect(it)}
                       >
                         <span className="absolute top-1 right-1 rounded-lg bg-amber-600 text-white text-[11px] font-bold px-1.5 py-0.5 shadow ring-1 ring-white/80">
                           x{it.count}
                         </span>
+
+                        {selected[it.id] && (
+                          <span
+                            className={cn(
+                              "absolute left-1 top-1 inline-flex items-center justify-center",
+                              "rounded-md bg-emerald-600/95 text-white ring-1 ring-white/80",
+                              "w-6 h-6"
+                            )}
+                            title="선택됨"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </span>
+                        )}
                         <img
                           src={it.image}
                           alt={it.label}
@@ -500,25 +551,6 @@ export default function AquariumDetailButton({
                           </span>
                         </div>
                       </div>
-
-                      {/* actions */}
-                      <div className="flex flex-col gap-2">
-                        <Button
-                          className="bg-amber-600 hover:bg-amber-700 text-white"
-                          onClick={() => askSell(it)}
-                          disabled={it.count <= 0 || loading}
-                        >
-                          판매
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="border-sky-300 text-sky-800 hover:bg-sky-50"
-                          onClick={() => askMove(it)}
-                          disabled={it.count <= 0 || loading}
-                        >
-                          <MoveRight className="w-4 h-4 mr-1" /> 이동
-                        </Button>
-                      </div>
                     </div>
                   ))}
                 </div>
@@ -528,313 +560,29 @@ export default function AquariumDetailButton({
           portalTarget
         )}
 
-      {/* 판매 모달 */}
-      {portalTarget &&
-        createPortal(
-          <div
-            className={cn(
-              "fixed inset-0 z-[90] flex items-center justify-center bg-black/50 transition-opacity",
-              confirm
-                ? "opacity-100 pointer-events-auto"
-                : "opacity-0 pointer-events-none"
-            )}
-            onClick={() => setConfirm(null)}
-            aria-hidden={!confirm}
-          >
-            <div
-              className="w-[460px] max-w-[90vw] rounded-2xl bg-white p-4 shadow-xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {confirm && (
-                <>
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-base font-bold">판매 확인</h4>
-                    <button
-                      onClick={() => setConfirm(null)}
-                      className="p-1.5 rounded-md border hover:bg-gray-50"
-                      aria-label="닫기"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <div className="flex gap-3">
-                    <img
-                      src={confirm.image}
-                      alt={confirm.label}
-                      className="w-20 h-20 object-contain rounded-md bg-white ring-1 ring-gray-200"
-                    />
-                    <div className="flex-1">
-                      <div className="font-semibold">{confirm.label}</div>
-                      <div className="mt-1 text-sm text-gray-700">
-                        1마리 판매가{" "}
-                        <b className="text-amber-700">
-                          {confirm.unitSell.toLocaleString("ko-KR")}
-                        </b>{" "}
-                        골드
-                      </div>
-                      <div className="mt-3 flex items-center gap-2">
-                        <span className="text-sm text-slate-600">수량</span>
-                        <div className="inline-flex items-stretch rounded-md border">
-                          <button
-                            className="px-2 py-1 hover:bg-gray-50 disabled:opacity-40"
-                            onClick={() =>
-                              setConfirm((c) =>
-                                !c ? c : { ...c, qty: Math.max(1, c.qty - 1) }
-                              )
-                            }
-                            disabled={confirm.qty <= 1}
-                          >
-                            <Minus className="w-4 h-4" />
-                          </button>
-                          <input
-                            type="number"
-                            className="w-16 text-center border-l border-r outline-none"
-                            value={confirm.qty}
-                            min={1}
-                            max={confirm.countBefore}
-                            onChange={(e) => {
-                              const v = Math.max(
-                                1,
-                                Math.min(
-                                  confirm.countBefore,
-                                  Math.floor(Number(e.target.value || 1))
-                                )
-                              );
-                              setConfirm((c) => (!c ? c : { ...c, qty: v }));
-                            }}
-                          />
-                          <button
-                            className="px-2 py-1 hover:bg-gray-50 disabled:opacity-40"
-                            onClick={() =>
-                              setConfirm((c) =>
-                                !c
-                                  ? c
-                                  : {
-                                      ...c,
-                                      qty: Math.min(c.countBefore, c.qty + 1),
-                                    }
-                              )
-                            }
-                            disabled={confirm.qty >= confirm.countBefore}
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                        </div>
-                        <span className="text-xs text-slate-500">
-                          보유 {confirm.countBefore}마리
-                        </span>
-                      </div>
-                      <div className="mt-2 text-sm text-gray-700 inline-flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 text-amber-600" />
-                        수량: {confirm.countBefore} →{" "}
-                        <b className="text-rose-700">
-                          {Math.max(0, confirm.countBefore - confirm.qty)}
-                        </b>
-                      </div>
-                      <div className="mt-1 text-sm">
-                        총액{" "}
-                        <b className="text-amber-700">
-                          {(confirm.unitSell * confirm.qty).toLocaleString(
-                            "ko-KR"
-                          )}
-                        </b>{" "}
-                        골드
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => setConfirm(null)}
-                      className="border-gray-200"
-                    >
-                      취소
-                    </Button>
-                    <Button
-                      onClick={doSell}
-                      className="bg-amber-600 hover:bg-amber-700 text-white"
-                      disabled={loading || confirm.qty < 1}
-                    >
-                      판매
-                    </Button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>,
-          portalTarget
-        )}
+      {/* ✅ 선택 일괄 판매 */}
+      <BulkSellDialog
+        open={bulkSellOpen}
+        onOpenChange={setBulkSellOpen}
+        entries={selectedItems}
+        onChangeQty={(id, qty) =>
+          setSelected((prev) => ({ ...prev, [id]: qty }))
+        }
+        onConfirm={onBulkSell}
+      />
 
-      {/* 이동 모달 */}
-      {portalTarget &&
-        createPortal(
-          <div
-            className={cn(
-              "fixed inset-0 z-[90] flex items-center justify-center bg-black/50 transition-opacity",
-              moveDlg
-                ? "opacity-100 pointer-events-auto"
-                : "opacity-0 pointer-events-none"
-            )}
-            onClick={() => setMoveDlg(null)}
-            aria-hidden={!moveDlg}
-          >
-            <div
-              className="w-[480px] max-w-[90vw] rounded-2xl bg-white p-4 shadow-xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {moveDlg && (
-                <>
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-base font-bold">다른 어항으로 이동</h4>
-                    <button
-                      onClick={() => setMoveDlg(null)}
-                      className="p-1.5 rounded-md border hover:bg-gray-50"
-                      aria-label="닫기"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <div className="flex gap-3">
-                    <img
-                      src={moveDlg.image}
-                      alt={moveDlg.label}
-                      className="w-20 h-20 object-contain rounded-md bg-white ring-1 ring-gray-200"
-                    />
-                    <div className="flex-1">
-                      <div className="font-semibold">{moveDlg.label}</div>
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className="text-sm text-slate-600">
-                          목적지 어항
-                        </span>
-                        <select
-                          className="text-sm border rounded-md px-2 py-1 bg-white"
-                          value={moveDlg.toTank}
-                          onChange={(e) =>
-                            setMoveDlg((d) =>
-                              !d ? d : { ...d, toTank: Number(e.target.value) }
-                            )
-                          }
-                        >
-                          {moveDlg.tanks.map((t) => (
-                            <option key={t.tank_no} value={t.tank_no}>
-                              #{t.tank_no} {t.title ?? ""} ({t.fish_cnt}마리)
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="mt-3 flex items-center gap-2">
-                        <span className="text-sm text-slate-600">수량</span>
-                        <div className="inline-flex items-stretch rounded-md border">
-                          <button
-                            className="px-2 py-1 hover:bg-gray-50 disabled:opacity-40"
-                            onClick={() =>
-                              setMoveDlg((d) =>
-                                !d ? d : { ...d, qty: Math.max(1, d.qty - 1) }
-                              )
-                            }
-                            disabled={moveDlg.qty <= 1}
-                          >
-                            <Minus className="w-4 h-4" />
-                          </button>
-                          <input
-                            type="number"
-                            className="w-16 text-center border-l border-r outline-none"
-                            value={moveDlg.qty}
-                            min={1}
-                            max={moveDlg.countBefore}
-                            onChange={(e) => {
-                              const v = Math.max(
-                                1,
-                                Math.min(
-                                  moveDlg.countBefore,
-                                  Math.floor(Number(e.target.value || 1))
-                                )
-                              );
-                              setMoveDlg((d) => (!d ? d : { ...d, qty: v }));
-                            }}
-                          />
-                          <button
-                            className="px-2 py-1 hover:bg-gray-50 disabled:opacity-40"
-                            onClick={() =>
-                              setMoveDlg((d) =>
-                                !d
-                                  ? d
-                                  : {
-                                      ...d,
-                                      qty: Math.min(d.countBefore, d.qty + 1),
-                                    }
-                              )
-                            }
-                            disabled={moveDlg.qty >= moveDlg.countBefore}
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                        </div>
-                        <span className="text-xs text-slate-500">
-                          보유 {moveDlg.countBefore}마리
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => setMoveDlg(null)}
-                      className="border-gray-200"
-                    >
-                      취소
-                    </Button>
-                    <Button
-                      onClick={doMove}
-                      className="border-sky-300 text-sky-800 hover:bg-sky-50"
-                      disabled={loading || moveDlg.qty < 1 || !moveDlg.toTank}
-                    >
-                      {moveDlg.toTank ? `#${moveDlg.toTank}로 이동` : "이동"}
-                    </Button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>,
-          portalTarget
-        )}
-
-      {/* 이미지 미리보기 */}
-      {portalTarget &&
-        createPortal(
-          <div
-            className={cn(
-              "fixed inset-0 z-[95] flex items-center justify-center bg-black/70 transition-opacity",
-              preview
-                ? "opacity-100 pointer-events-auto"
-                : "opacity-0 pointer-events-none"
-            )}
-            onClick={() => setPreview(null)}
-            aria-hidden={!preview}
-          >
-            {preview && (
-              <div
-                className="relative max-w-[90vw] max-h-[80vh] p-2"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <img
-                  src={preview.src}
-                  alt={preview.alt}
-                  className="max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl ring-1 ring-white/20 bg-white/5"
-                  draggable={false}
-                />
-                <button
-                  onClick={() => setPreview(null)}
-                  className="absolute -top-3 -right-3 p-2 rounded-full bg-white text-slate-800 shadow ring-1 ring-black/10"
-                  aria-label="미리보기 닫기"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-          </div>,
-          portalTarget
-        )}
+      {/* ✅ 선택 일괄 이동 (확정 버튼 비올렛톤 포함) */}
+      <BulkMoveDialog
+        open={bulkMoveOpen}
+        onOpenChange={setBulkMoveOpen}
+        entries={selectedItems}
+        onChangeQty={(id, qty) =>
+          setSelected((prev) => ({ ...prev, [id]: qty }))
+        }
+        tankOptions={tankOptions}
+        currentTankNo={tankNo}
+        onConfirm={onBulkMove}
+      />
     </>
   );
 }

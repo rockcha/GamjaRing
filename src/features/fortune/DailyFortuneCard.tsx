@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import supabase from "@/lib/supabase";
 import { useUser } from "@/contexts/UserContext";
 import { toast } from "sonner";
@@ -9,9 +10,9 @@ import { generateFortune, type Fortune } from "./generateFortune";
 import TarotDetailDialog from "./TarotDetailDialog";
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
 /* 날짜 헬퍼 (KST, yyyy-MM-dd) */
 function todayKST(): string {
@@ -39,7 +40,7 @@ const LOADING_LINES = [
 
 export default function DailyFortuneCard({
   className,
-  caption = "타로카드",
+  caption = "타로카드", // 외부 호환 위해 남겨두지만 렌더링은 안 함
 }: {
   className?: string;
   caption?: string;
@@ -49,7 +50,7 @@ export default function DailyFortuneCard({
   const { addGold } = useCoupleContext();
   const d = todayKST();
 
-  const [loading, setLoading] = useState(true); // DB 조회 로딩
+  const [initialLoading, setInitialLoading] = useState(true); // DB 조회 로딩
   const [fortune, setFortune] = useState<Fortune | null>(null);
 
   // 상세(결과) 다이얼로그
@@ -64,11 +65,27 @@ export default function DailyFortuneCard({
   const goldGivenRef = useRef(false); // 최초 지급 가드
   const [imgLoaded, setImgLoaded] = useState(false); // 카드 PNG 로딩
 
+  // ✅ 클릭 시에만 파동 보이도록 제어 (PotatoPokeButton과 동일 패턴)
+  const [ripple, setRipple] = useState(false);
+  const rippleTimer = useRef<number | null>(null);
+  const startRipple = () => {
+    setRipple(false);
+    requestAnimationFrame(() => {
+      setRipple(true);
+      if (rippleTimer.current) window.clearTimeout(rippleTimer.current);
+      rippleTimer.current = window.setTimeout(() => setRipple(false), 1400);
+    });
+  };
+
   // 오늘 결과 조회
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      setFortune(null);
+      setInitialLoading(false);
+      return;
+    }
     (async () => {
-      setLoading(true);
+      setInitialLoading(true);
       const { data, error } = await supabase
         .from("daily_fortune")
         .select("fortune")
@@ -79,7 +96,7 @@ export default function DailyFortuneCard({
       if (error) setFortune(null);
       else setFortune((data?.fortune as Fortune) ?? null);
 
-      setLoading(false);
+      setInitialLoading(false);
     })();
   }, [userId, d]);
 
@@ -88,18 +105,21 @@ export default function DailyFortuneCard({
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (rippleTimer.current) window.clearTimeout(rippleTimer.current);
     };
   }, []);
 
-  // 클릭 → 무조건 로딩 모달 띄우고 2초 후 상세 다이얼로그
+  // 클릭 → 로딩 모달 띄우고 2초 후 상세 다이얼로그
   const handleOpen = async () => {
+    // ✅ 클릭 파동
+    startRipple();
+
     // 로딩 문구 회전 시작
     setShowLoading(true);
     let i = 0;
     setLoadingLine("타로카드 정리중… ⏳");
     intervalRef.current = setInterval(() => {
       setLoadingLine(LOADING_LINES[i % LOADING_LINES.length]);
-      
       i++;
     }, 380);
 
@@ -146,52 +166,79 @@ export default function DailyFortuneCard({
     }, 2000);
   };
 
-  // 로딩 상태: 작은 아이콘 + 레이블 스켈레톤
-  if (loading) {
+  /* ====== UI ====== */
+
+  // 초기 로딩 스켈레톤: 원형 버튼 형태로
+  if (initialLoading) {
     return (
-      <div className={cn("inline-flex flex-col items-center", className)}>
-        <Skeleton className="h-8 w-8 rounded-md mb-1" />
-        <Skeleton className="h-3 w-16" />
+      <div className={cn("inline-flex items-center justify-center", className)}>
+        <Skeleton className="h-14 w-14 rounded-full" />
       </div>
     );
   }
 
   return (
     <>
-      {/* 작은 아이콘 + 아래 텍스트 버튼 */}
-      <Button
-        variant="ghost"
+      {/* ✅ 원형 버튼 (PotatoPokeButton과 동일 구조/상태/포커스링) */}
+      <motion.button
+        type="button"
         onClick={handleOpen}
-        aria-label={`${caption} 열기`}
+        aria-label="타로카드 열기"
         className={cn(
-          "p-0 h-auto inline-flex flex-col items-center gap-1",
-          "group rounded-md transition-all duration-200 ease-out",
-          "hover:-translate-y-0.5  hover:bg-neutral-50/60",
-          "active:translate-y-0",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300/60 focus-visible:ring-offset-2",
+          "relative grid place-items-center",
+          "h-14 w-14 rounded-full",
+          "bg-white/60 text-slate-800 border border-neutral-200",
+          "hover:bg-neutral-50 transition-colors",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2",
           className
         )}
       >
+        {/* 클릭 파동 */}
+        {ripple && (
+          <span
+            className="
+              pointer-events-none absolute inset-0 rounded-full
+              ring-4 ring-rose-300/50
+              animate-[pokePing_1.4s_ease-out_forwards]
+            "
+            aria-hidden
+          />
+        )}
+
+        {/* 아이콘/로더 */}
+        {!imgLoaded ? (
+          <div className="grid place-items-center">
+            <Loader2 className="h-5 w-5 animate-spin" />
+          </div>
+        ) : null}
         <img
           src="/tarot/DefaultCard.png"
-          alt="타로 카드"
-          className="
-            h-8 w-8 object-contain
-            transition-transform duration-200 
-            group-hover:scale-110 group-active:scale-95
-          "
+          alt=""
+          className={cn(
+            "h-7 w-7 object-contain select-none",
+            "transition-transform duration-200",
+            // 살짝 상호작용 감각 (원형 버튼이라 과한 확대는 X)
+            "active:scale-95"
+          )}
           draggable={false}
           loading="lazy"
           onLoad={() => setImgLoaded(true)}
         />
-        {!imgLoaded && <Skeleton className="h-8 w-8 rounded-md absolute" />}
 
-        <span className="text-xs font-medium text-neutral-700 transition-colors group-hover:text-neutral-800">
-          {caption}
-        </span>
-      </Button>
+        {/* 접근성용 라벨(시각 텍스트 없음) */}
+        <span className="sr-only">타로카드</span>
 
-      {/* ✅ 로딩 모달: 좌 PNG / 우 문구(세로 중앙), 반응형 */}
+        {/* 파동 키프레임 */}
+        <style>{`
+          @keyframes pokePing {
+            0%   { transform: scale(1);   opacity: .75; }
+            70%  { transform: scale(1.9); opacity: 0;   }
+            100% { transform: scale(1.9); opacity: 0;   }
+          }
+        `}</style>
+      </motion.button>
+
+      {/* ✅ 로딩 모달: 좌 PNG / 우 문구(세로 중앙), 반응형 (기존 유지) */}
       <Dialog
         open={showLoading}
         onOpenChange={(v) => {
@@ -214,7 +261,7 @@ export default function DailyFortuneCard({
               {/* 왼쪽: 로딩 이미지 */}
               <div className="flex justify-center sm:justify-start">
                 <img
-                  src="/tarot/loading.png" /* /public/tarot/loading.png */
+                  src="/tarot/loading.png"
                   alt="타로 카드 준비 중"
                   className="w-28 sm:w-36 md:w-44 h-auto object-contain select-none"
                   loading="eager"
@@ -243,7 +290,7 @@ export default function DailyFortuneCard({
         </DialogContent>
       </Dialog>
 
-      {/* 결과 다이얼로그 (기존 그대로) */}
+      {/* 결과 다이얼로그 (기존) */}
       <TarotDetailDialog
         open={modalOpen}
         onOpenChange={setModalOpen}

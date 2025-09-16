@@ -6,21 +6,16 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { Skeleton } from "@/components/ui/skeleton";
-import AvatarWidget from "@/components/widgets/AvatarWidget";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { NotebookPen, LogIn, LogOut, Loader2, Settings } from "lucide-react";
-import { useUser } from "@/contexts/UserContext";
-import { useNavigate } from "react-router-dom";
-import UserMemoModal from "@/features/memo/UserFloatingMemo";
 
-/* ───────────────────────────────────────────────────────────
-   Hook: 부드러운 카운트업(숫자 보간)
-   ─────────────────────────────────────────────────────────── */
-function useAnimatedNumber(value: number, duration = 280) {
+type CoupleBalanceCardProps = {
+  className?: string;
+  dense?: boolean; // 더 컴팩트
+  showDelta?: boolean; // +N/-N 배지
+  onClick?: () => void; // 외부 클릭 콜백(옵션)
+};
+
+/* 부드러운 카운트업 */
+function useAnimatedNumber(value: number, duration = 220) {
   const [display, setDisplay] = React.useState<number>(value);
   const fromRef = React.useRef<number>(value);
   const startRef = React.useRef<number | null>(null);
@@ -35,8 +30,8 @@ function useAnimatedNumber(value: number, duration = 280) {
 
     const step = (t: number) => {
       if (startRef.current == null) startRef.current = t;
-      const p = Math.min(1, (t - startRef.current) / duration);
-      const eased = 1 - Math.pow(1 - p, 3); // easeOutCubic
+      const p = Math.min(1, (t - (startRef.current as number)) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
       const cur = from + (to - from) * eased;
       setDisplay(Math.round(cur));
       if (p < 1) {
@@ -48,23 +43,17 @@ function useAnimatedNumber(value: number, duration = 280) {
     };
 
     rafRef.current = requestAnimationFrame(step);
+
     return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current != null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
     };
   }, [value, duration]);
 
   return display;
 }
-
-/* ───────────────────────────────────────────────────────────
-   Component
-   ─────────────────────────────────────────────────────────── */
-type CoupleBalanceCardProps = {
-  className?: string;
-  dense?: boolean; // 더 컴팩트하게
-  showDelta?: boolean; // +N/-N 떠오르는 배지
-  onClick?: () => void; // (옵션) 외부 콜백 — 팝오버도 열립니다
-};
 
 export default function CoupleBalanceCard({
   className,
@@ -77,28 +66,21 @@ export default function CoupleBalanceCard({
     potatoCount?: number;
   };
 
-  const { user, logout } = useUser();
-  const navigate = useNavigate();
-
-  const isLoggedIn = !!user;
-  const [authBusy, setAuthBusy] = useState(false);
-
   const isLoading = typeof gold !== "number" || typeof potatoCount !== "number";
   const goldSafe = typeof gold === "number" ? gold : 0;
   const potatoSafe = typeof potatoCount === "number" ? potatoCount : 0;
 
-  // 애니메이션 숫자
   const goldAnim = useAnimatedNumber(goldSafe);
   const potatoAnim = useAnimatedNumber(potatoSafe);
 
   // 바운스 & 델타
-  const [goldBump, setGoldBump] = React.useState(false);
-  const [potatoBump, setPotatoBump] = React.useState(false);
+  const [goldBump, setGoldBump] = useState(false);
+  const [potatoBump, setPotatoBump] = useState(false);
   const prevGold = React.useRef(goldSafe);
   const prevPotato = React.useRef(potatoSafe);
 
-  const [goldDelta, setGoldDelta] = React.useState<number | null>(null);
-  const [potatoDelta, setPotatoDelta] = React.useState<number | null>(null);
+  const [goldDelta, setGoldDelta] = useState<number | null>(null);
+  const [potatoDelta, setPotatoDelta] = useState<number | null>(null);
   const goldDeltaTimer = React.useRef<number | null>(null);
   const potatoDeltaTimer = React.useRef<number | null>(null);
 
@@ -108,19 +90,26 @@ export default function CoupleBalanceCard({
       prevGold.current = goldSafe;
 
       setGoldBump(true);
-      window.setTimeout(() => setGoldBump(false), 180);
+      window.setTimeout(() => setGoldBump(false), 120);
 
       if (showDelta && diff !== 0) {
         setGoldDelta(diff);
-        if (goldDeltaTimer.current) window.clearTimeout(goldDeltaTimer.current);
-        goldDeltaTimer.current = window.setTimeout(
-          () => setGoldDelta(null),
-          900
-        );
+        if (goldDeltaTimer.current != null) {
+          window.clearTimeout(goldDeltaTimer.current);
+          goldDeltaTimer.current = null;
+        }
+        goldDeltaTimer.current = window.setTimeout(() => {
+          setGoldDelta(null);
+          goldDeltaTimer.current = null;
+        }, 900);
       }
     }
+
     return () => {
-      if (goldDeltaTimer.current) window.clearTimeout(goldDeltaTimer.current);
+      if (goldDeltaTimer.current != null) {
+        window.clearTimeout(goldDeltaTimer.current);
+        goldDeltaTimer.current = null;
+      }
     };
   }, [goldSafe, isLoading, showDelta]);
 
@@ -130,44 +119,59 @@ export default function CoupleBalanceCard({
       prevPotato.current = potatoSafe;
 
       setPotatoBump(true);
-      window.setTimeout(() => setPotatoBump(false), 180);
+      window.setTimeout(() => setPotatoBump(false), 120);
 
       if (showDelta && diff !== 0) {
         setPotatoDelta(diff);
-        if (potatoDeltaTimer.current)
+        if (potatoDeltaTimer.current != null) {
           window.clearTimeout(potatoDeltaTimer.current);
-        potatoDeltaTimer.current = window.setTimeout(
-          () => setPotatoDelta(null),
-          900
-        );
+          potatoDeltaTimer.current = null;
+        }
+        potatoDeltaTimer.current = window.setTimeout(() => {
+          setPotatoDelta(null);
+          potatoDeltaTimer.current = null;
+        }, 900);
       }
     }
+
     return () => {
-      if (potatoDeltaTimer.current)
+      if (potatoDeltaTimer.current != null) {
         window.clearTimeout(potatoDeltaTimer.current);
+        potatoDeltaTimer.current = null;
+      }
     };
   }, [potatoSafe, isLoading, showDelta]);
 
+  /** 스타일 (호버 없음, 컴팩트) */
   const cardCls = cn(
-    "relative rounded-2xl  bg-[#FAF7F2]  shadow-lg hover:shadow-2xl transition",
-    dense ? "p-2.5" : "p-3 sm:p-3.5",
-    "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70",
+    "relative rounded-xl bg-white ring-1 ring-black/5 shadow-sm",
+    dense ? "px-3 py-2" : "px-3.5 py-2.5",
+    "cursor-pointer",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70",
     className
   );
 
-  const lineCls = (bump: boolean) =>
+  // 각 블록(칩+숫자)을 세로 스택, 카드 전체는 2열 그리드로 가로 배치
+  const itemStack = (bump: boolean) =>
     cn(
-      "inline-flex items-center gap-1.5 transition-transform will-change-transform",
-      bump ? "scale-[1.03]" : "scale-100"
+      "flex flex-col items-center justify-center",
+      dense ? "gap-1" : "gap-1.5",
+      "transition-transform",
+      bump ? "scale-[1.02]" : "scale-100"
     );
 
-  // 숫자: 살짝 더 작게
-  const numCls =
-    "font-semibold tabular-nums text-amber-900 text-[13px] sm:text-sm leading-none";
+  const chipCls = cn(
+    "inline-grid place-items-center",
+    dense ? "h-7 w-7 text-[15px]" : "h-8 w-8 text-[17px]"
+  );
 
-  // 델타 배지 공통
+  const numCls = cn(
+    "font-semibold tabular-nums text-amber-900 tracking-tight",
+    dense ? "text-[12px] leading-4" : "text-[13px] leading-[18px]"
+  );
+
   const badgeBase =
-    "absolute left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full border shadow-sm text-[11px] font-semibold tabular-nums animate-[floatUp_800ms_ease-out_forwards]";
+    "absolute left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded-full border shadow-sm text-[10px] font-semibold tabular-nums animate-[floatUp_700ms_ease-out_forwards]";
   const goldBadgeTone =
     goldDelta && goldDelta > 0
       ? "bg-emerald-50 text-emerald-700 border-emerald-200"
@@ -177,192 +181,79 @@ export default function CoupleBalanceCard({
       ? "bg-emerald-50 text-emerald-700 border-emerald-200"
       : "bg-rose-50 text-rose-700 border-rose-200";
 
-  // Popover & Memo modal state
-  const [popoverOpen, setPopoverOpen] = React.useState(false);
-  const [memoOpen, setMemoOpen] = React.useState(false);
-
-  const handleLogin = () => {
-    setPopoverOpen(false);
-    navigate("/login");
-  };
-
-  const handleLogout = async () => {
-    if (authBusy) return;
-    try {
-      setAuthBusy(true);
-      setPopoverOpen(false);
-      await logout();
-      window.location.replace("/login");
-    } catch (e) {
-      console.error("로그아웃 실패:", e);
-      setAuthBusy(false);
-    }
-  };
-
   return (
-    <>
-      <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-        <PopoverTrigger asChild>
-          <div
-            className={cardCls}
-            role="button"
-            tabIndex={0}
-            onClick={() => {
-              setPopoverOpen(true);
-              onClick?.();
-            }}
-            aria-label="보유 골드와 감자 정보 - 열어서 메뉴 보기"
-          >
-            {/* 델타 배지: 골드 */}
-            {showDelta && goldDelta !== null && (
-              <span
-                className={cn(
-                  badgeBase,
-                  goldBadgeTone,
-                  dense ? "-top-3" : "-top-3.5 sm:-top-4"
-                )}
-                aria-hidden
-              >
-                🪙 {goldDelta > 0 ? "+" : ""}
-                {goldDelta.toLocaleString("ko-KR")}
-              </span>
-            )}
+    <div
+      className={cardCls}
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      aria-label="보유 자산"
+    >
+      {/* 델타 배지 (위/아래 살짝만) */}
+      {showDelta && goldDelta !== null && (
+        <span className={cn(badgeBase, goldBadgeTone, "-top-3")} aria-hidden>
+          🪙 {goldDelta > 0 ? "+" : ""}
+          {goldDelta.toLocaleString("ko-KR")}
+        </span>
+      )}
+      {showDelta && potatoDelta !== null && (
+        <span
+          className={cn(badgeBase, potatoBadgeTone, "top-[46px]")}
+          aria-hidden
+        >
+          🥔 {potatoDelta > 0 ? "+" : ""}
+          {potatoDelta.toLocaleString("ko-KR")}
+        </span>
+      )}
 
-            {/* 델타 배지: 감자 */}
-            {showDelta && potatoDelta !== null && (
-              <span
-                className={cn(
-                  badgeBase,
-                  potatoBadgeTone,
-                  dense ? "top-8" : "top-9 sm:top-10"
-                )}
-                aria-hidden
-              >
-                🥔 {potatoDelta > 0 ? "+" : ""}
-                {potatoDelta.toLocaleString("ko-KR")}
-              </span>
-            )}
-
-            <div className="flex items-center gap-3">
-              {/* 좌측: 아바타 */}
-              <AvatarWidget size="sm" />
-
-              {/* 우측: 두 줄 (골드 / 감자) */}
-              <div className="flex flex-col justify-center min-w-0">
-                {/* 골드 줄 */}
-                <div
-                  className={lineCls(goldBump)}
-                  aria-label={`보유 골드 ${goldAnim.toLocaleString("ko-KR")}`}
-                >
-                  <span className="leading-none">🪙</span>
-                  {isLoading ? (
-                    <Skeleton className="h-3.5 w-14" />
-                  ) : (
-                    <span className={numCls}>
-                      {goldAnim.toLocaleString("ko-KR")}
-                    </span>
-                  )}
-                </div>
-
-                {/* 감자 줄 */}
-                <div
-                  className={cn(lineCls(potatoBump), "mt-0.5")}
-                  aria-label={`보유 감자 ${potatoAnim.toLocaleString("ko-KR")}`}
-                >
-                  <span className="leading-none">🥔</span>
-                  {isLoading ? (
-                    <Skeleton className="h-3.5 w-14" />
-                  ) : (
-                    <span className={numCls}>
-                      {potatoAnim.toLocaleString("ko-KR")}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* 키프레임 */}
-            <style>{`
-              @keyframes floatUp {
-                0%   { opacity: 0; transform: translate(-50%, 0) scale(0.9); filter: blur(0.3px); }
-                15%  { opacity: 1; transform: translate(-50%, -6px) scale(1);   filter: blur(0); }
-                100% { opacity: 0; transform: translate(-50%, -18px) scale(1);  filter: blur(0.3px); }
-              }
-            `}</style>
-          </div>
-        </PopoverTrigger>
-
-        {/* ↓ 아래 방향 Popover: 메뉴들 */}
-        <PopoverContent align="center" side="bottom" className="w-56 p-2">
-          {/* 메모장 */}
-          <button
-            className={cn(
-              "w-full flex items-center gap-2 rounded-md px-2 py-2 transition",
-              "hover:bg-neutral-50"
-            )}
-            onClick={() => {
-              setPopoverOpen(false);
-              setMemoOpen(true);
-            }}
-          >
-            <NotebookPen className="h-4 w-4" />
-            <span className="text-sm font-medium">메모장</span>
-          </button>
-
-          {/* 👉 추가: 마이페이지 (/setting) */}
-          <button
-            className={cn(
-              "mt-1 w-full flex items-center gap-2 rounded-md px-2 py-2 transition",
-              "hover:bg-neutral-50"
-            )}
-            onClick={() => {
-              setPopoverOpen(false);
-              navigate("/settings");
-            }}
-          >
-            <Settings className="h-4 w-4" />
-            <span className="text-sm font-medium">마이페이지</span>
-          </button>
-
-          {/* 구분선 */}
-          <div className="my-2 h-px bg-neutral-200" />
-
-          {/* 로그인 / 로그아웃 */}
-          {isLoggedIn ? (
-            <button
-              className={cn(
-                "w-full flex items-center gap-2 rounded-md px-2 py-2 transition",
-                "hover:bg-neutral-50 disabled:opacity-60"
-              )}
-              onClick={handleLogout}
-              disabled={authBusy}
-            >
-              {authBusy ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <LogOut className="h-4 w-4" />
-              )}
-              <span className="text-sm font-medium">
-                {authBusy ? "로그아웃 중…" : "로그아웃"}
-              </span>
-            </button>
+      {/* 2열 그리드 (세로 스택을 좌우 배치해 높이 최소화) */}
+      <div className={cn("grid w-full items-center", "grid-cols-2 gap-2")}>
+        {/* GOLD */}
+        <div
+          className={itemStack(goldBump)}
+          aria-label={`보유 골드 ${goldAnim.toLocaleString("ko-KR")}`}
+        >
+          <span className={chipCls} aria-hidden>
+            🪙
+          </span>
+          {isLoading ? (
+            <Skeleton
+              className={cn(dense ? "h-3 w-14" : "h-3.5 w-16", "rounded-md")}
+            />
           ) : (
-            <button
-              className={cn(
-                "w-full flex items-center gap-2 rounded-md px-2 py-2 transition",
-                "hover:bg-neutral-50"
-              )}
-              onClick={handleLogin}
-            >
-              <LogIn className="h-4 w-4" />
-              <span className="text-sm font-medium">로그인</span>
-            </button>
+            <span className={numCls}>{goldAnim.toLocaleString("ko-KR")}</span>
           )}
-        </PopoverContent>
-      </Popover>
+        </div>
 
-      {/* 메모장 모달 */}
-      <UserMemoModal open={memoOpen} onOpenChange={setMemoOpen} />
-    </>
+        {/* POTATO */}
+        <div
+          className={itemStack(potatoBump)}
+          aria-label={`보유 감자 ${potatoAnim.toLocaleString("ko-KR")}`}
+        >
+          <span className={chipCls} aria-hidden>
+            🥔
+          </span>
+          {isLoading ? (
+            <Skeleton
+              className={cn(dense ? "h-3 w-14" : "h-3.5 w-16", "rounded-md")}
+            />
+          ) : (
+            <span className={numCls}>{potatoAnim.toLocaleString("ko-KR")}</span>
+          )}
+        </div>
+      </div>
+
+      {/* 접근성: 모션 감소 대응 */}
+      <style>{`
+        @keyframes floatUp {
+          0%   { opacity: 0; transform: translate(-50%, 0) scale(0.92); filter: blur(0.25px); }
+          18%  { opacity: 1; transform: translate(-50%, -5px) scale(1);   filter: blur(0); }
+          100% { opacity: 0; transform: translate(-50%, -14px) scale(1);  filter: blur(0.25px); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .animate-\\[floatUp_700ms_ease-out_forwards\\] { animation: none !important; }
+        }
+      `}</style>
+    </div>
   );
 }

@@ -10,6 +10,7 @@ import UserMemoFloating from "@/features/memo/UserFloatingMemo";
 import LogoutButton from "../LogoutButton";
 import NoticeCenterFloatingButton from "@/features/dev-note/NoticeFloatingButton";
 import MapModalButton from "../widgets/MapModalButton";
+import FloatingLeftRail from "../widgets/FloatingLeftRail";
 
 type PageLayoutProps = {
   /** 명시적으로 넘기면 이 값이 최우선. 없으면 현재 경로로 타이틀 계산 */
@@ -100,11 +101,8 @@ export default function PageLayout({
         id="main"
         className="mx-auto flex min-h-[calc(100vh-9rem)] w-full max-w-screen-2xl items-center justify-center px-2"
       >
-        <PotatoPokeButton />
+        <FloatingLeftRail />
 
-        <NoticeCenterFloatingButton className="left-4 bottom-4" />
-
-        <MapModalButton />
         <Outlet />
       </main>
     </div>

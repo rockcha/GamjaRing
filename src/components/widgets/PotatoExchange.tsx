@@ -1,7 +1,7 @@
 // src/features/potato_exchange/PotatoExchange.tsx
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +24,7 @@ import { addIngredients } from "@/features/kitchen/kitchenApi";
 
 /* 아이콘 */
 import { Gift, Loader2, Sparkles, Lock } from "lucide-react";
+import { motion } from "framer-motion";
 
 /* =========================
    교환소 설정
@@ -312,7 +313,7 @@ export default function PotatoExchange({
 
     (async () => {
       try {
-        // 1) 감자 차감 (컨텍스트 제공 함수)
+        // 1) 감자 차감
         const { error } = await spendPotatoes(bundle.cost);
         if (error) {
           setStatus(error.message || "감자 차감에 실패했어요.");
@@ -339,7 +340,7 @@ export default function PotatoExchange({
           } finally {
             setIsOpening(false);
           }
-        }, 900); // 살짝 더 빠른 피드백
+        }, 900);
       } catch (err) {
         console.error(err);
         setStatus("오류가 발생했어요. 잠시 후 다시 시도해주세요.");
@@ -348,37 +349,66 @@ export default function PotatoExchange({
     })();
   };
 
+  /* ===== PotatoPokeButton 스타일: 리플 구현 ===== */
+  const [ripple, setRipple] = useState(false);
+  const rippleTimer = useRef<number | null>(null);
+  const startRipple = () => {
+    setRipple(false);
+    requestAnimationFrame(() => {
+      setRipple(true);
+      if (rippleTimer.current) window.clearTimeout(rippleTimer.current);
+      rippleTimer.current = window.setTimeout(() => setRipple(false), 1400);
+    });
+  };
+  useEffect(() => {
+    return () => {
+      if (rippleTimer.current) window.clearTimeout(rippleTimer.current);
+    };
+  }, []);
+
   return (
     <>
-      {/* 오프너 버튼 (작은 아이콘 + 라벨) */}
-      <Button
-        variant="ghost"
-        onClick={openDialog}
+      {/* ✅ 오프너: 원형 이모지 버튼(텍스트 제거, PotatoPokeButton과 동일 UI) */}
+      <motion.button
+        type="button"
+        onClick={() => {
+          startRipple();
+          openDialog();
+        }}
         aria-label={`${caption} 열기`}
         className={cn(
-          "p-0 h-auto inline-flex flex-col items-center gap-1",
-          "group rounded-md transition-all duration-200 ease-out",
-          "hover:-translate-y-0.5 hover:bg-neutral-50/60",
-          "active:translate-y-0",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300/60 focus-visible:ring-offset-2",
+          "relative grid place-items-center",
+          "h-14 w-14 rounded-full border",
+          "bg-white/90",
+          "transition-colors hover:bg-neutral-50",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2",
           className
         )}
       >
-        <div className="relative">
-          <img
-            src="/exchange/exchange.png"
-            alt="감자 교환소"
-            className="h-8 w-8 object-contain select-none transition-transform duration-200 group-hover:scale-110 group-active:scale-95"
-            draggable={false}
-            loading="lazy"
-            onLoad={() => setImgLoaded(true)}
+        {/* 클릭 리플 */}
+        {ripple && (
+          <span
+            className="
+              pointer-events-none absolute inset-0 rounded-full
+              ring-4 ring-rose-300/50
+              animate-[pokePing_1.4s_ease-out_forwards]
+            "
+            aria-hidden
           />
-        </div>
-        {!imgLoaded && <Skeleton className="h-8 w-8 rounded-md" />}
-        <span className="text-[11px] sm:text-xs font-medium text-neutral-700 transition-colors group-hover:text-neutral-800">
-          {caption}
+        )}
+        {/* PNG 아이콘만 표시 (텍스트 제거) */}
+        <span className="text-2xl leading-none select-none" aria-hidden>
+          🛍️
         </span>
-      </Button>
+        {/* 파동 키프레임 */}
+        <style>{`
+          @keyframes pokePing {
+            0%   { transform: scale(1);   opacity: .75; }
+            70%  { transform: scale(1.9); opacity: 0;   }
+            100% { transform: scale(1.9); opacity: 0;   }
+          }
+        `}</style>
+      </motion.button>
 
       {/* 모달 */}
       <Dialog open={open} onOpenChange={setOpen}>

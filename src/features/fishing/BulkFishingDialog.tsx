@@ -255,14 +255,27 @@ export default function BulkFishingDialog({
         // 6) 알림
         try {
           if (userId && partnerId) {
-            const kinds = catches.length;
-            const total = successIds.length;
-            await sendUserNotification({
-              senderId: userId,
-              receiverId: partnerId,
-              type: "낚시성공",
-              itemName: `일괄 낚시(${safeTank}번): ${kinds}종 ${total}마리`,
-            } as any);
+            // catches에는 label/rarity 이미 들어있음
+            const rareUnique = catches
+              .filter((c) => c.rarity === "에픽" || c.rarity === "전설")
+              // 같은 어종 여러 마리여도 한 번만 알림
+              .reduce((acc, cur) => {
+                if (!acc.some((x) => x.id === cur.id)) acc.push(cur);
+                return acc;
+              }, [] as typeof catches);
+
+            if (rareUnique.length > 0) {
+              await Promise.allSettled(
+                rareUnique.map((c) =>
+                  sendUserNotification({
+                    senderId: userId!,
+                    receiverId: partnerId!,
+                    type: "낚시성공",
+                    itemName: c.label, // ✅ 어종 이름 그대로
+                  } as any)
+                )
+              );
+            }
           }
         } catch (e) {
           console.warn("알림 전송 실패(무시 가능):", e);
@@ -305,7 +318,7 @@ export default function BulkFishingDialog({
                     보유 미끼
                   </label>
                   <div className="mt-1 h-9 grid place-items-center rounded-md border bg-gray-50 text-sm tabular-nums">
-                    {baitCount} 개
+                    🪝x{baitCount}
                   </div>
                 </div>
 
@@ -330,7 +343,7 @@ export default function BulkFishingDialog({
                 {/* 담을 어항 */}
                 <div className="w-[160px] sm:w-[180px]">
                   <label className="text-xs text-muted-foreground">
-                    담을 어항
+                    아쿠아리움 선택
                   </label>
                   <select
                     className="mt-1 w-full h-9 rounded-md border px-3 text-sm bg-white"

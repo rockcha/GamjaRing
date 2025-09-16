@@ -8,19 +8,47 @@ import { toast } from "sonner";
 import { useUser } from "@/contexts/UserContext";
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 
 /**
  * 조건
  * - 비로그인 또는 커플 미연동: 모달 열지 않고 toast만 표시
  * - 로그인 + 커플 연동: 정사각 지도 모달 오픈
+ * - 버튼 UI: PotatoPokeButton과 동일(원형, 이모지, 클릭 리플)
  */
-export default function MapModalButton() {
+export default function MapModalButton({
+  className,
+  buttonEmoji = "🧭",
+  ariaLabel = "지도로 이동",
+}: {
+  className?: string;
+  buttonEmoji?: string;
+  ariaLabel?: string;
+}) {
   const [open, setOpen] = React.useState(false);
-  const [pulseOnce, setPulseOnce] = React.useState(true);
   const { user } = useUser();
   const { couple } = useCoupleContext();
 
+  // ✅ PotatoPokeButton과 동일한 클릭 리플
+  const [ripple, setRipple] = React.useState(false);
+  const rippleTimer = React.useRef<number | null>(null);
+  const startRipple = () => {
+    setRipple(false);
+    requestAnimationFrame(() => {
+      setRipple(true);
+      if (rippleTimer.current) window.clearTimeout(rippleTimer.current);
+      rippleTimer.current = window.setTimeout(() => setRipple(false), 1400);
+    });
+  };
+  React.useEffect(() => {
+    return () => {
+      if (rippleTimer.current) window.clearTimeout(rippleTimer.current);
+    };
+  }, []);
+
   const handleOpenClick = () => {
+    startRipple();
+
     if (!user?.id) {
       toast.warning("로그인 후 이용해 주세요.");
       return;
@@ -30,39 +58,57 @@ export default function MapModalButton() {
       return;
     }
     setOpen(true);
-    setPulseOnce(false);
   };
 
   return (
     <>
-      {/* 플로팅 버튼 (브리딩 + 1회 링 펄스) */}
-      <button
+      {/* 원형 이모지 버튼 (PotatoPokeButton 스타일) */}
+      <motion.button
         type="button"
-        aria-label="지도로 이동"
+        aria-label={ariaLabel}
         onClick={handleOpenClick}
         className={cn(
-          "fixed right-4 bottom-4 z-[60]",
-          "h-14 w-14 rounded-full border bg-white",
-          "shadow-sm hover:shadow-xl  transition-all grid place-items-center",
-          "animate-[mapBreath_3.5s_ease-in-out_infinite]",
-          pulseOnce &&
-            "after:absolute after:inset-0 after:rounded-full after:animate-[mapPulseOnce_1.2s_ease-out] after:content-['']"
+          "relative grid place-items-center",
+          "h-14 w-14 rounded-full border",
+          "bg-white/60",
+          "transition-colors hover:bg-neutral-50",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2",
+          className
         )}
       >
-        <img
-          src="/map.gif"
-          alt="Map"
-          className="h-10 w-10 rounded-sm object-cover"
-          draggable={false}
-        />
-      </button>
+        {/* 클릭 리플 */}
+        {ripple && (
+          <span
+            className="
+              pointer-events-none absolute inset-0 rounded-full
+              ring-4 ring-rose-300/50
+              animate-[pokePing_1.4s_ease-out_forwards]
+            "
+            aria-hidden
+          />
+        )}
+
+        {/* 이모지 아이콘만 노출 */}
+        <span className="text-2xl leading-none select-none" aria-hidden>
+          {buttonEmoji}
+        </span>
+
+        {/* 파동 키프레임 */}
+        <style>{`
+          @keyframes pokePing {
+            0%   { transform: scale(1);   opacity: .75; }
+            70%  { transform: scale(1.9); opacity: 0;   }
+            100% { transform: scale(1.9); opacity: 0;   }
+          }
+        `}</style>
+      </motion.button>
 
       {/* 정사각형 모달 */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
           className={cn(
             "p-0 overflow-hidden rounded-2xl border bg-white",
-            "w-auto max-w-none animate-[dialogIn_180ms_ease-out]"
+            "w-auto max-w-none"
           )}
         >
           <div
@@ -70,7 +116,7 @@ export default function MapModalButton() {
             style={{ width: "min(70vw, 70vh)" }}
           >
             {/* 상단 타이틀 바 */}
-            <div className="flex items-center justify-start gap-2 pt-2 pl-1  bg-white/90 backdrop-blur-sm">
+            <div className="flex items-center justify-start gap-2 pt-2 pl-1 bg-white/90 backdrop-blur-sm">
               <img
                 src="/island.gif"
                 alt=""
@@ -95,22 +141,6 @@ export default function MapModalButton() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* 키프레임 */}
-      <style>{`
-@keyframes mapBreath {
-  0%,100% { transform: translateY(0) scale(1); box-shadow: 0 4px 10px rgba(0,0,0,.08); }
-  50% { transform: translateY(-2px) scale(1.02); box-shadow: 0 6px 16px rgba(0,0,0,.10); }
-}
-@keyframes mapPulseOnce {
-  0% { box-shadow: 0 0 0 0 rgba(251,191,36,.45); }
-  100% { box-shadow: 0 0 0 22px rgba(251,191,36,0); }
-}
-@keyframes dialogIn {
-  from { opacity: 0; transform: scale(.96); }
-  to   { opacity: 1; transform: scale(1); }
-}
-      `}</style>
     </>
   );
 }
@@ -153,8 +183,6 @@ function MapCanvas({ onClose }: { onClose: () => void }) {
     },
   ];
 
-  // 내부 경로: SPA navigate → 다음 프레임에 모달 닫기
-  // 외부 경로: 브라우저 네비게이션 폴백
   const go = (href: string) => {
     if (!href) return;
 
@@ -164,14 +192,14 @@ function MapCanvas({ onClose }: { onClose: () => void }) {
       !/^\/{2}/.test(href);
 
     if (isInternal) {
-      navigate(href); // 1) 이동 먼저 (user gesture 유지)
+      navigate(href);
       requestAnimationFrame(() => {
         try {
-          onClose?.(); // 2) 다음 프레임에 모달 닫기 (FF 안정화)
+          onClose?.();
         } catch {}
       });
     } else {
-      window.location.assign(href); // 외부 링크는 브라우저 네비게이션
+      window.location.assign(href);
     }
   };
 

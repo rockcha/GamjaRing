@@ -89,55 +89,45 @@ export default function PotatoPokeButton({
     }
   };
 
-  return (
-    // 고정 위치 래퍼: 좌하단 + safe-area 고려
-    <div className="fixed left-2 top-1/2 -translate-y-1/2 z-[50]">
-      <motion.button
-        type="button"
-        onClick={handleClick}
-        disabled={loading}
-        aria-busy={loading}
-        aria-label={`${partnerNickname} 콕 찌르기`}
-        className={[
-          "relative grid place-items-center",
-          "h-14 w-14 rounded-full",
-          "bg-white/90 ",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2",
-          "transition-colors",
-          loading ? "opacity-80 cursor-not-allowed" : "cursor-pointer",
-        ].join(" ")}
-      >
-        {/* ✅ 클릭 시에만 파동 */}
-        {ripple && (
-          <span
-            className="
+  const Btn = (
+    <motion.button
+      type="button"
+      onClick={handleClick}
+      disabled={loading}
+      aria-busy={loading}
+      aria-label={`${partnerNickname} 콕 찌르기`}
+      className={[
+        "relative grid place-items-center",
+        "h-14 w-14 rounded-full border",
+        "bg-white/60 ",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2",
+        "transition-colors",
+        loading ? "opacity-80 cursor-not-allowed" : "cursor-pointer",
+      ].join(" ")}
+    >
+      {/* ✅ 클릭 시에만 파동 */}
+      {ripple && (
+        <span
+          className="
               pointer-events-none absolute inset-0 rounded-full
               ring-4 ring-rose-300/50
               animate-[pokePing_1.4s_ease-out_forwards]
             "
-            aria-hidden
-          />
-        )}
+          aria-hidden
+        />
+      )}
 
-        {/* 아이콘/로더 */}
-        {loading ? (
-          <Loader2 className="h-5 w-5 animate-spin" />
-        ) : (
-          <span className="text-2xl leading-none select-none">👉</span>
-        )}
+      {/* 아이콘/로더 */}
+      {loading ? (
+        <Loader2 className="h-5 w-5 animate-spin" />
+      ) : (
+        <span className="text-2xl leading-none select-none">👉</span>
+      )}
 
-        {/* 시각적 라벨 대신 접근성용 텍스트 */}
-        <span className="sr-only">콕찌르기</span>
-      </motion.button>
-
-      {/* 커스텀 파동 키프레임 (1회 재생) */}
-      <style>{`
-        @keyframes pokePing {
-          0%   { transform: scale(1);   opacity: .75; }
-          70%  { transform: scale(1.9); opacity: 0;   }
-          100% { transform: scale(1.9); opacity: 0;   }
-        }
-      `}</style>
-    </div>
+      {/* 시각적 라벨 대신 접근성용 텍스트 */}
+      <span className="sr-only">콕찌르기</span>
+    </motion.button>
   );
+
+  return Btn; // ✅ inline 모드
 }

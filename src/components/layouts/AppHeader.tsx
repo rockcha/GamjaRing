@@ -1,8 +1,22 @@
 // src/components/layouts/AppHeader.tsx
 "use client";
 
-import React, { memo, useCallback } from "react";
-import { HeartHandshake } from "lucide-react";
+import React, { memo } from "react";
+import {
+  HeartHandshake,
+  Home,
+  Info,
+  MessageCircleQuestionMark,
+  MessagesSquare,
+  CalendarDays,
+  Tractor,
+  CookingPot,
+  Waves, // 없으면 Waves/Fish 사용
+  Fish,
+  Dice3, // ✅ 홀짝게임(주사위)
+  Gamepad2, // ✅ 미니게임(게임기)
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import WeatherCard from "../widgets/WeatherCard";
@@ -17,7 +31,7 @@ import DaysTogetherBadge from "../DaysTogetherBadge";
 import TodayQuestionInline from "../widgets/Cards/TodayQuestionCard";
 
 import { NavItem } from "../widgets/NavIconButton";
-import OddEvenShortcut from "@/features/mini_games/OddEvenShortcut";
+import AvatarWidget from "../widgets/AvatarWidget";
 
 // ------------------------------ 네비 정의/가드 ------------------------------
 type SimpleNavDef = {
@@ -30,23 +44,37 @@ type SimpleNavDef = {
     | "farm"
     | "kitchen"
     | "aquarium"
-    | "fishing";
+    | "fishing"
+    | "oddEven"
+    | "miniGame";
   label: string;
-  emoji: string;
+  icon: LucideIcon;
 };
 
-const SIMPLE_NAV: readonly SimpleNavDef[] = [
-  { id: "home", label: "메인페이지", emoji: "🏠" },
-  { id: "info", label: "감자링이란?", emoji: "ℹ️" },
-  { id: "questions", label: "답변하기", emoji: "💬" },
-  { id: "bundle", label: "답변꾸러미", emoji: "📦" },
-  { id: "scheduler", label: "스케쥴러", emoji: "📅" },
-
-  // ✅ 새 항목
-  { id: "farm", label: "농장", emoji: "🌾" }, // or 🥔
-  { id: "kitchen", label: "조리실", emoji: "🍳" },
-  { id: "aquarium", label: "아쿠아리움", emoji: "🐠" },
-  { id: "fishing", label: "낚시터", emoji: "🎣" },
+const NAV_GROUPS: readonly (readonly SimpleNavDef[])[] = [
+  // 2개
+  [
+    { id: "home", label: "메인페이지", icon: Home },
+    { id: "info", label: "감자링이란?", icon: Info },
+  ],
+  // 3개
+  [
+    { id: "questions", label: "답변하기", icon: MessageCircleQuestionMark },
+    { id: "bundle", label: "답변꾸러미", icon: MessagesSquare },
+    { id: "scheduler", label: "스케쥴러", icon: CalendarDays },
+  ],
+  // 4개
+  [
+    { id: "farm", label: "농장", icon: Tractor }, // or Sprout
+    { id: "kitchen", label: "조리실", icon: CookingPot },
+    { id: "aquarium", label: "아쿠아리움", icon: Fish }, // 없으면 Waves/Fish
+    { id: "fishing", label: "낚시터", icon: Waves },
+  ],
+  // ✅ 새 그룹: 2개 (미니게임 섹션)
+  [
+    { id: "oddEven", label: "홀짝게임", icon: Dice3 },
+    { id: "miniGame", label: "미니게임", icon: Gamepad2 },
+  ],
 ] as const;
 
 const GUARDS: Record<
@@ -59,11 +87,14 @@ const GUARDS: Record<
   bundle: { requireLogin: true, requireCouple: true },
   scheduler: { requireLogin: true, requireCouple: true },
 
-  // ✅ 커플/로그인 가드(상황 맞게 조정하세요)
   farm: { requireLogin: true, requireCouple: true },
   kitchen: { requireLogin: true, requireCouple: true },
   aquarium: { requireLogin: true, requireCouple: true },
   fishing: { requireLogin: true, requireCouple: true },
+
+  // ✅ 새로 추가된 라우트도 동일 가드 적용 (필요 시 조정)
+  oddEven: { requireLogin: true, requireCouple: true },
+  miniGame: { requireLogin: true, requireCouple: true },
 };
 
 const FALLBACK_ROUTE: Record<string, string> = {
@@ -73,11 +104,14 @@ const FALLBACK_ROUTE: Record<string, string> = {
   bundle: "/bundle",
   scheduler: "/scheduler",
 
-  // ✅ 라우트 매핑(프로젝트 실제 경로에 맞춰 조정)
-  farm: "/potatoField", // 또는 "/farm"
+  farm: "/potatoField",
   kitchen: "/kitchen",
   aquarium: "/aquarium",
   fishing: "/fishing",
+
+  // ✅ 새 라우트
+  oddEven: "/oddEven",
+  miniGame: "/miniGame",
 };
 
 // ------------------------------ 상단 클러스터 ------------------------------
@@ -96,7 +130,7 @@ const TitleCluster = memo(function TitleCluster({
       </div>
       <div className="min-h-[38px] flex items-center">
         <p className="text-[15px] font-medium text-neutral-700 truncate">
-          우리를 잇는 따뜻한 고리,{" "}
+          우리의 기록이 자라나는 공간,{" "}
           <span className="font-semibold text-amber-600">감자링</span>
         </p>
       </div>
@@ -118,23 +152,10 @@ const CenterCluster = memo(function CenterCluster() {
 const RightCluster = memo(function RightCluster() {
   return (
     <div className="flex items-center justify-end gap-2">
+      {/* <WeatherCard /> */}
       <NotificationDropdown />
-      <Separator
-        orientation="vertical"
-        className="h-6 my-auto hidden md:block"
-      />
-      <DailyFortuneCard />
-      <Separator
-        orientation="vertical"
-        className="h-6 my-auto hidden md:block"
-      />
-      <WeatherCard />
-      <Separator
-        orientation="vertical"
-        className="h-6 my-auto hidden md:block"
-      />
-      <OddEvenShortcut />
       <CoupleBalanceCard showDelta dense />
+      <AvatarWidget />
     </div>
   );
 });
@@ -190,7 +211,7 @@ export default function AppHeader({
       <div className="mx-auto w-full max-w-screen-2xl px-3 sm:px-4">
         <div
           className={cn(
-            "grid items-stretch gap-3 py-3",
+            "grid items-stretch gap-3 py-2",
             "grid-cols-1",
             "md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_minmax(220px,0.7fr)]"
           )}
@@ -204,26 +225,36 @@ export default function AppHeader({
 
       {/* ✅ 하단: 좌우 반반 레이아웃 */}
       <div className="border-t bg-white/65 backdrop-blur-md supports-[backdrop-filter]:bg-white/55">
-        <div className="mx-auto w-full max-w-screen-2xl py-3 px-3 sm:px-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
-            {/* 좌측: 네비 (이모지 크기만큼 자동 줄바꿈) */}
+        <div className="mx-auto w-full max-w-screen-2xl py-2  ">
+          <div className="grid grid-cols-1 md:grid-cols-2 px-1 items-start">
+            {/* 좌측: 네비 (아이콘 크기만큼 자동 줄바꿈) */}
             <nav aria-label="주 네비게이션" className="min-w-0">
               <div
                 className={cn(
-                  "grid gap-2 justify-start content-start",
-                  // 👇 버튼 크기만큼 칼럼 자동 생성 + 줄바꿈
+                  "grid gap-1 justify-start content-start",
                   "grid-cols-[repeat(auto-fit,minmax(2.25rem,max-content))]"
                 )}
               >
-                {SIMPLE_NAV.map(({ id, label, emoji }) => (
-                  <NavItem
-                    key={id}
-                    emoji={emoji}
-                    label={label}
-                    disabled={disabledByState(id)}
-                    onClick={() => go(id)}
-                    // ⛔️ 'w-full' 제거 → 정사각 아이콘 크기 유지
-                  />
+                {NAV_GROUPS.map((group, gi) => (
+                  <React.Fragment key={gi}>
+                    {group.map(({ id, label, icon }) => (
+                      <NavItem
+                        key={id}
+                        icon={icon}
+                        label={label}
+                        disabled={disabledByState(id)}
+                        onClick={() => go(id)}
+                      />
+                    ))}
+                    {gi < NAV_GROUPS.length - 1 && (
+                      <Separator
+                        orientation="vertical"
+                        decorative
+                        aria-hidden
+                        className="h-8 w-px shrink-0 self-center ml-1 mr-0 bg-slate-200"
+                      />
+                    )}
+                  </React.Fragment>
                 ))}
               </div>
             </nav>

@@ -5,10 +5,11 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { GetQuestionById } from "@/utils/GetQuestionById";
 import { useUser } from "@/contexts/UserContext";
 import { useCompleteTask } from "@/utils/tasks/CompleteTask";
+import { cn } from "@/lib/utils";
 
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 import supabase from "@/lib/supabase";
-
+import { Save, Edit } from "lucide-react";
 // shadcn/ui
 import {
   Card,
@@ -354,7 +355,17 @@ export default function QuestionPage() {
           </>
         ) : (
           <>
-            <CardHeader className=" text-center items-center" />
+            <CardHeader className="items-center pt-6">
+              <div className="flex items-center gap-2 text-[12px] text-amber-700/80">
+                <span className="inline-block px-2 py-0.5 rounded-full bg-amber-100/70 border  ">
+                  📌{" "}
+                  {new Intl.DateTimeFormat("ko-KR", {
+                    dateStyle: "long",
+                    timeZone: "Asia/Seoul",
+                  }).format(new Date())}
+                </span>
+              </div>
+            </CardHeader>
 
             <CardContent className="space-y-5">
               {/* 질문 본문 */}
@@ -367,16 +378,6 @@ export default function QuestionPage() {
               {/* 안내줄 + 파트너 위젯 */}
               <div className="mx-auto w-full md:w-[80%] lg:w-[70%]">
                 {/* 중앙 정렬 안내 텍스트 */}
-                <div className="mb-2 text-center text-xs text-[#6b533b]">
-                  {canEdit ? (
-                    <>버튼을 눌러 이모지를 선택하면 현재 커서에 삽입돼요</>
-                  ) : (
-                    <>
-                      제출 완료 상태입니다. 수정하려면 아래에서 ‘수정하기’를
-                      누르세요.
-                    </>
-                  )}
-                </div>
 
                 {/* 이모지 버튼 + (오른쪽) 파트너 위젯 */}
                 <div className="flex items-center justify-center">
@@ -386,36 +387,39 @@ export default function QuestionPage() {
                       ref={emojiBtnRef}
                       type="button"
                       variant="outline"
-                      className={`active:scale-95 transition mr-2 ${
-                        canEdit ? "hover:cursor-pointer" : "pointer-events-none"
-                      }`}
+                      className={cn(
+                        "rounded-full px-3 py-1.5 bg-white  text-amber-900",
+                        "shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] active:scale-95",
+                        canEdit
+                          ? "cursor-pointer"
+                          : "pointer-events-none opacity-60"
+                      )}
                       onClick={() => canEdit && setEmojiOpen((o) => !o)}
-                      aria-expanded={emojiOpen}
-                      aria-haspopup="menu"
                     >
-                      <Smile className="h-4 w-4" />
-                      이모지 선택
-                      <ChevronDown className="h-4 w-4" />
+                      <span className="mr-1">😊</span> 이모지 추가
                     </Button>
 
                     {emojiOpen && (
                       <div
                         ref={emojiMenuRef}
-                        role="menu"
-                        className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-2  w-[280px] rounded-lg border bg-white p-3 shadow-xl"
+                        role="grid"
+                        aria-label="이모지 선택"
+                        className="absolute z-50 mt-2 w-[300px] rounded-2xl border bg-white/95
+               backdrop-blur-sm p-3 shadow-lg"
                       >
-                        <div className="grid grid-cols-5 gap-2">
-                          {EMOJIS_5x6.map((e) => (
+                        <div className="grid grid-cols-6 gap-1.5">
+                          {EMOJIS_5x6.map((e, i) => (
                             <button
                               key={e}
-                              type="button"
+                              role="gridcell"
                               onClick={() => {
                                 insertAtCursor(e);
                                 setEmojiOpen(false);
                               }}
-                              className="h-10 w-full rounded-md border bg-white hover:bg-amber-50 hover:shadow active:scale-95 transition text-2xl flex items-center justify-center hover:cursor-pointer"
+                              className="h-9 rounded-xl border  text-[20px] hover:bg-amber-200
+                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
                               aria-label={`${e} 삽입`}
-                              title={`${e} 삽입`}
+                              tabIndex={0}
                             >
                               {e}
                             </button>
@@ -428,7 +432,9 @@ export default function QuestionPage() {
                   {/* 버튼 오른쪽에 붙는 파트너 아바타 + 말풍선 */}
                   <div className="hidden sm:flex items-center gap-2 ml-3">
                     <AvatarWidget type="partner" size="sm" />
-                    <span className="text-[12px] font-semibold">잘 써조!</span>
+                    <span className="text-[11px] px-2 py-1 rounded-full bg-amber-100/80 border border-amber-200 text-amber-900">
+                      잘 써조!
+                    </span>
                   </div>
                 </div>
               </div>
@@ -452,77 +458,67 @@ export default function QuestionPage() {
                 <div className="mx-auto w-full md:w-[80%] lg:w-[70%] space-y-2 text-center">
                   <Textarea
                     ref={textareaRef}
-                    id="answer"
                     value={answer}
                     onChange={(e) => setAnswer(e.target.value)}
-                    readOnly={saveStatus === "saving"} // 저장 중엔 잠깐 막기
+                    readOnly={saveStatus === "saving"}
+                    className={cn(
+                      "mx-auto min-h-[220px] md:min-h-[260px] resize-none rounded-xl",
+                      "bg-[linear-gradient(transparent_29px,rgba(0,0,0,0.04)_30px)] bg-[length:100%_30px] bg-blue-50/40",
+                      "border border-amber-200/70 focus-visible:ring-2 focus-visible:ring-amber-300",
+                      "px-4 py-3 text-[15px] md:text-[16px] leading-[30px]"
+                    )}
                     placeholder={
                       submitted
                         ? "수정 중입니다. 저장하기를 눌러 반영합니다."
                         : "이곳에 답변을 입력해주세요..."
                     }
-                    className="mx-auto min-h-[220px] md:min-h-[260px] resize-none bg-blue-50 text-base md:text-lg leading-relaxed"
                   />
+                  <div className="mx-auto w-full md:w-[80%] lg:w-[70%] -mt-1 text-right text-[11px] text-amber-900/60">
+                    {answer.length.toLocaleString("ko-KR")} 자
+                  </div>
                 </div>
               )}
             </CardContent>
 
             {/* 단일 버튼 + 상태 피드백 라인 */}
-            <CardFooter className="flex flex-col items-center gap-2">
-              <CoolMode options={{ particle: "💙", particleCount: 3, size: 4 }}>
-                <Button
-                  onClick={onPrimaryClick}
-                  className="min-w-[140px] hover:cursor-pointer active:scale-95 transition"
-                  disabled={saveStatus === "saving"}
-                >
-                  {saveStatus === "saving" ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      저장 중…
-                    </>
-                  ) : submitted ? (
-                    editing ? (
-                      <>
-                        <SaveIcon className="mr-2 h-4 w-4" />
-                        저장하기
-                      </>
-                    ) : (
-                      <>
-                        <PencilLine className="mr-2 h-4 w-4" />
-                        수정하기
-                      </>
-                    )
+            <CardFooter
+              className="sticky bottom-0 bg-gradient-to-t from-[#FAF7F2] to-transparent pt-6 pb-5
+                       flex flex-col items-center gap-2"
+            >
+              <Button
+                onClick={onPrimaryClick}
+                disabled={saveStatus === "saving"}
+                className="min-w-[140px] rounded-lg bg-neutral-600 hover:bg-amber-600
+                 text-white shadow-md active:scale-95"
+              >
+                {saveStatus === "saving" ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 저장 중…
+                  </>
+                ) : submitted ? (
+                  editing ? (
+                    <> 저장하기</>
                   ) : (
-                    <>
-                      <SaveIcon className="mr-2 h-4 w-4" />
-                      저장하기
-                    </>
-                  )}
-                </Button>
-              </CoolMode>
+                    <> 수정하기</>
+                  )
+                ) : (
+                  <> 저장하기</>
+                )}
+              </Button>
 
               {/* 하단 상태 라벨 */}
-              <div
-                aria-live="polite"
-                className="min-h-[22px] text-xs flex items-center gap-2 text-muted-foreground"
-              >
+              <div className="min-h-[22px] text-[12px] text-amber-900/70">
                 {editing && saveStatus !== "saving" && (
-                  <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium">
+                  <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
                     수정 중…
                   </span>
                 )}
-
                 {saveStatus === "saved" && (
-                  <span className="flex items-center gap-1 text-emerald-600">
-                    <CheckCircle2 className="h-4 w-4" />
-                    저장됨
-                  </span>
+                  <span className="text-emerald-600">저장됨</span>
                 )}
-
                 {saveStatus === "error" && (
-                  <span className="flex items-center gap-1 text-red-600">
-                    <XCircle className="h-4 w-4" />
-                    저장 실패 — 잠시 후 다시 시도해 주세요
+                  <span className="text-red-600">
+                    저장 실패 — 잠시 후 재시도
                   </span>
                 )}
               </div>

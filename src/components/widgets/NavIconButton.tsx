@@ -9,16 +9,17 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type { LucideIcon } from "lucide-react";
 
-/** 이모지만 보이고, hover/focus 시 label이 툴팁으로 뜨는 네비 버튼 */
+/** 아이콘만 보이고, hover/focus 시 label이 툴팁으로 뜨는 네비 버튼 */
 export function NavItem({
-  emoji,
+  icon: Icon,
   label,
   disabled = false,
   onClick,
   className,
 }: {
-  emoji: string;
+  icon: LucideIcon; // 루시드 아이콘 컴포넌트
   label: string;
   disabled?: boolean;
   onClick?: () => void;
@@ -34,25 +35,24 @@ export function NavItem({
       title={label} // 브라우저 기본 툴팁(모바일/비상용)
       className={cn(
         // 정사각 아이콘 버튼
-        "inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-lg",
+        "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
         // 톤 & 보더
-        "bg-[#FAF7F2] text-slate-800 border border-neutral-200",
+        "bg-[#FAF7F2] text-slate-800 border",
         // 상태
-        "hover:bg-amber-100 transition disabled:opacity-50 disabled:cursor-not-allowed",
+        "hover:bg-amber-200 transition disabled:opacity-50 disabled:cursor-not-allowed",
         // 포커스 링
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300",
         className
       )}
     >
-      <span aria-hidden className="text-base sm:text-[18px] leading-none">
-        {emoji}
-      </span>
+      {/* 아이콘만 노출 (이전 이모지 대체) */}
+      <Icon aria-hidden className="h-5 w-5 sm:h-[18px] sm:w-[18px]" />
       {/* 스크린리더 전용 라벨 */}
       <span className="sr-only">{label}</span>
     </button>
   );
 
-  // disabled일 땐 툴팁을 렌더 안 해서 혼동 방지
+  // disabled일 땐 툴팁 렌더 X (혼동 방지)
   if (disabled) return Btn;
 
   return (

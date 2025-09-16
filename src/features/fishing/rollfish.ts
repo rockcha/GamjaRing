@@ -5,11 +5,11 @@ import type { IngredientTitle } from "@/features/kitchen/type";
 export type FishRarity = "일반" | "희귀" | "에픽" | "전설";
 
 const ROLL_TABLE: Array<{ key: "FAIL" | FishRarity; weight: number }> = [
-  { key: "FAIL", weight: 40 },
-  { key: "일반", weight: 40 },
-  { key: "희귀", weight: 15 },
-  { key: "에픽", weight: 4 },
-  { key: "전설", weight: 1 },
+  { key: "FAIL", weight: 52 },
+  { key: "일반", weight: 33 },
+  { key: "희귀", weight: 11 },
+  { key: "에픽", weight: 3.5 },
+  { key: "전설", weight: 0.5 },
 ];
 
 function rollKey(): "FAIL" | FishRarity {

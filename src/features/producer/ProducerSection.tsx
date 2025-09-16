@@ -210,17 +210,17 @@ export default function ProducerSection() {
             <Skeleton className="h-5 w-24" />
           </>
         ) : (
-          <>
-            <span className="rounded-md bg-neutral-50 px-2 py-1 border">
-              보유: <b>{total}</b>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-md border bg-white/80 px-2 py-1 text-slate-700">
+              보유 <b className="tabular-nums">{total}</b>
             </span>
-            <span className="rounded-md bg-amber-50 px-2 py-1 border border-amber-200 text-amber-700">
-              운영중: <b>{producing}</b>
+            <span className="inline-flex items-center gap-1 rounded-md border bg-amber-50 px-2 py-1 text-amber-700 border-amber-200">
+              운영중 <b className="tabular-nums">{producing}</b>
             </span>
-            <span className="rounded-md bg-emerald-50 px-2 py-1 border border-emerald-200 text-emerald-700">
-              완료: <b>{ready}</b>
+            <span className="inline-flex items-center gap-1 rounded-md border bg-emerald-50 px-2 py-1 text-emerald-700 border-emerald-200">
+              완료 <b className="tabular-nums">{ready}</b>
             </span>
-          </>
+          </div>
         )}
 
         <div className="ml-auto flex items-center gap-2">
@@ -229,48 +229,44 @@ export default function ProducerSection() {
           <Button
             variant="secondary"
             size="sm"
-            onClick={handleStartAllIdle}
+            className="h-8 px-3"
             disabled={loading || anyBusy || idle === 0}
-            className="disabled:opacity-60"
-            title="대기 중인 시설을 모두 생산 시작"
+            onClick={handleStartAllIdle}
             aria-busy={startBusy}
+            title="대기 중 전부 생산 시작"
           >
             {startBusy ? (
-              <span className="inline-flex items-center gap-1.5">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                일괄 생산 중…
-              </span>
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> 생산 중…
+              </>
             ) : (
-              <span className="inline-flex items-center gap-1.5">
-                <Play className="h-4 w-4" />
-                일괄 생산({idle})
-              </span>
+              <>
+                <Play className="h-4 w-4" /> 일괄 생산({idle})
+              </>
             )}
           </Button>
 
           {/* 일괄 수거 */}
           <Button
             size="sm"
-            onClick={handleCollectAllReady}
+            className="h-8 px-3 bg-emerald-600 text-white disabled:opacity-60"
             disabled={loading || anyBusy || ready === 0}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60"
-            title="준비 완료된 시설에서 재료를 한꺼번에 수거"
+            onClick={handleCollectAllReady}
             aria-busy={collectBusy}
+            title="준비 완료 모두 수거"
           >
             {collectBusy ? (
-              <span className="inline-flex items-center gap-1.5">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                일괄 수거 중…
-              </span>
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> 수거 중…
+              </>
             ) : (
-              <span className="inline-flex items-center gap-1.5">
-                <Package className="h-4 w-4" />
-                일괄 수거({ready})
-              </span>
+              <>
+                <Package className="h-4 w-4" /> 일괄 수거({ready})
+              </>
             )}
           </Button>
 
-          <BrowseProducersButton onPurchased={load} />
+          <BrowseProducersButton className="h-8 px-3" onPurchased={load} />
         </div>
       </div>
 

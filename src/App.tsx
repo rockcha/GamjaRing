@@ -23,6 +23,7 @@ import PotatoFieldPage from "./pages/PotatoFieldPage";
 import KitchenPage from "./pages/KitchenPage";
 import FishingPage from "./pages/FishingPage";
 import OddEvenGamesPage from "./features/mini_games/OddEvenGamesPage";
+import FloatingLeftRail from "./components/widgets/FloatingLeftRail";
 
 export default function App() {
   return (
@@ -58,6 +59,7 @@ export default function App() {
 
           {/* ✅ 여기! Routes 바깥에 전역으로 한 번만 */}
           <Toaster position="bottom-right" richColors />
+          <FloatingLeftRail />
         </BrowserRouter>
       </CoupleProvider>
     </UserProvider>

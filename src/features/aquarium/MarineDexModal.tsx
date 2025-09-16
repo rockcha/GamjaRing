@@ -218,7 +218,7 @@ export default function MarineDexModal() {
     open && mounted
       ? createPortal(
           <div
-            className="fixed inset-0 z-[9999] flex items-center justify-center"
+            className="fixed inset-0 z-[9999] flex items-center justify-center "
             aria-modal="true"
             role="dialog"
             onClick={() => setOpen(false)}
@@ -232,9 +232,9 @@ export default function MarineDexModal() {
                 delayDuration={150}
                 disableHoverableContent={false}
               >
-                <div className="relative bg-[#FAF7F2] rounded-2xl shadow-2xl w-[860px] max-w-[92vw] max-h-[82vh] p-5 flex flex-col">
+                <div className="relative bg-[#FAF7F2] rounded-2xl shadow-2xl w-[860px] max-w-[92vw] max-h-[82vh] p-5 flex flex-col ">
                   {/* header */}
-                  <div className="mb-3 flex items-start justify-between gap-3">
+                  <div className="mb-3 flex items-start justify-between gap-3 ">
                     <div className="min-w-0">
                       <h2 className="text-xl font-bold">해양생물 도감</h2>
                       <p className="text-xs text-gray-500 mt-1">
@@ -254,7 +254,7 @@ export default function MarineDexModal() {
                   {captureHeader}
 
                   {/* filters */}
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2 pb-1 ">
                     <div className="flex flex-wrap items-center gap-2">
                       {filters.map((f) => {
                         const active = rarity === f;
@@ -283,7 +283,7 @@ export default function MarineDexModal() {
                   </div>
 
                   {/* list */}
-                  <div className="flex-1 overflow-y-auto pr-1">
+                  <div className="flex-1 overflow-y-auto border-t rounded-xl">
                     <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2">
                       {list.map((f) => {
                         const imgSrc = buildImageSrc(f.id, f.rarity);
@@ -292,10 +292,7 @@ export default function MarineDexModal() {
                         const isCaught = caughtCount > 0;
 
                         // ✅ PNG만 확실히 어둡게 (실루엣 느낌)
-                        // - grayscale 로 색을 제거
-                        // - brightness-50 로 전체 밝기 다운
-                        // - contrast-150 로 윤곽만 약간 강조
-                        // - opacity-25 로 존재감 낮추기
+
                         const imgDimCls = isCaught
                           ? ""
                           : "grayscale brightness-50 contrast-150 opacity-25";
@@ -369,7 +366,6 @@ export default function MarineDexModal() {
                                       <span className="line-clamp-2 text-left">
                                         {shortText || "설명 보기"}
                                       </span>
-                                      <Info className="w-3.5 h-3.5 shrink-0" />
                                     </button>
                                   </TooltipTrigger>
                                   <TooltipContent
@@ -391,8 +387,7 @@ export default function MarineDexModal() {
 
                   <div className="mt-3 text-[11px] text-gray-500 flex items-center gap-1">
                     <Anchor className="w-3.5 h-3.5" />
-                    도감은 정보 제공용입니다. 야생(포획 대상) 어종은 바다
-                    탐험에서 만날 수 있어요.
+                    밝은 카드는 포획 경험이 있는 개체입니다.
                   </div>
                 </div>
               </TooltipProvider>
@@ -408,7 +403,7 @@ export default function MarineDexModal() {
         variant="outline"
         title="도감 열기"
         onClick={() => setOpen(true)}
-        className="transition-transform duration-150 hover:scale-[1.02] active:scale-100 hover:shadow-sm"
+        className="transition-transform duration-150 hover:scale-[1.02] active:scale-100 "
       >
         <img
           src="/aquarium/marine_dex.gif"
@@ -416,7 +411,7 @@ export default function MarineDexModal() {
           className="h-7 w-7"
           draggable={false}
         />
-        도감
+        나의 도감
       </Button>
       {modal}
     </>

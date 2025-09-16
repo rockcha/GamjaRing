@@ -95,9 +95,6 @@ export default function AquariumPreviewCard({
 
           {/* 탱크 선택 (옵션 라벨은 각 탱크 title) */}
           <label className="text-xs flex items-center gap-2">
-            <span className="text-muted-foreground hidden sm:inline">
-              수족관 선택
-            </span>
             <select
               className="border rounded-md px-2 py-1 text-sm bg-background"
               disabled={loading || !tanks.length}
@@ -121,18 +118,6 @@ export default function AquariumPreviewCard({
       </CardContent>
 
       <Separator />
-
-      <CardFooter className="p-4 pt-3">
-        <div className="w-full flex justify-end">
-          <Button
-            onClick={() => navigate("/aquarium")}
-            className="min-w-[140px]"
-            aria-label="아쿠아리움으로 가기"
-          >
-            아쿠아리움으로 가기
-          </Button>
-        </div>
-      </CardFooter>
     </Card>
   );
 }

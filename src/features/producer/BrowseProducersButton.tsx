@@ -164,23 +164,20 @@ export default function BrowseProducersButton({
 
                     return (
                       <div
-                        key={p.id}
                         className={cn(
-                          "group relative rounded-xl border p-3 bg-[#FAF7F2]",
-                          "hover:shadow-sm transition"
+                          "relative rounded-xl border bg-[#FAF7F2] p-3",
+                          "shadow-sm" // hover shadow 제거로 안정감
                         )}
                       >
                         {/* 상단: 이름 + 보유수 */}
                         <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <div className="font-semibold text-neutral-800 truncate">
-                              {p.name}
-                            </div>
+                          <div className="font-semibold text-neutral-800 truncate">
+                            {p.name}
                           </div>
                           {have > 0 && (
-                            <div className="shrink-0 rounded-md bg-neutral-50 px-2 py-1 text-xs border">
+                            <span className="shrink-0 rounded-md bg-white/80 px-2 py-1 text-xs border">
                               보유 {have}
-                            </div>
+                            </span>
                           )}
                         </div>
 
@@ -221,15 +218,12 @@ export default function BrowseProducersButton({
                         </div>
 
                         {/* 액션: 오른쪽 버튼만 */}
-                        <div className="mt-3 flex items-center justify-end">
+                        <div className="mt-3 flex justify-end">
                           <Button
                             size="sm"
+                            className="h-8 px-3"
                             disabled={buyingId === p.id || !canAfford}
                             onClick={() => handleBuy(p)}
-                            className={cn(
-                              "shrink-0",
-                              !canAfford && "opacity-60 cursor-not-allowed"
-                            )}
                           >
                             {buyingId === p.id
                               ? "구매 중…"

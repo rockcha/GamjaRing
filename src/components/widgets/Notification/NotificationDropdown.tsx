@@ -137,7 +137,7 @@ export default function NotificationDropdown({
             src={iconSrc}
             alt="알림"
             className="
-      h-8 w-8 object-contain
+      h-6 w-6 object-contain
       transition-transform duration-200
       group-hover:scale-110 group-active:scale-95
     "
@@ -172,17 +172,13 @@ export default function NotificationDropdown({
             </>
           )}
         </span>
-
-        <span className="text-xs font-medium text-neutral-700 transition-colors group-hover:text-neutral-800">
-          {caption}
-        </span>
       </Button>
 
       {/* Dialog로 알림 표시 */}
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-md p-0 overflow-hidden">
           <div className="flex flex-col min-h-[340px] sm:min-h-[380px] max-h-[70vh]">
-            <DialogHeader className="px-4 pt-4 shrink-0">
+            <DialogHeader className="px-4 py-4 shrink-0 border-b">
               <DialogTitle>알림</DialogTitle>
             </DialogHeader>
 

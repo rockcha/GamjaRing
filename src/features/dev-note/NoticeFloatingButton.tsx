@@ -1,9 +1,14 @@
 // src/components/NoticeCenterFloatingButton.tsx
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -15,8 +20,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import supabase from "@/lib/supabase";
+import { motion } from "framer-motion";
 
-// ===== 타입 & 유틸 =====
+/* ===== 타입 & 유틸 ===== */
 export type NoticeType = "update" | "event" | "caution";
 export type Notice = {
   id: string;
@@ -26,7 +32,6 @@ export type Notice = {
   created_at: string; // ISO
 };
 
-// type → 스타일/이모지 매핑
 const TYPE_META: Record<
   NoticeType,
   { label: string; emoji: string; cardClass: string }
@@ -86,8 +91,6 @@ const isToday = (iso: string) => {
   return fmtDate(iso) === today;
 };
 
-/* ... (NoticeType/Notice/TYPE_META/stripTitle/fmtDate/isToday 기존 그대로) ... */
-
 export default function NoticeCenterFloatingButton({
   className,
   buttonEmoji = "📢",
@@ -120,14 +123,14 @@ export default function NoticeCenterFloatingButton({
     if (!error) setHasUnread(!!data);
   }, []);
 
-  // 진입 시 1회 + 주기적 체크(옵션)
+  // 진입 시 1회 + 주기적 체크
   useEffect(() => {
     void checkUnread();
     const t = setInterval(checkUnread, 60_000); // 1분 간격
     return () => clearInterval(t);
   }, [checkUnread]);
 
-  // 공지 insert 실시간 반영(옵션: Realtime 켜져 있어야 함)
+  // 공지 insert 실시간 반영
   useEffect(() => {
     const ch = supabase
       .channel("notices-insert")
@@ -176,29 +179,82 @@ export default function NoticeCenterFloatingButton({
     };
   }, [open, limit]);
 
-  return (
-    <div className={cn("fixed left-3 bottom-3 z-50", className)}>
-      {/* 버튼 + 빨간 점 */}
-      <div className="relative">
-        <Button
-          size="sm"
-          variant="default"
-          onClick={() => setOpen(true)}
-          className="rounded-2xl shadow-lg px-3 py-2 h-auto text-sm gap-2 bg-popover text-popover-foreground border border-border hover:bg-accent hover:text-accent-foreground"
-          aria-label={buttonLabel}
-        >
-          <span aria-hidden>{buttonEmoji}</span>
-          <span>{buttonLabel}</span>
-        </Button>
+  /* ===== PotatoPokeButton 스타일: ripple 구현 ===== */
+  const [ripple, setRipple] = useState(false);
+  const rippleTimer = useRef<number | null>(null);
+  const startRipple = () => {
+    setRipple(false);
+    requestAnimationFrame(() => {
+      setRipple(true);
+      if (rippleTimer.current) window.clearTimeout(rippleTimer.current);
+      rippleTimer.current = window.setTimeout(() => setRipple(false), 1400);
+    });
+  };
+  useEffect(() => {
+    return () => {
+      if (rippleTimer.current) window.clearTimeout(rippleTimer.current);
+    };
+  }, []);
 
-        {/* 🔴 우상단 점 + 깜빡임 */}
-        {hasUnread && (
-          <>
-            <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
-            <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-500 opacity-70 animate-ping" />
-          </>
+  const Btn = (
+    <div className="relative">
+      <motion.button
+        type="button"
+        onClick={() => {
+          startRipple();
+          setOpen(true);
+        }}
+        aria-label={buttonLabel}
+        className={cn(
+          "relative grid place-items-center",
+          "h-14 w-14 rounded-full border",
+          "bg-white/60",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2",
+          "transition-colors hover:bg-neutral-50"
         )}
-      </div>
+      >
+        {/* ripple */}
+        {ripple && (
+          <span
+            className="
+              pointer-events-none absolute inset-0 rounded-full
+              ring-4 ring-rose-300/50
+              animate-[pokePing_1.4s_ease-out_forwards]
+            "
+            aria-hidden
+          />
+        )}
+
+        {/* 이모지 (텍스트 없음) */}
+        <span className="text-xl leading-none select-none" aria-hidden>
+          {buttonEmoji}
+        </span>
+
+        <span className="sr-only">{buttonLabel}</span>
+      </motion.button>
+
+      {/* 🔴 우상단 점 + 깜빡임 (유지) */}
+      {hasUnread && (
+        <>
+          <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
+          <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-500 opacity-70 animate-ping" />
+        </>
+      )}
+
+      {/* 파동 키프레임 */}
+      <style>{`
+        @keyframes pokePing {
+          0%   { transform: scale(1);   opacity: .75; }
+          70%  { transform: scale(1.9); opacity: 0;   }
+          100% { transform: scale(1.9); opacity: 0;   }
+        }
+      `}</style>
+    </div>
+  );
+
+  return (
+    <div>
+      {Btn}
 
       {/* Modal */}
       <Dialog open={open} onOpenChange={setOpen}>
@@ -208,7 +264,7 @@ export default function NoticeCenterFloatingButton({
               <span>📢 개발자 공지사항</span>
             </DialogTitle>
             <DialogDescription>
-              <span className="text-[13px]">최신순으로 공지입니다.</span>
+              <span className="text-[13px]">최신 순 공지입니다.</span>
               <span className="mx-2 text-muted-foreground">|</span>
               <span className="text-[12px] text-muted-foreground inline-flex items-center gap-3 flex-wrap align-middle">
                 <span>

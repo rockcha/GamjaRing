@@ -5,14 +5,13 @@ import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import supabase from "@/lib/supabase";
 import { useCoupleContext } from "@/contexts/CoupleContext";
-import { PackageOpen } from "lucide-react";
+import { PackageOpen, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -56,7 +55,9 @@ type Props = {
   className?: string;
   dragDisabled?: boolean; // 낚시 중일 때 true → 드래그 off
 };
-const BAIT_EMOJI = "🐟";
+
+// 미끼 후보 이모지
+const BAIT_EMOJIS = ["🐟", "🐡", "🐠", "🦐", "🐛", "🪱", "🦀", "🦑"] as const;
 const MAX_RENDER = 60; // 너무 많을 때 UI 보호용
 
 export default function IngredientFishingSection({
@@ -111,10 +112,8 @@ export default function IngredientFishingSection({
       const d =
         (e as CustomEvent<{ count?: number; left?: number }>).detail || {};
       if (typeof d.left === "number") {
-        // 남은 수가 넘어오면 절대값으로 반영
         setBaitCount(d.left);
       } else {
-        // 아니면 count(차감 수) 만큼 감소 (기본 1)
         const dec = Math.max(1, Number(d.count ?? 1));
         setBaitCount((c) => Math.max(0, c - dec));
       }
@@ -124,25 +123,28 @@ export default function IngredientFishingSection({
   }, []);
 
   /* ------------------------------- */
+  /* 타일 이모지 결정 (안 흔들리게)  */
+  /* ------------------------------- */
+  // 너무 자주 랜덤이 바뀌지 않도록 index와 baitCount를 섞어 결정
+  const emojiForIndex = (i: number) =>
+    BAIT_EMOJIS[(i * 7 + baitCount) % BAIT_EMOJIS.length];
+
+  /* ------------------------------- */
   /* 드래그 스타트                   */
   /* ------------------------------- */
-  const handleDragStart = (e: React.DragEvent) => {
+  const handleDragStart = (e: React.DragEvent, emoji: string) => {
     if (dragDisabled || baitCount <= 0) {
       e.preventDefault();
       return;
     }
-    // 기존 드롭존과 호환: MIME/페이로드 형태 유지
-    // type으로 'bait'를 명시해 드롭 처리 분기 가능
-    const payload = JSON.stringify({ type: "bait", emoji: BAIT_EMOJI });
+    const payload = JSON.stringify({ type: "bait", emoji });
     e.dataTransfer.setData(DND_MIME, payload);
     e.dataTransfer.effectAllowed = "copy";
-    setEmojiDragImage(e, BAIT_EMOJI, 48);
+    setEmojiDragImage(e, emoji, 48);
   };
 
   /* ------------------------------- */
   /* 미끼 구매                       */
-
-  // Helper: RPC가 배열로 오든 객체로 오든 1행 꺼내기
   function unwrapRpcRow<T>(data: T | T[] | null): T | null {
     return Array.isArray(data) ? data[0] ?? null : data ?? null;
   }
@@ -159,7 +161,7 @@ export default function IngredientFishingSection({
       });
       if (error) throw error;
 
-      const row = unwrapRpcRow(data); // ✅ 핵심: 1행만 안전하게 꺼내기
+      const row = unwrapRpcRow(data);
       if (!row?.ok) {
         if (row?.error === "not_enough_gold")
           toast.warning("골드가 부족합니다!");
@@ -167,7 +169,6 @@ export default function IngredientFishingSection({
         return;
       }
 
-      // ✅ 즉시 반영 (이모지 갯수 바로 증가)
       setBaitCount(row.bait_count ?? ((c) => c + buyNum));
       window.dispatchEvent(
         new CustomEvent("bait-consumed", {
@@ -176,7 +177,6 @@ export default function IngredientFishingSection({
       );
       await fetchCoupleData?.();
 
-      await fetchCoupleData?.(); // 골드/상단 UI 갱신
       toast.success(`미끼 ${buyNum}개를 구매했어요!`);
       setBuyOpen(false);
     } catch (e: any) {
@@ -189,7 +189,6 @@ export default function IngredientFishingSection({
   /* ------------------------------- */
   /* 렌더링                          */
   /* ------------------------------- */
-  // 너무 많으면 MAX_RENDER만 렌더링하고 요약칩 하나를 추가
   const tilesToRender = useMemo(() => {
     const n = Math.max(0, baitCount);
     const visible = Math.min(n, MAX_RENDER);
@@ -199,22 +198,34 @@ export default function IngredientFishingSection({
   return (
     <section className={cn("flex flex-col gap-3 min-h-0", className)}>
       {/* 헤더 */}
-      <div className="flex items-center">
-        <span className="inline-flex h-7 w-7 items-center justify-center mr-1">
+      <div className="flex items-center gap-2">
+        <span className="inline-flex h-7 w-7 items-center justify-center">
           <PackageOpen className="h-5 w-5 text-amber-700" />
         </span>
         <h3 className="text-base font-semibold text-zinc-800">미끼통</h3>
 
-        <button
+        {/* 보유 미끼: 읽기 전용 배지 */}
+        <span
           className={cn(
             "ml-auto text-xs rounded-full border px-2.5 py-1 shadow-sm",
-            "bg-white hover:bg-gray-50"
+            "bg-white"
           )}
-          onClick={() => setBuyOpen(true)}
-          title="클릭해서 미끼 구매"
+          aria-label="보유 미끼 수"
         >
           {loading ? "불러오는 중…" : `보유 미끼: ${baitCount}개`}
-        </button>
+        </span>
+
+        {/* 상점 버튼: 별도 트리거 */}
+        <Button
+          size="sm"
+          variant="secondary"
+          className="ml-2 h-7 px-2 rounded-full"
+          onClick={() => setBuyOpen(true)}
+          title="미끼 상점 열기"
+        >
+          <ShoppingBag className="h-4 w-4" />
+          <span className="sr-only">상점</span>
+        </Button>
       </div>
 
       {/* 🐟 미끼 이모지 그리드 (드래그 가능) */}
@@ -229,36 +240,39 @@ export default function IngredientFishingSection({
       >
         {baitCount <= 0 && (
           <div className="col-span-full text-xs sm:text-sm text-muted-foreground border rounded-xl p-3 sm:p-4 text-center">
-            보유한 미끼가 없어요. 상단 배지를 클릭하여 구매하세요.
+            보유한 미끼가 없어요. 오른쪽 상점 버튼으로 구매하세요.
           </div>
         )}
 
-        {Array.from({ length: tilesToRender.visible }).map((_, i) => (
-          <button
-            key={i}
-            draggable={!dragDisabled && baitCount > 0}
-            onDragStart={handleDragStart}
-            onDragEnd={cleanupDragGhost}
-            className={cn(
-              "relative w-full aspect-square rounded-lg border bg-white shadow-sm overflow-hidden",
-              "grid place-items-center text-[clamp(16px,3.8vw,32px)]",
-              "transition will-change-transform hover:shadow-md hover:-translate-y-0.5",
-              dragDisabled
-                ? "opacity-60 cursor-not-allowed"
-                : "cursor-grab active:cursor-grabbing",
-              "border-zinc-200"
-            )}
-            title="미끼 드래그해서 낚시 시작"
-          >
-            <span className="leading-none select-none">{BAIT_EMOJI}</span>
-            {dragDisabled && (
-              <span
-                className="absolute inset-0 bg-white/50 backdrop-blur-[1px]"
-                aria-hidden
-              />
-            )}
-          </button>
-        ))}
+        {Array.from({ length: tilesToRender.visible }).map((_, i) => {
+          const emoji = emojiForIndex(i);
+          return (
+            <button
+              key={i}
+              draggable={!dragDisabled && baitCount > 0}
+              onDragStart={(e) => handleDragStart(e, emoji)}
+              onDragEnd={cleanupDragGhost}
+              className={cn(
+                "relative w-full aspect-square rounded-lg border bg-white shadow-sm overflow-hidden",
+                "grid place-items-center text-[clamp(16px,3.8vw,32px)]",
+                "transition will-change-transform hover:shadow-md hover:-translate-y-0.5",
+                dragDisabled
+                  ? "opacity-60 cursor-not-allowed"
+                  : "cursor-grab active:cursor-grabbing",
+                "border-zinc-200"
+              )}
+              title="미끼 드래그해서 낚시 시작"
+            >
+              <span className="leading-none select-none">{emoji}</span>
+              {dragDisabled && (
+                <span
+                  className="absolute inset-0 bg-white/50 backdrop-blur-[1px]"
+                  aria-hidden
+                />
+              )}
+            </button>
+          );
+        })}
 
         {tilesToRender.rest > 0 && (
           <div
@@ -279,17 +293,11 @@ export default function IngredientFishingSection({
         <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>
             <DialogTitle>재료 상점</DialogTitle>
-            <DialogDescription>
-              미끼를 구매하면 보유 골드가 차감돼요. 단가:{" "}
-              <b className="tabular-nums">
-                🪙{unitPrice.toLocaleString("ko-KR")}
-              </b>
-            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3">
             <div className="text-sm">
-              현재 보유 미끼: <b className="tabular-nums">{baitCount}</b>개
+              현재 보유 : <b className="tabular-nums">{baitCount}</b>
             </div>
 
             <div className="grid grid-cols-3 gap-2 items-end">
@@ -318,13 +326,6 @@ export default function IngredientFishingSection({
           <DialogFooter className="gap-2 sm:gap-0">
             <Button onClick={buyBait} disabled={buying}>
               {buying ? "구매 중…" : "구매"}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setBuyOpen(false)}
-              disabled={buying}
-            >
-              닫기
             </Button>
           </DialogFooter>
         </DialogContent>
