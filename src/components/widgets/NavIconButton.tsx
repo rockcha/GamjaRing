@@ -36,9 +36,9 @@ export function NavItem({
         // 정사각 아이콘 버튼
         "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
         // 톤 & 보더
-        "bg-[#FAF7F2] text-slate-800 border",
+        "bg-none text-slate-800 ",
         // 상태
-        "hover:bg-neutral-600  hover:text-white tranistion-all duration-700 disabled:opacity-50 disabled:cursor-not-allowed",
+        "hover:bg-amber-200  hover:border-none tranistion-all duration-700 disabled:opacity-50 disabled:cursor-not-allowed",
         // 포커스 링
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300",
         className

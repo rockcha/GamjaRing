@@ -69,12 +69,15 @@ const NAV_GROUPS: readonly (readonly SimpleNavDef[])[] = [
   [
     { id: "farm", label: "농장", icon: Tractor }, // or Sprout
     { id: "kitchen", label: "조리실", icon: CookingPot },
-    { id: "aquarium", label: "아쿠아리움", icon: Fish }, // 없으면 Waves/Fish
-    { id: "fishing", label: "낚시터", icon: Waves },
-    { id: "stickerBoard", label: "스티커보드", icon: Sticker }, // ✅ 추가
   ],
+  [
+    { id: "aquarium", label: "아쿠아리움", icon: Fish },
+    { id: "fishing", label: "낚시터", icon: Waves },
+  ],
+
   // ✅ 미니게임 섹션
   [
+    { id: "stickerBoard", label: "스티커보드", icon: Sticker },
     { id: "oddEven", label: "홀짝게임", icon: Dice3 },
     { id: "miniGame", label: "미니게임", icon: Gamepad2 },
   ],
@@ -238,27 +241,32 @@ export default function AppHeader({
             <nav aria-label="주 네비게이션" className="min-w-0">
               <div
                 className={cn(
-                  "grid gap-1 justify-start content-start",
-                  "grid-cols-[repeat(auto-fit,minmax(2.25rem,max-content))]"
+                  // ⬇️ 핵심: 템플릿 트랙 없애고, 아이템 크기대로 흐르게
+                  "grid grid-flow-col auto-cols-max",
+                  // X축 간격은 직접 제어
+                  "gap-x-2 gap-y-1 justify-start content-start"
                 )}
               >
                 {NAV_GROUPS.map((group, gi) => (
                   <React.Fragment key={gi}>
                     {group.map(({ id, label, icon }) => (
-                      <NavItem
-                        key={id}
-                        icon={icon}
-                        label={label}
-                        disabled={disabledByState(id)}
-                        onClick={() => go(id)}
-                      />
+                      <div key={id}>
+                        {" "}
+                        {/* X축 간격은 여기서만 */}
+                        <NavItem
+                          icon={icon}
+                          label={label}
+                          disabled={disabledByState(id)}
+                          onClick={() => go(id)}
+                        />
+                      </div>
                     ))}
                     {gi < NAV_GROUPS.length - 1 && (
                       <Separator
                         orientation="vertical"
                         decorative
                         aria-hidden
-                        className="h-8 w-px shrink-0 self-center ml-1 mr-0 bg-slate-200"
+                        className="h-8 w-px shrink-0 self-center bg-slate-200" // 양옆 살짝만
                       />
                     )}
                   </React.Fragment>

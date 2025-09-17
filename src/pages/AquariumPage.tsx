@@ -35,7 +35,7 @@ import { Input } from "@/components/ui/input";
 /** 어항 가격 (RPC 파라미터로 전달) */
 const TANK_PRICE = 200;
 
-export default function AquariumPage() {
+function AquariumPage() {
   const { couple, fetchCoupleData } = useCoupleContext();
   const coupleId = couple?.id ?? null;
 
@@ -440,3 +440,5 @@ export default function AquariumPage() {
     </div>
   );
 }
+
+export { AquariumPage };

@@ -531,7 +531,7 @@ export default function EmojiShopButton() {
                     <div className="border-t px-3 py-2 text-sm">
                       <div className="flex items-center justify-between">
                         <span className="text-neutral-600">수량</span>
-                        <span className="font-medium">{qty}개</span>
+                        <span className="font-medium">{qty}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-neutral-600">합계</span>
@@ -597,9 +597,9 @@ export default function EmojiShopButton() {
                   })}
                 </div>
 
-                <p className="mt-3 text-xs text-neutral-500">
-                  이모지 1개당 {PRICE_PER_UNIT}골드가 차감됩니다. 구매 후 스티커
-                  인벤토리(이모지)로 즉시 지급돼요.
+                <p className="fixed bottom-6 right-1/2 translate-x-1/2 text-xs text-neutral-500">
+                  이모지는 1개당 {PRICE_PER_UNIT}골드입니다. 구매 후 스티커
+                  인벤토리에 추가됩니다.
                 </p>
               </div>
             </section>

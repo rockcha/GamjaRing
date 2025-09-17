@@ -67,10 +67,10 @@ export default function InventoryDock({ items, onStartDrag }: Props) {
           }}
           className="h-8"
         >
-          <ToggleGroupItem value="image" className="px-2">
+          <ToggleGroupItem value="image" variant="outline">
             이미지
           </ToggleGroupItem>
-          <ToggleGroupItem value="emoji" className="px-2">
+          <ToggleGroupItem value="emoji" variant="outline">
             이모지
           </ToggleGroupItem>
         </ToggleGroup>

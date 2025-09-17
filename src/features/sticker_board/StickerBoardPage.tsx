@@ -18,6 +18,8 @@ import type { PlacedSticker } from "./types";
 import { clamp } from "./clamp";
 import EmojiShopButton from "./EmojiShopButton";
 import { DRAG_EMOJI_PREVIEW_SCALE } from "./dragPreview";
+import { Save, SquarePen } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 /** 배경 테마 정의 */
 type ThemeKey = "beige" | "mint" | "sky" | "lavender" | "peach";
@@ -397,26 +399,38 @@ export default function StickerBoardPage() {
             <EmojiShopButton />
           </div>
 
-          <button
-            className="absolute right-3 top-3 z-20 px-3 py-1 rounded bg-black text-white"
+          <Button
+            className="absolute right-3 top-3 z-20  rounded-lg "
             onClick={() => {
               setEdit((v) => !v);
               setSelectedId(null);
               cancelDrag();
             }}
           >
-            {edit ? "편집 종료" : "편집하기"}
-          </button>
+            <div className="flex gap-2">
+              {edit ? (
+                <>
+                  <Save className="h-4 w-4" />
+                  저장
+                </>
+              ) : (
+                <>
+                  <SquarePen className="h-4 w-4" />
+                  편집하기
+                </>
+              )}
+            </div>
+          </Button>
 
           {/* 우측 중앙: 색상 스와치 (캔버스 기준) */}
-          <div className="absolute right-1/2 top-6 -translate-y-1/2 z-20 flex  gap-2 bg-white/80 backdrop-blur p-2 rounded-2xl border">
+          <div className="absolute right-1/2 top-2 translate-x-1/2 z-20 flex  gap-2 bg-white backdrop-blur p-2 rounded-2xl border">
             {(["beige", "mint", "sky", "lavender", "peach"] as ThemeKey[]).map(
               (key) => (
                 <button
                   key={key}
                   onClick={() => setColorPersist(key)}
                   className={`h-7 w-7 rounded-full border ${
-                    themeKey === key ? "ring-2 ring-black ring-offset-1" : ""
+                    themeKey === key ? "ring-2 ring-emerald-600 " : ""
                   }`}
                   aria-label={BG_THEMES[key].label}
                   title={BG_THEMES[key].label}

@@ -12,7 +12,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 // ✅ 추가
 import AvatarWidget from "@/components/widgets/AvatarWidget";
 
-export default function AnswersPage() {
+function AnswersPage() {
   const { user } = useUser();
   const [partnerNickname, setPartnerNickname] = useState<string | null>(null);
 
@@ -64,3 +64,4 @@ export default function AnswersPage() {
     </main>
   );
 }
+export { AnswersPage };
