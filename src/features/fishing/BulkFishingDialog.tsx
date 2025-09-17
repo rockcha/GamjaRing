@@ -52,6 +52,16 @@ function rarityDir(r: Rarity) {
     ? "epic"
     : "legend";
 }
+function rarityEn(r: Rarity) {
+  // DB enum: 'common' | 'rare' | 'epic' | 'legendary'
+  return r === "일반"
+    ? "common"
+    : r === "희귀"
+    ? "rare"
+    : r === "에픽"
+    ? "epic"
+    : "legendary";
+}
 function buildImageSrc(id: string, rarity: Rarity) {
   return `/aquarium/${rarityDir(rarity)}/${id}.png`;
 }
@@ -219,6 +229,41 @@ export default function BulkFishingDialog({
           countMap.set(id, (countMap.get(id) || 0) + 1)
         );
 
+        // ✅ 4.5) StickerBoard 인벤토리(sticker_inventory) 반영 (여러 마리 집계)
+        try {
+          const calls = Array.from(countMap.entries()).map(
+            async ([id, qty]) => {
+              const meta = infoMap.get(id);
+              const rKo: Rarity = meta?.rarity ?? "일반";
+              const rEn = rarityEn(rKo); // 'common' | 'rare' | 'epic' | 'legendary'
+              // grant_fish_sticker(p_couple uuid, p_fish_id text, p_rarity rarity_kind, p_qty int)
+              const { error: gErr } = await supabase.rpc("grant_fish_sticker", {
+                p_couple: coupleId,
+                p_fish_id: id,
+                p_rarity: rEn,
+                p_qty: qty,
+              });
+              if (gErr) throw gErr;
+            }
+          );
+
+          const settled = await Promise.allSettled(calls);
+          const failed = settled.filter((s) => s.status === "rejected");
+          if (failed.length > 0) {
+            console.warn(
+              "[fishing] grant_fish_sticker partial failures:",
+              failed
+            );
+            toast.warning(
+              `스티커 인벤토리 반영 중 일부 실패(${failed.length})`
+            );
+          }
+        } catch (e) {
+          console.error("[fishing] grant_fish_sticker error:", e);
+          toast.warning("스티커 인벤토리 반영에 실패했어요.");
+        }
+
+        // 5) 결과 카드 구성
         catches = Array.from(countMap.entries())
           .map(([id, n]) => {
             const info = infoMap.get(id)!;
@@ -237,7 +282,7 @@ export default function BulkFishingDialog({
               : rarityWeight(b.rarity) - rarityWeight(a.rarity)
           );
 
-        // 5) 인벤토리 반영 (트리거로 collection upsert)
+        // 6) 아쿠아리움 인벤토리 반영 (트리거로 collection upsert)
         const rowsToInsert = successIds.map((id) => ({
           couple_id: coupleId!,
           entity_id: id,
@@ -252,13 +297,11 @@ export default function BulkFishingDialog({
           await fetchCoupleData?.();
         }
 
-        // 6) 알림
+        // 7) 알림 (희귀 이상 신규 어종 위주)
         try {
           if (userId && partnerId) {
-            // catches에는 label/rarity 이미 들어있음
             const rareUnique = catches
               .filter((c) => c.rarity === "에픽" || c.rarity === "전설")
-              // 같은 어종 여러 마리여도 한 번만 알림
               .reduce((acc, cur) => {
                 if (!acc.some((x) => x.id === cur.id)) acc.push(cur);
                 return acc;
@@ -271,7 +314,7 @@ export default function BulkFishingDialog({
                     senderId: userId!,
                     receiverId: partnerId!,
                     type: "낚시성공",
-                    itemName: c.label, // ✅ 어종 이름 그대로
+                    itemName: c.label,
                   } as any)
                 )
               );

@@ -5,7 +5,7 @@
     "module": "esnext",
     "moduleResolution": "node",
     "baseUrl": "src",
-    "types": ["vite/client", "vite-plugin-pwa/client"],
+    "types": ["vite/client"],
     "paths": {
       "@/*": ["*"]
     },

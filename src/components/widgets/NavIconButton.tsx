@@ -32,7 +32,6 @@ export function NavItem({
       disabled={disabled}
       aria-disabled={disabled}
       aria-label={label}
-      title={label} // 브라우저 기본 툴팁(모바일/비상용)
       className={cn(
         // 정사각 아이콘 버튼
         "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",

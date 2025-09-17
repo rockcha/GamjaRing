@@ -170,3 +170,50 @@ export function matchRecipe(
   }
   return null;
 }
+
+export async function addFoodEmojiToCollection(
+  coupleId: string,
+  recipeName: string,
+  emoji: string
+) {
+  const title = `food:${recipeName}`;
+  const now = new Date().toISOString();
+
+  // 1) 존재 여부 확인
+  const { data: exists, error: selErr } = await supabase
+    .from("sticker_inventory")
+    .select("qty")
+    .eq("couple_id", coupleId)
+    .eq("title", title)
+    .maybeSingle();
+
+  if (selErr) throw selErr;
+
+  if (exists) {
+    // 2-a) 있으면 qty + 1
+    const { error: updErr } = await supabase
+      .from("sticker_inventory")
+      .update({
+        qty: (exists.qty ?? 0) + 1,
+        updated_at: now as any,
+      })
+      .eq("couple_id", coupleId)
+      .eq("title", title);
+    if (updErr) throw updErr;
+  } else {
+    // 2-b) 없으면 생성
+    const { error: insErr } = await supabase.from("sticker_inventory").insert({
+      couple_id: coupleId,
+      title,
+      type: "emoji",
+      emoji,
+      url: null,
+      qty: 1,
+      base_w: 80,
+      base_h: 80,
+      created_at: now as any,
+      updated_at: now as any,
+    });
+    if (insErr) throw insErr;
+  }
+}

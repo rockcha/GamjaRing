@@ -24,6 +24,7 @@ import KitchenPage from "./pages/KitchenPage";
 import FishingPage from "./pages/FishingPage";
 import OddEvenGamesPage from "./features/mini_games/OddEvenGamesPage";
 import FloatingLeftRail from "./components/widgets/FloatingLeftRail";
+import StickerBoardPage from "./features/sticker_board/StickerBoardPage";
 
 export default function App() {
   return (
@@ -54,6 +55,7 @@ export default function App() {
               <Route path="potatoField" element={<PotatoFieldPage />} />
               <Route path="fishing" element={<FishingPage />} />
               <Route path="oddEven" element={<OddEvenGamesPage />} />
+              <Route path="stickerBoard" element={<StickerBoardPage />} />
             </Route>
           </Routes>
 

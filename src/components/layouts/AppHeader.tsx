@@ -15,6 +15,7 @@ import {
   Fish,
   Dice3, // ✅ 홀짝게임(주사위)
   Gamepad2, // ✅ 미니게임(게임기)
+  Sticker, // ✅ 스티커보드
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -45,6 +46,7 @@ type SimpleNavDef = {
     | "kitchen"
     | "aquarium"
     | "fishing"
+    | "stickerBoard" // ✅ 추가
     | "oddEven"
     | "miniGame";
   label: string;
@@ -63,14 +65,15 @@ const NAV_GROUPS: readonly (readonly SimpleNavDef[])[] = [
     { id: "bundle", label: "답변꾸러미", icon: MessagesSquare },
     { id: "scheduler", label: "스케쥴러", icon: CalendarDays },
   ],
-  // 4개
+  // 4개였던 그룹 → 5개로 확장 (스티커보드 추가)
   [
     { id: "farm", label: "농장", icon: Tractor }, // or Sprout
     { id: "kitchen", label: "조리실", icon: CookingPot },
     { id: "aquarium", label: "아쿠아리움", icon: Fish }, // 없으면 Waves/Fish
     { id: "fishing", label: "낚시터", icon: Waves },
+    { id: "stickerBoard", label: "스티커보드", icon: Sticker }, // ✅ 추가
   ],
-  // ✅ 새 그룹: 2개 (미니게임 섹션)
+  // ✅ 미니게임 섹션
   [
     { id: "oddEven", label: "홀짝게임", icon: Dice3 },
     { id: "miniGame", label: "미니게임", icon: Gamepad2 },
@@ -92,7 +95,9 @@ const GUARDS: Record<
   aquarium: { requireLogin: true, requireCouple: true },
   fishing: { requireLogin: true, requireCouple: true },
 
-  // ✅ 새로 추가된 라우트도 동일 가드 적용 (필요 시 조정)
+  // ✅ 스티커보드 가드 (필요시 requireCouple 풀어도 됨)
+  stickerBoard: { requireLogin: true, requireCouple: true },
+
   oddEven: { requireLogin: true, requireCouple: true },
   miniGame: { requireLogin: true, requireCouple: true },
 };
@@ -109,7 +114,9 @@ const FALLBACK_ROUTE: Record<string, string> = {
   aquarium: "/aquarium",
   fishing: "/fishing",
 
-  // ✅ 새 라우트
+  // ✅ 스티커보드 라우팅
+  stickerBoard: "/stickerBoard",
+
   oddEven: "/oddEven",
   miniGame: "/miniGame",
 };

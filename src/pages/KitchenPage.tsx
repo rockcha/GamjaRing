@@ -9,6 +9,7 @@ import RecipeShelf from "@/features/kitchen/RecipeShelf";
 import PotBox from "@/features/kitchen/PotBox";
 import RecipePreview from "@/features/kitchen/RecipePreview";
 import Inventory from "@/features/kitchen/Inventory";
+import { addFoodEmojiToCollection } from "@/features/kitchen/kitchenApi";
 import {
   RECIPES,
   RECIPES_BY_GRADE,
@@ -226,7 +227,8 @@ export default function KitchenPage() {
         );
         await usePotatoes(coupleId, r.potato);
         await addCookedFood(coupleId, r.name, 1);
-
+        // ✅ 요리 이모지를 스티커 이모지 컬렉션에 추가/누적
+        await addFoodEmojiToCollection(coupleId, r.name as RecipeName, r.emoji);
         const after = { ...invMap };
         r.ingredients.forEach(
           (t) => (after[t] = Math.max(0, (after[t] ?? 0) - 1))

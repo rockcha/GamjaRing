@@ -36,6 +36,8 @@ const BUNDLES = [
     cost: 3,
     count: 1,
     img: "/exchange/bundle-bag.png",
+    gradient:
+      "bg-[linear-gradient(135deg,#fffaf0_0%,#ffe6bf_55%,#ffd08b_100%)]", // amber light
   },
   {
     key: "pack",
@@ -43,6 +45,8 @@ const BUNDLES = [
     cost: 6,
     count: 2,
     img: "/exchange/bundle-pack.png",
+    gradient:
+      "bg-[linear-gradient(135deg,#fff7ed_0%,#ffd5ae_55%,#ffb781_100%)]", // orange
   },
   {
     key: "pile",
@@ -50,6 +54,8 @@ const BUNDLES = [
     cost: 9,
     count: 3,
     img: "/exchange/bundle-pile.png",
+    gradient:
+      "bg-[linear-gradient(135deg,#fff1f2_0%,#ffc6cc_55%,#ff9aa4_100%)]", // rose
   },
 ] as const;
 type BundleKey = (typeof BUNDLES)[number]["key"];
@@ -93,7 +99,7 @@ function Pill({
 }
 
 /* =========================
-   번들 카드
+   번들 카드 (크게, 가독성↑)
 ========================= */
 function BundleCard({
   disabled,
@@ -101,12 +107,18 @@ function BundleCard({
   label,
   subLabel,
   onClick,
+  gradient,
+  cost,
+  count,
 }: {
   disabled?: boolean;
   img: string;
   label: string;
   subLabel: string;
   onClick: () => void;
+  gradient: string;
+  cost: number;
+  count: number;
 }) {
   const onKey = useCallback(
     (e: React.KeyboardEvent<HTMLButtonElement>) => {
@@ -127,38 +139,53 @@ function BundleCard({
       disabled={disabled}
       aria-disabled={disabled}
       className={cn(
-        "group relative rounded-xl border bg-white p-2 text-left",
+        "group relative rounded-2xl border bg-white p-3 text-left",
         "transition will-change-transform",
-        "hover:shadow-sm hover:-translate-y-0.5",
+        "hover:shadow-md hover:-translate-y-0.5",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2",
         disabled &&
           "opacity-60 cursor-not-allowed hover:shadow-none hover:translate-y-0"
       )}
       title={disabled ? "커플 연결 후 이용 가능" : undefined}
     >
-      <figure className="flex flex-col items-center">
-        <div className="w-full aspect-square rounded-lg border bg-white grid place-items-center p-1">
+      {/* 썸네일 크게 */}
+      <figure className="flex items-center gap-3">
+        <div
+          className={cn(
+            "shrink-0 w-20 h-20 rounded-xl border grid place-items-center p-1",
+            gradient
+          )}
+        >
           <img
             src={img}
             alt={label}
-            className="max-h-20 object-contain transition-transform duration-300 group-hover:scale-[1.03]"
+            className="max-h-16 object-contain transition-transform duration-300 group-hover:scale-[1.04]"
             draggable={false}
             loading="lazy"
           />
         </div>
-        <figcaption className="mt-1 text-[11px] sm:text-xs font-medium text-zinc-800 text-center leading-tight">
-          {label}
+        <figcaption className="min-w-0">
+          <div className="text-sm sm:text-base font-semibold text-zinc-900 truncate">
+            {label}
+          </div>
+          <div className="mt-1 flex items-center gap-2">
+            <Pill className="border-amber-300/70">
+              <span aria-hidden>🥔</span> × {cost}
+            </Pill>
+            <Pill className="border-emerald-300/70">
+              <span aria-hidden>📦</span> × {count}
+            </Pill>
+          </div>
         </figcaption>
       </figure>
 
+      {/* 하단 서브 라벨 */}
       <div
         className={cn(
-          "pointer-events-none absolute inset-x-1 bottom-1 rounded-md",
-          "border bg-amber-50/95 text-amber-900 text-[10px] font-semibold",
-          "px-1.5 py-0.5 shadow-sm",
-          disabled
-            ? "opacity-80"
-            : "opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition"
+          "mt-3 rounded-lg",
+          "border bg-amber-50/95 text-amber-900 text-[11px] font-semibold",
+          "px-2 py-1 shadow-sm",
+          disabled ? "opacity-80" : "group-hover:bg-amber-50"
         )}
       >
         {subLabel}
@@ -174,7 +201,7 @@ function BundleCard({
 }
 
 /* =========================
-   보상 패널
+   보상 패널 (심플 리스트)
 ========================= */
 function RewardsPanel({
   loading,
@@ -193,13 +220,13 @@ function RewardsPanel({
     <section
       className={cn(
         "relative rounded-xl border",
-        "bg-gradient-to-b from-amber-50/70 to-white",
+        "bg-white/90",
         "p-3 sm:p-4 flex flex-col min-h-[220px]"
       )}
     >
       <header className="flex items-center justify-between gap-2">
-        <h3 className="text-sm sm:text-base font-semibold text-amber-900 inline-flex items-center gap-2">
-          <Sparkles className="h-4 w-4" aria-hidden /> 획득한 재료
+        <h3 className="text-sm sm:text-base font-semibold text-zinc-900 inline-flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-amber-600" aria-hidden /> 획득 결과
         </h3>
         <div className="text-xs text-zinc-500">{status}</div>
       </header>
@@ -208,8 +235,14 @@ function RewardsPanel({
         {!hasRewards ? (
           <div className="grid place-items-center h-full min-h-[140px]">
             {loading ? (
-              <div className="flex items-center gap-2 text-zinc-600">
-                <Loader2 className="h-4 w-4 animate-spin" /> 열어보는 중…
+              <div className="flex flex-col items-center gap-3 text-zinc-600">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" /> 열어보는 중…
+                </div>
+                <div className="w-full max-w-[440px] space-y-2">
+                  <Skeleton className="h-10" />
+                  <Skeleton className="h-10" />
+                </div>
               </div>
             ) : (
               <div className="text-center text-zinc-500 text-sm">
@@ -221,32 +254,27 @@ function RewardsPanel({
             )}
           </div>
         ) : (
-          <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
+          <ul className="divide-y divide-zinc-200 rounded-lg border bg-white">
             {lastRewards.map((r, i) => (
-              <div
+              <li
                 key={`${r.title}-${i}`}
-                className={cn(
-                  "group rounded-lg border bg-white/90 p-2",
-                  "hover:shadow-sm transition"
-                )}
+                className="flex items-center gap-3 px-3 py-2.5"
               >
-                <div className="flex items-center gap-2">
-                  <div
-                    className="text-2xl leading-none select-none"
-                    aria-hidden
-                  >
-                    {r.emoji}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-xs font-semibold text-zinc-800 truncate">
-                      {r.title}
-                    </div>
-                    <div className="text-[10px] text-zinc-500">1개 획득</div>
-                  </div>
+                <div
+                  aria-hidden
+                  className="grid place-items-center h-9 w-9 rounded-full border bg-zinc-50 text-xl"
+                >
+                  {r.emoji}
                 </div>
-              </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-zinc-900 truncate">
+                    {r.title}
+                  </div>
+                  <div className="text-[11px] text-zinc-500">수량 1</div>
+                </div>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
       </div>
 
@@ -260,8 +288,6 @@ function RewardsPanel({
           닫기
         </Button>
       </footer>
-
-      <div className="pointer-events-none absolute inset-x-0 -bottom-px h-px bg-gradient-to-r from-transparent via-amber-300/70 to-transparent" />
     </section>
   );
 }
@@ -368,7 +394,7 @@ export default function PotatoExchange({
 
   return (
     <>
-      {/* ✅ 오프너: 원형 이모지 버튼(텍스트 제거, PotatoPokeButton과 동일 UI) */}
+      {/* ✅ 오프너: 원형 이모지 버튼(텍스트 제거) */}
       <motion.button
         type="button"
         onClick={() => {
@@ -440,19 +466,20 @@ export default function PotatoExchange({
             <div className="mt-3 h-px w-full bg-gradient-to-r from-amber-200/80 via-transparent to-transparent" />
           </DialogHeader>
 
-          {/* 바디: 좌측 번들 목록 + 우측 결과 패널 */}
+          {/* 바디: 좌(7) 선택지 ↑ / 우(5) 결과 깔끔 */}
           <div className="px-3 sm:px-5 py-3 max-h-[65vh] overflow-y-auto">
             <div className="grid gap-3 grid-cols-1 md:grid-cols-12">
-              {/* 번들 목록 */}
-              <section className="md:col-span-5 lg:col-span-4 rounded-xl border bg-white p-2 sm:p-3">
+              {/* 선택지: 더 크게(7/12) */}
+              <section className="md:col-span-7 rounded-xl border bg-white p-3 sm:p-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-zinc-800 inline-flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-zinc-900 inline-flex items-center gap-2">
                     <Gift className="h-4 w-4" aria-hidden /> 선택지
                   </h3>
                   <div className="text-[11px] text-zinc-500">감자 사용</div>
                 </div>
 
-                <div className="mt-2 grid grid-cols-3 gap-2">
+                {/* 1열(모바일) → 2열(>=md) 큰 카드 */}
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
                   {BUNDLES.map((b) => (
                     <BundleCard
                       key={b.key}
@@ -461,6 +488,9 @@ export default function PotatoExchange({
                       label={b.label}
                       subLabel={`감자 ${b.cost} → 재료 ${b.count}`}
                       onClick={() => onClickBundle(b.key)}
+                      gradient={b.gradient}
+                      cost={b.cost}
+                      count={b.count}
                     />
                   ))}
                 </div>
@@ -473,8 +503,8 @@ export default function PotatoExchange({
                 )}
               </section>
 
-              {/* 결과 패널 */}
-              <div className="md:col-span-7 lg:col-span-8">
+              {/* 결과: 간결(5/12) */}
+              <div className="md:col-span-5">
                 <RewardsPanel
                   loading={isOpening}
                   status={status}
