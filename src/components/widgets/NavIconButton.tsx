@@ -38,7 +38,7 @@ export function NavItem({
         // 톤 & 보더
         "bg-[#FAF7F2] text-slate-800 border",
         // 상태
-        "hover:bg-amber-200 transition disabled:opacity-50 disabled:cursor-not-allowed",
+        "hover:bg-neutral-600  hover:text-white tranistion-all duration-700 disabled:opacity-50 disabled:cursor-not-allowed",
         // 포커스 링
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300",
         className

@@ -7,6 +7,7 @@ import type { BoardMeta, PlacedSticker, InventoryRow } from "./types";
 import StickerNode from "./StickerNode";
 import { DRAG_EMOJI_PREVIEW_SCALE } from "./dragPreview";
 import { renderEmojiToImage } from "./emojiTexture";
+import StickerInlineToolbar from "./StickerInlineToolbar";
 
 type Props = {
   board: BoardMeta;
@@ -23,6 +24,14 @@ type Props = {
 
   // Stage 컨테이너를 부모에 제공 (드롭 판정용)
   bindStageContainer?: (el: HTMLDivElement | null) => void;
+
+  // 인라인 툴바 콜백
+  onFront: () => void;
+  onBack: () => void;
+  onDelete: () => void;
+  onRotateStep: (d: number) => void;
+  onScaleStep: (d: number) => void;
+  onFlipX: () => void;
 };
 
 export default function StickerCanvas({
@@ -36,15 +45,28 @@ export default function StickerCanvas({
   draggingItem,
   dragSeed,
   bindStageContainer,
+  onFront,
+  onBack,
+  onDelete,
+  onRotateStep,
+  onScaleStep,
+  onFlipX,
 }: Props) {
   const [bg] = useImage(board.bg_url ?? "", "anonymous");
   const stageRef = useRef<any>(null);
 
-  // 부모로 Stage 컨테이너 전달
+  // 부모로 Stage 컨테이너 전달 + rect 보관
+  const [stageRect, setStageRect] = useState<DOMRect | null>(null);
   useEffect(() => {
     const el: HTMLDivElement | null = stageRef.current?.container?.() ?? null;
     bindStageContainer?.(el);
-    return () => bindStageContainer?.(null);
+    const update = () => setStageRect(el?.getBoundingClientRect() ?? null);
+    update();
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      bindStageContainer?.(null);
+    };
   }, [bindStageContainer]);
 
   const sorted = useMemo(
@@ -52,19 +74,18 @@ export default function StickerCanvas({
     [placed]
   );
 
-  // Stage 내부 고스트 좌표
+  // Stage 내부 고스트
   const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
 
-  // 고스트 텍스처: PNG는 useImage, 이모지는 renderEmojiToImage
+  // 고스트 텍스처
   const [ghostPng] = useImage(
     draggingItem?.type === "image" ? draggingItem?.url ?? "" : undefined,
     "anonymous"
   );
-
   const ghostEmoji = useMemo(() => {
     if (!draggingItem || draggingItem.type !== "emoji" || !draggingItem.emoji)
       return undefined;
-    // 프리뷰 스케일 반영해서 생성 (시각/좌표 일치)
     return renderEmojiToImage(
       draggingItem.emoji,
       Math.round(draggingItem.base_w * DRAG_EMOJI_PREVIEW_SCALE)
@@ -103,77 +124,107 @@ export default function StickerCanvas({
     return () => window.removeEventListener("pointermove", onMove);
   }, [editable, draggingTitle]);
 
+  // 선택 스티커 anchor(Stage 좌표) 계산 → 인라인 툴바 배치용
+  const anchor = useMemo(() => {
+    if (!selectedId) return null;
+    const s = placed.find((p) => p.id === selectedId);
+    if (!s) return null;
+    return {
+      cx: s.x + (s.base_w || 0) / 2,
+      cy: s.y + (s.base_h || 0) / 2,
+      w: s.base_w || 0,
+      h: s.base_h || 0,
+    };
+  }, [selectedId, placed]);
+
   return (
-    <Stage
-      ref={stageRef}
-      width={board.width}
-      height={board.height}
-      onPointerDown={(e: any) => {
-        const stage = e.target?.getStage?.();
-        if (stage && e.target === stage) setSelectedId(null);
-      }}
-      className={editable && draggingTitle ? "cursor-grabbing" : undefined}
-      style={{ touchAction: editable && draggingTitle ? "none" : "auto" }}
-    >
-      <Layer>
-        {bg && (
-          <KImage
-            image={bg as any}
-            x={0}
-            y={0}
-            width={board.width}
-            height={board.height}
-          />
-        )}
+    <>
+      <Stage
+        ref={stageRef}
+        width={board.width}
+        height={board.height}
+        onPointerDown={(e: any) => {
+          const stage = e.target?.getStage?.();
+          if (stage && e.target === stage) setSelectedId(null);
+        }}
+        className={editable && draggingTitle ? "cursor-grabbing" : undefined}
+        style={{ touchAction: editable && draggingTitle ? "none" : "auto" }}
+      >
+        <Layer>
+          {bg && (
+            <KImage
+              image={bg as any}
+              x={0}
+              y={0}
+              width={board.width}
+              height={board.height}
+            />
+          )}
 
-        {sorted.map((s) => (
-          <StickerNode
-            key={s.id}
-            s={s}
-            editable={editable}
-            selected={s.id === selectedId}
-            onSelect={() => setSelectedId(s.id)}
-            onChange={(patch) => onPatch(s.id, patch)}
-          />
-        ))}
+          {sorted.map((s) => (
+            <StickerNode
+              key={s.id}
+              s={s}
+              editable={editable}
+              selected={s.id === selectedId}
+              onSelect={() => setSelectedId(s.id)}
+              onChange={(patch) => onPatch(s.id, patch)}
+              onDragStart={() => setDragging(true)}
+              onDragEnd={() => setTimeout(() => setDragging(false), 180)}
+            />
+          ))}
 
-        {/* Stage 내부 미리보기 고스트 (이미지/이모지 모두 KImage로 통일) */}
-        {editable && draggingItem && ghost && (
-          <KImage
-            image={
-              draggingItem.type === "image"
-                ? (ghostPng as any)
-                : (ghostEmoji as any)
-            }
-            x={
-              ghost.x -
-              (draggingItem.base_w *
-                (draggingItem.type === "emoji"
-                  ? DRAG_EMOJI_PREVIEW_SCALE
-                  : 1)) /
-                2
-            }
-            y={
-              ghost.y -
-              (draggingItem.base_h *
-                (draggingItem.type === "emoji"
-                  ? DRAG_EMOJI_PREVIEW_SCALE
-                  : 1)) /
-                2
-            }
-            width={
-              draggingItem.base_w *
-              (draggingItem.type === "emoji" ? DRAG_EMOJI_PREVIEW_SCALE : 1)
-            }
-            height={
-              draggingItem.base_h *
-              (draggingItem.type === "emoji" ? DRAG_EMOJI_PREVIEW_SCALE : 1)
-            }
-            opacity={0.8}
-            listening={false}
-          />
-        )}
-      </Layer>
-    </Stage>
+          {/* Stage 내부 미리보기 고스트 (이미지/이모지 모두 KImage로 통일) */}
+          {editable && draggingItem && ghost && (
+            <KImage
+              image={
+                draggingItem.type === "image"
+                  ? (ghostPng as any)
+                  : (ghostEmoji as any)
+              }
+              x={
+                ghost.x -
+                (draggingItem.base_w *
+                  (draggingItem.type === "emoji"
+                    ? DRAG_EMOJI_PREVIEW_SCALE
+                    : 1)) /
+                  2
+              }
+              y={
+                ghost.y -
+                (draggingItem.base_h *
+                  (draggingItem.type === "emoji"
+                    ? DRAG_EMOJI_PREVIEW_SCALE
+                    : 1)) /
+                  2
+              }
+              width={
+                draggingItem.base_w *
+                (draggingItem.type === "emoji" ? DRAG_EMOJI_PREVIEW_SCALE : 1)
+              }
+              height={
+                draggingItem.base_h *
+                (draggingItem.type === "emoji" ? DRAG_EMOJI_PREVIEW_SCALE : 1)
+              }
+              opacity={0.8}
+              listening={false}
+            />
+          )}
+        </Layer>
+      </Stage>
+
+      {/* 선택 스티커 위 오버레이 툴바 */}
+      <StickerInlineToolbar
+        visible={!!selectedId && !dragging && editable}
+        anchor={anchor}
+        stageRect={stageRect}
+        onFront={onFront}
+        onBack={onBack}
+        onDelete={onDelete}
+        onRotateStep={onRotateStep}
+        onScaleStep={onScaleStep}
+        onFlipX={onFlipX}
+      />
+    </>
   );
 }

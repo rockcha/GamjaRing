@@ -100,8 +100,8 @@ export default function PotatoPokeButton({
         "relative grid place-items-center",
         "h-14 w-14 rounded-full border",
         "bg-white/60 ",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2",
-        "transition-colors",
+        "hover:pl-4 transition-all duration-500",
+
         loading ? "opacity-80 cursor-not-allowed" : "cursor-pointer",
       ].join(" ")}
     >

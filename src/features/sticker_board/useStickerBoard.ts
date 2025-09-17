@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase, getBoard, getInventory, getPlaced } from "./supa";
+import {
+  supabase,
+  getBoard,
+  getInventory,
+  getPlaced,
+  getBoardColor,
+  upsertBoardColor,
+} from "./supa";
 import type { BoardMeta, InventoryRow, PlacedSticker } from "./types";
 
 export function useStickerBoard(coupleId?: string | null) {
@@ -13,18 +20,23 @@ export function useStickerBoard(coupleId?: string | null) {
   const [inventory, setInventory] = useState<InventoryRow[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // ✔️ color: DB 영속화된 테마 키 또는 HEX
+  const [color, setColor] = useState<string>("beige");
+
   // 초기 로드
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [b, p, inv] = await Promise.all([
+      const [b, p, inv, col] = await Promise.all([
         getBoard(coupleId),
         getPlaced(coupleId),
         getInventory(coupleId),
+        coupleId ? getBoardColor(coupleId) : Promise.resolve("beige"),
       ]);
       setBoard(b);
       setPlaced(p);
       setInventory(inv);
+      setColor(col);
       setLoading(false);
     })();
   }, [coupleId]);
@@ -85,7 +97,7 @@ export function useStickerBoard(coupleId?: string | null) {
     };
   }, [coupleId]);
 
-  // ✅ 상점 구매 등 외부 이벤트로 인벤토리 강제 최신화
+  // 외부 이벤트로 인벤토리 강제 최신화
   useEffect(() => {
     if (!coupleId) return;
     const onBump = async (ev: any) => {
@@ -107,6 +119,15 @@ export function useStickerBoard(coupleId?: string | null) {
     };
   }, []);
 
+  // ✔️ 색상 변경(낙관적 반영 + 업서트)
+  const setColorPersist = (next: string) => {
+    setColor(next);
+    if (coupleId) {
+      // 너무 자주 쓰이는 클릭이므로 debounce 없이 간단 딜레이
+      setTimeout(() => upsertBoardColor(coupleId, next), 50);
+    }
+  };
+
   return {
     board,
     placed,
@@ -115,5 +136,7 @@ export function useStickerBoard(coupleId?: string | null) {
     setInventory,
     loading,
     saveDebounced,
+    color,
+    setColorPersist,
   };
 }

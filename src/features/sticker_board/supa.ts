@@ -2,7 +2,7 @@
 import supabase from "@/lib/supabase";
 import type { BoardMeta, InventoryRow, PlacedSticker } from "./types";
 
-// --- Queries --------------------------------------------------
+// --- Board / Placed / Inventory --------------------------------------------------
 
 export async function getBoard(coupleId?: string | null): Promise<BoardMeta> {
   if (!coupleId) {
@@ -55,7 +55,28 @@ export async function getInventory(
   return (data ?? []) as InventoryRow[];
 }
 
-// --- Mutations / RPC -----------------------------------------
+// --- Color persist (stickerboard_color) -----------------------------------------
+
+/** DB에서 보드 컬러 텍스트(beige|mint|... 또는 #hex) 읽기 */
+export async function getBoardColor(coupleId: string): Promise<string> {
+  const { data, error } = await supabase
+    .from("stickerboard_color")
+    .select("color")
+    .eq("couple_id", coupleId)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.color ?? "beige";
+}
+
+/** 보드 컬러 업서트 */
+export async function upsertBoardColor(coupleId: string, color: string) {
+  const { error } = await supabase
+    .from("stickerboard_color")
+    .upsert({ couple_id: coupleId, color }, { onConflict: "couple_id" });
+  if (error) throw error;
+}
+
+// --- Mutations / RPC -------------------------------------------------------------
 
 export async function placeFromInventory(
   coupleId: string,

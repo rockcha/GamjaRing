@@ -188,7 +188,7 @@ export default function DailyFortuneCard({
           "relative grid place-items-center",
           "h-14 w-14 rounded-full",
           "bg-white/60 text-slate-800 border border-neutral-200",
-          "hover:bg-neutral-50 transition-colors",
+          "hover:pl-4 transition-all duration-500",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2",
           className
         )}

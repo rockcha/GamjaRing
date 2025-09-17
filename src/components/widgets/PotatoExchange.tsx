@@ -140,11 +140,9 @@ function BundleCard({
       aria-disabled={disabled}
       className={cn(
         "group relative rounded-2xl border bg-white p-3 text-left",
-        "transition will-change-transform",
-        "hover:shadow-md hover:-translate-y-0.5",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2",
-        disabled &&
-          "opacity-60 cursor-not-allowed hover:shadow-none hover:translate-y-0"
+
+        "hover:pl-4 transition-all duration-500",
+        disabled && "opacity-60 cursor-not-allowed "
       )}
       title={disabled ? "커플 연결 후 이용 가능" : undefined}
     >
@@ -406,8 +404,7 @@ export default function PotatoExchange({
           "relative grid place-items-center",
           "h-14 w-14 rounded-full border",
           "bg-white/90",
-          "transition-colors hover:bg-neutral-50",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2",
+          "hover:pl-4 transition-all duration-500",
           className
         )}
       >

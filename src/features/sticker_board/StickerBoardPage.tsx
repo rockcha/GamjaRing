@@ -5,7 +5,6 @@ import { useCoupleContext } from "@/contexts/CoupleContext";
 import { useStickerBoard } from "./useStickerBoard";
 import StickerCanvas from "./StickerCanvas";
 import InventoryDock from "./InventoryDock";
-import StickerToolbar from "./StickerToolbar";
 import {
   moveToBack,
   moveToFront,
@@ -14,9 +13,9 @@ import {
   updateSticker,
   getPlaced,
   getInventory,
-} from "@/features/sticker_board/supa";
-import type { PlacedSticker } from "@/features/sticker_board/types";
-import { clamp } from "@/features/sticker_board/clamp";
+} from "./supa";
+import type { PlacedSticker } from "./types";
+import { clamp } from "./clamp";
 import EmojiShopButton from "./EmojiShopButton";
 import { DRAG_EMOJI_PREVIEW_SCALE } from "./dragPreview";
 
@@ -70,6 +69,8 @@ export default function StickerBoardPage() {
     setInventory,
     loading,
     saveDebounced,
+    color,
+    setColorPersist,
   } = useStickerBoard(coupleId);
 
   const [edit, setEdit] = useState(false);
@@ -79,8 +80,11 @@ export default function StickerBoardPage() {
     [placed, selectedId]
   );
 
-  // 배경 테마
-  const [theme, setTheme] = useState<ThemeKey>("beige");
+  const themeKey: ThemeKey = (
+    ["beige", "mint", "sky", "lavender", "peach"] as ThemeKey[]
+  ).includes(color as ThemeKey)
+    ? (color as ThemeKey)
+    : "beige";
 
   // 인벤토리 드래그 상태
   const [draggingTitle, setDraggingTitle] = useState<string | null>(null);
@@ -101,6 +105,19 @@ export default function StickerBoardPage() {
     null
   );
   const [overlayInside, setOverlayInside] = useState(false);
+
+  // 가상 높이(무한 확장)
+  const [virtualHeight, setVirtualHeight] = useState(board.height);
+  useEffect(() => setVirtualHeight(board.height), [board.height]);
+
+  // 스크롤 컨테이너: 페이지 전체
+  const onScrollContainer = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const nearBottom =
+      el.scrollTop + el.clientHeight >=
+      el.scrollHeight - el.clientHeight * 0.25;
+    if (nearBottom) setVirtualHeight((h) => h + 800);
+  };
 
   useEffect(() => {
     if (!draggingTitle) {
@@ -365,39 +382,23 @@ export default function StickerBoardPage() {
 
   if (loading) return <div className="p-6">Loading...</div>;
 
-  return (
-    <div className="flex h-[calc(100dvh-64px)] relative">
-      <div className="flex-1 relative">
-        {/* 상단 바 (왼쪽) */}
-        <div className="absolute left-3 top-3 z-10 flex items-center gap-3">
-          <EmojiShopButton />
-        </div>
+  const gradientClass = BG_THEMES[themeKey].classes;
 
-        {/* 상단 바 (오른쪽: 상점 + 테마 선택) */}
-        <div className="absolute right-3 top-3 z-10 flex items-center gap-3">
-          {/* 테마 스와치 */}
-          <div className="flex items-center gap-1 bg-white/80 backdrop-blur rounded-full p-1 border">
-            {(["beige", "mint", "sky", "lavender", "peach"] as ThemeKey[]).map(
-              (key) => (
-                <button
-                  key={key}
-                  onClick={() => setTheme(key)}
-                  className={`w-6 h-6 rounded-full border ${
-                    theme === key ? "ring-2 ring-black ring-offset-1" : ""
-                  }`}
-                  aria-label={BG_THEMES[key].label}
-                  title={BG_THEMES[key].label}
-                >
-                  <span
-                    className={`block w-full h-full rounded-full ${BG_THEMES[key].dot}`}
-                  />
-                </button>
-              )
-            )}
+  return (
+    <div
+      className={`relative h-[100dvh] overflow-y-auto ${gradientClass}`}
+      onScroll={onScrollContainer}
+    >
+      <div className="flex min-h-[100dvh]">
+        {/* 캔버스 + 오버레이 버튼을 한 박스에 묶고, 그 박스를 relative로 */}
+        <div className="relative flex-1">
+          {/* 캔버스 오버레이 버튼들: 캔버스 박스 기준 좌상단/우상단 */}
+          <div className="absolute left-3 top-3 z-20">
+            <EmojiShopButton />
           </div>
 
           <button
-            className="px-3 py-1 rounded bg-black text-white"
+            className="absolute right-3 top-3 z-20 px-3 py-1 rounded bg-black text-white"
             onClick={() => {
               setEdit((v) => !v);
               setSelectedId(null);
@@ -407,93 +408,113 @@ export default function StickerBoardPage() {
             {edit ? "편집 종료" : "편집하기"}
           </button>
 
-          {edit && (
-            <StickerToolbar
-              selected={selected ?? null}
-              onFront={bringFront}
-              onBack={sendBack}
-              onDelete={handleDelete}
-              onRotateStep={rotateStep}
-              onScaleStep={scaleStep}
-              onFlipX={toggleFlipX}
-            />
-          )}
-        </div>
+          {/* 우측 중앙: 색상 스와치 (캔버스 기준) */}
+          <div className="absolute right-1/2 top-6 -translate-y-1/2 z-20 flex  gap-2 bg-white/80 backdrop-blur p-2 rounded-2xl border">
+            {(["beige", "mint", "sky", "lavender", "peach"] as ThemeKey[]).map(
+              (key) => (
+                <button
+                  key={key}
+                  onClick={() => setColorPersist(key)}
+                  className={`h-7 w-7 rounded-full border ${
+                    themeKey === key ? "ring-2 ring-black ring-offset-1" : ""
+                  }`}
+                  aria-label={BG_THEMES[key].label}
+                  title={BG_THEMES[key].label}
+                >
+                  <span
+                    className={`block h-full w-full rounded-full ${BG_THEMES[key].dot}`}
+                  />
+                </button>
+              )
+            )}
+          </div>
 
-        {/* 캔버스 래퍼: 그라데이션은 여기! (스티커를 덮지 않음) */}
-        <div
-          className={`grid place-items-center w-full h-full ${BG_THEMES[theme].classes}`}
-        >
-          <StickerCanvas
-            board={board}
-            placed={placed}
-            editable={edit}
-            selectedId={selectedId}
-            setSelectedId={setSelectedId}
-            onPatch={handlePatch}
-            draggingTitle={draggingTitle}
-            draggingItem={draggingItem}
-            dragSeed={dragSeed}
-            bindStageContainer={(el) => (stageElRef.current = el)}
-          />
-        </div>
-      </div>
-
-      {/* 인벤토리 도크 */}
-      {edit && (
-        <InventoryDock
-          items={inventory}
-          onStartDrag={(title, seed) => {
-            setDraggingTitle(title);
-            if (seed) setDragSeed(seed);
-            document.body.style.cursor = "grabbing";
-          }}
-        />
-      )}
-
-      {/* 전역 HTML 고스트: 보드 밖에서만 표시 */}
-      {edit && draggingItem && overlayPos && !overlayInside && (
-        <div
-          className="pointer-events-none fixed z-[9999]"
-          style={{
-            left: 0,
-            top: 0,
-            transform: `translate(${
-              overlayPos.x -
-              (draggingItem.base_w * DRAG_EMOJI_PREVIEW_SCALE) / 2
-            }px, ${
-              overlayPos.y -
-              (draggingItem.base_h * DRAG_EMOJI_PREVIEW_SCALE) / 2
-            }px)`,
-          }}
-        >
-          {draggingItem.type === "image" ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={draggingItem.url ?? ""}
-              alt="ghost"
-              width={draggingItem.base_w}
-              height={draggingItem.base_h}
-              style={{ opacity: 0.8 }}
-            />
-          ) : (
-            <div
-              style={{
-                width: draggingItem.base_w * DRAG_EMOJI_PREVIEW_SCALE,
-                height: draggingItem.base_h * DRAG_EMOJI_PREVIEW_SCALE,
-                display: "grid",
-                placeItems: "center",
-                fontSize: Math.floor(
-                  draggingItem.base_h * DRAG_EMOJI_PREVIEW_SCALE * 0.8
-                ),
-                opacity: 0.9,
-              }}
-            >
-              {draggingItem.emoji}
+          {/* 실제 캔버스(무한 확장 높이 적용) */}
+          <div className="grid place-items-start w-full">
+            <div className="w-full" style={{ height: virtualHeight }}>
+              <StickerCanvas
+                board={{ ...board, height: virtualHeight }}
+                placed={placed}
+                editable={edit}
+                selectedId={selectedId}
+                setSelectedId={setSelectedId}
+                onPatch={handlePatch}
+                draggingTitle={draggingTitle}
+                draggingItem={draggingItem}
+                dragSeed={dragSeed}
+                bindStageContainer={(el) => (stageElRef.current = el)}
+                onFront={bringFront}
+                onBack={sendBack}
+                onDelete={handleDelete}
+                onRotateStep={rotateStep}
+                onScaleStep={scaleStep}
+                onFlipX={toggleFlipX}
+              />
             </div>
-          )}
+          </div>
         </div>
-      )}
+
+        {/* 인벤토리 도크: 스크롤은 여기서만! (Dock 안에서는overflow 제거) */}
+        {edit && (
+          <aside
+            className="sticky top-0 h-[100dvh] w-72 border-l bg-white/80 backdrop-blur overflow-y-auto [scrollbar-gutter:stable] "
+            // ↑ scrollbar-gutter로 스크롤바 공간을 항상 확보(3열 잘림 방지)
+          >
+            <InventoryDock
+              items={inventory}
+              onStartDrag={(title, seed) => {
+                setDraggingTitle(title);
+                if (seed) setDragSeed(seed);
+                document.body.style.cursor = "grabbing";
+              }}
+            />
+          </aside>
+        )}
+
+        {/* 전역 HTML 고스트: 보드 밖에서만 표시 */}
+        {edit && draggingItem && overlayPos && !overlayInside && (
+          <div
+            className="pointer-events-none fixed z-[9999]"
+            style={{
+              left: 0,
+              top: 0,
+              transform: `translate(${
+                overlayPos.x -
+                (draggingItem.base_w * DRAG_EMOJI_PREVIEW_SCALE) / 2
+              }px, ${
+                overlayPos.y -
+                (draggingItem.base_h * DRAG_EMOJI_PREVIEW_SCALE) / 2
+              }px)`,
+            }}
+          >
+            {draggingItem.type === "image" ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={draggingItem.url ?? ""}
+                alt="ghost"
+                width={draggingItem.base_w}
+                height={draggingItem.base_h}
+                style={{ opacity: 0.8 }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: draggingItem.base_w * DRAG_EMOJI_PREVIEW_SCALE,
+                  height: draggingItem.base_h * DRAG_EMOJI_PREVIEW_SCALE,
+                  display: "grid",
+                  placeItems: "center",
+                  fontSize: Math.floor(
+                    draggingItem.base_h * DRAG_EMOJI_PREVIEW_SCALE * 0.8
+                  ),
+                  opacity: 0.9,
+                }}
+              >
+                {draggingItem.emoji}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

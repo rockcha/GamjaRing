@@ -54,7 +54,8 @@ export default function InventoryDock({ items, onStartDrag }: Props) {
   }, []);
 
   return (
-    <aside className="w-72 h-full overflow-auto bg-white/80 backdrop-blur border-l p-3">
+    // 🟢 스크롤/폭은 부모(aside)가 담당하므로 Dock은 w-full/h-full, overflow 제거
+    <aside className="w-full h-full box-border bg-white/0 p-3">
       {/* 헤더: 제목 + 토글 */}
       <div className="mb-2 flex items-center justify-between gap-2">
         <h3 className="font-semibold">내 스티커</h3>

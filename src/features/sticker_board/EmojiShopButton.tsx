@@ -97,7 +97,11 @@ const THEMES: { key: string; displayName: string; emojis: string[] }[] = [
     displayName: "💖 감정 & 상징",
     emojis: ["💖", "💕", "💓", "💜", "💛", "💚", "💙", "🤍", "🌟", "✨"],
   },
-
+  {
+    key: "border",
+    displayName: "🧱 울타리 & 박스 (테두리 재료)",
+    emojis: ["🧱", "🪵", "🚧", "⛓️", "🟧", "🟨", "🟩", "🟦", "🟪", "🟫", "📦"],
+  },
   {
     key: "animals",
     displayName: "🐾 동물",
