@@ -95,14 +95,12 @@ export default function PageLayout({
     <div className="min-h-[100svh] max-w-screen-2xl mx-auto bg-gradient-to-b from-[#FAF5EB] via-[#EFE5D7] to-[#E6D5C3] text-[#3d2b1f]">
       {/* 고정 헤더 */}
       <AppHeader routeTitle={routeTitle} />
-
+      <FloatingLeftRail />
       {/* 본문 */}
       <main
         id="main"
         className="mx-auto flex min-h-[calc(100vh-9rem)] w-full max-w-screen-2xl items-center justify-center px-2"
       >
-        <FloatingLeftRail />
-
         <Outlet />
       </main>
     </div>

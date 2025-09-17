@@ -59,7 +59,6 @@ export default function App() {
 
           {/* ✅ 여기! Routes 바깥에 전역으로 한 번만 */}
           <Toaster position="bottom-right" richColors />
-          <FloatingLeftRail />
         </BrowserRouter>
       </CoupleProvider>
     </UserProvider>
