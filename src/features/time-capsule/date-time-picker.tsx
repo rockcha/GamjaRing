@@ -4,15 +4,19 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
+import { Calendar as CalendarIcon } from "lucide-react";
 
 type Props = {
-  /** 현재 값 (로컬 시간대 기준) */
-  value: Date | null;
-  /** 값 변경 콜백 */
-  onChange: (v: Date | null) => void;
-  /** 허용 최소 시각 (기본: now) */
-  min?: Date;
-  /** 전체 비활성화 */
+  value: Date | null; // 현재 값 (로컬 시간대)
+  onChange: (v: Date | null) => void; // 값 변경 콜백
+  min?: Date; // 허용 최소 시각 (기본: now)
   disabled?: boolean;
   className?: string;
 };
@@ -26,6 +30,8 @@ function split2(s: string, delim: string): [string, string] | null {
   const parts = s.split(delim);
   return parts.length === 2 ? (parts as [string, string]) : null;
 }
+const startOfDay = (d: Date) =>
+  new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
 function clampTo5min(d: Date) {
   const n = new Date(d);
@@ -35,7 +41,6 @@ function clampTo5min(d: Date) {
   if (rounded >= 60) n.setHours(n.getHours() + 1);
   return n;
 }
-
 function isBefore(a: Date, b: Date) {
   return a.getTime() < b.getTime();
 }
@@ -49,9 +54,8 @@ function isValidDateStr(s: string) {
   const y = Number(yStr);
   const m = Number(mStr);
   const d = Number(dStr);
-  if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) {
+  if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d))
     return false;
-  }
   const dt = new Date(y, m - 1, d);
   return (
     dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d
@@ -73,7 +77,6 @@ function isValidTimeStr(s: string) {
 /** dateStr + timeStr → Date (로컬) */
 function composeDate(dateStr: string, timeStr: string) {
   if (!isValidDateStr(dateStr) || !isValidTimeStr(timeStr)) return null;
-
   const dParts = split3(dateStr, "-")!;
   const tParts = split2(timeStr, ":")!;
   const y = Number(dParts[0]);
@@ -81,7 +84,6 @@ function composeDate(dateStr: string, timeStr: string) {
   const d = Number(dParts[2]);
   const hh = Number(tParts[0]);
   const mm = Number(tParts[1]);
-
   const dt = new Date(y, m - 1, d, hh, mm, 0, 0);
   if (Number.isNaN(dt.getTime())) return null;
   return dt;
@@ -95,6 +97,14 @@ function splitDate(d: Date) {
   )}`;
   const timeStr = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
   return { dateStr, timeStr };
+}
+
+/** 숫자 타이핑 → YYYY-MM-DD 자동 포맷 */
+function normalizeDateTyping(raw: string) {
+  const digits = raw.replace(/\D/g, "").slice(0, 8);
+  if (digits.length <= 4) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 4)}-${digits.slice(4, 6)}`;
+  return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
 }
 
 export default function DateTimePicker({
@@ -141,7 +151,6 @@ export default function DateTimePicker({
       }
 
       let dt = composeDate(nextDateStr, nextTimeStr)!;
-
       if (opts?.clamp5) dt = clampTo5min(dt);
 
       if (opts?.enforceMin && isBefore(dt, minDate)) {
@@ -182,26 +191,65 @@ export default function DateTimePicker({
     }
   }
 
+  // 캘린더에서 비활성화할 날짜 (min의 자정 이전은 선택 불가)
+  const disableBefore = startOfDay(minDate);
+
   return (
     <div className={cn("space-y-2", className)}>
       <div className="grid grid-cols-2 gap-2">
+        {/* 날짜: 숫자 입력 + 캘린더 버튼(둘 다 가능) */}
         <div className="space-y-1">
           <div className="text-xs text-neutral-500 px-1">날짜 (YYYY-MM-DD)</div>
-          <Input
-            value={dateStr}
-            onChange={(e) => setDateStr(e.target.value)}
-            onBlur={handleBlur}
-            placeholder="2025-12-31"
-            inputMode="numeric"
-            disabled={disabled}
-          />
+          <div className="relative">
+            <Input
+              value={dateStr}
+              onChange={(e) => setDateStr(normalizeDateTyping(e.target.value))}
+              onBlur={() => applyChange(dateStr, timeStr, { enforceMin: true })}
+              placeholder="2025-12-31"
+              inputMode="numeric"
+              disabled={disabled}
+            />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="absolute right-0 top-0 h-9 w-9"
+                  disabled={disabled}
+                >
+                  <CalendarIcon className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="p-0" align="end">
+                <Calendar
+                  mode="single"
+                  selected={
+                    isValidDateStr(dateStr) ? new Date(dateStr) : undefined
+                  }
+                  onSelect={(d) => {
+                    if (!d) return;
+                    const y = d.getFullYear();
+                    const m = `${d.getMonth() + 1}`.padStart(2, "0");
+                    const day = `${d.getDate()}`.padStart(2, "0");
+                    const ds = `${y}-${m}-${day}`;
+                    applyChange(ds, timeStr, { enforceMin: true });
+                  }}
+                  disabled={(d) => d < disableBefore}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
+
+        {/* 시간: HH:mm (숫자 입력) */}
         <div className="space-y-1">
           <div className="text-xs text-neutral-500 px-1">시간 (HH:mm)</div>
           <Input
             value={timeStr}
             onChange={(e) => setTimeStr(e.target.value)}
-            onBlur={handleBlur}
+            onBlur={() => handleBlur()}
             placeholder="14:30"
             inputMode="numeric"
             disabled={disabled}

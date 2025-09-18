@@ -46,9 +46,10 @@ const KST_TZ = "Asia/Seoul";
 /* ───────── Settings ───────── */
 const CHAIN_OVERLAY_SRC = "/time-capsule/chains.png"; // 투명 PNG(1:1 추천)
 const GRID_CLASSES =
-  "grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3  lg:grid-cols-4  2xl:grid-cols-6";
+  "grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6";
 
 /* ───────── Utils ───────── */
+/** 초 포함(토스트 등 상세 메시지용) */
 function formatRemaining(ms: number) {
   if (ms <= 0) return "지금 열람 가능";
   const sec = Math.floor(ms / 1000);
@@ -60,6 +61,18 @@ function formatRemaining(ms: number) {
   if (h > 0) return `${h}시간 ${m}분 ${s}초 남음`;
   if (m > 0) return `${m}분 ${s}초 남음`;
   return `${s}초 남음`;
+}
+/** 초 제거(툴팁용) */
+function formatRemainingBrief(ms: number) {
+  if (ms <= 0) return "지금 열람 가능";
+  const sec = Math.floor(ms / 1000);
+  const d = Math.floor(sec / 86400);
+  const h = Math.floor((sec % 86400) / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  if (d > 0) return `${d}일 ${h}시간 ${m}분 남음`;
+  if (h > 0) return `${h}시간 ${m}분 남음`;
+  if (m > 0) return `${m}분 남음`;
+  return "곧 열람 가능";
 }
 function formatDurationShort(ms: number) {
   const sec = Math.max(0, Math.floor(ms / 1000));
@@ -164,6 +177,7 @@ export default function PartnerTimeCapsulesPage() {
 
   const onCardClick = (it: (typeof enriched)[number]) => {
     if (!it.openable) {
+      // 토스트는 기존 포맷(초 포함) 유지
       toast.warning(
         "아직 열 수 없어요. " + formatRemaining(Math.max(0, it.remainMs))
       );
@@ -260,10 +274,10 @@ export default function PartnerTimeCapsulesPage() {
           {loading ? (
             <div className="p-3 sm:p-4 md:p-5">
               <div className={GRID_CLASSES}>
-                {Array.from({ length: 20 }).map((_, i) => (
+                {Array.from({ length: 18 }).map((_, i) => (
                   <Skeleton
                     key={i}
-                    className="min-w-[100px] aspect-square rounded-2xl "
+                    className="aspect-square min-w-[140px] rounded-2xl"
                   />
                 ))}
               </div>
@@ -284,7 +298,8 @@ export default function PartnerTimeCapsulesPage() {
                     const remain = Math.max(0, (it as any).remainMs as number);
                     const imgSrc = pickCapsuleImage(it.id + it.title);
 
-                    const tooltipText = formatRemaining(remain);
+                    // 툴팁은 초 제거 버전
+                    const tooltipText = formatRemainingBrief(remain);
 
                     return (
                       <Tooltip key={it.id}>
@@ -293,12 +308,16 @@ export default function PartnerTimeCapsulesPage() {
                             type="button"
                             onClick={() => onCardClick(it as any)}
                             whileTap={{ scale: 0.985 }}
+                            aria-label={`${it.title} – ${
+                              openable ? "열람 가능" : tooltipText
+                            }`}
                             className={cn(
-                              "group relative aspect-square w-full min-w-[100px] overflow-hidden rounded-2xl border bg-white shadow-sm transition",
-                              "ring-1 ring-black/5 hover:shadow-md hover:-translate-y-[1px]",
+                              "group relative aspect-square w-full min-w-[140px] overflow-hidden rounded-2xl border bg-white transition",
+                              "ring-1 ring-black/5 shadow-sm hover:shadow-md hover:-translate-y-[1px]",
+                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
                               openable
-                                ? "border-emerald-200"
-                                : "border-stone-200"
+                                ? "border-emerald-200 focus-visible:ring-emerald-500"
+                                : "border-stone-200 focus-visible:ring-stone-500"
                             )}
                           >
                             {/* image */}
@@ -332,8 +351,11 @@ export default function PartnerTimeCapsulesPage() {
                             <div className="absolute inset-x-0 top-1.5 flex justify-center pointer-events-none">
                               <div
                                 className={cn(
-                                  "max-w-[92%] truncate rounded-lg px-3 py-1 text-center text-[8px] font-semibold backdrop-blur-[2px]",
-                                  "bg-black/35 text-white"
+                                  "max-w-[92%] truncate rounded-lg px-3 py-1 text-center font-semibold text-[10px] leading-none",
+                                  "backdrop-blur-[2px] shadow-sm",
+                                  openable
+                                    ? "bg-white/85 text-neutral-900"
+                                    : "bg-black/80 text-white"
                                 )}
                               >
                                 {it.title}
@@ -344,9 +366,13 @@ export default function PartnerTimeCapsulesPage() {
                             <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,.06),transparent_28%)] opacity-0 group-hover:opacity-100 transition" />
                           </motion.button>
                         </TooltipTrigger>
-                        {/* 툴팁: 이미지 호버 시 남은 시간/가능 여부 */}
-                        <TooltipContent side="top" className="text-xs">
-                          {tooltipText}
+                        {/* 툴팁: 이미지 호버 시 남은 시간(초 없음) / 가능 여부 */}
+                        <TooltipContent
+                          side="top"
+                          align="center"
+                          className="text-xs"
+                        >
+                          {openable ? "지금 열람 가능" : tooltipText}
                         </TooltipContent>
                       </Tooltip>
                     );

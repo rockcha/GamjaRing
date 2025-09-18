@@ -1,3 +1,4 @@
+// src/features/aquarium/AquariumBox.tsx
 "use client";
 
 import {
@@ -13,6 +14,12 @@ import { useCoupleContext } from "@/contexts/CoupleContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import FishSprite, { type SpriteFish } from "./FishSprite";
+
+// ✅ shadcn/ui
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 
 /* ---------- types ---------- */
 type Slot = { leftPct: number; topPct: number };
@@ -498,104 +505,118 @@ export default function AquariumBox({
       window.removeEventListener("mousemove", onMove);
       document.body.style.cursor = "";
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-comments
   }, []);
 
   /* ======== render ======== */
   const showBgSkeleton = themeLoading || !bgUrl || !bgReady;
 
   return (
-    <div className="w-full">
-      <div
-        ref={containerRef}
-        className={cn(
-          "relative rounded-xl overflow-hidden will-change-transform transform-gpu mx-auto"
-        )}
-        style={{
-          height: `${heightVh}vh`,
-          width: "min(100%, calc(85vw ))",
-        }}
-      >
-        {/* 배경 */}
-        {bgUrl && (
-          <img
-            src={bgUrl}
-            alt=""
-            className="absolute inset-0 w-full h-full  object-cover z-0 select-none pointer-events-none"
-            onLoad={() => setBgReady(true)}
-            onError={(e) => {
-              const el = e.currentTarget as HTMLImageElement;
-              el.style.opacity = "0.9";
-              el.src =
-                "data:image/svg+xml;utf8," +
-                encodeURIComponent(
-                  `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1536 1024'><rect width='100%' height='100%' fill='#0ea5e9'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='white' font-size='28'>테마 이미지를 불러오지 못했어요</text></svg>`
-                );
-              setBgReady(true);
-            }}
-            draggable={false}
-          />
-        )}
-        {showBgSkeleton && (
-          <div className="absolute inset-0 bg-slate-200 dark:bg-zinc-800 animate-pulse z-0" />
-        )}
-
-        {/* ★ 탱크 없음 안내 */}
-        {noTank && (
-          <div className="absolute inset-0 z-10 grid place-items-center bg-black/10">
-            <div className="rounded-lg bg-white/90 px-4 py-3 text-sm shadow border">
-              우리만의 어항을 만들어보세요.
-            </div>
-          </div>
-        )}
-
-        {/* 물고기 레이어 */}
-        <div className="absolute inset-0" ref={stageRef}>
-          {loading ? (
-            <div className="absolute inset-0 grid place-items-center">
-              <div className="px-3 py-1.5 rounded-md bg-white/80 border shadow text-sm">
-                어항 청소하는 중...🫧
-              </div>
-            </div>
-          ) : (
-            fishes.map((f) => {
-              // ★ 슬롯이 없으면 "즉시" 시드 랜덤 기본 슬롯 사용 → 50/50 프레임 노출 방지
-              const slot =
-                slots[f.slotKey] ??
-                seededInitialSlot(f.slotKey, f.swimY, f.size);
-
-              const isAppearing = appearingKeys.includes(f.slotKey);
-              const isDragging = dragKey === f.slotKey;
-
-              const fishData: SpriteFish = {
-                id: f.entityId,
-                labelKo: f.labelKo,
-                image: f.image,
-                rarity: f.rarity,
-                size: f.size,
-                swimY: f.swimY,
-                isMovable: f.isMovable,
-                price: f.price,
-                glowColor: f.glowColor, // ← hue 전달
-              };
-
-              return (
-                <FishSprite
-                  key={f.slotKey}
-                  fish={fishData}
-                  overridePos={slot}
-                  popIn={isAppearing}
-                  containerScale={fitToContainer ? containerScale : 1}
-                  onMouseDown={onMouseDownSprite(f.slotKey)}
-                  isDragging={isDragging}
-                  /** 드롭 후 그 자리에서 보브만 유지 (수직 왕복 off) */
-                  lockTop={true}
-                />
-              );
-            })
+    <Card className="rounded-2xl shadow-sm">
+      <CardContent className="p-0">
+        <div
+          ref={containerRef}
+          className={cn(
+            "relative overflow-hidden will-change-transform transform-gpu mx-auto rounded-2xl"
           )}
+          style={{
+            height: `${heightVh}vh`,
+            width: "min(100%, calc(85vw))",
+          }}
+        >
+          {/* 배경 */}
+          {bgUrl && (
+            <img
+              src={bgUrl}
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover z-0 select-none pointer-events-none"
+              onLoad={() => setBgReady(true)}
+              onError={(e) => {
+                const el = e.currentTarget as HTMLImageElement;
+                el.style.opacity = "0.9";
+                el.src =
+                  "data:image/svg+xml;utf8," +
+                  encodeURIComponent(
+                    `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1536 1024'><rect width='100%' height='100%' fill='#0ea5e9'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='white' font-size='28'>테마 이미지를 불러오지 못했어요</text></svg>`
+                  );
+                setBgReady(true);
+              }}
+              draggable={false}
+            />
+          )}
+
+          {/* shadcn Skeleton로 대체 */}
+          {showBgSkeleton && (
+            <Skeleton className="absolute inset-0 z-0" aria-hidden />
+          )}
+
+          {/* 탱크 없음 안내 (shadcn Alert) */}
+          {noTank && (
+            <div className="absolute inset-0 z-10 grid place-items-center bg-black/10">
+              <Alert className="w-fit rounded-lg bg-white/90 backdrop-blur border shadow">
+                <AlertTitle>어항이 없어요</AlertTitle>
+                <AlertDescription>
+                  우리만의 어항을 만들어보세요.
+                </AlertDescription>
+              </Alert>
+            </div>
+          )}
+
+          {/* 물고기 레이어 */}
+          <div className="absolute inset-0" ref={stageRef}>
+            {loading ? (
+              <div
+                className="absolute inset-0 grid place-items-center"
+                aria-live="polite"
+                aria-busy="true"
+              >
+                <Badge
+                  variant="secondary"
+                  className="px-3 py-1.5 rounded-full bg-white/85 border shadow text-sm"
+                >
+                  어항 청소하는 중... 🫧
+                </Badge>
+              </div>
+            ) : (
+              fishes.map((f) => {
+                // ★ 슬롯이 없으면 "즉시" 시드 랜덤 기본 슬롯 사용 → 50/50 프레임 노출 방지
+                const slot =
+                  slots[f.slotKey] ??
+                  seededInitialSlot(f.slotKey, f.swimY, f.size);
+
+                const isAppearing = appearingKeys.includes(f.slotKey);
+                const isDragging = dragKey === f.slotKey;
+
+                const fishData: SpriteFish = {
+                  id: f.entityId,
+                  labelKo: f.labelKo,
+                  image: f.image,
+                  rarity: f.rarity,
+                  size: f.size,
+                  swimY: f.swimY,
+                  isMovable: f.isMovable,
+                  price: f.price,
+                  glowColor: f.glowColor, // ← hue 전달
+                };
+
+                return (
+                  <FishSprite
+                    key={f.slotKey}
+                    fish={fishData}
+                    overridePos={slot}
+                    popIn={isAppearing}
+                    containerScale={fitToContainer ? containerScale : 1}
+                    onMouseDown={onMouseDownSprite(f.slotKey)}
+                    isDragging={isDragging}
+                    /** 드롭 후 그 자리에서 보브만 유지 (수직 왕복 off) */
+                    lockTop={true}
+                  />
+                );
+              })
+            )}
+          </div>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

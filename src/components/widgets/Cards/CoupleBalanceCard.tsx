@@ -9,20 +9,36 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 type CoupleBalanceCardProps = {
   className?: string;
-  dense?: boolean; // 더 컴팩트
-  showDelta?: boolean; // +N/-N 배지
-  onClick?: () => void; // 외부 클릭 콜백(옵션)
+  dense?: boolean;
+  showDelta?: boolean;
+  onClick?: () => void;
 };
 
-/* 부드러운 카운트업 */
-function useAnimatedNumber(value: number, duration = 220) {
+/* 부드러운 카운트업 (초기 1회 스냅 지원) */
+function useAnimatedNumber(value: number, duration = 220, skipToken?: number) {
   const [display, setDisplay] = React.useState<number>(value);
   const fromRef = React.useRef<number>(value);
   const startRef = React.useRef<number | null>(null);
   const rafRef = React.useRef<number | null>(null);
 
+  const skipNextRef = React.useRef(false);
+  const lastTokenRef = React.useRef<number | null>(null);
+  React.useEffect(() => {
+    if (skipToken != null && skipToken !== lastTokenRef.current) {
+      skipNextRef.current = true;
+      lastTokenRef.current = skipToken;
+    }
+  }, [skipToken]);
+
   React.useEffect(() => {
     if (fromRef.current === value) return;
+
+    if (skipNextRef.current) {
+      skipNextRef.current = false;
+      fromRef.current = value;
+      setDisplay(value);
+      return;
+    }
 
     const from = fromRef.current;
     const to = value;
@@ -43,12 +59,8 @@ function useAnimatedNumber(value: number, duration = 220) {
     };
 
     rafRef.current = requestAnimationFrame(step);
-
     return () => {
-      if (rafRef.current != null) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     };
   }, [value, duration]);
 
@@ -66,14 +78,25 @@ export default function CoupleBalanceCard({
     potatoCount?: number;
   };
 
-  const isLoading = typeof gold !== "number" || typeof potatoCount !== "number";
-  const goldSafe = typeof gold === "number" ? gold : 0;
-  const potatoSafe = typeof potatoCount === "number" ? potatoCount : 0;
+  const goldReady = typeof gold === "number";
+  const potatoReady = typeof potatoCount === "number";
+  const isLoading = !goldReady || !potatoReady;
 
-  const goldAnim = useAnimatedNumber(goldSafe);
-  const potatoAnim = useAnimatedNumber(potatoSafe);
+  const goldSafe = goldReady ? (gold as number) : 0;
+  const potatoSafe = potatoReady ? (potatoCount as number) : 0;
 
-  // 바운스 & 델타
+  /** 로딩 → 준비 직후 첫 변화는 카운트업 스냅 */
+  const [skipToken, setSkipToken] = useState(0);
+  const wasLoadingRef = React.useRef(true);
+  React.useEffect(() => {
+    if (wasLoadingRef.current && !isLoading) setSkipToken((t) => t + 1);
+    wasLoadingRef.current = isLoading;
+  }, [isLoading]);
+
+  const goldAnim = useAnimatedNumber(goldSafe, 220, skipToken);
+  const potatoAnim = useAnimatedNumber(potatoSafe, 220, skipToken);
+
+  // 델타/플래시
   const [goldBump, setGoldBump] = useState(false);
   const [potatoBump, setPotatoBump] = useState(false);
   const prevGold = React.useRef(goldSafe);
@@ -84,8 +107,23 @@ export default function CoupleBalanceCard({
   const goldDeltaTimer = React.useRef<number | null>(null);
   const potatoDeltaTimer = React.useRef<number | null>(null);
 
+  // ✅ 마운트 후 첫 "값 변화"는 무조건 무시 (페이지 이동 시 +전체 금액 방지)
+  const ignoreFirstGoldChangeRef = React.useRef(true);
+  const ignoreFirstPotatoChangeRef = React.useRef(true);
+
   React.useEffect(() => {
-    if (!isLoading && prevGold.current !== goldSafe) {
+    if (!goldReady) return;
+
+    if (prevGold.current !== goldSafe) {
+      // 첫 변화는 무시하고 동기화만
+      if (ignoreFirstGoldChangeRef.current) {
+        ignoreFirstGoldChangeRef.current = false;
+        prevGold.current = goldSafe;
+        setGoldDelta(null);
+        setGoldBump(false);
+        return;
+      }
+
       const diff = goldSafe - prevGold.current;
       prevGold.current = goldSafe;
 
@@ -111,10 +149,20 @@ export default function CoupleBalanceCard({
         goldDeltaTimer.current = null;
       }
     };
-  }, [goldSafe, isLoading, showDelta]);
+  }, [goldReady, goldSafe, showDelta]);
 
   React.useEffect(() => {
-    if (!isLoading && prevPotato.current !== potatoSafe) {
+    if (!potatoReady) return;
+
+    if (prevPotato.current !== potatoSafe) {
+      if (ignoreFirstPotatoChangeRef.current) {
+        ignoreFirstPotatoChangeRef.current = false;
+        prevPotato.current = potatoSafe;
+        setPotatoDelta(null);
+        setPotatoBump(false);
+        return;
+      }
+
       const diff = potatoSafe - prevPotato.current;
       prevPotato.current = potatoSafe;
 
@@ -140,18 +188,18 @@ export default function CoupleBalanceCard({
         potatoDeltaTimer.current = null;
       }
     };
-  }, [potatoSafe, isLoading, showDelta]);
+  }, [potatoReady, potatoSafe, showDelta]);
 
-  /** 스타일 (호버 없음, 컴팩트) */
+  /** 스타일 */
   const cardCls = cn(
-    "relative rounded-xl bg-white ring-1 ring-black/5 shadow-sm",
+    "relative",
     dense ? "px-3 py-2" : "px-3.5 py-2.5",
-    "cursor-pointer",
+    "cursor-pointer select-none",
+    "active:scale-[0.995] transition-transform duration-150",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70",
     className
   );
 
-  // 각 블록(칩+숫자)을 세로 스택, 카드 전체는 2열 그리드로 가로 배치
   const itemStack = (bump: boolean) =>
     cn(
       "flex flex-col items-center justify-center",
@@ -161,17 +209,18 @@ export default function CoupleBalanceCard({
     );
 
   const chipCls = cn(
-    "inline-grid place-items-center",
-    dense ? "h-7 w-7 text-[15px]" : "h-8 w-8 text-[17px]"
+    "relative inline-grid place-items-center rounded-full",
+    dense ? "h-7 w-7 text-[15px]" : "h-8 w-8 text-[17px]",
+    "bg-white/80 shadow-sm ring-1 ring-black/5"
   );
 
   const numCls = cn(
-    "font-semibold tabular-nums text-amber-900 tracking-tight",
+    "relative font-semibold tabular-nums text-amber-900 tracking-tight",
     dense ? "text-[12px] leading-4" : "text-[13px] leading-[18px]"
   );
 
   const badgeBase =
-    "absolute left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded-full border shadow-sm text-[10px] font-semibold tabular-nums animate-[floatUp_700ms_ease-out_forwards]";
+    "absolute left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded-full border shadow-sm text-[10px] font-semibold tabular-nums backdrop-blur-[2px] ring-1 ring-white/40 animate-[floatUp_700ms_ease-out_forwards]";
   const goldBadgeTone =
     goldDelta && goldDelta > 0
       ? "bg-emerald-50 text-emerald-700 border-emerald-200"
@@ -181,6 +230,12 @@ export default function CoupleBalanceCard({
       ? "bg-emerald-50 text-emerald-700 border-emerald-200"
       : "bg-rose-50 text-rose-700 border-rose-200";
 
+  const totalGold = goldAnim.toLocaleString("ko-KR");
+  const totalPotato = potatoAnim.toLocaleString("ko-KR");
+
+  const centerFlashText =
+    "drop-shadow-[0_2px_6px_rgba(0,0,0,0.35)] font-extrabold tracking-tight text-5xl sm:text-6xl md:text-7xl leading-none select-none";
+
   return (
     <div
       className={cardCls}
@@ -189,11 +244,11 @@ export default function CoupleBalanceCard({
       onClick={onClick}
       aria-label="보유 자산"
     >
-      {/* 델타 배지 (위/아래 살짝만) */}
+      {/* 작은 델타 배지 */}
       {showDelta && goldDelta !== null && (
         <span className={cn(badgeBase, goldBadgeTone, "-top-3")} aria-hidden>
-          🪙 {goldDelta > 0 ? "+" : ""}
-          {goldDelta.toLocaleString("ko-KR")}
+          {goldDelta > 0 ? "▲" : "▼"}{" "}
+          {Math.abs(goldDelta).toLocaleString("ko-KR")}
         </span>
       )}
       {showDelta && potatoDelta !== null && (
@@ -201,57 +256,185 @@ export default function CoupleBalanceCard({
           className={cn(badgeBase, potatoBadgeTone, "top-[46px]")}
           aria-hidden
         >
-          🥔 {potatoDelta > 0 ? "+" : ""}
-          {potatoDelta.toLocaleString("ko-KR")}
+          {potatoDelta > 0 ? "▲" : "▼"}{" "}
+          {Math.abs(potatoDelta).toLocaleString("ko-KR")}
         </span>
       )}
 
-      {/* 2열 그리드 (세로 스택을 좌우 배치해 높이 최소화) */}
-      <div className={cn("grid w-full items-center", "grid-cols-2 gap-2")}>
+      {/* 2열 */}
+      <div className="grid w-full items-center grid-cols-2 gap-2">
         {/* GOLD */}
         <div
           className={itemStack(goldBump)}
-          aria-label={`보유 골드 ${goldAnim.toLocaleString("ko-KR")}`}
+          aria-label={`보유 골드 ${totalGold}`}
         >
           <span className={chipCls} aria-hidden>
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-0 rounded-full bg-[radial-gradient(ellipse_at_30%_20%,rgba(255,255,255,.8),rgba(255,255,255,0)_45%)] mix-blend-screen"
+            />
+            {goldBump && (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-0 rounded-full animate-[chipGlow_3s_ease-in-out_infinite]"
+              />
+            )}
             🪙
           </span>
-          {isLoading ? (
+
+          {!goldReady ? (
             <Skeleton
               className={cn(dense ? "h-3 w-14" : "h-3.5 w-16", "rounded-md")}
             />
           ) : (
-            <span className={numCls}>{goldAnim.toLocaleString("ko-KR")}</span>
+            <span
+              className={cn(
+                numCls,
+                goldBump && "animate-[bumpPulse_240ms_ease-out]"
+              )}
+            >
+              {totalGold}
+              {goldBump && (
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute inset-y-0 -left-6 w-12 bg-gradient-to-r from-transparent via-white/70 to-transparent rounded-md blur-[1px] animate-[shineSweep_700ms_ease-out]"
+                />
+              )}
+            </span>
           )}
         </div>
 
         {/* POTATO */}
         <div
           className={itemStack(potatoBump)}
-          aria-label={`보유 감자 ${potatoAnim.toLocaleString("ko-KR")}`}
+          aria-label={`보유 감자 ${totalPotato}`}
         >
           <span className={chipCls} aria-hidden>
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-0 rounded-full bg-[radial-gradient(ellipse_at_30%_20%,rgba(255,255,255,.8),rgba(255,255,255,0)_45%)] mix-blend-screen"
+            />
+            {potatoBump && (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-0 rounded-full animate-[chipGlow_3s_ease-in-out_infinite]"
+              />
+            )}
             🥔
           </span>
-          {isLoading ? (
+
+          {!potatoReady ? (
             <Skeleton
               className={cn(dense ? "h-3 w-14" : "h-3.5 w-16", "rounded-md")}
             />
           ) : (
-            <span className={numCls}>{potatoAnim.toLocaleString("ko-KR")}</span>
+            <span
+              className={cn(
+                numCls,
+                potatoBump && "animate-[bumpPulse_240ms_ease-out]"
+              )}
+            >
+              {totalPotato}
+              {potatoBump && (
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute inset-y-0 -left-6 w-12 bg-gradient-to-r from-transparent via-white/70 to-transparent rounded-md blur-[1px] animate-[shineSweep_700ms_eease-out]"
+                />
+              )}
+            </span>
           )}
         </div>
       </div>
 
-      {/* 접근성: 모션 감소 대응 */}
+      {/* 중앙 플래시 */}
+      {showDelta && goldDelta !== null && (
+        <div
+          className="fixed inset-0 z-[2147483647] pointer-events-none flex items-center justify-center"
+          aria-hidden
+        >
+          <div
+            className={cn(
+              "animate-[centerFlash_900ms_cubic-bezier(0.2,0.8,0.2,1)_forwards]",
+              centerFlashText,
+              goldDelta > 0 ? "text-emerald-400" : "text-rose-400"
+            )}
+            style={{
+              WebkitTextStroke: "1px rgba(0,0,0,0.15)",
+              textShadow:
+                "0 2px 10px rgba(0,0,0,0.35), 0 0 24px rgba(255,255,255,0.25)",
+            }}
+          >
+            🪙 {goldDelta > 0 ? "+" : "−"}
+            {Math.abs(goldDelta).toLocaleString("ko-KR")}
+          </div>
+        </div>
+      )}
+
+      {showDelta && potatoDelta !== null && (
+        <div
+          className="fixed inset-0 z-[2147483647] pointer-events-none flex items-center justify-center"
+          aria-hidden
+        >
+          <div className="translate-y-16 sm:translate-y-20">
+            <div
+              className={cn(
+                "animate-[centerFlash_900ms_cubic-bezier(0.2,0.8,0.2,1)_forwards]",
+                centerFlashText,
+                potatoDelta > 0 ? "text-emerald-400" : "text-rose-400"
+              )}
+              style={{
+                WebkitTextStroke: "1px rgba(0,0,0,0.15)",
+                textShadow:
+                  "0 2px 10px rgba(0,0,0,0.35), 0 0 24px rgba(255,255,255,0.25)",
+              }}
+            >
+              🥔 {potatoDelta > 0 ? "+" : "−"}
+              {Math.abs(potatoDelta).toLocaleString("ko-KR")}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 접근성 */}
+      <span className="sr-only" aria-live="polite">
+        골드 {totalGold}, 감자 {totalPotato}
+      </span>
+
       <style>{`
         @keyframes floatUp {
-          0%   { opacity: 0; transform: translate(-50%, 0) scale(0.92); filter: blur(0.25px); }
-          18%  { opacity: 1; transform: translate(-50%, -5px) scale(1);   filter: blur(0); }
-          100% { opacity: 0; transform: translate(-50%, -14px) scale(1);  filter: blur(0.25px); }
+          0% { opacity: 0; transform: translate(-50%, 0) scale(0.92); filter: blur(0.25px); }
+          18% { opacity: 1; transform: translate(-50%, -5px) scale(1); filter: blur(0); }
+          100% { opacity: 0; transform: translate(-50%, -14px) scale(1); filter: blur(0.25px); }
+        }
+        @keyframes bumpPulse {
+          0% { transform: scale(1); text-shadow: 0 0 0 rgba(0,0,0,0); }
+          35% { transform: scale(1.06); text-shadow: 0 1px 0 rgba(0,0,0,0.06); }
+          100% { transform: scale(1); text-shadow: 0 0 0 rgba(0,0,0,0); }
+        }
+        @keyframes shineSweep {
+          0% { transform: translateX(-120%) skewX(-15deg); opacity: 0; }
+          30% { opacity: .6; }
+          70% { opacity: .3; }
+          100% { transform: translateX(120%) skewX(-15deg); opacity: 0; }
+        }
+        @keyframes chipGlow {
+          0%,100% { box-shadow: inset 0 0 0 rgba(255,255,255,0); }
+          50% { box-shadow: inset 0 8px 22px rgba(255,255,255,0.45); }
+        }
+        @keyframes centerFlash {
+          0% { opacity: 0; transform: scale(0.92); filter: blur(1px); }
+          18% { opacity: 1; transform: scale(1.05); filter: blur(0); }
+          70% { opacity: 1; transform: scale(1.0); filter: blur(0); }
+          100% { opacity: 0; transform: scale(1.0); filter: blur(1px); }
         }
         @media (prefers-reduced-motion: reduce) {
-          .animate-\\[floatUp_700ms_ease-out_forwards\\] { animation: none !important; }
+          .animate-\\[floatUp_700ms_ease-out_forwards\\],
+          .animate-\\[bumpPulse_240ms_ease-out\\],
+          .animate-\\[shineSweep_700ms_ease-out\\],
+          .animate-\\[chipGlow_3s_ease-in-out_infinite\\],
+          .animate-\\[centerFlash_900ms_cubic-bezier\\(0\\.2,0\\.8,0\\.2,1\\)_forwards\\] {
+            animation: none !important;
+          }
         }
       `}</style>
     </div>
