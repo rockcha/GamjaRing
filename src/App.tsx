@@ -24,6 +24,8 @@ import KitchenPage from "./pages/KitchenPage";
 import FishingPage from "./pages/FishingPage";
 import OddEvenGamesPage from "./features/mini_games/OddEvenGamesPage";
 import StickerBoardPage from "./features/sticker_board/StickerBoardPage";
+import PotatoMoleGame from "./features/mole_game/PotatoMoleGame";
+import PartnerTimeCapsulesPage from "./pages/PartnerTimeCapsulesPage";
 
 export default function App() {
   return (
@@ -48,6 +50,7 @@ export default function App() {
               <Route path="settings" element={<SettingPage />} />
               <Route path="bundle" element={<AnswersPage />} />
               <Route path="scheduler" element={<CoupleSchedulerPage />} />
+              <Route path="timeCapsule" element={<PartnerTimeCapsulesPage />} />
               <Route path="questions" element={<QuestionPage />} />
               <Route path="kitchen" element={<KitchenPage />} />
               <Route path="aquarium" element={<AquariumPage />} />
@@ -55,6 +58,7 @@ export default function App() {
               <Route path="fishing" element={<FishingPage />} />
               <Route path="oddEven" element={<OddEvenGamesPage />} />
               <Route path="stickerBoard" element={<StickerBoardPage />} />
+              <Route path="miniGame" element={<PotatoMoleGame />} />
             </Route>
           </Routes>
 

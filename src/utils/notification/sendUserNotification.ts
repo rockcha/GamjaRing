@@ -1,4 +1,3 @@
-// src/utils/sendUserNotification.ts
 import supabase from "@/lib/supabase";
 
 type NotificationType =
@@ -19,7 +18,8 @@ type NotificationType =
   | "물품구매"
   | "물품판매"
   | "낚시성공"
-  | "생산시설구매"; // ✅ 추가
+  | "생산시설구매"
+  | "타임캡슐"; // ✅ 추가
 
 interface SendUserNotificationInput {
   senderId: string;
@@ -37,13 +37,21 @@ interface SendUserNotificationInput {
 
   /** '물품구매' | '물품판매' | '낚시성공' | '생산시설구매' 에서 표시할 아이템/어종/시설 이름 (선택) */
   itemName?: string;
+
+  /** ✅ 타임캡슐 제목 (선택) */
+  capsuleTitle?: string;
 }
 
 // '음식공유' / '물품구매' / '물품판매' / '낚시성공' / '생산시설구매'는 별도 처리
 const ACTION_BY_TYPE: Record<
   Exclude<
     NotificationType,
-    "음식공유" | "물품구매" | "물품판매" | "낚시성공" | "생산시설구매"
+    | "음식공유"
+    | "물품구매"
+    | "물품판매"
+    | "낚시성공"
+    | "생산시설구매"
+    | "타임캡슐"
   >,
   string
 > = {
@@ -81,6 +89,7 @@ export const sendUserNotification = async ({
   foodName,
   gold, // 유지(미사용)
   itemName,
+  capsuleTitle, // ✅ 추가
 }: SendUserNotificationInput) => {
   if (senderId === receiverId) {
     return { error: new Error("자기 자신에게 알림을 보낼 수 없습니다.") };
@@ -129,12 +138,22 @@ export const sendUserNotification = async ({
     action = name
       ? `${withObjectJosa(quote(name))} 구매했습니다 🏭`
       : "생산시설을 구매했어요 🏭";
+  } else if (type === "타임캡슐") {
+    const name = (capsuleTitle ?? "").trim();
+    action = name
+      ? `${withObjectJosa(quote(name))} 타임캡슐을 봉인했어요 ⏳`
+      : "타임캡슐을 봉인했어요 ⏳";
   } else {
     action =
       ACTION_BY_TYPE[
         type as Exclude<
           NotificationType,
-          "음식공유" | "물품구매" | "물품판매" | "낚시성공" | "생산시설구매"
+          | "음식공유"
+          | "물품구매"
+          | "물품판매"
+          | "낚시성공"
+          | "생산시설구매"
+          | "타임캡슐"
         >
       ] ?? String(type);
   }

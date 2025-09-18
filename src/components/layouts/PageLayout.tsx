@@ -40,6 +40,8 @@ export default function PageLayout({
     "/potatoField": "농장",
     "/fishing": "바다낚시",
     "/oddEven": "홀짝게임",
+    "/stickerBoard": "스티커보드",
+    "/timeCapsule": "타임캡슐",
   };
 
   // 경로 정규화(뒤 슬래시 제거)

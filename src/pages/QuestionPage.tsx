@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 import supabase from "@/lib/supabase";
-import { Save, Edit } from "lucide-react";
+
 // shadcn/ui
 import {
   Card,
@@ -22,19 +22,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { CoolMode } from "@/components/magicui/cool-mode";
 import AvatarWidget from "@/components/widgets/AvatarWidget";
 
 // icons
-import {
-  Loader2,
-  CheckCircle2,
-  Smile,
-  ChevronDown,
-  PencilLine,
-  Save as SaveIcon,
-  XCircle,
-} from "lucide-react";
+import { Loader2, CheckCircle2 } from "lucide-react";
 
 const EMOJIS_5x6 = [
   "😀",
@@ -84,7 +75,10 @@ export default function QuestionPage() {
   const { completeTask } = useCompleteTask();
 
   const [question, setQuestion] = useState<string | null>(null);
-  const [questionId, setQuestionId] = useState<number | null>(null); // 오늘의 id
+  const [questionId, setQuestionId] = useState<number | null>(null); // "오늘" 기준 id
+  const [displayQuestionId, setDisplayQuestionId] = useState<number | null>(
+    null
+  ); // ✅ 화면/저장 대상 고정 ID
   const [answer, setAnswer] = useState<string>("");
   const [submitted, setSubmitted] = useState<boolean>(false); // 오늘 제출 여부
   const [loading, setLoading] = useState(true);
@@ -103,6 +97,13 @@ export default function QuestionPage() {
   const emojiBtnRef = useRef<HTMLButtonElement | null>(null);
   const emojiMenuRef = useRef<HTMLDivElement | null>(null);
 
+  // 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    };
+  }, []);
+
   const loadQuestionText = useCallback(async (qid: number | null) => {
     if (qid == null || qid < 0) return null;
     return await GetQuestionById(qid);
@@ -110,7 +111,7 @@ export default function QuestionPage() {
 
   const loadMyAnswer = useCallback(
     async (qid: number | null) => {
-      if (!qid || !user?.id) return null;
+      if (qid == null || !user?.id) return null; // ✅ 0 허용
       const { data, error } = await supabase
         .from("answer")
         .select("content")
@@ -126,6 +127,7 @@ export default function QuestionPage() {
   // 현재 상태(questionId, submitted) 기준으로 화면에 보여줄 질문/답변 새로고침
   const refreshDisplayContent = useCallback(async () => {
     const displayId = getDisplayId(questionId, submitted);
+    setDisplayQuestionId(displayId); // ✅ 저장 타깃 고정
     if (displayId == null) {
       setQuestion("표시할 이전 질문이 없습니다.");
       setAnswer("");
@@ -160,6 +162,7 @@ export default function QuestionPage() {
       setEditing(false);
 
       const displayId = getDisplayId(data.question_id, data.completed);
+      setDisplayQuestionId(displayId); // ✅ 초기에도 고정
       if (displayId == null) {
         setQuestion("표시할 이전 질문이 없습니다.");
         setAnswer("");
@@ -205,27 +208,19 @@ export default function QuestionPage() {
   const persistAnswer = useCallback(
     async (content: string, isEdit = false) => {
       if (!user) return false;
-      const displayId = getDisplayId(questionId, submitted);
-      if (displayId == null) return false;
+      if (displayQuestionId == null) return false; // ✅ 고정된 타깃만 사용
 
       setSaveStatus("saving");
       try {
-        const { data: updated, error: upErr } = await supabase
+        // ✅ 원자적 upsert로 경합/중복 INSERT 방지
+        const { error } = await supabase
           .from("answer")
-          .update({ content })
-          .eq("user_id", user.id)
-          .eq("question_id", displayId)
-          .select("user_id")
-          .maybeSingle();
+          .upsert(
+            [{ user_id: user.id, question_id: displayQuestionId, content }],
+            { onConflict: "user_id,question_id" }
+          );
 
-        if (upErr || !updated) {
-          const { error: insErr } = await supabase.from("answer").insert({
-            user_id: user.id,
-            question_id: displayId,
-            content,
-          });
-          if (insErr) throw insErr;
-        }
+        if (error) throw error;
 
         setSaveStatus("saved");
         toast.info(isEdit ? "수정했습니다. " : "저장했습니다.");
@@ -246,7 +241,7 @@ export default function QuestionPage() {
         return false;
       }
     },
-    [user, questionId, submitted, open]
+    [user, displayQuestionId]
   );
 
   // 단일 버튼 동작
@@ -277,7 +272,7 @@ export default function QuestionPage() {
       await completeTask().catch(() => {});
       setSubmitted(true);
       setEditing(false);
-      await refreshDisplayContent();
+      await refreshDisplayContent(); // ✅ 이후 표시/저장 타깃도 갱신
     } else {
       setEditing(false);
       await refreshDisplayContent();
@@ -357,7 +352,7 @@ export default function QuestionPage() {
           <>
             <CardHeader className="items-center pt-6">
               <div className="flex items-center gap-2 text-[12px] text-amber-700/80">
-                <span className="inline-block px-2 py-0.5 rounded-full bg-amber-100/70 border  ">
+                <span className="inline-block px-2 py-0.5 rounded-full bg-amber-100/70 border">
                   📌{" "}
                   {new Intl.DateTimeFormat("ko-KR", {
                     dateStyle: "long",
@@ -377,9 +372,6 @@ export default function QuestionPage() {
 
               {/* 안내줄 + 파트너 위젯 */}
               <div className="mx-auto w-full md:w-[80%] lg:w-[70%]">
-                {/* 중앙 정렬 안내 텍스트 */}
-
-                {/* 이모지 버튼 + (오른쪽) 파트너 위젯 */}
                 <div className="flex items-center justify-center">
                   {/* 버튼 + 드롭다운을 위한 상대 컨테이너 */}
                   <div className="relative">
@@ -388,7 +380,7 @@ export default function QuestionPage() {
                       type="button"
                       variant="outline"
                       className={cn(
-                        "rounded-full px-3 py-1.5 bg-white  text-amber-900",
+                        "rounded-full px-3 py-1.5 bg-white text-amber-900",
                         "shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] active:scale-95",
                         canEdit
                           ? "cursor-pointer"
@@ -404,11 +396,10 @@ export default function QuestionPage() {
                         ref={emojiMenuRef}
                         role="grid"
                         aria-label="이모지 선택"
-                        className="absolute z-50 mt-2 w-[300px] rounded-2xl border bg-white/95
-               backdrop-blur-sm p-3 shadow-lg"
+                        className="absolute z-50 mt-2 w-[300px] rounded-2xl border bg-white/95 backdrop-blur-sm p-3 shadow-lg"
                       >
                         <div className="grid grid-cols-6 gap-1.5">
-                          {EMOJIS_5x6.map((e, i) => (
+                          {EMOJIS_5x6.map((e) => (
                             <button
                               key={e}
                               role="gridcell"
@@ -416,8 +407,7 @@ export default function QuestionPage() {
                                 insertAtCursor(e);
                                 setEmojiOpen(false);
                               }}
-                              className="h-9 rounded-xl border  text-[20px] hover:bg-amber-200
-                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
+                              className="h-9 rounded-xl border text-[20px] hover:bg-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
                               aria-label={`${e} 삽입`}
                               tabIndex={0}
                             >
@@ -429,7 +419,7 @@ export default function QuestionPage() {
                     )}
                   </div>
 
-                  {/* 버튼 오른쪽에 붙는 파트너 아바타 + 말풍선 */}
+                  {/* 버튼 오른쪽: 파트너 아바타 + 말풍선 */}
                   <div className="hidden sm:flex items-center gap-2 ml-3">
                     <AvatarWidget type="partner" size="sm" />
                     <span className="text-[11px] px-2 py-1 rounded-full bg-amber-100/80 border border-amber-200 text-amber-900">
@@ -481,15 +471,11 @@ export default function QuestionPage() {
             </CardContent>
 
             {/* 단일 버튼 + 상태 피드백 라인 */}
-            <CardFooter
-              className="sticky bottom-0 bg-gradient-to-t from-[#FAF7F2] to-transparent pt-6 pb-5
-                       flex flex-col items-center gap-2"
-            >
+            <CardFooter className="sticky bottom-0 bg-gradient-to-t from-[#FAF7F2] to-transparent pt-6 pb-5 flex flex-col items-center gap-2">
               <Button
                 onClick={onPrimaryClick}
                 disabled={saveStatus === "saving"}
-                className="min-w-[140px] rounded-lg bg-neutral-600 hover:bg-amber-600
-                 text-white shadow-md active:scale-95"
+                className="min-w-[140px] rounded-lg bg-neutral-600 hover:bg-amber-600 text-white shadow-md active:scale-95"
               >
                 {saveStatus === "saving" ? (
                   <>

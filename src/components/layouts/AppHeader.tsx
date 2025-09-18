@@ -11,11 +11,12 @@ import {
   CalendarDays,
   Tractor,
   CookingPot,
-  Waves, // 없으면 Waves/Fish 사용
+  Waves,
   Fish,
-  Dice3, // ✅ 홀짝게임(주사위)
-  Gamepad2, // ✅ 미니게임(게임기)
-  Sticker, // ✅ 스티커보드
+  Dice3,
+  Gamepad2,
+  Sticker,
+  Hourglass, // ✅ 타임캡슐 아이콘 추가
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -42,11 +43,12 @@ type SimpleNavDef = {
     | "questions"
     | "bundle"
     | "scheduler"
+    | "timeCapsule" // ✅ 추가
     | "farm"
     | "kitchen"
     | "aquarium"
     | "fishing"
-    | "stickerBoard" // ✅ 추가
+    | "stickerBoard"
     | "oddEven"
     | "miniGame";
   label: string;
@@ -59,22 +61,23 @@ const NAV_GROUPS: readonly (readonly SimpleNavDef[])[] = [
     { id: "home", label: "메인페이지", icon: Home },
     { id: "info", label: "감자링이란?", icon: Info },
   ],
-  // 3개
+  // 3개 → 4개 (타임캡슐 추가)
   [
     { id: "questions", label: "답변하기", icon: MessageCircleQuestionMark },
     { id: "bundle", label: "답변꾸러미", icon: MessagesSquare },
     { id: "scheduler", label: "스케쥴러", icon: CalendarDays },
+    { id: "timeCapsule", label: "타임캡슐", icon: Hourglass }, // ✅ 스케줄러 오른쪽
   ],
-  // 4개였던 그룹 → 5개로 확장 (스티커보드 추가)
+  // 2개
   [
-    { id: "farm", label: "농장", icon: Tractor }, // or Sprout
+    { id: "farm", label: "농장", icon: Tractor },
     { id: "kitchen", label: "조리실", icon: CookingPot },
   ],
+  // 2개
   [
     { id: "aquarium", label: "아쿠아리움", icon: Fish },
     { id: "fishing", label: "낚시터", icon: Waves },
   ],
-
   // ✅ 미니게임 섹션
   [
     { id: "stickerBoard", label: "스티커보드", icon: Sticker },
@@ -92,15 +95,14 @@ const GUARDS: Record<
   questions: { requireLogin: true, requireCouple: true },
   bundle: { requireLogin: true, requireCouple: true },
   scheduler: { requireLogin: true, requireCouple: true },
+  timeCapsule: { requireLogin: true, requireCouple: true }, // ✅ 가드
 
   farm: { requireLogin: true, requireCouple: true },
   kitchen: { requireLogin: true, requireCouple: true },
   aquarium: { requireLogin: true, requireCouple: true },
   fishing: { requireLogin: true, requireCouple: true },
 
-  // ✅ 스티커보드 가드 (필요시 requireCouple 풀어도 됨)
   stickerBoard: { requireLogin: true, requireCouple: true },
-
   oddEven: { requireLogin: true, requireCouple: true },
   miniGame: { requireLogin: true, requireCouple: true },
 };
@@ -111,15 +113,14 @@ const FALLBACK_ROUTE: Record<string, string> = {
   questions: "/questions",
   bundle: "/bundle",
   scheduler: "/scheduler",
+  timeCapsule: "/timeCapsule", // ✅ 라우팅 추가
 
   farm: "/potatoField",
   kitchen: "/kitchen",
   aquarium: "/aquarium",
   fishing: "/fishing",
 
-  // ✅ 스티커보드 라우팅
   stickerBoard: "/stickerBoard",
-
   oddEven: "/oddEven",
   miniGame: "/miniGame",
 };
@@ -235,15 +236,13 @@ export default function AppHeader({
 
       {/* ✅ 하단: 좌우 반반 레이아웃 */}
       <div className="border-t bg-white/65 backdrop-blur-md supports-[backdrop-filter]:bg-white/55">
-        <div className="mx-auto w-full max-w-screen-2xl py-2  ">
+        <div className="mx-auto w-full max-w-screen-2xl py-2">
           <div className="grid grid-cols-1 md:grid-cols-2 px-1 items-start">
             {/* 좌측: 네비 (아이콘 크기만큼 자동 줄바꿈) */}
             <nav aria-label="주 네비게이션" className="min-w-0">
               <div
                 className={cn(
-                  // ⬇️ 핵심: 템플릿 트랙 없애고, 아이템 크기대로 흐르게
                   "grid grid-flow-col auto-cols-max",
-                  // X축 간격은 직접 제어
                   "gap-x-2 gap-y-1 justify-start content-start"
                 )}
               >
@@ -251,8 +250,6 @@ export default function AppHeader({
                   <React.Fragment key={gi}>
                     {group.map(({ id, label, icon }) => (
                       <div key={id}>
-                        {" "}
-                        {/* X축 간격은 여기서만 */}
                         <NavItem
                           icon={icon}
                           label={label}
@@ -266,7 +263,7 @@ export default function AppHeader({
                         orientation="vertical"
                         decorative
                         aria-hidden
-                        className="h-8 w-px shrink-0 self-center bg-slate-200" // 양옆 살짝만
+                        className="h-8 w-px shrink-0 self-center bg-slate-200"
                       />
                     )}
                   </React.Fragment>
