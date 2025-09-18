@@ -8,7 +8,8 @@ import { toast } from "sonner";
 import RecipeShelf from "@/features/kitchen/RecipeShelf";
 import PotBox from "@/features/kitchen/PotBox";
 import RecipePreview from "@/features/kitchen/RecipePreview";
-import Inventory from "@/features/kitchen/Inventory";
+import Inventory from "@/features/kitchen/Inventory"; // 재료 인벤토리 전용
+import CookedInventory from "@/features/kitchen/CookedInventory";
 import { addFoodEmojiToCollection } from "@/features/kitchen/kitchenApi";
 import {
   RECIPES,
@@ -39,6 +40,7 @@ import { Coins } from "lucide-react";
 // ✅ 추가: 파트너에게 요리 공유 알림용
 import { useUser } from "@/contexts/UserContext";
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
+import CookingDoneEffects from "@/features/kitchen/CookingDoneEffects";
 
 // ────────────────────────────────────────────────────────────
 // Types & type guards
@@ -227,8 +229,9 @@ export default function KitchenPage() {
         );
         await usePotatoes(coupleId, r.potato);
         await addCookedFood(coupleId, r.name, 1);
-        // ✅ 요리 이모지를 스티커 이모지 컬렉션에 추가/누적
+        // ✅ 요리 이모지 스티커 컬렉션 추가/누적
         await addFoodEmojiToCollection(coupleId, r.name as RecipeName, r.emoji);
+
         const after = { ...invMap };
         r.ingredients.forEach(
           (t) => (after[t] = Math.max(0, (after[t] ?? 0) - 1))
@@ -238,7 +241,6 @@ export default function KitchenPage() {
         setPotStack([]);
         setHighlightIdx(null);
 
-        // ✅ 완료 화면으로 전환 (모달 유지)
         setCooking({
           open: true,
           phase: "done",
@@ -249,7 +251,7 @@ export default function KitchenPage() {
           desc: getFoodDesc(r.name as RecipeName),
         });
 
-        // ✅ 음식/이름 공유: 파트너에게 알림 전송
+        // ✅ 파트너 알림 (옵션)
         try {
           if (user?.id && user?.partner_id) {
             await sendUserNotification({
@@ -257,7 +259,6 @@ export default function KitchenPage() {
               receiverId: user.partner_id,
               type: "음식공유",
               foodName: r.name as RecipeName,
-              // gold: 옵션 — 필요 없다면 생략
             });
           }
         } catch (e) {
@@ -293,6 +294,7 @@ export default function KitchenPage() {
 
   return (
     <div className="mx-auto max-w-6xl py-4">
+      {/* 상단 3열 레이아웃: 재료 인벤토리 위치 유지 */}
       <div className="grid md:grid-cols-3 gap-6 min-h-[560px]">
         <Inventory
           potatoCount={potatoCount}
@@ -322,6 +324,9 @@ export default function KitchenPage() {
         />
       </div>
 
+      {/* 하단 전체폭: 완성 요리 인벤토리 */}
+      <CookedInventory className="mt-6 w-full" />
+
       {/* 조리 중/완료 모달 */}
       <Dialog
         open={cooking.open}
@@ -335,11 +340,7 @@ export default function KitchenPage() {
               </DialogHeader>
               <div className="flex flex-col items-center gap-3 py-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={cooking.gif}
-                  alt="cooking"
-                  className="w-56 h-40 object-contain"
-                />
+                <img src={cooking.gif} alt="cooking" className="object-fill" />
                 <div className="text-sm text-muted-foreground">
                   잠시만 기다려주세요.
                 </div>
@@ -349,6 +350,8 @@ export default function KitchenPage() {
             <>
               <DialogHeader>
                 <DialogTitle>요리 완성!</DialogTitle>
+                {/* 🔥 완성 이펙트 */}
+                <CookingDoneEffects emoji={cooking.emoji} gold={cooking.sell} />
               </DialogHeader>
 
               <div className="space-y-4">
@@ -373,7 +376,6 @@ export default function KitchenPage() {
                 </div>
 
                 <div className="flex justify-end gap-2">
-                  {/* 공유 버튼 제거 */}
                   <button
                     type="button"
                     className="inline-flex items-center rounded-md bg-amber-600 px-3 py-2 text-sm text-white hover:bg-amber-700"

@@ -96,6 +96,7 @@ export default function PageLayout({
       {/* 고정 헤더 */}
       <AppHeader routeTitle={routeTitle} />
       <FloatingLeftRail />
+
       {/* 본문 */}
       <main
         id="main"

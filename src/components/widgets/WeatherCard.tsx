@@ -1,7 +1,9 @@
 // src/components/WeatherCard.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +11,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
@@ -26,6 +27,7 @@ import {
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+/* ===== 타입 ===== */
 type GeoResult = {
   name: string;
   country: string;
@@ -34,70 +36,12 @@ type GeoResult = {
 };
 type CurrentWeather = { temperature_2m: number; weather_code: number };
 
+/* ===== 상수 ===== */
 const KST_TZ = "Asia/Seoul";
+const CACHE_TTL_MIN = 15; // 로컬 캐시 유효시간 (분)
+const LS_REGION_KEY = "weather_region";
+const LS_CACHE_KEY = "weather_cache_v1"; // { [regionKo]: { temp, code, ts } }
 
-// 코드→이모지 (없으면 기본)
-function codeToEmoji(code?: number | null) {
-  if (code == null) return "🌤️";
-  if ([0].includes(code)) return "☀️";
-  if ([1, 2].includes(code)) return "🌤️";
-  if ([3].includes(code)) return "☁️";
-  if ([45, 48].includes(code)) return "🌫️";
-  if ([51, 53, 55, 61, 63, 65].includes(code)) return "🌧️";
-  if ([80, 81, 82].includes(code)) return "🌦️";
-  if ([71, 73, 75, 77, 85, 86].includes(code)) return "❄️";
-  if ([95, 96, 99].includes(code)) return "⛈️";
-  return "🌡️";
-}
-
-// KR 우선 + 대안 키워드로 재시도
-async function geocodeSmart(name: string): Promise<GeoResult | null> {
-  const trials = [
-    { q: name, country: "KR" },
-    { q: name.endsWith("시") ? name : `${name}시`, country: "KR" },
-    { q: "Cheonan", country: "KR" },
-    { q: "Cheonan-si", country: "KR" },
-    { q: name, country: undefined },
-  ];
-
-  for (const t of trials) {
-    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
-      t.q
-    )}&count=1&language=ko&format=json${
-      t.country ? `&country=${t.country}` : ""
-    }`;
-    const res = await fetch(url);
-    if (!res.ok) continue;
-    const json = await res.json();
-    const r = json?.results?.[0];
-    if (r) {
-      return {
-        name: r.name,
-        country: r.country,
-        latitude: r.latitude,
-        longitude: r.longitude,
-      };
-    }
-  }
-  return null;
-}
-
-async function fetchCurrent(
-  lat: number,
-  lon: number
-): Promise<CurrentWeather | null> {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&timezone=${encodeURIComponent(
-    KST_TZ
-  )}`;
-  const res = await fetch(url);
-  if (!res.ok) return null;
-  const json = await res.json();
-  const c = json?.current;
-  if (!c) return null;
-  return { temperature_2m: c.temperature_2m, weather_code: c.weather_code };
-}
-
-// ▼ 콤보박스용 지역 목록 (한글 라벨 고정)
 const REGIONS: string[] = [
   "서울",
   "부산",
@@ -192,36 +136,243 @@ const REGIONS: string[] = [
   "서귀포",
 ];
 
-type Props = { defaultRegion?: string };
+/* ===== 날씨 코드 매핑 ===== */
+function codeToEmoji(code?: number | null) {
+  if (code == null) return "🌤️";
+  if (code === 0) return "☀️"; // Clear
+  if ([1, 2].includes(code)) return "🌤️"; // Mainly clear
+  if (code === 3) return "☁️"; // Overcast
+  if ([45, 48].includes(code)) return "🌫️"; // Fog
+  if ([51, 53, 55, 61, 63, 65].includes(code)) return "🌧️"; // Drizzle/Rain
+  if ([66, 67].includes(code)) return "🌧️"; // Freezing rain
+  if ([80, 81, 82].includes(code)) return "🌦️"; // Showers
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return "❄️"; // Snow
+  if ([95, 96, 99].includes(code)) return "⛈️"; // Thunderstorm
+  return "🌡️";
+}
+function codeToText(code?: number | null) {
+  if (code == null) return "알 수 없음";
+  const m: Record<string, string> = {
+    "0": "맑음",
+    "1": "대체로 맑음",
+    "2": "부분적 구름",
+    "3": "흐림",
+    "45": "안개",
+    "48": "착빙 안개",
+    "51": "이슬비 약함",
+    "53": "이슬비",
+    "55": "이슬비 강함",
+    "61": "비 약함",
+    "63": "비",
+    "65": "비 강함",
+    "66": "어는 비 약함",
+    "67": "어는 비 강함",
+    "71": "눈 약함",
+    "73": "눈",
+    "75": "눈 강함",
+    "77": "싸락눈",
+    "80": "소나기 약함",
+    "81": "소나기",
+    "82": "소나기 강함",
+    "85": "소낙눈 약함",
+    "86": "소낙눈 강함",
+    "95": "뇌우",
+    "96": "뇌우(우박 가능)",
+    "99": "강한 뇌우(우박)",
+  };
+  return m[String(code)] ?? "알 수 없음";
+}
 
-export default function WeatherCard({ defaultRegion = "서울" }: Props) {
+/* ===== 지오코딩: 별칭 & 쿼리 확장 ===== */
+const GEO_ALIASES: Record<string, string[]> = {
+  서울: ["서울", "Seoul", "Seoul-si"],
+  천안: ["천안", "천안시", "Cheonan", "Cheonan-si"],
+  천안시: ["천안시", "천안", "Cheonan", "Cheonan-si"],
+  제주: ["제주", "제주시", "Jeju", "Jeju-si", "Jeju City"],
+  제주시: ["제주시", "Jeju-si", "Jeju City", "Jeju"],
+  서귀포: ["서귀포", "Seogwipo", "Seogwipo-si"],
+  수원: ["수원", "Suwon", "Suwon-si"],
+  "광주(경기)": ["광주", "Gwangju-si"], // 경기 광주 유도
+  광주: ["광주", "Gwangju", "Gwangju-si", "Gwangju Metropolitan City"],
+  // 필요시 계속 확장
+};
+function expandKoRegionQueries(nameKo: string): string[] {
+  const base = (nameKo ?? "").trim();
+  const stripped = base.replace(/\(.+?\)/g, "").trim(); // 예: "광주(경기)" → "광주"
+  const withSi = stripped.endsWith("시") ? stripped : `${stripped}시`;
+  const aliases = GEO_ALIASES[stripped] ?? GEO_ALIASES[base] ?? [];
+  const candidates = [stripped, withSi, ...aliases];
+  return Array.from(new Set(candidates.filter(Boolean)));
+}
+
+/* ===== API 유틸 ===== */
+async function geocodeSmart(name: string): Promise<GeoResult | null> {
+  const queries = expandKoRegionQueries(name);
+
+  for (const q of queries) {
+    // 1차: 한국 한정(countryCode=KR)
+    {
+      const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
+        q
+      )}&count=1&language=ko&format=json&countryCode=KR`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const json = await res.json();
+        const r = json?.results?.[0];
+        if (r) {
+          return {
+            name: r.name,
+            country: r.country,
+            latitude: r.latitude,
+            longitude: r.longitude,
+          };
+        }
+      }
+    }
+    // 2차: 국가 제한 없이 재시도
+    {
+      const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
+        q
+      )}&count=1&language=ko&format=json`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const json = await res.json();
+        const r = json?.results?.[0];
+        if (r) {
+          return {
+            name: r.name,
+            country: r.country,
+            latitude: r.latitude,
+            longitude: r.longitude,
+          };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+async function fetchCurrent(
+  lat: number,
+  lon: number
+): Promise<CurrentWeather | null> {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&timezone=${encodeURIComponent(
+    KST_TZ
+  )}`;
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  const json = await res.json();
+  const c = json?.current;
+  if (!c) return null;
+  return { temperature_2m: c.temperature_2m, weather_code: c.weather_code };
+}
+
+/* ===== 시간/캐시 유틸 ===== */
+function nowKSTDate() {
+  return new Date(new Date().toLocaleString("en-US", { timeZone: KST_TZ }));
+}
+function minutesDiff(a: Date, b: Date) {
+  return Math.abs((a.getTime() - b.getTime()) / 60000);
+}
+type CacheShape = Record<string, { temp: number; code: number; ts: string }>;
+function readCache(): CacheShape {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(localStorage.getItem(LS_CACHE_KEY) || "{}") as CacheShape;
+  } catch {
+    return {};
+  }
+}
+function writeCache(cache: CacheShape) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(LS_CACHE_KEY, JSON.stringify(cache));
+}
+
+/* ===== 컴포넌트 ===== */
+type Props = {
+  defaultRegion?: string;
+  className?: string;
+  buttonEmojiFallback?: string;
+};
+export default function WeatherCard({
+  defaultRegion = "서울",
+  className,
+  buttonEmojiFallback = "🌤️",
+}: Props) {
+  // 저장된 지역
   const [region, setRegion] = useState<string>(() => {
     if (typeof window === "undefined") return defaultRegion;
-    return localStorage.getItem("weather_region") ?? defaultRegion;
+    return localStorage.getItem(LS_REGION_KEY) ?? defaultRegion;
   });
 
-  // 표시용 상태 (항상 한글 라벨 사용)
-  const [city, setCity] = useState<string>(""); // 화면에 보여줄 도시명 (한글 라벨)
+  // 표시 상태
+  const [city, setCity] = useState<string>(""); // 라벨
   const [temp, setTemp] = useState<number | null>(null);
   const [code, setCode] = useState<number | null>(null);
+  const [lastTs, setLastTs] = useState<string | null>(null);
 
-  const [openDialog, setOpenDialog] = useState(false);
+  // UI 상태
+  const [open, setOpen] = useState(false);
   const [openCombo, setOpenCombo] = useState(false);
   const [selected, setSelected] = useState<string>(region);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
-  const emoji = useMemo(() => codeToEmoji(code), [code]);
+  // 버튼 이모지 & 라벨
+  const emoji = useMemo(
+    () => (code != null ? codeToEmoji(code) : buttonEmojiFallback),
+    [code, buttonEmojiFallback]
+  );
+  const label = useMemo(() => {
+    if (city && temp != null) return `${city} · ${Math.round(temp)}°`;
+    return city || "날씨";
+  }, [city, temp]);
 
-  // 저장 후 로드 (표시는 '선택한 한글 라벨'을 그대로 사용)
-  const saveAndLoad = async (labelKo: string) => {
+  // 🔴 빨간 점: 지역 미설정 / 에러 / 캐시 오래됨
+  const hasDot = useMemo(() => {
+    if (!city) return true;
+    if (err) return true;
+    if (!lastTs) return true;
+    const age = minutesDiff(nowKSTDate(), new Date(lastTs));
+    return age > CACHE_TTL_MIN; // TTL 초과 시 갱신 권장
+  }, [city, err, lastTs]);
+
+  // 캐시 로드 → TTL 검사 → 필요 시 갱신
+  useEffect(() => {
+    const r =
+      typeof window !== "undefined"
+        ? localStorage.getItem(LS_REGION_KEY)
+        : null;
+    const chosen = r ?? defaultRegion;
+    setRegion(chosen);
+    setSelected(chosen);
+
+    const cache = readCache();
+    const c = cache[chosen];
+    if (c) {
+      setCity(chosen);
+      setTemp(c.temp);
+      setCode(c.code);
+      setLastTs(c.ts);
+      // TTL 지나면 조용히 갱신 시도
+      if (minutesDiff(nowKSTDate(), new Date(c.ts)) > CACHE_TTL_MIN) {
+        void saveAndLoad(chosen, { silent: true });
+      }
+    } else {
+      // 캐시 없음 → 로드
+      void saveAndLoad(chosen, { silent: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function saveAndLoad(labelKo: string, opts?: { silent?: boolean }) {
     if (!labelKo) return;
-    setLoading(true);
+    if (!opts?.silent) setLoading(true);
     setErr("");
     try {
       const g = await geocodeSmart(labelKo.trim());
       if (!g) {
-        setErr("지역을 찾을 수 없어요 (예: 서울, 천안 등)");
+        setErr("지역을 찾을 수 없어요 (예: 서울, 천안)");
         return;
       }
       const cw = await fetchCurrent(g.latitude, g.longitude);
@@ -230,147 +381,167 @@ export default function WeatherCard({ defaultRegion = "서울" }: Props) {
         return;
       }
       const clean = labelKo.trim();
+      // 상태 반영
       setRegion(clean);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("weather_region", clean);
-      }
-      setCity(clean); // 사용자 선택 라벨 고정
-      setTemp(Math.round(cw.temperature_2m));
+      setCity(clean);
+      setTemp(cw.temperature_2m);
       setCode(cw.weather_code);
-      setOpenDialog(false);
+      const ts = nowKSTDate().toISOString();
+      setLastTs(ts);
+      // 저장
+      if (typeof window !== "undefined") {
+        localStorage.setItem(LS_REGION_KEY, clean);
+        const cache = readCache();
+        cache[clean] = { temp: cw.temperature_2m, code: cw.weather_code, ts };
+        writeCache(cache);
+      }
+      if (!opts?.silent) setOpen(false);
     } catch {
       setErr("네트워크 오류가 발생했어요");
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
-  };
+  }
 
-  // 최초 로드(있으면)
-  useEffect(() => {
-    const saved =
-      typeof window !== "undefined"
-        ? localStorage.getItem("weather_region")
-        : null;
-    if (saved) {
-      setSelected(saved);
-      saveAndLoad(saved); // 조용히 로드
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Enter로 저장
-  const handleEnterSave = (e: React.KeyboardEvent) => {
+  // Enter 저장
+  const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !loading) {
       e.preventDefault();
       if (openCombo) {
         setOpenCombo(false);
         return;
       }
-      if (selected) saveAndLoad(selected);
+      if (selected) void saveAndLoad(selected);
     }
   };
 
-  // ▼ 아래줄 텍스트(지역 · 온도) 구성
-  const label =
-    city && temp != null ? `${city} · ${temp}°` : city || "날씨카드";
-
-  return (
-    <>
-      {/* ▼ 최소 UI: 이모지(위) + 아래 줄에 "지역 · 온도" */}
-      <button
+  const CircleButton = (
+    <div className={cn("inline-flex flex-col items-center gap-2", className)}>
+      <motion.button
         type="button"
         onClick={() => {
           setSelected(region);
           setErr("");
-          setOpenDialog(true);
+          setOpen(true);
         }}
+        aria-label="날씨 보기"
         className={cn(
-          "group inline-flex flex-col items-center gap-2",
-          "p-0 h-auto rounded-md transition-all duration-200",
-          "hover:-translate-y-0.5 ",
-          "active:translate-y-0",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60 focus-visible:ring-offset-2"
+          "relative grid place-items-center",
+          "h-14 w-14 rounded-full border",
+          "bg-white/70 dark:bg-zinc-900/40 backdrop-blur",
+          "hover:scale-105 transition-all duration-300"
         )}
-        aria-label="날씨카드 설정"
       >
-        <span
-          className="text-2xl leading-none transition-transform duration-200
-                     group-hover:scale-110 group-active:scale-95"
-        >
+        {/* 이모지 */}
+        <span className="text-xl leading-none select-none" aria-hidden>
           {emoji}
         </span>
-        <span className="text-xs font-medium text-neutral-700 group-hover:text-neutral-900">
-          {label}
-        </span>
-      </button>
+        <span className="sr-only">날씨</span>
+      </motion.button>
+    </div>
+  );
 
-      {/* ▼ 지역 선택 모달 (Combobox = Popover + Command) */}
-      <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-        <DialogContent className="sm:max-w-md" onKeyDown={handleEnterSave}>
+  const lastUpdatedText = lastTs
+    ? new Date(lastTs).toLocaleString("ko-KR", { timeZone: KST_TZ })
+    : "-";
+
+  return (
+    <>
+      {CircleButton}
+
+      {/* 상세 모달: 정확한 온도/상태 + 지역 재설정 */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md" onKeyDown={onKeyDown}>
           <DialogHeader>
-            <DialogTitle>지역 선택</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <span>현재 날씨</span>
+              <span className="text-lg" aria-hidden>
+                {emoji}
+              </span>
+            </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-3">
-            <div className="text-xs text-neutral-500">
-              도시를 검색하거나 선택하세요
+          <div className="space-y-4">
+            {/* 상세 정보 */}
+            <div className="rounded-lg border p-3 bg-muted/30">
+              <div className="text-sm text-neutral-500">지역</div>
+              <div className="text-base font-semibold">{city || region}</div>
+              <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                <div className="rounded-md bg-white/60 dark:bg-zinc-900/40 p-2 border">
+                  <div className="text-neutral-500">온도</div>
+                  <div className="text-lg font-semibold">
+                    {temp != null ? `${Math.round(temp)}°C` : "—"}
+                  </div>
+                </div>
+                <div className="rounded-md bg-white/60 dark:bg-zinc-900/40 p-2 border">
+                  <div className="text-neutral-500">상태</div>
+                  <div className="text-lg font-semibold">
+                    {codeToText(code)}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-2 text-xs text-neutral-500">
+                업데이트: {lastUpdatedText}
+              </div>
+              {err && <div className="mt-2 text-xs text-rose-600">{err}</div>}
             </div>
 
-            <Popover open={openCombo} onOpenChange={setOpenCombo}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={openCombo}
-                  className="w-full justify-between"
+            {/* 지역 선택 (Combobox) */}
+            <div className="space-y-2">
+              <div className="text-xs text-neutral-500">지역 변경</div>
+              <Popover open={openCombo} onOpenChange={setOpenCombo}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={openCombo}
+                    className="w-full justify-between"
+                  >
+                    {selected ? selected : "지역을 선택하세요"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-[var(--radix-popover-trigger-width)] p-0"
+                  onWheel={(e) => e.stopPropagation()}
                 >
-                  {selected ? selected : "지역을 선택하세요"}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                className="w-[var(--radix-popover-trigger-width)] p-0"
-                onWheel={(e) => e.stopPropagation()}
-              >
-                <Command>
-                  <CommandInput placeholder="예: 서울, 천안, 파주…" />
-                  <CommandList className="max-h-64 overflow-y-auto">
-                    <CommandEmpty>검색 결과가 없어요</CommandEmpty>
-                    <CommandGroup>
-                      {REGIONS.map((label) => (
-                        <CommandItem
-                          key={label}
-                          value={label}
-                          onSelect={(v) => {
-                            setSelected(v);
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              selected === label ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          {label}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-
-            {err && <p className="text-xs text-rose-500">{err}</p>}
+                  <Command>
+                    <CommandInput placeholder="예: 서울, 천안, 파주…" />
+                    <CommandList className="max-h-64 overflow-y-auto">
+                      <CommandEmpty>검색 결과가 없어요</CommandEmpty>
+                      <CommandGroup>
+                        {REGIONS.map((label) => (
+                          <CommandItem
+                            key={label}
+                            value={label}
+                            onSelect={(v) => setSelected(v)}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selected === label ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {label}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
 
-          <DialogFooter className="gap-2">
+          <DialogFooter>
             <Button
+              variant="ghost"
               onClick={() => saveAndLoad(selected)}
               disabled={loading || !selected}
             >
               {loading ? "저장 중…" : "저장"}
             </Button>
-            <Button variant="secondary" onClick={() => setOpenDialog(false)}>
+            <Button variant="ghost" onClick={() => setOpen(false)}>
               닫기
             </Button>
           </DialogFooter>
