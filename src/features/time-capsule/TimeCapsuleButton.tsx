@@ -13,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import supabase from "@/lib/supabase";
 import { toast } from "sonner";
@@ -20,17 +21,13 @@ import { useUser } from "@/contexts/UserContext";
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 import TimeRippleEffect from "./TimeRippleEffect";
+import DateTimePicker from "./date-time-picker";
 
-function toLocalInputValue(d: Date) {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
-    d.getHours()
-  )}:${pad(d.getMinutes())}`;
-}
-function getDefaultOpenLocal() {
+function getDefaultOpenDate() {
   const d = new Date();
   d.setDate(d.getDate() + 1);
-  return toLocalInputValue(d);
+  d.setSeconds(0, 0);
+  return d;
 }
 
 export default function TimeCapsuleButton({
@@ -49,7 +46,7 @@ export default function TimeCapsuleButton({
 
   const [title, setTitle] = React.useState("");
   const [content, setContent] = React.useState("");
-  const [openLocal, setOpenLocal] = React.useState(getDefaultOpenLocal());
+  const [openAt, setOpenAt] = React.useState<Date>(getDefaultOpenDate());
   const [saving, setSaving] = React.useState(false);
   const [err, setErr] = React.useState("");
 
@@ -60,7 +57,7 @@ export default function TimeCapsuleButton({
   const prevRef = React.useRef<{
     title: string;
     content: string;
-    openLocal: string;
+    openAt: Date;
   } | null>(null);
 
   // 다이얼로그 닫힌 뒤 토스트
@@ -76,12 +73,10 @@ export default function TimeCapsuleButton({
   // 이펙트/DB가 모두 끝나면 닫기
   React.useEffect(() => {
     if (sealing && fxDone && readyToClose) {
-      // 약간의 여유 후 닫기(선호에 따라 0으로 해도 됨)
       setTimeout(() => handleDialogChange(false), 80);
       setSealing(false);
       setFxDone(false);
       setReadyToClose(false);
-      // 폼은 이미 비워졌음
       setShouldToastOnClose(true);
     }
   }, [sealing, fxDone, readyToClose]);
@@ -113,7 +108,7 @@ export default function TimeCapsuleButton({
   const resetForm = () => {
     setTitle("");
     setContent("");
-    setOpenLocal(getDefaultOpenLocal());
+    setOpenAt(getDefaultOpenDate());
     setErr("");
   };
 
@@ -129,8 +124,8 @@ export default function TimeCapsuleButton({
       return;
     }
 
-    const t = title.trim(),
-      c = content.trim();
+    const t = title.trim();
+    const c = content.trim();
     if (!t) {
       setErr("제목을 입력해 주세요.");
       return;
@@ -139,13 +134,7 @@ export default function TimeCapsuleButton({
       setErr("내용을 입력해 주세요.");
       return;
     }
-    if (!openLocal) {
-      setErr("열람 가능 일시를 선택해 주세요.");
-      return;
-    }
-
-    const openAt = new Date(openLocal);
-    if (Number.isNaN(openAt.getTime())) {
+    if (!(openAt instanceof Date) || Number.isNaN(openAt.getTime())) {
       setErr("유효한 날짜/시간이 아닙니다.");
       return;
     }
@@ -157,7 +146,7 @@ export default function TimeCapsuleButton({
     setSaving(true);
 
     // ★ 폼 내용 비우고 봉인 이펙트 진입
-    prevRef.current = { title, content, openLocal };
+    prevRef.current = { title, content, openAt };
     resetForm();
     setSealing(true);
     setFxDone(false);
@@ -178,12 +167,12 @@ export default function TimeCapsuleButton({
       if (error) throw error;
 
       // 알림(실패해도 무시)
-      if (user.partner_id) {
+      if ((user as any)?.partner_id) {
         try {
           await sendUserNotification({
             senderId: user.id,
-            receiverId: user.partner_id,
-            type: "타임캡슐작성",
+            receiverId: (user as any).partner_id,
+            type: "타임캡슐",
             capsuleTitle: t,
           });
         } catch (e) {
@@ -200,7 +189,7 @@ export default function TimeCapsuleButton({
       if (prevRef.current) {
         setTitle(prevRef.current.title);
         setContent(prevRef.current.content);
-        setOpenLocal(prevRef.current.openLocal);
+        setOpenAt(prevRef.current.openAt);
       }
       setErr("저장에 실패했어요. 잠시 후 다시 시도해 주세요.");
     } finally {
@@ -241,9 +230,9 @@ export default function TimeCapsuleButton({
             <DialogTitle>타임캡슐 작성</DialogTitle>
           </DialogHeader>
 
-          {/* ★ 봉인 중 화면: 다이얼로그 내부 중앙에 이펙트 + 하단 문구 */}
+          {/* ★ 봉인 중 화면 */}
           {sealing ? (
-            <div className="relative h-96 sm:h-64 ">
+            <div className="relative h-96 sm:h-64">
               <TimeRippleEffect
                 open
                 variant="inline"
@@ -256,17 +245,27 @@ export default function TimeCapsuleButton({
             </div>
           ) : (
             <>
-              {/* 폼 내용 */}
-              <div className="space-y-4">
+              {/* 폼 */}
+              <div
+                className={cn(
+                  "space-y-4",
+                  sealing && "pointer-events-none opacity-50"
+                )}
+              >
                 <div className="space-y-1.5">
                   <Label htmlFor="tc-title">제목</Label>
-                  <Input
-                    id="tc-title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="예) 1주년 기념 편지"
-                    maxLength={40}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="tc-title"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="예) 1주년 기념 편지"
+                      maxLength={10}
+                    />
+                    <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-neutral-400">
+                      {title.length}/10
+                    </span>
+                  </div>
                 </div>
                 <p className="text-[11px] text-neutral-500">
                   * 제목은 상대에게 공개됩니다.
@@ -284,24 +283,21 @@ export default function TimeCapsuleButton({
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="tc-open-dt">열람 가능 일시</Label>
-                  <Input
-                    id="tc-open-dt"
-                    type="datetime-local"
-                    value={openLocal}
-                    onChange={(e) => setOpenLocal(e.target.value)}
-                    min={toLocalInputValue(new Date())}
+                  <Label>열람 가능 일시</Label>
+                  <DateTimePicker
+                    value={openAt}
+                    onChange={(d) => d && setOpenAt(d)}
+                    min={new Date()}
                   />
-                  <p className="text-[11px] text-neutral-500">
-                    * 입력하신 시각 이후에만 열어볼 수 있어요.
-                  </p>
                 </div>
 
                 {err && <div className="text-sm text-rose-600">{err}</div>}
               </div>
 
+              <Separator className="my-3" />
+
               <DialogFooter className="gap-2">
-                <Button variant="ghost" onClick={onSave} disabled={saving}>
+                <Button onClick={onSave} disabled={saving}>
                   {saving ? "타임캡슐 봉인 중…" : "타임캡슐 봉인"}
                 </Button>
                 <Button

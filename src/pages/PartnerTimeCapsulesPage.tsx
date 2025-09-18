@@ -27,7 +27,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { Lock, Unlock, RefreshCcw, ExternalLink } from "lucide-react";
+import { RefreshCcw, ExternalLink } from "lucide-react";
 
 /* ───────── Types ───────── */
 type Capsule = {
@@ -42,6 +42,11 @@ type Capsule = {
 type FilterMode = "all" | "openableOnly" | "lockedOnly";
 
 const KST_TZ = "Asia/Seoul";
+
+/* ───────── Settings ───────── */
+const CHAIN_OVERLAY_SRC = "/time-capsule/chains.png"; // 투명 PNG(1:1 추천)
+const GRID_CLASSES =
+  "grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3  lg:grid-cols-4  2xl:grid-cols-6";
 
 /* ───────── Utils ───────── */
 function formatRemaining(ms: number) {
@@ -78,7 +83,7 @@ function hashStr(s: string) {
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
   return Math.abs(h);
 }
-// /time-capsule/time-capsule(1~5).png
+// /public/time-capsule/time-capsule(1~5).png → 5개 중 해시 기반 고정 랜덤
 function pickCapsuleImage(idOrTitle: string) {
   const idx = (hashStr(idOrTitle) % 5) + 1;
   return `/time-capsule/time-capsule${idx}.png`;
@@ -191,25 +196,25 @@ export default function PartnerTimeCapsulesPage() {
 
   /* ───────── UI ───────── */
   return (
-    <TooltipProvider delayDuration={150}>
-      <main className="mx-auto max-w-[1600px] px-3 sm:px-4 md:px-6">
+    <TooltipProvider delayDuration={180}>
+      <main className="mx-auto px-3 sm:px-4 md:px-6">
         <section
           className={cn(
-            "my-6 rounded-2xl border bg-[#FAF7F2] overflow-hidden",
-            "isolate"
+            "my-6 rounded-3xl border bg-gradient-to-b from-[#FBF8F2] to-[#F6F3EE] overflow-hidden",
+            "shadow-sm"
           )}
         >
           {/* Header */}
           <div className="flex flex-col gap-3 p-3 sm:p-4 md:p-5">
             <div className="flex items-center justify-between gap-3">
-              <h1 className="text-base sm:text-lg md:text-xl font-semibold text-[#5b3d1d]">
+              <h1 className="text-base sm:text-lg md:text-xl font-semibold text-[#533b22] tracking-tight">
                 타임캡슐
               </h1>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => void fetchList()}
-                className="gap-1 shrink-0"
+                className="gap-1 shrink-0 rounded-full"
               >
                 <RefreshCcw className="h-4 w-4" />
                 새로고침
@@ -222,26 +227,26 @@ export default function PartnerTimeCapsulesPage() {
                 type="single"
                 value={filterMode}
                 onValueChange={(v) => v && setFilterMode(v as FilterMode)}
-                className="ml-auto"
+                className="ml-auto rounded-full bg-white/70 p-1 ring-1 ring-black/5"
               >
                 <ToggleGroupItem
                   value="all"
                   aria-label="전체보기"
-                  className="px-3"
+                  className="px-3 rounded-full data-[state=on]:bg-neutral-900 data-[state=on]:text-white"
                 >
                   전체
                 </ToggleGroupItem>
                 <ToggleGroupItem
                   value="openableOnly"
                   aria-label="열람 가능만"
-                  className="px-3"
+                  className="px-3 rounded-full data-[state=on]:bg-emerald-600 data-[state=on]:text-white"
                 >
                   열람 가능만
                 </ToggleGroupItem>
                 <ToggleGroupItem
                   value="lockedOnly"
                   aria-label="잠긴 것만"
-                  className="px-3"
+                  className="px-3 rounded-full data-[state=on]:bg-stone-700 data-[state=on]:text-white"
                 >
                   잠긴 것만
                 </ToggleGroupItem>
@@ -254,16 +259,11 @@ export default function PartnerTimeCapsulesPage() {
           {/* Content */}
           {loading ? (
             <div className="p-3 sm:p-4 md:p-5">
-              <div
-                className="
-                  grid gap-3 sm:gap-4
-                  grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-8 2xl:grid-cols-10
-                "
-              >
+              <div className={GRID_CLASSES}>
                 {Array.from({ length: 20 }).map((_, i) => (
                   <Skeleton
                     key={i}
-                    className="aspect-square rounded-xl min-w-[160px]"
+                    className="min-w-[100px] aspect-square rounded-2xl "
                   />
                 ))}
               </div>
@@ -277,91 +277,78 @@ export default function PartnerTimeCapsulesPage() {
           ) : (
             // 고정 높이 스크롤 영역 (화면의 80%)
             <div className="p-2 sm:p-3 md:p-4 pr-3">
-              <ScrollArea className="h-[80vh] rounded-lg">
-                <div
-                  className="
-                    grid gap-3 sm:gap-4
-                    grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-8 2xl:grid-cols-10
-                    pb-2
-                  "
-                >
+              <ScrollArea className="h-[80vh] rounded-xl">
+                <div className={cn(GRID_CLASSES, "pb-2")}>
                   {filtered.map((it) => {
                     const openable = (it as any).openable as boolean;
                     const remain = Math.max(0, (it as any).remainMs as number);
                     const imgSrc = pickCapsuleImage(it.id + it.title);
 
+                    const tooltipText = formatRemaining(remain);
+
                     return (
-                      <motion.button
-                        key={it.id}
-                        type="button"
-                        onClick={() => onCardClick(it as any)}
-                        whileTap={{ scale: 0.985 }}
-                        className={cn(
-                          "relative aspect-square w-full min-w-[160px] overflow-hidden rounded-xl border bg-white shadow-sm transition active:scale-[0.99] contain-content",
-                          openable
-                            ? "border-emerald-200 ring-1 ring-emerald-100 hover:shadow-md"
-                            : "border-stone-200 ring-1 ring-stone-100 hover:shadow-sm"
-                        )}
-                      >
-                        {/* image */}
-                        <img
-                          src={imgSrc}
-                          alt="time capsule"
-                          className={cn(
-                            "absolute inset-0 h-full w-full object-cover select-none",
-                            !openable && "grayscale contrast-[.9] opacity-80"
-                          )}
-                          draggable={false}
-                        />
+                      <Tooltip key={it.id}>
+                        <TooltipTrigger asChild>
+                          <motion.button
+                            type="button"
+                            onClick={() => onCardClick(it as any)}
+                            whileTap={{ scale: 0.985 }}
+                            className={cn(
+                              "group relative aspect-square w-full min-w-[100px] overflow-hidden rounded-2xl border bg-white shadow-sm transition",
+                              "ring-1 ring-black/5 hover:shadow-md hover:-translate-y-[1px]",
+                              openable
+                                ? "border-emerald-200"
+                                : "border-stone-200"
+                            )}
+                          >
+                            {/* image */}
+                            <img
+                              src={imgSrc}
+                              alt="time capsule"
+                              className={cn(
+                                "absolute inset-0 h-full w-full object-cover select-none transition",
+                                !openable &&
+                                  "grayscale contrast-[.9] opacity-85"
+                              )}
+                              draggable={false}
+                              loading="lazy"
+                            />
 
-                        {/* center title pill */}
-                        <div className="absolute inset-0 grid place-items-center pointer-events-none">
-                          <div className="mx-2 max-w-[92%] truncate rounded-full bg-white/75 px-3 py-1 text-center text-[13px] font-semibold text-neutral-900 backdrop-blur-[2px]">
-                            {it.title}
-                          </div>
-                        </div>
+                            {/* 🔗 chains overlay (locked only) */}
+                            {!openable && (
+                              <img
+                                src={CHAIN_OVERLAY_SRC}
+                                alt="chains overlay"
+                                className={cn(
+                                  "pointer-events-none absolute inset-0 h-full w-full object-cover",
+                                  "opacity-95"
+                                )}
+                                draggable={false}
+                                loading="eager"
+                              />
+                            )}
 
-                        {/* lock badge */}
-                        <div className="absolute right-2 top-2">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
+                            {/* center title pill */}
+                            <div className="absolute inset-x-0 top-1.5 flex justify-center pointer-events-none">
                               <div
                                 className={cn(
-                                  "grid h-8 w-8 place-items-center rounded-full border shadow-sm",
-                                  openable
-                                    ? "bg-emerald-500/90 border-emerald-600/50 text-white"
-                                    : "bg-stone-600/90 border-stone-700/50 text-white"
+                                  "max-w-[92%] truncate rounded-lg px-3 py-1 text-center text-[8px] font-semibold backdrop-blur-[2px]",
+                                  "bg-black/35 text-white"
                                 )}
                               >
-                                {openable ? (
-                                  <Unlock className="h-4 w-4" />
-                                ) : (
-                                  <Lock className="h-4 w-4" />
-                                )}
+                                {it.title}
                               </div>
-                            </TooltipTrigger>
-                            <TooltipContent side="left" className="text-xs">
-                              {openable
-                                ? "지금 열람 가능"
-                                : formatRemaining(remain)}
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
+                            </div>
 
-                        {/* bottom-right open date */}
-                        <div className="absolute bottom-2 right-2 rounded bg-white/75 px-2 py-0.5 text-[10px] text-neutral-700">
-                          {new Date(it.open_at).toLocaleDateString("ko-KR", {
-                            timeZone: KST_TZ,
-                          })}
-                        </div>
-
-                        {/* locked ribbon overlay */}
-                        {!openable && (
-                          <div className="pointer-events-none absolute left-2 bottom-2 rounded bg-black/30 px-2 py-0.5 text-[10px] font-medium text-white">
-                            잠김
-                          </div>
-                        )}
-                      </motion.button>
+                            {/* subtle gradient edge */}
+                            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,.06),transparent_28%)] opacity-0 group-hover:opacity-100 transition" />
+                          </motion.button>
+                        </TooltipTrigger>
+                        {/* 툴팁: 이미지 호버 시 남은 시간/가능 여부 */}
+                        <TooltipContent side="top" className="text-xs">
+                          {tooltipText}
+                        </TooltipContent>
+                      </Tooltip>
                     );
                   })}
                 </div>
@@ -395,7 +382,7 @@ export default function PartnerTimeCapsulesPage() {
                     damping: 18,
                     mass: 0.7,
                   }}
-                  className="relative rounded-xl border bg-white p-4 shadow-sm overflow-hidden"
+                  className="relative rounded-2xl border bg-white p-4 shadow-sm overflow-hidden"
                 >
                   {/* 🔆 unlock burst */}
                   {openAnim && (

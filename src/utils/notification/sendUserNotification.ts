@@ -1,6 +1,8 @@
+// src/utils/notification/sendUserNotification.ts
 import supabase from "@/lib/supabase";
 
-type NotificationType =
+/** 알림 타입 */
+export type NotificationType =
   | "커플요청"
   | "커플수락"
   | "커플거절"
@@ -19,9 +21,10 @@ type NotificationType =
   | "물품판매"
   | "낚시성공"
   | "생산시설구매"
-  | "타임캡슐"; // ✅ 추가
+  | "타임캡슐" // 봉인 시
+  | "타임캡슐해제"; // ✅ 새로 추가: 시간 도래로 열람 가능해졌을 때
 
-interface SendUserNotificationInput {
+export interface SendUserNotificationInput {
   senderId: string;
   receiverId: string;
   type: NotificationType;
@@ -29,20 +32,31 @@ interface SendUserNotificationInput {
   description?: string;
   isRequest?: boolean;
 
-  /** '음식공유'일 때 표시할 음식 이름 (선택) */
+  /** '음식공유'에 표시할 음식 이름 (선택) */
   foodName?: string;
 
-  /** 더 이상 '음식공유'에선 사용하지 않지만, 하위호환 위해 유지 */
+  /** 하위호환 유지(미사용) */
   gold?: number;
 
-  /** '물품구매' | '물품판매' | '낚시성공' | '생산시설구매' 에서 표시할 아이템/어종/시설 이름 (선택) */
+  /** '물품구매' | '물품판매' | '낚시성공' | '생산시설구매' 표시 이름 (선택) */
   itemName?: string;
 
-  /** ✅ 타임캡슐 제목 (선택) */
+  /** 타임캡슐 제목(선택) — 봉인/해제 공통 사용 */
   capsuleTitle?: string;
 }
 
-// '음식공유' / '물품구매' / '물품판매' / '낚시성공' / '생산시설구매'는 별도 처리
+/* ───────────────── Helpers ───────────────── */
+const quote = (s: string) => `‘${s}’`;
+/** 한글 받침 기준 조사를 붙여줌(을/를) */
+function withObjectJosa(name: string) {
+  const ch = name.charCodeAt(name.length - 1);
+  const isHangul = ch >= 0xac00 && ch <= 0xd7a3;
+  if (!isHangul) return `${name}를`;
+  const jong = (ch - 0xac00) % 28;
+  return `${name}${jong === 0 ? "를" : "을"}`;
+}
+
+/** 기본 액션 문구(특수 케이스 제외) */
 const ACTION_BY_TYPE: Record<
   Exclude<
     NotificationType,
@@ -52,6 +66,7 @@ const ACTION_BY_TYPE: Record<
     | "낚시성공"
     | "생산시설구매"
     | "타임캡슐"
+    | "타임캡슐해제"
   >,
   string
 > = {
@@ -70,32 +85,22 @@ const ACTION_BY_TYPE: Record<
   음악등록: "음악을 등록했어요 🎵",
 };
 
-// 한글 받침 기준 조사(을/를)
-function withObjectJosa(name: string) {
-  const ch = name.charCodeAt(name.length - 1);
-  const isHangul = ch >= 0xac00 && ch <= 0xd7a3;
-  if (!isHangul) return `${name}를`;
-  const jong = (ch - 0xac00) % 28;
-  return `${name}${jong === 0 ? "를" : "을"}`;
-}
-// 따옴표 유틸
-const quote = (s: string) => `‘${s}’`;
-
+/* ───────────────── Core ───────────────── */
 export const sendUserNotification = async ({
   senderId,
   receiverId,
   type,
   isRequest,
   foodName,
-  gold, // 유지(미사용)
+  gold, // (미사용) 하위호환
   itemName,
-  capsuleTitle, // ✅ 추가
+  capsuleTitle,
 }: SendUserNotificationInput) => {
   if (senderId === receiverId) {
     return { error: new Error("자기 자신에게 알림을 보낼 수 없습니다.") };
   }
 
-  // 1) 보낸 사람 닉네임 조회
+  // 1) 보낸 사람 닉네임 조회 (실패해도 진행)
   let nickname = "상대방";
   try {
     const { data: userRow, error: userErr } = await supabase
@@ -139,10 +144,17 @@ export const sendUserNotification = async ({
       ? `${withObjectJosa(quote(name))} 구매했습니다 🏭`
       : "생산시설을 구매했어요 🏭";
   } else if (type === "타임캡슐") {
+    // 봉인
     const name = (capsuleTitle ?? "").trim();
     action = name
       ? `${withObjectJosa(quote(name))} 타임캡슐을 봉인했어요 ⏳`
       : "타임캡슐을 봉인했어요 ⏳";
+  } else if (type === "타임캡슐해제") {
+    // ✅ 새 분기: 시간 도래로 열람 가능
+    const name = (capsuleTitle ?? "").trim();
+    action = name
+      ? `${withObjectJosa(quote(name))} 타임캡슐이 열람 가능해졌어요 ⏰`
+      : "타임캡슐이 열람 가능해졌어요 ⏰";
   } else {
     action =
       ACTION_BY_TYPE[
@@ -154,6 +166,7 @@ export const sendUserNotification = async ({
           | "낚시성공"
           | "생산시설구매"
           | "타임캡슐"
+          | "타임캡슐해제"
         >
       ] ?? String(type);
   }
