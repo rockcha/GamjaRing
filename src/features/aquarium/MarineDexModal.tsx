@@ -70,6 +70,108 @@ const fmt = (n: number | null | undefined) =>
 
 type RarityFilter = "전체" | FishRarity;
 
+/* ─ FancyImage: Blur-up + De-pixel + Ripple Reveal ─ */
+type FancyImageProps = {
+  src: string;
+  alt: string;
+  rarity: FishRarity;
+  className?: string; // 기존 dim/grayscale 클래스 그대로 전달
+  title?: string;
+  draggable?: boolean;
+  loading?: "lazy" | "eager" | "auto";
+};
+
+function FancyImage({
+  src,
+  alt,
+  rarity,
+  className = "",
+  title,
+  draggable = false,
+  loading = "lazy",
+}: FancyImageProps) {
+  const [loaded, setLoaded] = useState(false);
+  const [errored, setErrored] = useState(false);
+
+  // 희귀도 톤 (스켈레톤 배경)
+  const tone =
+    rarity === "일반"
+      ? "from-neutral-100 to-neutral-50 ring-neutral-200"
+      : rarity === "희귀"
+      ? "from-sky-100 to-sky-50 ring-sky-200"
+      : rarity === "에픽"
+      ? "from-violet-100 to-violet-50 ring-violet-200"
+      : "from-amber-100 to-amber-50 ring-amber-200";
+
+  return (
+    <div className="absolute inset-0">
+      {/* 로딩 스켈레톤 + 샤이닝 */}
+      <div
+        aria-hidden
+        className={[
+          "absolute inset-0 rounded-md",
+          "bg-gradient-to-b",
+          tone,
+          "ring-1",
+          "overflow-hidden",
+          "transition-opacity duration-300",
+          loaded ? "opacity-0 pointer-events-none" : "opacity-100",
+        ].join(" ")}
+      >
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,.5),transparent)] bg-[length:220%_100%] animate-[shimmer_1200ms_linear_infinite]" />
+      </div>
+
+      {/* 실제 이미지 (opacity는 건드리지 않아 locked 상태의 opacity-25 유지됨) */}
+      <img
+        src={errored ? "/aquarium/placeholder.png" : src}
+        alt={alt}
+        title={title}
+        draggable={draggable}
+        loading={loading}
+        onLoad={() => setLoaded(true)}
+        onError={() => setErrored(true)}
+        className={[
+          "absolute inset-0 h-full w-full object-contain",
+          className,
+          loaded &&
+            "animate-[dePixel_800ms_cubic-bezier(0.2,0.8,0.2,1)_forwards]",
+        ].join(" ")}
+      />
+
+      {/* 물결 리빌 오버레이 (1회) */}
+      {loaded && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 animate-[rippleReveal_900ms_ease-out_1] bg-[radial-gradient(ellipse_at_center,rgba(147,197,253,0.22)_0%,rgba(147,197,253,0.16)_40%,transparent_65%)]"
+        />
+      )}
+
+      <style>{`
+        @keyframes shimmer {
+          0% { background-position: -40% 0; }
+          100% { background-position: 140% 0; }
+        }
+        @keyframes dePixel {
+          0% { filter: blur(8px) saturate(.9) contrast(1.05); transform: scale(1.02); }
+          100% { filter: blur(0) saturate(1) contrast(1); transform: scale(1); }
+        }
+        @keyframes rippleReveal {
+          0% { opacity: .55; transform: scale(0.92); filter: blur(1px); }
+          60% { opacity: .35; transform: scale(1.05); filter: blur(0); }
+          100% { opacity: 0; transform: scale(1.08); filter: blur(.4px); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .animate-\\[shimmer_1200ms_linear_infinite\\],
+          .animate-\\[dePixel_800ms_cubic-bezier\\(0\\.2,0\\.8,0\\.2,1\\)_forwards\\],
+          .animate-\\[rippleReveal_900ms_ease-out_1\\] {
+            animation: none !important;
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 export default function MarineDexModal() {
   const { couple } = useCoupleContext();
   const coupleId = couple?.id ?? null;
@@ -179,7 +281,7 @@ export default function MarineDexModal() {
       ? "bg-sky-100 text-sky-900 border border-sky-200"
       : r === "에픽"
       ? "bg-violet-100 text-violet-900 border border-violet-200"
-      : "bg-amber-100 text-amber-900 border border-amber-200";
+      : "bg-amber-100 text-amber-900 border-amber-200 border";
 
   const rarityCardBg = (r: FishRarity) =>
     r === "일반"
@@ -239,7 +341,7 @@ export default function MarineDexModal() {
           <Separator className="mt-3" />
 
           <div className="px-5 pt-3 pb-4">
-            {/* Filters (shadcn ToggleGroup) */}
+            {/* Filters */}
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <ToggleGroup
                 type="single"
@@ -298,19 +400,15 @@ export default function MarineDexModal() {
                     >
                       <div className="relative">
                         <AspectRatio ratio={1}>
-                          <img
+                          {/* ✅ 기존 <img> → FancyImage 교체 */}
+                          <FancyImage
                             src={imgSrc}
                             alt={f.name_ko ?? f.id}
-                            className={`absolute inset-0 h-full w-full object-contain ${imgDimCls}`}
+                            rarity={f.rarity}
+                            className={imgDimCls}
+                            title={`수영 높이: ${y1}~${y2}%`}
                             draggable={false}
                             loading="lazy"
-                            onError={(ev) => {
-                              (ev.currentTarget as HTMLImageElement).onerror =
-                                null;
-                              (ev.currentTarget as HTMLImageElement).src =
-                                "/aquarium/placeholder.png";
-                            }}
-                            title={`수영 높이: ${y1}~${y2}%`}
                           />
                         </AspectRatio>
 

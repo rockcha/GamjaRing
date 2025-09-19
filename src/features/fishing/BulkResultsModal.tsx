@@ -18,7 +18,124 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { RARITY_ORDER, classesByRarity } from "./utils";
 import type { BulkCatch, Placements, Rarity, TankRow } from "./types";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+/* ─────────────────────────────────────────────
+    내부 이펙트 유틸: CSS keyframes를 파일 내부에서 1회만 주입
+   ───────────────────────────────────────────── */
+function useInjectKeyframesOnce() {
+  const injectedRef = useRef(false);
+  useEffect(() => {
+    if (injectedRef.current) return;
+    const style = document.createElement("style");
+    style.setAttribute("data-bulk-fx", "true");
+    style.textContent = `
+@keyframes shineSweep {
+  0% { transform: translateX(-120%) skewX(-20deg); opacity: 0; }
+  15% { opacity: .7; }
+  100% { transform: translateX(120%) skewX(-20deg); opacity: 0; }
+}
+@keyframes auraPulse {
+  0%,100% { opacity: .0; box-shadow: 0 0 0px rgba(0,0,0,0); }
+  40% { opacity: .85; box-shadow: 0 0 40px rgba(255,255,255,.7), 0 0 60px var(--fx-color, rgba(255,255,255,.6)); }
+}
+@keyframes sparklePop {
+  0% { transform: scale(.4) translateY(6px); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: scale(1) translateY(-8px); opacity: 0; }
+}
+/* 유틸 클래스 */
+.bulk-fx-shine { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.bulk-fx-shine::after {
+  content:""; position: absolute; top: 0; bottom: 0; width: 45%;
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.6) 45%, rgba(255,255,255,0) 100%);
+  filter: blur(2px);
+  animation: shineSweep 1200ms ease-out forwards;
+}
+.bulk-fx-aura {
+  position: absolute; inset: -2px; border-radius: 12px; pointer-events: none;
+  animation: auraPulse 1800ms ease-in-out 1 forwards;
+}
+.bulk-fx-sparkle {
+  position: absolute; width: 10px; height: 10px; pointer-events: none;
+  background: radial-gradient(circle, #fff 0 40%, transparent 41%);
+  animation: sparklePop 1200ms ease-out forwards;
+  filter: drop-shadow(0 0 6px rgba(255,255,255,.9));
+}
+`;
+    document.head.appendChild(style);
+    injectedRef.current = true;
+    return () => {
+      // 남겨둬도 무방하지만, 컴포넌트 완전 언마운트 시 정리하고 싶다면 주석 해제
+      // style.remove();
+    };
+  }, []);
+}
+
+/* ─────────────────────────────────────────────
+    2초 자동 종료 레어 이펙트 오버레이(파일 내부 컴포넌트)
+   ───────────────────────────────────────────── */
+function RarityFX({
+  rarity,
+  duration = 3000,
+}: {
+  rarity: "에픽" | "전설";
+  duration?: number;
+}) {
+  const [alive, setAlive] = useState(true);
+
+  useEffect(() => {
+    const t = setTimeout(() => setAlive(false), duration);
+    return () => clearTimeout(t);
+  }, [duration]);
+
+  const color =
+    rarity === "전설" ? "#f59e0b" /* amber-500 */ : "#8b5cf6"; /* violet-500 */
+
+  if (!alive) return null;
+
+  // 스파클 6~8개 랜덤(간단) — 렌더마다 달라도 시각적으로 문제 없고 가벼움
+  const count = rarity === "전설" ? 12 : 10;
+  const sparkles = Array.from({ length: count }).map((_, i) => {
+    const left = `${Math.random() * 80 + 10}%`;
+    const top = `${Math.random() * 70 + 10}%`;
+    const delay = `${Math.random() * 500}ms`;
+    const size = Math.random() * 8 + 12;
+    return (
+      <span
+        key={i}
+        className="bulk-fx-sparkle"
+        style={{
+          left,
+          top,
+          width: size,
+          height: size,
+          animationDelay: delay,
+        }}
+      />
+    );
+  });
+
+  return (
+    <>
+      {/* 대각선 샤인 */}
+      <div className="bulk-fx-shine" />
+      {/* 오라(등급색) */}
+      <div
+        className="bulk-fx-aura"
+        style={
+          {
+            borderRadius: 12,
+            // CSS 변수로 박스섀도 색 주입
+            ["--fx-color" as any]: color,
+          } as React.CSSProperties
+        }
+      />
+      {/* 스파클 */}
+      <div className="pointer-events-none absolute inset-0">{sparkles}</div>
+    </>
+  );
+}
 
 type Props = {
   open: boolean;
@@ -47,6 +164,8 @@ export default function BulkResultsModal({
   busy,
   onSave,
 }: Props) {
+  useInjectKeyframesOnce();
+
   const tankOptions = tanks.length ? tanks : [{ tank_no: 1, title: "1 번" }];
 
   const grouped = useMemo(() => {
@@ -60,12 +179,57 @@ export default function BulkResultsModal({
     return g;
   }, [results]);
 
+  /* ─────────────────────────────────────────────
+      레어 카드 이펙트 표시 상태 관리: id별로 2초 켜졌다가 꺼짐
+     ───────────────────────────────────────────── */
+  const [fxActive, setFxActive] = useState<Record<string, boolean>>({});
+  const timersRef = useRef<Record<string, number>>({});
+
+  // results가 바뀔 때, 에픽/전설에 대해 2초간 이펙트 on
+  useEffect(() => {
+    if (!results?.length) return;
+    const rareIds = results
+      .filter((r) => r.rarity === "에픽" || r.rarity === "전설")
+      .map((r) => r.id);
+
+    // 켜기
+    setFxActive((prev) => {
+      const next = { ...prev };
+      rareIds.forEach((id) => (next[id] = true));
+      return next;
+    });
+
+    // 끄기 타이머 설정(2초)
+    rareIds.forEach((id) => {
+      // 기존 타이머 있으면 먼저 정리
+      if (timersRef.current[id]) {
+        window.clearTimeout(timersRef.current[id]);
+      }
+      timersRef.current[id] = window.setTimeout(() => {
+        setFxActive((prev) => {
+          const next = { ...prev };
+          next[id] = false;
+          return next;
+        });
+        delete timersRef.current[id];
+      }, 2000);
+    });
+
+    return () => {
+      // 언마운트/갱신 시 타이머 정리 (옵션)
+      rareIds.forEach((id) => {
+        if (timersRef.current[id]) {
+          window.clearTimeout(timersRef.current[id]);
+          delete timersRef.current[id];
+        }
+      });
+    };
+  }, [results]);
+
   async function handleOpenChange(next: boolean) {
     // ✅ 닫힐 때 자동 저장
     if (!next && results?.length) {
       await onSave(true);
-      // onSave(true)가 성공하면 내부에서 setOpen(false) 처리했다고 가정
-      // 실패 시에는 모달을 다시 열어둬서 사용자가 수정 가능
       return;
     }
     setOpen(next);
@@ -101,6 +265,11 @@ export default function BulkResultsModal({
                       {grouped[ra].map((f) => {
                         const theme = classesByRarity(f.rarity);
                         const sel = placements[f.id] ?? defaultTank ?? 1;
+
+                        const isRare =
+                          f.rarity === "에픽" || f.rarity === "전설";
+                        const showFx = isRare && fxActive[f.id];
+
                         return (
                           <div
                             key={f.id}
@@ -115,15 +284,26 @@ export default function BulkResultsModal({
                                 theme.imgBorder
                               )}
                             >
+                              {/* NEW 배지 */}
                               {f.isNew && (
-                                <span className="absolute right-1.5 top-1.5 z-10 rounded-full bg-red-500 text-white px-1.5 py-0.5 text-[10px] font-bold leading-none shadow">
+                                <span className="absolute right-1.5 top-1.5 z-20 rounded-full bg-red-500 text-white px-1.5 py-0.5 text-[10px] font-bold leading-none shadow">
                                   new
                                 </span>
                               )}
+
+                              {/* 레어 이펙트(2초 자동 소멸) */}
+                              {showFx && (
+                                <div className="absolute inset-0 z-30">
+                                  <RarityFX
+                                    rarity={f.rarity as "에픽" | "전설"}
+                                  />
+                                </div>
+                              )}
+
                               <img
                                 src={f.image}
                                 alt={f.label}
-                                className="w-full h-full object-contain"
+                                className="w-full h-full object-contain relative z-0"
                                 draggable={false}
                                 loading="lazy"
                                 onError={(ev) => {

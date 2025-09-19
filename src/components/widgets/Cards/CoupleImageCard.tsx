@@ -22,17 +22,19 @@ import {
 import { Pencil, Loader2, Trash2, ImageUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+/* ───────── Constants ───────── */
 const BUCKET = "Couple_Image";
 const MAX_SLOTS = 5;
 
-// ===== egress 최적화 상수 =====
+// egress 최적화
 const SIGNED_TTL_SEC = 60 * 60 * 24 * 30; // 30일
 const RENEW_BEFORE_SEC = 60 * 5; // 만료 5분 전이면 갱신
 const TRANSFORM = { width: 1280, quality: 70 };
 
 // localStorage 키
-const URL_CACHE_KEY = `sb-url-cache:${BUCKET}:v1`;
+const URL_CACHE_KEY = `sb-url-cache:${BUCKET}:v2`; // v2: 버전드 파일명 도입으로 캐시 키 버전 업
 
+/* ───────── Types ───────── */
 type Slot = {
   url: string | null; // 실제 <img src>
   path: string | null; // 스토리지 경로
@@ -53,7 +55,7 @@ type Props = {
   maxImageHeight?: number; // px
 };
 
-// ===== 캐시 =====
+// 캐시
 type CacheEntry = { url: string; exp: number }; // exp: epoch(sec)
 function readCache(): Record<string, CacheEntry> {
   try {
@@ -69,15 +71,17 @@ function writeCache(map: Record<string, CacheEntry>) {
   } catch {}
 }
 
-// ===== 시간/만료 헬퍼 =====
+/* ───────── Time helpers ───────── */
 const nowSec = () => Math.floor(Date.now() / 1000);
 const isFresh = (exp: number) => exp - RENEW_BEFORE_SEC > nowSec();
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-// ===== 이미지 타임아웃 가드 =====
-async function tryLoadWithTimeout(url: string, ms = 3500) {
+/* ───────── Image load guard ───────── */
+async function tryLoadWithTimeout(url: string, ms = 6000) {
   return await Promise.race([
     new Promise<void>((res, rej) => {
       const img = new Image();
+      img.crossOrigin = "anonymous";
       img.onload = () => res();
       img.onerror = () => rej(new Error("img error"));
       img.src = url;
@@ -88,6 +92,7 @@ async function tryLoadWithTimeout(url: string, ms = 3500) {
   ]);
 }
 
+/* ───────── Component ───────── */
 export default function CoupleImageCard({
   className,
   maxImageHeight = 520,
@@ -123,8 +128,9 @@ export default function CoupleImageCard({
   const updateSlot = (i: number, updater: (prev: Slot) => Slot) =>
     setSlots((prev) => prev.map((s, idx) => (idx === i ? updater(s) : s)));
 
+  // ✅ 파일명 버전드: slot-<idx>-<timestamp>.<ext>
   const buildSlotPath = (cid: string, i: number, ext: string) =>
-    `${cid}/slot-${i}.${ext}`;
+    `${cid}/slot-${i}-${Date.now()}.${ext}`;
 
   // 캐시를 고려한 서명 URL 발급 (+실패 쿨다운)
   const getSignedUrlCached = useCallback(
@@ -178,15 +184,12 @@ export default function CoupleImageCard({
   const [listedOnce, setListedOnce] = useState(false);
   const prevCoupleIdRef = useRef<string | null>(null);
 
-  // ===== 기존 파일 목록 로드 =====
+  /* ───────── Load existing files (pick latest per slot) ───────── */
   const loadExisting = useCallback(async () => {
-    // ✅ 컨텍스트 과도기: (로그인 O) && (isCoupled === true) && (coupleId 없음) → 아무것도 안함
     const contextNotReady = !!user?.id && isCoupled === true && !coupleId;
     if (contextNotReady) return;
 
-    // ✅ '진짜' 미연동/접근불가가 확정된 경우에만 로딩 종료
     if (!coupleId || isCoupled !== true) {
-      // 이전에 유효 coupleId로 렌더된 적이 있다면, 빈슬롯으로 덮어쓰지 않는다
       if (!prevCoupleIdRef.current) {
         setSlots(Array.from({ length: MAX_SLOTS }, emptySlot));
         setInitialLoading(false);
@@ -200,24 +203,46 @@ export default function CoupleImageCard({
 
       const { data: files, error: listErr } = await supabase.storage
         .from(BUCKET)
-        .list(`${coupleId}`, { limit: 100 });
+        .list(`${coupleId}`, { limit: 200 });
       if (listErr) throw listErr;
 
-      const next: Slot[] = Array.from({ length: MAX_SLOTS }, emptySlot);
-      const leftOver: string[] = [];
+      // idx별 최신 timestamp 선택
+      // 파일명: slot-<idx>-<timestamp>.<ext>
+      const latestByIdx: Record<number, { ts: number; name: string }> = {};
+      const leftovers: string[] = [];
 
       for (const f of files ?? []) {
-        const m = f.name.match(/^slot-(\d+)\.(png|jpe?g|webp|gif|bmp|avif)$/i);
+        const m = f.name.match(
+          /^slot-(\d+)-(\d+)\.(png|jpe?g|webp|gif|bmp|avif)$/i
+        );
         if (m) {
           const idx = Number(m[1]);
-          if (idx >= 0 && idx < next.length)
-            next[idx]!.path = `${coupleId}/${f.name}`;
-          else leftOver.push(f.name);
+          const ts = Number(m[2]);
+          if (idx >= 0 && idx < MAX_SLOTS) {
+            const cur = latestByIdx[idx];
+            if (!cur || ts > cur.ts) {
+              latestByIdx[idx] = { ts, name: f.name };
+            }
+          } else {
+            leftovers.push(f.name);
+          }
         } else {
-          leftOver.push(f.name);
+          leftovers.push(f.name);
         }
       }
-      for (const name of leftOver) {
+
+      const next: Slot[] = Array.from({ length: MAX_SLOTS }, emptySlot);
+
+      // 최신 파일을 우선 채우기
+      for (let i = 0; i < MAX_SLOTS; i++) {
+        const latest = latestByIdx[i];
+        if (latest) {
+          next[i]!.path = `${coupleId}/${latest.name}`;
+        }
+      }
+
+      // 남는 자리에 leftover를 순차 채움(호환용)
+      for (const name of leftovers) {
         const i = next.findIndex((s) => !s.path);
         if (i === -1) break;
         next[i]!.path = `${coupleId}/${name}`;
@@ -236,14 +261,13 @@ export default function CoupleImageCard({
         return s;
       });
 
-      prevCoupleIdRef.current = coupleId; // 현재 유효 컨텍스트 기억
+      prevCoupleIdRef.current = coupleId;
       setSlots(hydrated);
     } catch (e: any) {
       setError(e?.message ?? "이미지를 불러오는 중 오류가 발생했어요.");
-      // 실패 시에도 이전 UI를 날리지 않음 (사용자 깜빡임 방지)
     } finally {
       setInitialLoading(false);
-      setListedOnce(true); // '시도'는 끝났음
+      setListedOnce(true);
     }
   }, [user?.id, coupleId, isCoupled]);
 
@@ -255,7 +279,6 @@ export default function CoupleImageCard({
   useEffect(() => {
     if (!carouselApi) return;
     const onSelect = () => setActiveIdx(carouselApi.selectedScrollSnap());
-    // 초기 레이아웃 안정 후 select
     requestAnimationFrame(onSelect);
     carouselApi.on("select", onSelect);
     return () => {
@@ -263,7 +286,7 @@ export default function CoupleImageCard({
     };
   }, [carouselApi]);
 
-  // 현재/양옆만 url 로드 (개선: URL을 즉시 꽂고, 뒤에서 확인/재시도)
+  // 현재/양옆만 url 로드 (즉시 꽂고 뒤에서 확인/재시도)
   const ensureUrlFor = useCallback(
     async (idx: number) => {
       if (!inRange(idx)) return;
@@ -274,16 +297,15 @@ export default function CoupleImageCard({
       const path = s.path;
       const now = nowSec();
 
-      // 쿨다운 동안이라면 "조금 있다가" 다시 시도 예약
+      // 실패 쿨다운 중 → 약간 뒤 재시도 예약
       if (failRef.current[path] && failRef.current[path] > now) {
         const waitMs = (failRef.current[path] - now) * 1000;
-        // 최근 예약과 중복 방지
         if (
           !lastAttemptRef.current[path] ||
           now - lastAttemptRef.current[path] > 5
         ) {
           lastAttemptRef.current[path] = now;
-          setTimeout(() => ensureUrlFor(idx), Math.min(waitMs, 1500)); // 1.5s 내 재시도
+          setTimeout(() => ensureUrlFor(idx), Math.min(waitMs, 1500));
         }
         return;
       }
@@ -293,15 +315,15 @@ export default function CoupleImageCard({
         updateSlot(idx, (prev) => ({ ...prev, url: signed }));
 
         try {
-          await tryLoadWithTimeout(signed, 3500);
+          await tryLoadWithTimeout(signed, 6000);
         } catch {
           const fresh = await refreshSignedUrlForce(path);
           updateSlot(idx, (prev) => ({ ...prev, url: fresh }));
         }
-      } catch (e) {
-        // 첫 실패 시 짧은 backoff로 재시도 예약
+      } catch {
+        // 첫 실패 시 짧은 backoff
         if (!failRef.current[path]) {
-          setTimeout(() => ensureUrlFor(idx), 800);
+          setTimeout(() => ensureUrlFor(idx), 1000);
         }
       }
     },
@@ -321,7 +343,7 @@ export default function CoupleImageCard({
     void ensureUrlFor((activeIdx - 1 + MAX_SLOTS) % MAX_SLOTS);
   }, [slots, activeIdx, ensureUrlFor]);
 
-  // 업로드/교체
+  /* ───────── Upload / Replace ───────── */
   const openPickerFor = (idx: number) => {
     if (isDisabled || !inRange(idx)) return;
     pendingTargetIndex.current = idx;
@@ -362,25 +384,25 @@ export default function CoupleImageCard({
 
     const file = await downscaleImage(raw);
     const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-    const uploadPath = buildSlotPath(cid, index, ext);
+    const uploadPath = buildSlotPath(cid, index, ext); // ✅ 버전드 파일명
 
     const tempURL = URL.createObjectURL(file);
     updateSlot(index, (prev) => ({ ...prev, url: tempURL, uploading: true }));
 
     try {
-      // 동일 슬롯 기존 파일 제거
+      // 동일 슬롯 기존 버전들 제거 (slot-i-*)
       const { data: listing } = await supabase.storage
         .from(BUCKET)
         .list(`${cid}`);
       const toRemove = (listing ?? [])
-        .filter((x) => x.name.startsWith(`slot-${index}.`))
+        .filter((x) => x.name.startsWith(`slot-${index}-`))
         .map((x) => `${cid}/${x.name}`);
       if (toRemove.length) await supabase.storage.from(BUCKET).remove(toRemove);
 
       const { error: upErr } = await supabase.storage
         .from(BUCKET)
         .upload(uploadPath, file, {
-          upsert: true,
+          upsert: true, // 경로가 새롭지만 안전 차원에서 유지
           cacheControl: "31536000",
           contentType: file.type,
         });
@@ -390,6 +412,9 @@ export default function CoupleImageCard({
       delete cacheRef.current[uploadPath];
       writeCache(cacheRef.current);
       delete failRef.current[uploadPath];
+
+      // 🔸 변환 캐시 워밍/전파 대기 (짧게)
+      await wait(800);
 
       // 변환 포함 서명 URL 발급
       const signed = await getSignedUrlCached(uploadPath);
@@ -404,7 +429,7 @@ export default function CoupleImageCard({
 
       // 백그라운드 확인 (실패 시 강제 재발급)
       try {
-        await tryLoadWithTimeout(signed, 3500);
+        await tryLoadWithTimeout(signed, 6000);
       } catch {
         try {
           const fresh = await refreshSignedUrlForce(uploadPath);
@@ -435,7 +460,7 @@ export default function CoupleImageCard({
         .remove([s.path]);
       if (delErr) throw delErr;
 
-      // 캐시/쿨다운도 제거
+      // 캐시/쿨다운 제거
       delete cacheRef.current[s.path];
       delete failRef.current[s.path];
       writeCache(cacheRef.current);
@@ -447,7 +472,7 @@ export default function CoupleImageCard({
     }
   };
 
-  // ✅ onError 시 즉시 재발급하여 깨짐 복구 (강제 재발급 사용)
+  // onError 시 즉시 재발급하여 깨짐 복구
   const handleImgError = useCallback(
     async (idx: number, path: string) => {
       try {
@@ -460,6 +485,7 @@ export default function CoupleImageCard({
     [refreshSignedUrlForce]
   );
 
+  /* ───────── Render ───────── */
   return (
     <Card className={cn(className)}>
       <input
@@ -473,7 +499,6 @@ export default function CoupleImageCard({
 
       {initialLoading ? (
         <div className="space-y-2">
-          {/* 로딩 시에도 너무 크지 않게 */}
           <div className="rounded-lg w-full">
             <Skeleton className="w-full h-[280px] sm:h-[360px] rounded-lg" />
           </div>
@@ -510,7 +535,7 @@ export default function CoupleImageCard({
                           {s.path ? (
                             hasImg ? (
                               <img
-                                key={s.path ?? `img-${idx}`}
+                                key={s.url ?? s.path ?? `img-${idx}`} // ✅ URL 기반 key로 강제 갱신
                                 src={s.url!}
                                 alt={`커플 이미지 ${idx + 1}`}
                                 className="block max-w-full h-auto border rounded-xl"
@@ -520,11 +545,11 @@ export default function CoupleImageCard({
                                 }}
                                 draggable={false}
                                 loading={idx === activeIdx ? "eager" : "lazy"}
-                                // 액티브는 decoding 동기화로 "안뜨는 느낌" 최소화
                                 decoding={idx === activeIdx ? "sync" : "async"}
                                 fetchPriority={
                                   idx === activeIdx ? "high" : "low"
                                 }
+                                crossOrigin="anonymous"
                                 onError={() =>
                                   s.path && handleImgError(idx, s.path)
                                 }

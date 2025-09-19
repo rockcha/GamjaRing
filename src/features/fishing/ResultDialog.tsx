@@ -6,6 +6,14 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, XCircle } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import supabase from "@/lib/supabase";
 
 /** 공통 타입 */
 export type Rarity = "일반" | "희귀" | "에픽" | "전설";
@@ -19,7 +27,7 @@ export type FishResult =
       labelKo: string;
       image: string;
       rarity: Rarity;
-      ingredient?: string | null; // ← 남겨두되 표시만 제거
+      ingredient?: string | null; // 표시 제외
     };
 
 export const RARITY_STYLE: Record<Rarity, string> = {
@@ -173,24 +181,94 @@ function isSuccessResult(
   return !!res && res.type === "SUCCESS";
 }
 
+/** 탱크 타입 */
+type TankRow = { tank_no: number; title?: string | null };
+
 export default function ResultDialog({
   open,
   result,
   onClose,
   failReasons,
-  tanksCount = 1,
   onConfirmPut, // (tankNo) => void
   saving = false,
+  /** ✅ 이제 ResultDialog가 직접 로드 */
+  coupleId,
+  defaultTank = 1,
 }: {
   open: boolean;
   result: FishResult | null;
   onClose: () => void;
   failReasons?: readonly string[];
-  tanksCount?: number;
   onConfirmPut?: (tankNo: number) => void;
   saving?: boolean;
+  coupleId?: string | null; // 없으면 1번 탱크 폴백
+  defaultTank?: number;
 }) {
   const reduceMotion = useReducedMotion();
+
+  /** 🔹 탱크 로딩 (title 포함) */
+  const [loadingTanks, setLoadingTanks] = React.useState(false);
+  const [tanks, setTanks] = React.useState<TankRow[]>([
+    { tank_no: 1, title: "1 번" },
+  ]);
+  const [tanksErr, setTanksErr] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    // 다이얼로그가 열릴 때 + coupleId 변동 시 로드
+    if (!open) return;
+
+    let alive = true;
+    (async () => {
+      if (!coupleId) {
+        if (!alive) return;
+        setTanks([{ tank_no: 1, title: "1 번" }]);
+        setTanksErr(null);
+        return;
+      }
+      setLoadingTanks(true);
+      try {
+        const { data, error } = await supabase
+          .from("aquarium_tanks")
+          .select("tank_no,title")
+          .eq("couple_id", coupleId)
+          .order("tank_no", { ascending: true });
+
+        if (!alive) return;
+
+        if (error) {
+          setTanks([{ tank_no: 1, title: "1 번" }]);
+          setTanksErr(
+            "어항 정보를 불러오지 못했어요. 숫자 목록으로 대체합니다."
+          );
+        } else {
+          const rows: TankRow[] = (data ?? []).map((r: any) => ({
+            tank_no: Number(r.tank_no),
+            title: r.title ?? null,
+          }));
+          setTanks(rows.length ? rows : [{ tank_no: 1, title: "1 번" }]);
+          setTanksErr(null);
+        }
+      } catch {
+        if (!alive) return;
+        setTanks([{ tank_no: 1, title: "1 번" }]);
+        setTanksErr("어항 정보를 불러오지 못했어요. 숫자 목록으로 대체합니다.");
+      } finally {
+        if (alive) setLoadingTanks(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [open, coupleId]);
+
+  /** 선택 번호 → 라벨(title) */
+  const getTankLabel = (no: number) => {
+    const found = tanks.find((t) => t.tank_no === no);
+    if (!found) return `${no} 번`;
+    const label = (found.title ?? "").trim();
+    return label.length > 0 ? label : `${found.tank_no} 번`;
+  };
 
   const [lockedResult, setLockedResult] = React.useState<FishResult | null>(
     null
@@ -199,15 +277,24 @@ export default function ResultDialog({
   const isSuccess = isSuccessResult(lockedResult);
 
   const [failMsg, setFailMsg] = React.useState<string>("");
-  const [tankNo, setTankNo] = React.useState<number>(1);
+  const [tankNo, setTankNo] = React.useState<number>(defaultTank ?? 1);
 
-  // 다이얼로그가 열릴 때 결과를 한번만 고정
+  // 다이얼로그 열릴 때 결과/이미지 고정 + 탱크 번호 유효화
   React.useEffect(() => {
     if (!open) return;
     if (lockedResult) return;
     if (!result) return;
 
-    setTankNo((prev) => (prev < 1 ? 1 : prev > tanksCount ? tanksCount : prev));
+    // 현재 로드된 tanks 기준으로 안전 범위 보정
+    const nums = (tanks.length ? tanks : [{ tank_no: 1 }]).map(
+      (t) => t.tank_no
+    );
+    const minNo = Math.min(...nums);
+    const maxNo = Math.max(...nums);
+    setTankNo((prev) => {
+      const init = prev ?? defaultTank ?? 1;
+      return Math.max(minNo, Math.min(init, maxNo));
+    });
 
     if (result.type === "SUCCESS" && result.image) {
       const img = new Image();
@@ -224,7 +311,19 @@ export default function ResultDialog({
       setLockedResult(result);
       setImgReady(true);
     }
-  }, [open, result, lockedResult, tanksCount]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, result, lockedResult, defaultTank, tanks]);
+
+  // 탱크가 늦게 로드되더라도, 로드 완료 시 한 번 더 안전 범위 보정
+  React.useEffect(() => {
+    if (!open) return;
+    const nums = (tanks.length ? tanks : [{ tank_no: 1 }]).map(
+      (t) => t.tank_no
+    );
+    const minNo = Math.min(...nums);
+    const maxNo = Math.max(...nums);
+    setTankNo((prev) => Math.max(minNo, Math.min(prev ?? 1, maxNo)));
+  }, [open, tanks]);
 
   // 닫힐 때 초기화
   React.useEffect(() => {
@@ -232,9 +331,9 @@ export default function ResultDialog({
       setLockedResult(null);
       setImgReady(false);
       setFailMsg("");
-      setTankNo(1);
+      setTankNo(defaultTank ?? 1);
     }
-  }, [open]);
+  }, [open, defaultTank]);
 
   // 실패 멘트 고정
   React.useEffect(() => {
@@ -310,7 +409,7 @@ export default function ResultDialog({
                 {/* 콘텐츠 */}
                 {isSuccess ? (
                   <div className="space-y-3">
-                    {/* ✅ 이미지 더 크게 (w-32 h-32) */}
+                    {/* 이미지 */}
                     <div className="relative mx-auto w-32 h-32">
                       <EpicLegendFX rarity={lockedResult.rarity} />
                       <motion.img
@@ -347,52 +446,47 @@ export default function ResultDialog({
                       </span>
                     </div>
 
-                    {/* 1) 사용 재료 표시 제거됨 */}
+                    {/* 담을 어항 선택 + 안내 (shadcn Select, title 표시) */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-center gap-2 text-sm">
+                        <label className="text-muted-foreground">
+                          담을 어항:
+                        </label>
 
-                    {/* 담을 어항 선택 + 안내 */}
-                    {tanksCount > 1 ? (
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-center gap-2 text-sm">
-                          <label className="text-muted-foreground">
-                            담을 어항:
-                          </label>
-                          <select
-                            className="rounded-md border px-2 py-1 bg-white"
-                            value={tankNo}
-                            onChange={(e) =>
-                              setTankNo(
-                                Math.max(
-                                  1,
-                                  Math.min(
-                                    Number(e.target.value || 1),
-                                    tanksCount
-                                  )
-                                )
-                              )
-                            }
-                            disabled={saving}
-                          >
-                            {Array.from({ length: tanksCount }).map((_, i) => (
-                              <option key={i + 1} value={i + 1}>
-                                {i + 1} 번
-                              </option>
+                        <Select
+                          value={String(tankNo)}
+                          onValueChange={(v) => setTankNo(Number(v))}
+                          disabled={saving || loadingTanks}
+                        >
+                          <SelectTrigger className="h-8 w-[220px]">
+                            <SelectValue
+                              placeholder={
+                                loadingTanks ? "어항 불러오는 중…" : "어항 선택"
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {tanks.map((t) => (
+                              <SelectItem
+                                key={t.tank_no}
+                                value={String(t.tank_no)}
+                              >
+                                {getTankLabel(t.tank_no)}
+                              </SelectItem>
                             ))}
-                          </select>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground text-center">
-                          보관할 아쿠아리움을 선택해주세요
-                        </p>
+                          </SelectContent>
+                        </Select>
                       </div>
-                    ) : (
-                      <>
-                        <div className="text-xs text-muted-foreground">
-                          담을 어항: 1번
-                        </div>
+                      {tanksErr ? (
+                        <p className="text-[11px] text-amber-700 text-center">
+                          {tanksErr}
+                        </p>
+                      ) : (
                         <p className="text-[11px] text-muted-foreground text-center">
                           보관할 아쿠아리움을 선택해주세요
                         </p>
-                      </>
-                    )}
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <p className="text-sm text-foreground">
@@ -407,16 +501,11 @@ export default function ResultDialog({
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-white to-white/60" />
 
           <div className="absolute bottom-3 right-3 flex gap-2">
-            {/* 2) "이 어항에 담기" 버튼 제거됨 */}
-
-            {/* 3) 닫기 → 확인 (자동 저장 트리거) */}
             <button
               autoFocus
               onClick={() => handleRequestClose(false)}
               disabled={saving}
-              className={cn(
-                "inline-flex items-center rounded-md border px-3 py-1.5 text-sm hover:bg-gray-50 shadow-sm"
-              )}
+              className="inline-flex items-center rounded-md border px-3 py-1.5 text-sm hover:bg-gray-50 shadow-sm"
             >
               확인
             </button>

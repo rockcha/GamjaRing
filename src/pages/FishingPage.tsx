@@ -469,9 +469,10 @@ export default function FishingPage() {
           open={resultOpen}
           result={result}
           onClose={() => setResultOpen(false)}
-          tanksCount={tanksCount}
           onConfirmPut={handlePutToTank}
           saving={savingDialogPut}
+          coupleId={coupleId} // ✅ 이것만 넘기면 됨
+          defaultTank={1}
         />
       </main>
     </div>

@@ -2,18 +2,26 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import supabase from "@/lib/supabase";
 import { useUser } from "@/contexts/UserContext";
-
-import { Link } from "react-router-dom";
-
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import type { CoupleSchedule, ScheduleType } from "@/utils/coupleScheduler";
 
+/* shadcn/ui */
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
+} from "@/components/ui/tooltip";
+
+import { CalendarDays, ChevronRight, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -24,10 +32,11 @@ interface Props {
   maxHeight?: number | string;
 }
 
+/** 타입별 뱃지 색상 (shadcn Badge에 className으로 입힘) */
 const TYPE_BADGE: Record<ScheduleType, string> = {
-  데이트: "bg-pink-100  text-rose-900",
-  기념일: "bg-amber-100  text-amber-900",
-  "기타 일정": "bg-blue-100  text-blue-900",
+  데이트: "bg-pink-100 text-rose-900",
+  기념일: "bg-amber-100 text-amber-900",
+  "기타 일정": "bg-blue-100 text-blue-900",
 };
 
 // KST 기준 YYYY-MM-DD
@@ -40,6 +49,7 @@ function getLocalYmd(tz = "Asia/Seoul") {
   }).format(new Date());
 }
 
+/** D-day 계산 (오늘 0시 기준) */
 function dday(dateStr: string): number {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
   if (!m) return 0;
@@ -53,10 +63,22 @@ function dday(dateStr: string): number {
   return Math.round(diff / 86400000);
 }
 
+/** YYYY-MM-DD → M월 D일(요일) 포맷 (KST) */
+function prettyKST(dateStr: string, tz = "Asia/Seoul") {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: tz,
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+  }).format(dt);
+}
+
 export default function CoupleSchedulePreview({
   className = "",
-  maxHeight = 180, // 👈 기본 최대 높이(넘치면 스크롤)
-  limit: _limit, // 하위 호환용(미사용)
+  maxHeight = 180, // 기본 높이
+  limit: _limit, // 하위 호환(미사용)
 }: Props) {
   const { user } = useUser();
   const { couple } = useCoupleContext();
@@ -79,7 +101,7 @@ export default function CoupleSchedulePreview({
           .eq("couple_id", coupleId)
           .gte("schedule_date", today)
           .order("schedule_date", { ascending: true })
-          .limit(1000); // 👈 사실상 전체
+          .limit(1000);
 
         if (!canceled) {
           if (error) {
@@ -109,84 +131,140 @@ export default function CoupleSchedulePreview({
   );
 
   return (
-    <Card className={cn("relative overflow-hidden", className)}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-center">
-          <CardTitle className="text-[#3d2b1f] text-lg">
-            ⏰ 일정 미리보기
-          </CardTitle>
-        </div>
-      </CardHeader>
+    <TooltipProvider delayDuration={200}>
+      <Card className={cn("relative overflow-hidden", className)}>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-center gap-2">
+            <Clock className="size-4 text-muted-foreground" aria-hidden />
+            <CardTitle className="text-[#3d2b1f] text-lg">
+              ⏰ 일정 미리보기
+            </CardTitle>
+          </div>
+        </CardHeader>
 
-      <Separator />
+        <Separator />
 
-      <CardContent>
-        <div className="mt-2">
+        <CardContent>
+          {/* 로딩 상태 */}
           {loading && (
-            <div className="space-y-2">
-              <Skeleton className="h-9 rounded-xl" />
-              <Skeleton className="h-9 rounded-xl" />
-              <Skeleton className="h-9 rounded-xl" />
+            <div className="mt-3 space-y-2">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                  <Skeleton className="h-5 w-24 rounded" />
+                  <Skeleton className="h-5 flex-1 rounded" />
+                </div>
+              ))}
             </div>
           )}
 
+          {/* 비어있음 */}
           {!loading && items.length === 0 && (
-            <div className="text-sm text-[#6b533b]">
-              예정된 일정이 없어요. 달력에서 일정을 추가해보세요! ✨
+            <div className="mt-3 rounded-lg border bg-muted/30 p-4">
+              <div className="flex items-center gap-3">
+                <CalendarDays className="size-5 text-muted-foreground" />
+                <div className="text-sm text-[#6b533b]">
+                  예정된 일정이 없어요. 달력에서 일정을 추가해보세요! ✨
+                </div>
+              </div>
+              <Separator className="my-3" />
+              <Link
+                to="/scheduler"
+                className={cn(
+                  "group inline-flex items-center gap-1.5 text-sm font-medium",
+                  "text-primary hover:underline"
+                )}
+                aria-label="스케줄러로 이동"
+              >
+                일정 추가하러 가기
+                <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+              </Link>
             </div>
           )}
 
+          {/* 목록 */}
           {!loading && items.length > 0 && (
-            <div
-              className={cn(
-                "overflow-y-auto pr-1", // 스크롤
-                // 살짝 부드러운 스크롤 느낌(선택)
-                "[scrollbar-width:thin]"
-              )}
+            <ScrollArea
               style={{ maxHeight: listMaxHeight }}
+              className="mt-2 pr-1"
             >
-              {items.map((it, idx) => {
-                const d = dday(it.schedule_date);
-                const dLabel = d === 0 ? "D-Day" : `D-${d}`;
-                const badgeClass =
-                  TYPE_BADGE[it.type] ?? "bg-neutral-100  text-neutral-800";
+              <ul className="w-full">
+                {items.map((it, idx) => {
+                  const d = dday(it.schedule_date);
+                  const dLabel =
+                    d === 0 ? "D-Day" : d > 0 ? `D-${d}` : `D+${Math.abs(d)}`;
+                  const badgeClass =
+                    TYPE_BADGE[it.type] ?? "bg-neutral-100 text-neutral-800";
+                  const pretty = prettyKST(it.schedule_date);
 
-                return (
-                  <div key={it.id} className="py-2">
-                    <Link
-                      to="/scheduler"
-                      className={cn(
-                        "flex items-center justify-start  rounded-xl",
-                        "  cursor-pointer transition"
-                      )}
-                      aria-label={`${it.schedule_date} ${it.title}로 이동`}
-                    >
-                      <div className="flex items-center justify-start gap-4 rounded-xl">
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "inline-flex items-center gap-1.5 shrink-0 border-0",
-                            badgeClass
-                          )}
-                        >
-                          {dLabel}
-                        </Badge>
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="truncate text-[15px] font-semibold text-[#3d2b1f]">
-                            {it.title}
-                          </span>
-                        </div>
-                      </div>
-                    </Link>
+                  return (
+                    <li key={it.id} className="py-2">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Link
+                            to="/scheduler"
+                            className={cn(
+                              "flex w-full items-center justify-start gap-4 rounded-xl px-1 py-1.5",
+                              "hover:bg-muted/50 transition-colors"
+                            )}
+                            aria-label={`${it.schedule_date} ${it.title}로 이동`}
+                          >
+                            {/* D-day */}
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "shrink-0 border-0 px-2.5 py-1 text-xs font-semibold",
+                                "ring-1 ring-inset ring-black/5 shadow-sm",
+                                badgeClass
+                              )}
+                            >
+                              {dLabel}
+                            </Badge>
 
-                    {idx < items.length - 1 && <Separator className="mt-2" />}
-                  </div>
-                );
-              })}
-            </div>
+                            {/* 날짜 • 타입 */}
+                            <div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+                              <span className="hidden sm:inline">{pretty}</span>
+                              <span className="sm:hidden">
+                                {it.schedule_date}
+                              </span>
+                              <span aria-hidden>•</span>
+                              <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] leading-none">
+                                {it.type}
+                              </span>
+                            </div>
+
+                            {/* 제목 */}
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-[15px] font-semibold text-[#3d2b1f]">
+                                {it.title}
+                              </p>
+                            </div>
+
+                            <ChevronRight
+                              className="size-4 text-muted-foreground"
+                              aria-hidden
+                            />
+                          </Link>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" align="start">
+                          <div className="text-xs">
+                            <div className="font-medium">{it.title}</div>
+                            <div className="text-muted-foreground">
+                              {it.schedule_date} • {it.type}
+                            </div>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+
+                      {idx < items.length - 1 && <Separator className="mt-2" />}
+                    </li>
+                  );
+                })}
+              </ul>
+            </ScrollArea>
           )}
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </TooltipProvider>
   );
 }
