@@ -22,9 +22,6 @@ import { Label } from "@/components/ui/label";
 
 import { useCoupleContext } from "@/contexts/CoupleContext";
 
-/* ─────────────────────────────────────────────────────────────
-   Helpers / Types
-────────────────────────────────────────────────────────────── */
 type ThemeRow = { id: number; title: string; price: number };
 
 function imageUrlFromTitle(title: string) {
@@ -38,145 +35,6 @@ const BASE_THEME_TITLE = "수중 정원";
 // ✅ 보유 / 미보유만
 type FilterKind = "owned" | "unowned";
 
-/* ─────────────────────────────────────────────────────────────
-   FancyThemeImage: PNG 로딩 연출 드롭인
-   - 스켈레톤 + 샤이닝
-   - de-pixel/blur → 페이드
-   - 물결 리빌
-   - 에러 시 한글 SVG 플레이스홀더
-────────────────────────────────────────────────────────────── */
-type FancyThemeImageProps = {
-  src: string;
-  alt: string;
-  title?: string;
-  draggable?: boolean;
-  loading?: "lazy" | "eager" | "auto";
-  /** 이미지 컨테이너(Aspect/크기) 클래스: 예) "aspect-[4/3] w-full rounded-t-lg bg-muted" */
-  wrapperClass?: string;
-  /** 이미지 자체에 덧붙일 클래스 (예: opacity-25 등) */
-  className?: string;
-  /** object-fit */
-  objectFit?: "cover" | "contain";
-  onClick?: () => void;
-  /** 로드 완료 외부 알림(프리뷰 스피너 해제용) */
-  onLoadDone?: () => void;
-};
-
-function FancyThemeImage({
-  src,
-  alt,
-  title,
-  draggable = false,
-  loading = "lazy",
-  wrapperClass = "",
-  className = "",
-  objectFit = "cover",
-  onClick,
-  onLoadDone,
-}: FancyThemeImageProps) {
-  const [loaded, setLoaded] = useState(false);
-  const [errored, setErrored] = useState(false);
-
-  // 에러시 사용될 한글 플레이스홀더 SVG
-  const fallbackDataUrl =
-    "data:image/svg+xml;utf8," +
-    encodeURIComponent(
-      `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'>
-        <defs>
-          <linearGradient id='g' x1='0' x2='1'>
-            <stop offset='0%' stop-color='#f1f5f9'/>
-            <stop offset='100%' stop-color='#e2e8f0'/>
-          </linearGradient>
-        </defs>
-        <rect width='100%' height='100%' fill='url(#g)'/>
-        <text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle'
-              fill='#94a3b8' font-size='16' font-family='system-ui, -apple-system, Segoe UI, Roboto, Noto Sans KR, Apple SD Gothic Neo, Malgun Gothic, sans-serif'>
-          이미지가 아직 준비되지 않았어요
-        </text>
-      </svg>`
-    );
-
-  return (
-    <div className={["relative overflow-hidden", wrapperClass].join(" ")}>
-      {/* 스켈레톤 + 샤이닝 (로딩 중 표시) */}
-      <div
-        aria-hidden
-        className={[
-          "absolute inset-0 rounded-md",
-          "bg-gradient-to-b from-slate-100 to-slate-50 ring-1 ring-slate-200",
-          "overflow-hidden",
-          "transition-opacity duration-300",
-          loaded ? "opacity-0 pointer-events-none" : "opacity-100",
-        ].join(" ")}
-      >
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,.5),transparent)] bg-[length:220%_100%] animate-[shimmer_1200ms_linear_infinite]" />
-      </div>
-
-      {/* 실제 이미지 */}
-      <img
-        src={errored ? fallbackDataUrl : src}
-        alt={alt}
-        title={title}
-        draggable={draggable}
-        loading={loading}
-        onLoad={() => {
-          setLoaded(true);
-          onLoadDone?.();
-        }}
-        onError={() => {
-          setErrored(true);
-          setLoaded(true);
-          onLoadDone?.();
-        }}
-        onClick={onClick}
-        className={[
-          "absolute inset-0 h-full w-full",
-          objectFit === "cover" ? "object-cover" : "object-contain",
-          className,
-          loaded &&
-            "animate-[dePixel_800ms_cubic-bezier(0.2,0.8,0.2,1)_forwards]",
-          onClick ? "cursor-zoom-in" : "",
-        ].join(" ")}
-      />
-
-      {/* 물결 리빌 (로드 완료 시 1회) */}
-      {loaded && (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 animate-[rippleReveal_900ms_ease-out_1] bg-[radial-gradient(ellipse_at_center,rgba(147,197,253,0.22)_0%,rgba(147,197,253,0.16)_40%,transparent_65%)]"
-        />
-      )}
-
-      {/* 키프레임 (원 파일에 함께 포함) */}
-      <style>{`
-        @keyframes shimmer {
-          0% { background-position: -40% 0; }
-          100% { background-position: 140% 0; }
-        }
-        @keyframes dePixel {
-          0% { filter: blur(8px) saturate(.9) contrast(1.05); transform: scale(1.02); }
-          100% { filter: blur(0) saturate(1) contrast(1); transform: scale(1); }
-        }
-        @keyframes rippleReveal {
-          0% { opacity: .55; transform: scale(0.92); filter: blur(1px); }
-          60% { opacity: .35; transform: scale(1.05); filter: blur(0); }
-          100% { opacity: 0; transform: scale(1.08); filter: blur(.4px); }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .animate-\\[shimmer_1200ms_linear_infinite\\],
-          .animate-\\[dePixel_800ms_cubic-bezier\\(0\\.2,0\\.8,0\\.2,1\\)_forwards\\],
-          .animate-\\[rippleReveal_900ms_ease-out_1\\] {
-            animation: none !important;
-          }
-        }
-      `}</style>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────
-   ThemeShopButton
-────────────────────────────────────────────────────────────── */
 export default function ThemeShopButton({
   tankNo,
   className = "",
@@ -368,6 +226,7 @@ export default function ThemeShopButton({
 
       // 필요 시 어항 새로고침 이벤트만 날리고, 페이지 전체 리로드는 제거
       window.dispatchEvent(new CustomEvent("aquarium-theme-applied"));
+      // window.location.reload(); // ❌ 자동 새로고침 제거
     } catch (e: any) {
       toast.error(e?.message ?? "테마 적용에 실패했어요");
     } finally {
@@ -449,7 +308,7 @@ export default function ThemeShopButton({
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {Array.from({ length: 6 }).map((_, i) => (
                     <Card key={i} className="border-muted bg-card/50">
-                      <div className="aspect-[4/3] w-full animate-pulse bg-muted rounded-t-lg" />
+                      <div className="aspect-[4/3] w-full animate-pulse bg-muted" />
                       <CardHeader className="pb-2">
                         <div className="h-4 w-2/3 animate-pulse bg-muted rounded" />
                       </CardHeader>
@@ -483,14 +342,21 @@ export default function ThemeShopButton({
                           ].join(" ")}
                         >
                           <div className="relative">
-                            {/* ✅ 이미지 클릭 → 프리뷰 (FancyThemeImage로 교체) */}
-                            <FancyThemeImage
+                            {/* ✅ 이미지 클릭 → 프리뷰 */}
+                            <img
                               src={imageUrlFromTitle(t.title)}
                               alt={t.title}
-                              wrapperClass="aspect-[4/3] w-full rounded-t-lg bg-muted"
-                              className="" // 필요 시 상태별 dim 적용 가능
-                              objectFit="cover"
+                              className="aspect-[4/3] w-full object-cover rounded-t-lg bg-muted cursor-zoom-in"
                               onClick={() => openPreview(t)}
+                              onError={(e) => {
+                                const el = e.currentTarget as HTMLImageElement;
+                                el.style.opacity = "0.6";
+                                el.src =
+                                  "data:image/svg+xml;utf8," +
+                                  encodeURIComponent(
+                                    `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><rect width='100%' height='100%' fill='#f1f5f9'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='#94a3b8' font-size='16'>이미지가 아직 준비되지 않았어요</text></svg>`
+                                  );
+                              }}
                             />
 
                             {isCurrent && (
@@ -589,7 +455,7 @@ export default function ThemeShopButton({
           </DialogHeader>
 
           <div className="relative mx-auto w-full grid place-items-center px-4 pb-4">
-            {/* 로딩 스피너 (FancyThemeImage onLoadDone으로 해제) */}
+            {/* 로딩 스피너 */}
             {previewLoading && (
               <div className="absolute inset-0 grid place-items-center pointer-events-none">
                 <div className="h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
@@ -597,16 +463,20 @@ export default function ThemeShopButton({
             )}
 
             {previewTheme && (
-              <div className="relative max-w-[92vw] max-h-[80vh] w-full">
-                <FancyThemeImage
+              <div className="relative max-w-[92vw] max-h-[80vh] overflow-auto">
+                <img
                   src={imageUrlFromTitle(previewTheme.title)}
                   alt={previewTheme.title}
                   title="이미지 클릭으로 닫기"
-                  wrapperClass="relative w-full h-[min(80vh,72vw)] rounded-md bg-muted"
-                  className="cursor-zoom-out"
-                  objectFit="contain"
+                  className="block object-contain
+                   max-w-full max-h-[80vh] w-auto h-auto
+                   rounded-md cursor-zoom-out select-none"
+                  onLoad={() => setPreviewLoading(false)}
                   onClick={() => setPreviewOpen(false)}
-                  onLoadDone={() => setPreviewLoading(false)}
+                  onError={(e) => {
+                    /* 기존 에러 처리 그대로 */
+                  }}
+                  draggable={false}
                 />
               </div>
             )}
