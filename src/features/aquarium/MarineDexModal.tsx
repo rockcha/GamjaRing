@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import supabase from "@/lib/supabase";
 import { useCoupleContext } from "@/contexts/CoupleContext";
-import { Anchor, Info, X } from "lucide-react";
+import { Anchor, Info } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -159,6 +159,19 @@ export default function MarineDexModal() {
     });
   }, [rows, rarity]);
 
+  // 하단 우측 통계 (현재 필터 기준)
+  const { caughtCount, totalCount, labelForStat } = useMemo(() => {
+    const pool =
+      rarity === "전체" ? rows : rows.filter((f) => f.rarity === rarity);
+    const total = pool.length;
+    let caught = 0;
+    for (const f of pool) {
+      if ((caughtCountMap.get(f.id) ?? 0) > 0) caught++;
+    }
+    const label = rarity === "전체" ? "전체 포획" : `${rarity} 포획`;
+    return { caughtCount: caught, totalCount: total, labelForStat: label };
+  }, [rows, rarity, caughtCountMap]);
+
   const rarityBadgeCls = (r: FishRarity) =>
     r === "일반"
       ? "bg-neutral-100 text-neutral-900 border border-neutral-200"
@@ -219,14 +232,7 @@ export default function MarineDexModal() {
                   모든 어종을 한눈에 보고, 등급별로 탐색해 보세요.
                 </p>
               </div>
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => setOpen(false)}
-                aria-label="닫기"
-              >
-                <X className="w-5 h-5" />
-              </Button>
+              {/* 상단 X 버튼 제거 (요청사항) */}
             </div>
           </DialogHeader>
 
@@ -311,7 +317,7 @@ export default function MarineDexModal() {
                         {/* 좌상단 희귀도 배지 */}
                         <div className="absolute left-2 top-2">
                           <Badge
-                            className={`hover:none rounded-full text-[11px] font-semibold ${rarityBadgeCls(
+                            className={`rounded-full text-[11px] font-semibold ${rarityBadgeCls(
                               f.rarity
                             )}`}
                           >
@@ -370,9 +376,18 @@ export default function MarineDexModal() {
               </div>
             </ScrollArea>
 
-            <div className="mt-3 text-[11px] text-muted-foreground flex items-center gap-1">
-              <Anchor className="w-3.5 h-3.5" />
-              밝은 카드는 포획 경험이 있는 개체입니다.
+            {/* 하단 안내(좌) + 포획 통계(우) */}
+            <div className="mt-3 text-[11px] text-muted-foreground flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1">
+                <Anchor className="w-3.5 h-3.5" />
+                밝은 카드는 포획 경험이 있는 개체입니다.
+              </div>
+              <div className="ml-auto text-right">
+                <span className="mr-2 font-medium">{labelForStat}</span>
+                <span className="tabular-nums">
+                  {caughtCount}/{totalCount}
+                </span>
+              </div>
             </div>
           </div>
         </DialogContent>
