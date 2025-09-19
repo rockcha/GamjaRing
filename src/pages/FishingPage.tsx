@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * FishingPage — bait-based fishing (single only here; bulk moved to component)
+ * FishingPage — bait-based fishing (single only here; bulk moved into IngredientFishingSection)
  * - 시간대 로직 제거
  * - aquarium_themes 에서 랜덤 title을 뽑아 /aquarium/themes/(title).png 사용
  * - 중앙 오버레이: "현재 위치: {title}"
@@ -14,7 +14,6 @@ import { toast } from "sonner";
 import supabase from "@/lib/supabase";
 import { useUser } from "@/contexts/UserContext";
 import { useCoupleContext } from "@/contexts/CoupleContext";
-import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 
 import IngredientFishingSection from "@/features/fishing/IngredientFishingSection";
 import MarineDexModal from "@/features/aquarium/MarineDexModal";
@@ -24,14 +23,11 @@ import {
   type RollResult,
 } from "@/features/fishing/rollfish";
 
-import BulkFishingDialog from "@/features/fishing/BulkFishingDialog";
-
 import { Fish as FishIcon } from "lucide-react";
 import ResultDialog, {
   type FishResult as DialogFishResult,
   type Rarity,
 } from "@/features/fishing/ResultDialog";
-import { Button } from "@/components/ui/button";
 
 /* ──────────────────────────────────────────────────────────── */
 const DND_MIME = "application/x-ingredient" as const;
@@ -91,34 +87,31 @@ export default function FishingPage() {
   const { couple, fetchCoupleData } = useCoupleContext();
   const coupleId = couple?.id ?? null;
 
-  /* 🔁 테마: aquarium_themes에서 랜덤 title 선택 */
+  /* 🔁 테마 */
   const [themeTitle, setThemeTitle] = useState<string>("바다");
   const nextSrc = useMemo(
     () => `/aquarium/themes/${encodeURIComponent(themeTitle)}.png`,
     [themeTitle]
   );
 
-  // 배경 전환 상태(크로스페이드)
   const FADE_MS = 2500;
   const [currentSrc, setCurrentSrc] = useState<string>(nextSrc);
   const [prevSrc, setPrevSrc] = useState<string | null>(null);
   const [curLoaded, setCurLoaded] = useState(false);
 
-  // themeTitle 바뀌면 prev=현재, current=새로, curLoaded=false
   useEffect(() => {
     setPrevSrc(currentSrc || null);
     setCurrentSrc(nextSrc);
     setCurLoaded(false);
-  }, [nextSrc]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nextSrc]);
 
-  // 새 이미지가 로딩 완료되면 prev를 FADE_MS 뒤에 제거
   useEffect(() => {
     if (!curLoaded || !prevSrc) return;
     const t = window.setTimeout(() => setPrevSrc(null), FADE_MS);
     return () => window.clearTimeout(t);
   }, [curLoaded, prevSrc]);
 
-  // 테마 타이틀 로드
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -127,20 +120,16 @@ export default function FishingPage() {
           .from("aquarium_themes")
           .select("title");
         if (error) throw error;
-
         const titles = (data ?? [])
           .map((r: any) => r?.title)
           .filter((t: any) => typeof t === "string" && t.length > 0);
-
         if (!alive) return;
-        if (titles.length > 0) {
-          const idx = Math.floor(Math.random() * titles.length);
-          setThemeTitle(titles[idx] as string);
-        } else {
-          setThemeTitle("바다"); // 폴백
-        }
-      } catch (e) {
-        console.warn("themes load error:", e);
+        setThemeTitle(
+          titles.length
+            ? titles[Math.floor(Math.random() * titles.length)]
+            : "바다"
+        );
+      } catch {
         if (alive) setThemeTitle("바다");
       }
     })();
@@ -162,7 +151,6 @@ export default function FishingPage() {
         .order("tank_no", { ascending: true });
       if (!alive) return;
       if (error) {
-        console.warn("어항 수 조회 실패:", error.message);
         setTanksCount(1);
         return;
       }
@@ -185,19 +173,13 @@ export default function FishingPage() {
         .eq("couple_id", coupleId)
         .maybeSingle();
       if (!alive) return;
-      if (error) {
-        console.warn("bait load error:", error.message);
-        setBaitCount(0);
-      } else {
-        setBaitCount(data?.bait_count ?? 0);
-      }
+      setBaitCount(error ? 0 : data?.bait_count ?? 0);
     })();
     return () => {
       alive = false;
     };
   }, [coupleId]);
 
-  // bait-consumed(left|count) 프로토콜 동기화
   useEffect(() => {
     function onBait(e: Event) {
       const d =
@@ -210,21 +192,17 @@ export default function FishingPage() {
     return () => window.removeEventListener("bait-consumed", onBait as any);
   }, []);
 
-  /* 단건 낚시 UI */
+  /* 단건 낚시 */
   const [overlay, setOverlay] = useState(false);
   const [result, setResult] = useState<DialogFishResult | null>(null);
   const [resultOpen, setResultOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [savingDialogPut, setSavingDialogPut] = useState(false);
 
-  /* 일괄 낚시 오픈 상태 */
-  const [bulkOpen, setBulkOpen] = useState(false);
-
-  /* 드래그 & 드롭 (단건 낚시) */
   const onDragOver = useCallback(
     (e: React.DragEvent) => {
       if (overlay) return;
-      if (e.dataTransfer.types.includes(DND_MIME)) {
+      if (e.dataTransfer.types.includes("application/x-ingredient")) {
         e.preventDefault();
         setDragOver(true);
       }
@@ -234,7 +212,8 @@ export default function FishingPage() {
   const onDragEnter = useCallback(
     (e: React.DragEvent) => {
       if (overlay) return;
-      if (e.dataTransfer.types.includes(DND_MIME)) setDragOver(true);
+      if (e.dataTransfer.types.includes("application/x-ingredient"))
+        setDragOver(true);
     },
     [overlay]
   );
@@ -243,7 +222,7 @@ export default function FishingPage() {
     async (e: React.DragEvent) => {
       setDragOver(false);
       if (overlay) return;
-      const raw = e.dataTransfer.getData(DND_MIME);
+      const raw = e.dataTransfer.getData("application/x-ingredient");
       if (!raw) return;
       e.preventDefault();
 
@@ -345,8 +324,7 @@ export default function FishingPage() {
     [overlay, coupleId]
   );
 
-  /* 단건 결과 저장 */
-  const { user: u } = useUser(); // 동일 컨텍스트지만 명시적으로
+  const { user: u } = useUser();
   const handlePutToTank = useCallback(
     async (tankNo: number) => {
       if (!coupleId) return toast.error("커플 정보를 찾을 수 없어요.");
@@ -370,22 +348,22 @@ export default function FishingPage() {
         } else {
           try {
             if (u?.id && u?.partner_id) {
+              // @ts-ignore
               await sendUserNotification({
                 senderId: u.id,
                 receiverId: u.partner_id,
                 type: "낚시성공",
                 itemName: result.labelKo.toString(),
-              } as any);
+              });
             }
-          } catch (notifyErr) {
-            console.warn("알림 전송 실패(무시 가능):", notifyErr);
+          } catch {
+            /* noop */
           }
           await fetchCoupleData?.();
           toast.success(`"${result.labelKo}"를 ${safeTank}번 어항에 담았어요!`);
           setResultOpen(false);
         }
       } catch (e: any) {
-        console.warn("인벤토리 저장 중 오류:", e?.message ?? e);
         toast.warning("인벤토리 저장 중 오류가 발생했어요.");
       } finally {
         setSavingDialogPut(false);
@@ -394,7 +372,6 @@ export default function FishingPage() {
     [coupleId, result, u?.id, u?.partner_id, fetchCoupleData, tanksCount]
   );
 
-  /* Render */
   return (
     <div
       className={cn(
@@ -424,14 +401,13 @@ export default function FishingPage() {
         onDrop={onDrop}
         aria-label="낚시 배경 영역"
       >
-        {/* 배경 레이어들: placeholder → prev → current (크로스페이드) */}
+        {/* 배경 */}
         <img
           src="/aquarium/fishing-placeholder.png"
           alt="fishing placeholder background"
           className="absolute inset-0 w-full h-full object-cover"
           draggable={false}
         />
-
         {prevSrc && (
           <img
             src={prevSrc}
@@ -444,7 +420,6 @@ export default function FishingPage() {
             draggable={false}
           />
         )}
-
         <img
           key={currentSrc}
           src={currentSrc}
@@ -457,40 +432,22 @@ export default function FishingPage() {
           draggable={false}
           onLoad={() => setCurLoaded(true)}
           onError={() => {
-            // 실패 시에도 prev 유지 후, 페이드아웃 없이 그냥 placeholder로 폴백
             setCurLoaded(false);
             setPrevSrc(null);
           }}
         />
-
         {/* 비네트 */}
         <div className="pointer-events-none absolute inset-0 [background:radial-gradient(60%_60%_at_50%_40%,rgba(0,0,0,0)_0%,rgba(0,0,0,.25)_100%)] md:[background:radial-gradient(55%_65%_at_50%_35%,rgba(0,0,0,0)_0%,rgba(0,0,0,.18)_100%)]" />
-
         {/* 중앙 위치 배지 */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[240%] z-10 pointer-events-none">
           <div className="rounded-full bg-black/40 text-white text-[11px] sm:text-xs px-3 py-1 backdrop-blur-sm">
             현재 위치: {themeTitle}
           </div>
         </div>
-
-        {/* 좌상단: 일괄 낚시 */}
-        <div className="absolute top-2 left-2 z-20 pointer-events-auto">
-          <Button
-            size="sm"
-            variant="secondary"
-            className="backdrop-blur-sm bg-white/80 hover:bg-white text-gray-900 border shadow-sm"
-            onClick={() => setBulkOpen(true)}
-            disabled={overlay}
-          >
-            ✨ 일괄 낚시
-          </Button>
-        </div>
-
         {/* 우상단: 도감 */}
         <div className="absolute top-2 right-2 z-20 pointer-events-auto">
           <MarineDexModal />
         </div>
-
         {/* 드롭 가이드 */}
         {!overlay && (
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
@@ -506,10 +463,8 @@ export default function FishingPage() {
             </div>
           </div>
         )}
-
         {/* 오버레이 / 결과 */}
         <FishingOverlay visible={overlay} />
-
         <ResultDialog
           open={resultOpen}
           result={result}
@@ -517,19 +472,6 @@ export default function FishingPage() {
           tanksCount={tanksCount}
           onConfirmPut={handlePutToTank}
           saving={savingDialogPut}
-        />
-
-        {/* ⬇️ 분리된 일괄 낚시 다이얼로그 */}
-        <BulkFishingDialog
-          open={bulkOpen}
-          onOpenChange={setBulkOpen}
-          coupleId={coupleId}
-          tanksCount={tanksCount}
-          baitCount={baitCount}
-          setBaitCount={setBaitCount}
-          fetchCoupleData={fetchCoupleData}
-          userId={user?.id}
-          partnerId={user?.partner_id}
         />
       </main>
     </div>

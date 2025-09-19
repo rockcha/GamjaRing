@@ -1,5 +1,3 @@
-// src/features/fishing/funnyLines.ts
-
 export const FUNNY_LINES = [
   // 기존 6개
   "문어는 비밀번호를 여덟 자리로 고집합니다. 팔이 책임져요.",

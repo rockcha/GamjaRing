@@ -42,10 +42,10 @@ type DbEntity = {
 
 /* ─ Helpers ─ */
 const RARITY_CAPTURE: Record<FishRarity, number> = {
-  일반: 0.4,
-  희귀: 0.15,
-  에픽: 0.04,
-  전설: 0.01,
+  일반: 0.33,
+  희귀: 0.12,
+  에픽: 0.035,
+  전설: 0.005,
 };
 
 function rarityDir(r: FishRarity) {

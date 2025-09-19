@@ -136,10 +136,11 @@ export default function CoupleBalanceCard({
           window.clearTimeout(goldDeltaTimer.current);
           goldDeltaTimer.current = null;
         }
+        // ⏱ 유지 시간 ~1초로 살짝 증가 (애니 길이보다 살짝 더 길게)
         goldDeltaTimer.current = window.setTimeout(() => {
           setGoldDelta(null);
           goldDeltaTimer.current = null;
-        }, 900);
+        }, 1300);
       }
     }
 
@@ -175,10 +176,11 @@ export default function CoupleBalanceCard({
           window.clearTimeout(potatoDeltaTimer.current);
           potatoDeltaTimer.current = null;
         }
+        // ⏱ 유지 시간 ~1초로 살짝 증가 (애니 길이보다 살짝 더 길게)
         potatoDeltaTimer.current = window.setTimeout(() => {
           setPotatoDelta(null);
           potatoDeltaTimer.current = null;
-        }, 900);
+        }, 3300);
       }
     }
 
@@ -220,7 +222,7 @@ export default function CoupleBalanceCard({
   );
 
   const badgeBase =
-    "absolute left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded-full border shadow-sm text-[10px] font-semibold tabular-nums backdrop-blur-[2px] ring-1 ring-white/40 animate-[floatUp_700ms_ease-out_forwards]";
+    "absolute left-50% left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded-full border shadow-sm text-[10px] font-semibold tabular-nums backdrop-blur-[2px] ring-1 ring-white/40 animate-[floatUp_700ms_ease-out_forwards]";
   const goldBadgeTone =
     goldDelta && goldDelta > 0
       ? "bg-emerald-50 text-emerald-700 border-emerald-200"
@@ -338,7 +340,7 @@ export default function CoupleBalanceCard({
               {potatoBump && (
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute inset-y-0 -left-6 w-12 bg-gradient-to-r from-transparent via-white/70 to-transparent rounded-md blur-[1px] animate-[shineSweep_700ms_eease-out]"
+                  className="pointer-events-none absolute inset-y-0 -left-6 w-12 bg-gradient-to-r from-transparent via-white/70 to-transparent rounded-md blur-[1px] animate-[shineSweep_700ms_ease-out]"
                 />
               )}
             </span>
@@ -346,7 +348,7 @@ export default function CoupleBalanceCard({
         </div>
       </div>
 
-      {/* 중앙 플래시 */}
+      {/* 중앙 플래시 (정중앙 배치 & 유지시간 ↑) */}
       {showDelta && goldDelta !== null && (
         <div
           className="fixed inset-0 z-[2147483647] pointer-events-none flex items-center justify-center"
@@ -354,9 +356,10 @@ export default function CoupleBalanceCard({
         >
           <div
             className={cn(
-              "animate-[centerFlash_900ms_cubic-bezier(0.2,0.8,0.2,1)_forwards]",
+              "animate-[centerFlash_3200ms_cubic-bezier(0.2,0.8,0.2,1)_forwards]",
               centerFlashText,
-              goldDelta > 0 ? "text-emerald-400" : "text-rose-400"
+              goldDelta > 0 ? "text-emerald-400" : "text-rose-400",
+              "text-center"
             )}
             style={{
               WebkitTextStroke: "1px rgba(0,0,0,0.15)",
@@ -375,22 +378,22 @@ export default function CoupleBalanceCard({
           className="fixed inset-0 z-[2147483647] pointer-events-none flex items-center justify-center"
           aria-hidden
         >
-          <div className="translate-y-16 sm:translate-y-20">
-            <div
-              className={cn(
-                "animate-[centerFlash_900ms_cubic-bezier(0.2,0.8,0.2,1)_forwards]",
-                centerFlashText,
-                potatoDelta > 0 ? "text-emerald-400" : "text-rose-400"
-              )}
-              style={{
-                WebkitTextStroke: "1px rgba(0,0,0,0.15)",
-                textShadow:
-                  "0 2px 10px rgba(0,0,0,0.35), 0 0 24px rgba(255,255,255,0.25)",
-              }}
-            >
-              🥔 {potatoDelta > 0 ? "+" : "−"}
-              {Math.abs(potatoDelta).toLocaleString("ko-KR")}
-            </div>
+          {/* ✅ 위치 보정: 추가 translate 제거, 완전한 정중앙 */}
+          <div
+            className={cn(
+              "animate-[centerFlash_1200ms_cubic-bezier(0.2,0.8,0.2,1)_forwards]",
+              centerFlashText,
+              potatoDelta > 0 ? "text-emerald-400" : "text-rose-400",
+              "text-center"
+            )}
+            style={{
+              WebkitTextStroke: "1px rgba(0,0,0,0.15)",
+              textShadow:
+                "0 2px 10px rgba(0,0,0,0.35), 0 0 24px rgba(255,255,255,0.25)",
+            }}
+          >
+            🥔 {potatoDelta > 0 ? "+" : "−"}
+            {Math.abs(potatoDelta).toLocaleString("ko-KR")}
           </div>
         </div>
       )}
@@ -421,10 +424,11 @@ export default function CoupleBalanceCard({
           0%,100% { box-shadow: inset 0 0 0 rgba(255,255,255,0); }
           50% { box-shadow: inset 0 8px 22px rgba(255,255,255,0.45); }
         }
+        /* ⏱ 중앙 플래시: 유지 구간을 늘려 약 1.2s 동안 표시 */
         @keyframes centerFlash {
           0% { opacity: 0; transform: scale(0.92); filter: blur(1px); }
-          18% { opacity: 1; transform: scale(1.05); filter: blur(0); }
-          70% { opacity: 1; transform: scale(1.0); filter: blur(0); }
+          20% { opacity: 1; transform: scale(1.05); filter: blur(0); }
+          85% { opacity: 1; transform: scale(1.0); filter: blur(0); }
           100% { opacity: 0; transform: scale(1.0); filter: blur(1px); }
         }
         @media (prefers-reduced-motion: reduce) {
@@ -432,7 +436,7 @@ export default function CoupleBalanceCard({
           .animate-\\[bumpPulse_240ms_ease-out\\],
           .animate-\\[shineSweep_700ms_ease-out\\],
           .animate-\\[chipGlow_3s_ease-in-out_infinite\\],
-          .animate-\\[centerFlash_900ms_cubic-bezier\\(0\\.2,0\\.8,0\\.2,1\\)_forwards\\] {
+          .animate-\\[centerFlash_1200ms_cubic-bezier\\(0\\.2,0\\.8,0\\.2,1\\)_forwards\\] {
             animation: none !important;
           }
         }

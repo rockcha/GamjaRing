@@ -55,7 +55,7 @@ function dday(dateStr: string): number {
 
 export default function CoupleSchedulePreview({
   className = "",
-  maxHeight = 280, // 👈 기본 최대 높이(넘치면 스크롤)
+  maxHeight = 180, // 👈 기본 최대 높이(넘치면 스크롤)
   limit: _limit, // 하위 호환용(미사용)
 }: Props) {
   const { user } = useUser();
