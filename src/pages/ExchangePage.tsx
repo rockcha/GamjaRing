@@ -273,16 +273,16 @@ export default function ExchangePage() {
   };
 
   /* =========================
-     탭 2: 재료 (짝수개) → 감자 (선택/2)
+     탭 2: 재료 (3의 배수) → 감자 (선택/3)
   ========================= */
   const [pick, setPick] = useState<Record<IngredientTitle, number>>({});
   const pickedCount = useMemo(
     () => Object.values(pick).reduce((a, b) => a + b, 0),
     [pick]
   );
-  const potatoGain = Math.floor(pickedCount / 2);
+  const potatoGain = Math.floor(pickedCount / 3);
   const canSubmitP2P =
-    !!coupleId && !isWorking && pickedCount >= 2 && pickedCount % 2 === 0;
+    !!coupleId && !isWorking && pickedCount >= 3 && pickedCount % 3 === 0;
 
   const togglePick = (title: IngredientTitle) => {
     if (isWorking) return;
@@ -316,7 +316,7 @@ export default function ExchangePage() {
   const handleIngredientsToPotato = async () => {
     if (!coupleId) return toast.error("커플 연동이 필요해요.");
     if (!canSubmitP2P)
-      return toast.error("재료는 2개 단위로 선택해 주세요. (짝수개)");
+      return toast.error("재료는 3개 단위(3의 배수)로 선택해 주세요.");
 
     setIsWorking(true);
     setRewards([]); // 이 탭은 오른쪽 패널에서 보상 리스트를 안 씀
@@ -436,7 +436,7 @@ export default function ExchangePage() {
         <div className="mt-2 text-[11px] text-muted-foreground ml-2">
           {tab === "to-ingredients"
             ? "감자 1개 당 재료 2개를 랜덤으로 교환합니다."
-            : "재료 2개 당 감자 1개를 교환합니다."}
+            : "재료 3개 당 감자 1개를 교환합니다."}
         </div>
       </div>
 
@@ -536,7 +536,7 @@ export default function ExchangePage() {
               <>
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold inline-flex items-center gap-2">
-                    재료 짝수개 선택
+                    재료.감자 교환
                   </h3>
                   <span className="text-[11px] text-zinc-500">
                     현재 선택: {pickedCount}개
@@ -644,7 +644,7 @@ export default function ExchangePage() {
               <div className="mt-3 min-h-[120px]">
                 {Object.entries(pick).length === 0 ? (
                   <div className="text-xs text-muted-foreground">
-                    왼쪽에서 재료 카드를 클릭해 선택하세요. (짝수 개)
+                    왼쪽에서 재료 카드를 클릭해 선택하세요. (3의 배수)
                   </div>
                 ) : (
                   <div className="flex flex-wrap gap-2">
@@ -680,10 +680,10 @@ export default function ExchangePage() {
                 title={
                   !coupleId
                     ? "커플 연동 필요"
-                    : pickedCount < 2
-                    ? "재료를 2개 이상 선택하세요"
-                    : pickedCount % 2 !== 0
-                    ? "짝수 개로 맞춰주세요"
+                    : pickedCount < 3
+                    ? "재료를 3개 이상 선택하세요"
+                    : pickedCount % 3 !== 0
+                    ? "3의 배수로 맞춰주세요"
                     : "교환하기"
                 }
               >

@@ -13,6 +13,8 @@ import KoreanQuoteButton from "./KoreanQuoteButton";
 import TimeCapsuleButton from "@/features/time-capsule/TimeCapsuleButton";
 import UserMemoEmojiButton from "@/features/memo/UserFloatingMemo";
 
+import SlotSpinButton from "./SlotSpinButton";
+
 export default function FloatingLeftRail() {
   return (
     <div className="fixed left-2 top-1/2 -translate-y-1/2 z-[50] flex flex-col items-center gap-2">
@@ -25,6 +27,7 @@ export default function FloatingLeftRail() {
       <NoticeCenterFloatingButton />
 
       <KoreanQuoteButton />
+      <SlotSpinButton />
     </div>
   );
 }
