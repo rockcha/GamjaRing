@@ -6,15 +6,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { useUser } from "@/contexts/UserContext";
 import supabase from "@/lib/supabase";
 import {
-  HeartHandshake,
-  Loader2,
-  Mail,
-  Lock,
-  Eye,
-  EyeOff,
-  AlertCircle,
-} from "lucide-react";
-import {
   Card,
   CardHeader,
   CardContent,
@@ -27,6 +18,19 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
+
+/* ▼ Font Awesome */
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faHandHoldingHeart, // 브랜드 타이틀용 (HeartHandshake 대체)
+  faSpinner, // 로딩 스피너 (Loader2 대체)
+  faEnvelope, // 메일 아이콘
+  faLock, // 자물쇠
+  faEye, // 비밀번호 보이기
+  faEyeSlash, // 비밀번호 숨기기
+  faCircleExclamation, // 경고(에러) 아이콘
+} from "@fortawesome/free-solid-svg-icons";
+/* ▲ Font Awesome */
 
 const errorMessageMap: Record<string, string> = {
   "Invalid login credentials": "이메일 또는 비밀번호가 잘못되었습니다.",
@@ -71,7 +75,6 @@ export default function LoginPage() {
     if (error) {
       const m = translateError(error.message);
       setErrorMsg(m);
-      // 에러 유형에 따라 포커스 이동
       if (/이메일|가입|인증/.test(m)) emailRef.current?.focus();
       else pwRef.current?.focus();
       return;
@@ -125,8 +128,6 @@ export default function LoginPage() {
     const el = pwRef.current;
     if (!el) return;
     const onKey = (ev: KeyboardEvent) => {
-      // 일부 브라우저는 getModifierState 지원
-
       const on = ev.getModifierState?.("CapsLock");
       setCapsOn(!!on);
     };
@@ -142,7 +143,7 @@ export default function LoginPage() {
     <div className="min-h-dvh flex flex-col items-center justify-center bg-gradient-to-b from-[#e9d8c8] to-[#d8bca3] px-4 py-8 sm:py-12">
       {/* 브랜드 타이틀 */}
       <div className="mb-4 flex items-center gap-2 text-[#5b3d1d]">
-        <HeartHandshake className="h-5 w-5" />
+        <FontAwesomeIcon icon={faHandHoldingHeart} className="h-5 w-5" />
         <span className="text-sm font-medium">
           함께하는 우리의 놀이터, 감자링
         </span>
@@ -170,7 +171,10 @@ export default function LoginPage() {
             <div className="grid gap-2">
               <Label htmlFor="email">이메일</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8a6b50]" />
+                <FontAwesomeIcon
+                  icon={faEnvelope}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8a6b50]"
+                />
                 <Input
                   ref={emailRef}
                   id="email"
@@ -193,7 +197,10 @@ export default function LoginPage() {
             <div className="grid gap-2">
               <Label htmlFor="password">비밀번호</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8a6b50]" />
+                <FontAwesomeIcon
+                  icon={faLock}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8a6b50]"
+                />
                 <Input
                   ref={pwRef}
                   id="password"
@@ -216,11 +223,10 @@ export default function LoginPage() {
                   aria-label={showPw ? "비밀번호 숨기기" : "비밀번호 보이기"}
                   tabIndex={-1}
                 >
-                  {showPw ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  <FontAwesomeIcon
+                    icon={showPw ? faEyeSlash : faEye}
+                    className="h-4 w-4"
+                  />
                 </button>
               </div>
 
@@ -247,7 +253,12 @@ export default function LoginPage() {
                 aria-live="polite"
               >
                 <AlertDescription className="flex items-center gap-2">
-                  {errorMsg ? <AlertCircle className="h-4 w-4" /> : null}
+                  {errorMsg ? (
+                    <FontAwesomeIcon
+                      icon={faCircleExclamation}
+                      className="h-4 w-4"
+                    />
+                  ) : null}
                   {errorMsg || infoMsg}
                 </AlertDescription>
               </Alert>
@@ -262,7 +273,10 @@ export default function LoginPage() {
             >
               {loading || checking ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <FontAwesomeIcon
+                    icon={faSpinner}
+                    className="mr-2 h-4 w-4 animate-spin"
+                  />
                   로그인 중...
                 </>
               ) : (

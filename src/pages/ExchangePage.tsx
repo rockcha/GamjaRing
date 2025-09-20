@@ -24,18 +24,20 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+
+/* ✅ Font Awesome */
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  Gift,
-  Loader2,
-  ArrowLeftRight,
-  Shuffle,
-  PackageOpen,
-  Filter,
-  SortAsc,
-  Undo2,
-  Minus,
-  Plus,
-} from "lucide-react";
+  faGift,
+  faSpinner,
+  faRightLeft,
+  faShuffle,
+  faBoxOpen,
+  faFilter,
+  faArrowDownShortWide,
+  faMinus,
+  faPlus,
+} from "@fortawesome/free-solid-svg-icons";
 
 /* --------------------------------
    유틸: 고유 샘플링 (중복 없이 n개)
@@ -82,7 +84,11 @@ function Rewards({
     <Card className="p-3 sm:p-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold inline-flex items-center gap-2">
-          <PackageOpen className="h-4 w-4 text-amber-600" /> 획득 결과
+          <FontAwesomeIcon
+            icon={faBoxOpen}
+            className="h-4 w-4 text-amber-600"
+          />
+          획득 결과
         </h3>
         <div className="text-[11px] text-zinc-500" aria-live="polite">
           {status}
@@ -93,7 +99,11 @@ function Rewards({
         {loading ? (
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-zinc-600 text-sm">
-              <Loader2 className="h-4 w-4 animate-spin" /> 열어보는 중…
+              <FontAwesomeIcon
+                icon={faSpinner}
+                className="h-4 w-4 animate-spin"
+              />
+              열어보는 중…
             </div>
             <Skeleton className="h-10" />
             <Skeleton className="h-10" />
@@ -197,7 +207,6 @@ export default function ExchangePage() {
   };
 
   const onSpendInputChange = (v: string) => {
-    // 숫자만 허용, 빈 문자열 허용(버튼은 비활성화됨)
     const digits = v.replace(/[^\d]/g, "");
     setSpendText(digits);
     const parsed = parseInt(digits, 10);
@@ -237,7 +246,6 @@ export default function ExchangePage() {
 
       setStatus("재료 뽑는 중… ✨");
       setTimeout(async () => {
-        // 각 감자당 서로 다른 2종 뽑기(전체적으로는 중복 허용)
         const drawnAll: { title: IngredientTitle; emoji: string }[] = [];
         for (let i = 0; i < potatoSpend; i++) {
           const pair = sampleUnique(POOL, 2);
@@ -245,23 +253,19 @@ export default function ExchangePage() {
         }
         setRewards(drawnAll);
 
-        // 지급
         await addIngredients(
           coupleId,
           drawnAll.map((d) => d.title)
         );
 
-        // 로컬 인벤토리 반영
         setInvMap((m) => {
           const copy = { ...m };
           for (const d of drawnAll) copy[d.title] = (copy[d.title] ?? 0) + 1;
           return copy;
         });
 
-        // 감자 수량 갱신
         setPotatoCount((p) => Math.max(0, p - potatoSpend));
 
-        // 상태 텍스트는 깔끔히 비워둠
         setStatus("");
         setIsWorking(false);
       }, 700);
@@ -319,7 +323,7 @@ export default function ExchangePage() {
       return toast.error("재료는 3개 단위(3의 배수)로 선택해 주세요.");
 
     setIsWorking(true);
-    setRewards([]); // 이 탭은 오른쪽 패널에서 보상 리스트를 안 씀
+    setRewards([]);
     setStatus("재료를 제출하는 중…");
 
     try {
@@ -422,11 +426,11 @@ export default function ExchangePage() {
           <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="to-ingredients" className="gap-2">
-                <ArrowLeftRight className="h-4 w-4" />
+                <FontAwesomeIcon icon={faRightLeft} className="h-4 w-4" />
                 재료 얻기
               </TabsTrigger>
               <TabsTrigger value="to-potato" className="gap-2">
-                <ArrowLeftRight className="h-4 w-4" />
+                <FontAwesomeIcon icon={faRightLeft} className="h-4 w-4" />
                 감자 얻기
               </TabsTrigger>
             </TabsList>
@@ -449,8 +453,11 @@ export default function ExchangePage() {
               <>
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold inline-flex items-center gap-2">
-                    <Shuffle className="h-4 w-4 text-emerald-600" /> 감자 . 재료
-                    교환
+                    <FontAwesomeIcon
+                      icon={faShuffle}
+                      className="h-4 w-4 text-emerald-600"
+                    />
+                    감자 . 재료 교환
                   </h3>
                   <span className="text-[11px] text-zinc-500">
                     보유: 🥔 ×{potatoCount}
@@ -471,7 +478,7 @@ export default function ExchangePage() {
                       disabled={isWorking || potatoSpend <= 1}
                       title="감소"
                     >
-                      <Minus className="h-4 w-4" />
+                      <FontAwesomeIcon icon={faMinus} className="h-4 w-4" />
                     </Button>
                     <input
                       inputMode="numeric"
@@ -492,7 +499,7 @@ export default function ExchangePage() {
                       disabled={isWorking || potatoSpend >= maxSpend}
                       title="증가"
                     >
-                      <Plus className="h-4 w-4" />
+                      <FontAwesomeIcon icon={faPlus} className="h-4 w-4" />
                     </Button>
                   </div>
                   <Button
@@ -520,9 +527,12 @@ export default function ExchangePage() {
                     title={!coupleId ? "커플 연동 필요" : "교환하기"}
                   >
                     {isWorking ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <FontAwesomeIcon
+                        icon={faSpinner}
+                        className="h-4 w-4 animate-spin"
+                      />
                     ) : (
-                      <Gift className="h-4 w-4" />
+                      <FontAwesomeIcon icon={faGift} className="h-4 w-4" />
                     )}
                     랜덤 {potatoSpend * 2}개 뽑기
                   </Button>
@@ -548,7 +558,10 @@ export default function ExchangePage() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="inline-flex items-center gap-2">
                     <span className="text-[11px] text-zinc-500 inline-flex items-center gap-1">
-                      <Filter className="h-3.5 w-3.5" />
+                      <FontAwesomeIcon
+                        icon={faFilter}
+                        className="h-3.5 w-3.5"
+                      />
                       필터
                     </span>
                     <Button
@@ -568,7 +581,10 @@ export default function ExchangePage() {
                   </div>
                   <div className="inline-flex items-center gap-2">
                     <span className="text-[11px] text-zinc-500 inline-flex items-center gap-1">
-                      <SortAsc className="h-3.5 w-3.5" />
+                      <FontAwesomeIcon
+                        icon={faArrowDownShortWide}
+                        className="h-3.5 w-3.5"
+                      />
                       정렬
                     </span>
                     <div className="inline-flex rounded-full border bg-white p-0.5">
@@ -688,14 +704,16 @@ export default function ExchangePage() {
                 }
               >
                 {isWorking ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <FontAwesomeIcon
+                    icon={faSpinner}
+                    className="h-4 w-4 animate-spin"
+                  />
                 ) : (
-                  <ArrowLeftRight className="h-4 w-4" />
+                  <FontAwesomeIcon icon={faRightLeft} className="h-4 w-4" />
                 )}
                 감자 {potatoGain}개 받기
               </Button>
 
-              {/* 상태 메모 */}
               {status && (
                 <div className="mt-2 text-[11px] text-zinc-500">{status}</div>
               )}

@@ -19,19 +19,22 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-import {
-  HeartHandshake,
-  Loader2,
-  Mail,
-  Lock,
-  Eye,
-  EyeOff,
-  User,
-  AlertCircle,
-  CheckCircle2,
-  XCircle,
-} from "lucide-react";
 import { cn } from "@/lib/utils";
+
+/* ✅ Font Awesome 아이콘 */
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faHandHoldingHeart,
+  faSpinner,
+  faEnvelope,
+  faLock,
+  faEye,
+  faEyeSlash,
+  faUser,
+  faCircleExclamation,
+  faCircleCheck,
+  faCircleXmark,
+} from "@fortawesome/free-solid-svg-icons";
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
@@ -114,12 +117,6 @@ export default function SignupPage() {
           setNickState("idle");
           return;
         }
-        // head:true + count로 판단 (data는 null일 수 있음)
-        // supabase-js v2에서 count는 select 옵션으로 반환됨 -> error 없으면 OK
-        // 여기서는 head 모드라 data는 의미 없음 → 재조회 없이 count 판단 대신 간소화: taken 여부만 추정
-        // 안전하게 maybeSingle로도 가능하지만 head로 비용 최소화
-        // 대안: 별도 RPC/unique index 사용
-        // 간단 처리: 동일 닉네임 1개라도 있으면 taken으로 간주 (count는 response header에서 처리되지만 SDK가 숨김. 보수적으로 재조회)
         const { data: hit } = await supabase
           .from("users")
           .select("id")
@@ -182,7 +179,7 @@ export default function SignupPage() {
   return (
     <div className="min-h-dvh flex flex-col items-center justify-center bg-gradient-to-b from-[#e9d8c8] to-[#d8bca3] px-4 py-8 sm:py-12">
       <div className="mb-4 flex items-center gap-2 text-[#5b3d1d]">
-        <HeartHandshake className="h-5 w-5" />
+        <FontAwesomeIcon icon={faHandHoldingHeart} className="h-5 w-5" />
         <span className="text-sm font-medium">
           함께하는 우리의 놀이터, 감자링
         </span>
@@ -210,7 +207,11 @@ export default function SignupPage() {
             <div className="grid gap-2">
               <Label htmlFor="nickname">닉네임</Label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8a6b50]" />
+                <FontAwesomeIcon
+                  icon={faUser}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8a6b50]"
+                  aria-hidden
+                />
                 <Input
                   ref={nickRef}
                   id="nickname"
@@ -226,13 +227,25 @@ export default function SignupPage() {
                 {/* 상태 아이콘 */}
                 <span className="absolute right-2 top-1/2 -translate-y-1/2">
                   {nickState === "checking" && (
-                    <Loader2 className="h-4 w-4 animate-spin text-[#8a6b50]" />
+                    <FontAwesomeIcon
+                      icon={faSpinner}
+                      className="h-4 w-4 animate-spin text-[#8a6b50]"
+                      aria-hidden
+                    />
                   )}
                   {nickState === "available" && (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    <FontAwesomeIcon
+                      icon={faCircleCheck}
+                      className="h-4 w-4 text-emerald-600"
+                      aria-hidden
+                    />
                   )}
                   {nickState === "taken" && (
-                    <XCircle className="h-4 w-4 text-red-600" />
+                    <FontAwesomeIcon
+                      icon={faCircleXmark}
+                      className="h-4 w-4 text-red-600"
+                      aria-hidden
+                    />
                   )}
                 </span>
               </div>
@@ -245,7 +258,11 @@ export default function SignupPage() {
             <div className="grid gap-2">
               <Label htmlFor="email">이메일</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8a6b50]" />
+                <FontAwesomeIcon
+                  icon={faEnvelope}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8a6b50]"
+                  aria-hidden
+                />
                 <Input
                   ref={emailRef}
                   id="email"
@@ -268,7 +285,11 @@ export default function SignupPage() {
             <div className="grid gap-2">
               <Label htmlFor="password">비밀번호</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8a6b50]" />
+                <FontAwesomeIcon
+                  icon={faLock}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8a6b50]"
+                  aria-hidden
+                />
                 <Input
                   ref={pwRef}
                   id="password"
@@ -288,11 +309,11 @@ export default function SignupPage() {
                   aria-label={showPw ? "비밀번호 숨기기" : "비밀번호 보이기"}
                   tabIndex={-1}
                 >
-                  {showPw ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  <FontAwesomeIcon
+                    icon={showPw ? faEyeSlash : faEye}
+                    className="h-4 w-4"
+                    aria-hidden
+                  />
                 </button>
               </div>
 
@@ -326,7 +347,11 @@ export default function SignupPage() {
             <div className="grid gap-2">
               <Label htmlFor="confirmPassword">비밀번호 확인</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8a6b50]" />
+                <FontAwesomeIcon
+                  icon={faLock}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8a6b50]"
+                  aria-hidden
+                />
                 <Input
                   id="confirmPassword"
                   type={showPw2 ? "text" : "password"}
@@ -345,22 +370,32 @@ export default function SignupPage() {
                   aria-label={showPw2 ? "비밀번호 숨기기" : "비밀번호 보이기"}
                   tabIndex={-1}
                 >
-                  {showPw2 ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  <FontAwesomeIcon
+                    icon={showPw2 ? faEyeSlash : faEye}
+                    className="h-4 w-4"
+                    aria-hidden
+                  />
                 </button>
               </div>
               {!!confirmPassword && (
                 <div className="text-xs">
                   {matchOk ? (
                     <span className="inline-flex items-center gap-1 text-emerald-600">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> 일치합니다
+                      <FontAwesomeIcon
+                        icon={faCircleCheck}
+                        className="h-3.5 w-3.5"
+                        aria-hidden
+                      />
+                      일치합니다
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 text-red-600">
-                      <XCircle className="h-3.5 w-3.5" /> 일치하지 않습니다
+                      <FontAwesomeIcon
+                        icon={faCircleXmark}
+                        className="h-3.5 w-3.5"
+                        aria-hidden
+                      />
+                      일치하지 않습니다
                     </span>
                   )}
                 </div>
@@ -371,7 +406,11 @@ export default function SignupPage() {
             {errorMsg && (
               <Alert variant="destructive" role="status" aria-live="polite">
                 <AlertDescription className="flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4" />
+                  <FontAwesomeIcon
+                    icon={faCircleExclamation}
+                    className="h-4 w-4"
+                    aria-hidden
+                  />
                   {errorMsg}
                 </AlertDescription>
               </Alert>
@@ -386,7 +425,11 @@ export default function SignupPage() {
             >
               {loading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <FontAwesomeIcon
+                    icon={faSpinner}
+                    className="mr-2 h-4 w-4 animate-spin"
+                    aria-hidden
+                  />
                   가입 중...
                 </>
               ) : (

@@ -2,24 +2,7 @@
 "use client";
 
 import React, { memo } from "react";
-import {
-  HeartHandshake,
-  Home,
-  Info,
-  MessageCircleQuestionMark,
-  MessagesSquare,
-  CalendarDays,
-  Tractor,
-  CookingPot,
-  Waves,
-  Fish,
-  Dice3,
-  Gamepad2,
-  Sticker,
-  Hourglass, // ✅ 타임캡슐 아이콘 추가
-  ArrowLeftRight,
-  type LucideIcon,
-} from "lucide-react";
+import { type LucideIcon } from "lucide-react"; // 타입만 유지 (호환용)
 import { cn } from "@/lib/utils";
 
 import WeatherCard from "../widgets/WeatherCard";
@@ -36,7 +19,55 @@ import TodayQuestionInline from "../widgets/Cards/TodayQuestionCard";
 import { NavItem } from "../widgets/NavIconButton";
 import AvatarWidget from "../widgets/AvatarWidget";
 
-// ------------------------------ 네비 정의/가드 ------------------------------
+/* =========================
+   Font Awesome 아이콘 래퍼
+========================= */
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faHandHoldingHeart,
+  faHouse,
+  faCircleInfo,
+  faCircleQuestion,
+  faComments,
+  faCalendarDays,
+  faTractor,
+  faBowlFood,
+  faSailboat,
+  faFish,
+  faDiceThree,
+  faGamepad,
+  faNoteSticky,
+  faHourglassHalf,
+  faRightLeft,
+  faClipboard,
+} from "@fortawesome/free-solid-svg-icons";
+
+// LucideIcon 시그니처처럼 className만 받아 렌더하는 래퍼
+const makeFA =
+  (iconDef: any) =>
+  ({ className }: { className?: string }) =>
+    <FontAwesomeIcon icon={iconDef} className={className} />;
+
+// 기존 이름 유지 (타입은 LucideIcon으로 단언해 NavItem과 호환)
+const HeartHandshake = makeFA(faHandHoldingHeart) as unknown as LucideIcon;
+const Home = makeFA(faHouse) as unknown as LucideIcon;
+const Info = makeFA(faCircleInfo) as unknown as LucideIcon;
+const MessageCircleQuestionMark = makeFA(
+  faCircleQuestion
+) as unknown as LucideIcon;
+const MessagesSquare = makeFA(faComments) as unknown as LucideIcon;
+const CalendarDays = makeFA(faCalendarDays) as unknown as LucideIcon;
+const Tractor = makeFA(faTractor) as unknown as LucideIcon;
+const CookingPot = makeFA(faBowlFood) as unknown as LucideIcon;
+const Waves = makeFA(faSailboat) as unknown as LucideIcon;
+const Fish = makeFA(faFish) as unknown as LucideIcon;
+const Dice3 = makeFA(faDiceThree) as unknown as LucideIcon;
+const Gamepad2 = makeFA(faGamepad) as unknown as LucideIcon;
+const Sticker = makeFA(faClipboard) as unknown as LucideIcon;
+const Hourglass = makeFA(faHourglassHalf) as unknown as LucideIcon; // 타임캡슐
+const ArrowLeftRight = makeFA(faRightLeft) as unknown as LucideIcon;
+
+/* ------------------------------ 네비 정의/가드 ------------------------------ */
 type SimpleNavDef = {
   id:
     | "home"
@@ -44,8 +75,8 @@ type SimpleNavDef = {
     | "questions"
     | "bundle"
     | "scheduler"
-    | "timeCapsule" // ✅ 추가
-    | "exchange" // ✅ 추가
+    | "timeCapsule"
+    | "exchange"
     | "farm"
     | "kitchen"
     | "aquarium"
@@ -54,34 +85,29 @@ type SimpleNavDef = {
     | "oddEven"
     | "miniGame";
   label: string;
-  icon: LucideIcon;
+  icon: LucideIcon; // NavItem과 타입 호환 유지
 };
 
 const NAV_GROUPS: readonly (readonly SimpleNavDef[])[] = [
-  // 2개
   [
     { id: "home", label: "메인페이지", icon: Home },
     { id: "info", label: "감자링이란?", icon: Info },
   ],
-  // 3개 → 4개 (타임캡슐 추가)
   [
     { id: "questions", label: "답변하기", icon: MessageCircleQuestionMark },
     { id: "bundle", label: "답변꾸러미", icon: MessagesSquare },
     { id: "scheduler", label: "스케쥴러", icon: CalendarDays },
-    { id: "timeCapsule", label: "타임캡슐", icon: Hourglass }, // ✅ 스케줄러 오른쪽
+    { id: "timeCapsule", label: "타임캡슐", icon: Hourglass },
   ],
-  // 2개
   [
     { id: "farm", label: "농장", icon: Tractor },
     { id: "kitchen", label: "조리실", icon: CookingPot },
-    { id: "exchange", label: "교환소", icon: ArrowLeftRight }, // ✅ 같은 그룹에
+    { id: "exchange", label: "교환소", icon: ArrowLeftRight },
   ],
-  // 2개
   [
     { id: "aquarium", label: "아쿠아리움", icon: Fish },
     { id: "fishing", label: "낚시터", icon: Waves },
   ],
-  // ✅ 미니게임 섹션
   [
     { id: "stickerBoard", label: "스티커보드", icon: Sticker },
     { id: "oddEven", label: "홀짝게임", icon: Dice3 },
@@ -98,11 +124,11 @@ const GUARDS: Record<
   questions: { requireLogin: true, requireCouple: true },
   bundle: { requireLogin: true, requireCouple: true },
   scheduler: { requireLogin: true, requireCouple: true },
-  timeCapsule: { requireLogin: true, requireCouple: true }, // ✅ 가드
+  timeCapsule: { requireLogin: true, requireCouple: true },
 
   farm: { requireLogin: true, requireCouple: true },
   kitchen: { requireLogin: true, requireCouple: true },
-  exchange: { requireLogin: true, requireCouple: true }, // ✅ 추가
+  exchange: { requireLogin: true, requireCouple: true },
   aquarium: { requireLogin: true, requireCouple: true },
   fishing: { requireLogin: true, requireCouple: true },
 
@@ -117,11 +143,11 @@ const FALLBACK_ROUTE: Record<string, string> = {
   questions: "/questions",
   bundle: "/bundle",
   scheduler: "/scheduler",
-  timeCapsule: "/timeCapsule", // ✅ 라우팅 추가
+  timeCapsule: "/timeCapsule",
 
   farm: "/potatoField",
   kitchen: "/kitchen",
-  exchange: "/exchange", // ✅ 추가
+  exchange: "/exchange",
   aquarium: "/aquarium",
   fishing: "/fishing",
 
@@ -130,7 +156,7 @@ const FALLBACK_ROUTE: Record<string, string> = {
   miniGame: "/miniGame",
 };
 
-// ------------------------------ 상단 클러스터 ------------------------------
+/* ------------------------------ 상단 클러스터 ------------------------------ */
 const TitleCluster = memo(function TitleCluster({
   routeTitle,
 }: {
@@ -176,7 +202,7 @@ const RightCluster = memo(function RightCluster() {
   );
 });
 
-// ------------------------------ 헤더 컴포넌트 ------------------------------
+/* ------------------------------ 헤더 컴포넌트 ------------------------------ */
 export default function AppHeader({
   routeTitle,
   className,

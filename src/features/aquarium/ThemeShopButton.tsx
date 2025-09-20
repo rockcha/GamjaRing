@@ -1,10 +1,10 @@
+// src/components/ThemeShopButton.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import supabase from "@/lib/supabase";
 import { toast } from "sonner";
-import { Coins } from "lucide-react";
-
+// ❌ 기존: import { Coins } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,11 +16,14 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-
 import { useCoupleContext } from "@/contexts/CoupleContext";
+import { cn } from "@/lib/utils";
+
+// ✅ Font Awesome
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faStore, faCoins } from "@fortawesome/free-solid-svg-icons";
 
 type ThemeRow = { id: number; title: string; price: number };
 
@@ -28,18 +31,14 @@ function imageUrlFromTitle(title: string) {
   return `/aquarium/themes/${encodeURIComponent(title)}.png`;
 }
 
-// 기본 테마
 const BASE_THEME_ID = 12;
 const BASE_THEME_TITLE = "수중 정원";
-
-// ✅ 보유 / 미보유만
 type FilterKind = "owned" | "unowned";
 
 export default function ThemeShopButton({
   tankNo,
   className = "",
 }: {
-  /** ✅ 현재 어항 번호(필수) */
   tankNo: number;
   className?: string;
 }) {
@@ -47,30 +46,22 @@ export default function ThemeShopButton({
   const coupleId = couple?.id ?? null;
 
   const [open, setOpen] = useState(false);
-
   const [loading, setLoading] = useState(false);
   const [themes, setThemes] = useState<ThemeRow[]>([]);
-
-  /** ✅ 현재 어항의 theme_id / title */
   const [currentThemeId, setCurrentThemeId] = useState<number | null>(null);
   const [tankTitle, setTankTitle] = useState<string>("");
 
-  /** 보유 테마 */
   const [ownedIds, setOwnedIds] = useState<number[]>([]);
   const ownedSet = useMemo(() => new Set(ownedIds), [ownedIds]);
 
-  /** ✅ 라디오 그룹 필터 (기본: 미보유) */
   const [filter, setFilter] = useState<FilterKind>("unowned");
-
   const [busyBuyId, setBusyBuyId] = useState<number | null>(null);
   const [busyApplyId, setBusyApplyId] = useState<number | null>(null);
 
-  /** ✅ 이미지 프리뷰 다이얼로그 상태 */
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewTheme, setPreviewTheme] = useState<ThemeRow | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
-  // 모달 열릴 때 데이터 적재
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -79,7 +70,6 @@ export default function ThemeShopButton({
       try {
         setLoading(true);
 
-        // 1) 전체 테마
         const themesRes = await supabase
           .from("aquarium_themes")
           .select("id,title,price")
@@ -88,7 +78,6 @@ export default function ThemeShopButton({
         const all = (themesRes.data ?? []) as ThemeRow[];
         if (!cancelled) setThemes(all);
 
-        // 2) 현재 어항의 theme / title
         if (coupleId && tankNo != null) {
           const curTankRes = await supabase
             .from("aquarium_tanks")
@@ -110,7 +99,6 @@ export default function ThemeShopButton({
           }
         }
 
-        // 3) 보유 목록 (+기본 테마 보장)
         if (coupleId) {
           const ownRes = await supabase
             .from("couple_theme_purchases")
@@ -129,11 +117,7 @@ export default function ThemeShopButton({
                 onConflict: "couple_id,theme_id",
                 ignoreDuplicates: true,
               });
-            if (up.error) {
-              console.warn("[ThemeShop] base theme upsert error:", up.error);
-            } else {
-              owned.push(BASE_THEME_ID);
-            }
+            if (!up.error) owned.push(BASE_THEME_ID);
           }
 
           if (!cancelled) setOwnedIds(owned);
@@ -157,13 +141,11 @@ export default function ThemeShopButton({
     [themes]
   );
 
-  // ✅ 보유 / 미보유만 필터링
   const visible = useMemo(() => {
     if (filter === "unowned") return sorted.filter((t) => !ownedSet.has(t.id));
     return sorted.filter((t) => ownedSet.has(t.id));
   }, [filter, sorted, ownedSet]);
 
-  /** ✅ 구매(보유만 추가, 적용은 하지 않음) */
   async function buyTheme(t: ThemeRow) {
     if (!coupleId) return toast.error("커플 정보를 찾을 수 없어요.");
     if (t.id === BASE_THEME_ID || t.title === BASE_THEME_TITLE) {
@@ -172,8 +154,6 @@ export default function ThemeShopButton({
 
     try {
       setBusyBuyId(t.id);
-
-      // 👉 ‘구매만’ 수행하는 RPC가 필요합니다. (SQL 예시는 하단 참고)
       const { data, error } = await supabase.rpc("buy_theme", {
         p_theme_id: t.id,
       });
@@ -194,7 +174,6 @@ export default function ThemeShopButton({
       const price = Number(data?.price ?? t.price);
       toast.success(`구매 완료! -${price.toLocaleString()} 골드`);
 
-      // 로컬 상태 반영 (적용은 하지 않음)
       setOwnedIds((prev) => (prev.includes(t.id) ? prev : [...prev, t.id]));
     } catch (e: any) {
       toast.error(e?.message ?? "구매에 실패했어요");
@@ -203,7 +182,6 @@ export default function ThemeShopButton({
     }
   }
 
-  /** ✅ 적용(보유 테마만): 현재 어항(tankNo)의 theme_id 업데이트 */
   async function applyTheme(t: ThemeRow) {
     if (!coupleId) return toast.error("커플 정보를 찾을 수 없어요.");
     if (!ownedSet.has(t.id))
@@ -223,10 +201,7 @@ export default function ThemeShopButton({
       if (up.error) throw up.error;
       setCurrentThemeId(t.id);
       toast.success("테마를 적용했어요!");
-
-      // 필요 시 어항 새로고침 이벤트만 날리고, 페이지 전체 리로드는 제거
       window.dispatchEvent(new CustomEvent("aquarium-theme-applied"));
-      // window.location.reload(); // ❌ 자동 새로고침 제거
     } catch (e: any) {
       toast.error(e?.message ?? "테마 적용에 실패했어요");
     } finally {
@@ -234,7 +209,6 @@ export default function ThemeShopButton({
     }
   }
 
-  /** ✅ 썸네일 클릭 → 프리뷰 오픈 */
   function openPreview(t: ThemeRow) {
     setPreviewTheme(t);
     setPreviewLoading(true);
@@ -247,19 +221,18 @@ export default function ThemeShopButton({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
           <Button
-            className={[
+            className={cn(
               className,
               "transition-transform duration-150 hover:scale-[1.02] active:scale-100",
-              "hover:shadow-sm",
-            ].join(" ")}
+              "hover:shadow-sm"
+            )}
             variant="outline"
             title="테마 상점 열기"
           >
-            <img
-              src="/aquarium/themes/shop.gif"
-              alt="테마 상점 아이콘"
-              className=" h-7 w-7"
-              draggable={false}
+            {/* ✅ GIF 제거 → Font Awesome 상점 아이콘 */}
+            <FontAwesomeIcon
+              icon={faStore}
+              className="mr-2 h-5 w-5 text-amber-600"
             />
             테마 상점
           </Button>
@@ -273,14 +246,13 @@ export default function ThemeShopButton({
               적용하세요.
             </DialogDescription>
 
-            {/* ✅ 현재 어항 정보 */}
             <div className="mt-2 text-sm text-muted-foreground">
               현재 어항 <b className="text-foreground">#{tankNo}</b> —{" "}
               <span>{tankTitle}</span>
             </div>
           </DialogHeader>
 
-          {/* ✅ 라디오 그룹 필터 (보유 / 미보유) */}
+          {/* 필터 */}
           <div className="px-6 pb-3">
             <div className="flex items-center justify-end gap-4">
               <span className="text-sm text-muted-foreground">보기</span>
@@ -301,7 +273,7 @@ export default function ThemeShopButton({
             </div>
           </div>
 
-          {/* 목록 (스크롤) */}
+          {/* 목록 */}
           <div className="px-6 pb-6">
             <div className="max-h-[70vh] overflow-y-auto">
               {loading ? (
@@ -333,16 +305,14 @@ export default function ThemeShopButton({
                     return (
                       <li key={t.id}>
                         <Card
-                          className={[
-                            "transition-shadow",
-                            "hover:shadow-sm",
+                          className={cn(
+                            "transition-shadow hover:shadow-sm",
                             isCurrent
                               ? "border-sky-500 ring-2 ring-sky-400/50"
-                              : "border-muted",
-                          ].join(" ")}
+                              : "border-muted"
+                          )}
                         >
                           <div className="relative">
-                            {/* ✅ 이미지 클릭 → 프리뷰 */}
                             <img
                               src={imageUrlFromTitle(t.title)}
                               alt={t.title}
@@ -384,23 +354,24 @@ export default function ThemeShopButton({
 
                           <CardContent className="flex items-center justify-between pb-4">
                             <div className="inline-flex items-center gap-1.5 text-sm font-semibold">
-                              <Coins className="h-4 w-4 text-yellow-500" />
+                              {/* ✅ Lucide → Font Awesome */}
+                              <FontAwesomeIcon
+                                icon={faCoins}
+                                className="h-4 w-4 text-yellow-500"
+                              />
                               {t.price.toLocaleString()}
                             </div>
 
-                            {/* 액션: 보유 → 적용 / 미보유 → 구매(적용 안 함) */}
                             {isOwned ? (
                               <Button
                                 size="sm"
                                 variant="default"
-                                className={[
-                                  "text-white border-0",
+                                className={cn(
+                                  "text-white border-0 shadow-sm hover:shadow transition-transform duration-150 hover:scale-[1.03] active:scale-100",
                                   isCurrent || busyApplyId === t.id
                                     ? "bg-sky-400 cursor-not-allowed opacity-70"
-                                    : "bg-sky-800 hover:bg-sky-700",
-                                  "transition-transform duration-150 hover:scale-[1.03] active:scale-100",
-                                  "shadow-sm hover:shadow",
-                                ].join(" ")}
+                                    : "bg-sky-800 hover:bg-sky-700"
+                                )}
                                 disabled={isCurrent || busyApplyId === t.id}
                                 onClick={() => applyTheme(t)}
                               >
@@ -414,14 +385,13 @@ export default function ThemeShopButton({
                               <Button
                                 size="sm"
                                 variant={isBase ? "secondary" : "default"}
-                                className={[
+                                className={cn(
+                                  "shadow-sm hover:shadow transition-transform duration-150 hover:scale-[1.03] active:scale-100",
                                   !isBase
                                     ? "bg-emerald-600 text-white border-0 hover:bg-emerald-500"
                                     : "",
-                                  "transition-transform duration-150 hover:scale-[1.03] active:scale-100",
-                                  "shadow-sm hover:shadow",
-                                  isBase ? "cursor-not-allowed opacity-70" : "",
-                                ].join(" ")}
+                                  isBase ? "cursor-not-allowed opacity-70" : ""
+                                )}
                                 disabled={isBase || busyBuyId === t.id}
                                 onClick={() => buyTheme(t)}
                               >
@@ -444,7 +414,7 @@ export default function ThemeShopButton({
         </DialogContent>
       </Dialog>
 
-      {/* ====== 이미지 프리뷰 다이얼로그 (원본 비율) ====== */}
+      {/* ====== 이미지 프리뷰 다이얼로그 ====== */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-w-[92vw] sm:max-w-5xl">
           <DialogHeader>
@@ -455,7 +425,6 @@ export default function ThemeShopButton({
           </DialogHeader>
 
           <div className="relative mx-auto w-full grid place-items-center px-4 pb-4">
-            {/* 로딩 스피너 */}
             {previewLoading && (
               <div className="absolute inset-0 grid place-items-center pointer-events-none">
                 <div className="h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
@@ -468,14 +437,10 @@ export default function ThemeShopButton({
                   src={imageUrlFromTitle(previewTheme.title)}
                   alt={previewTheme.title}
                   title="이미지 클릭으로 닫기"
-                  className="block object-contain
-                   max-w-full max-h-[80vh] w-auto h-auto
-                   rounded-md cursor-zoom-out select-none"
+                  className="block object-contain max-w-full max-h-[80vh] w-auto h-auto rounded-md cursor-zoom-out select-none"
                   onLoad={() => setPreviewLoading(false)}
                   onClick={() => setPreviewOpen(false)}
-                  onError={(e) => {
-                    /* 기존 에러 처리 그대로 */
-                  }}
+                  onError={() => {}}
                   draggable={false}
                 />
               </div>

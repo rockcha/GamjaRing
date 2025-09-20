@@ -20,13 +20,24 @@ import { cn } from "@/lib/utils";
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 import type { NotificationType } from "@/utils/notification/sendUserNotification";
 
+/* ✅ Font Awesome */
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faHeart,
+  faHandPointRight,
+  faFaceKissWinkHeart,
+  faHandHoldingHeart,
+  faHands,
+  faFaceGrinSquintTears,
+  type IconDefinition,
+} from "@fortawesome/free-solid-svg-icons";
+
 export default function DaysTogetherBadge() {
   const { couple, partnerId } = useCoupleContext();
-  const { user } = useUser(); // ✅ 내 닉네임은 여기서!
+  const { user } = useUser();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  // 파트너 닉네임 가져오기 (partnerId 기준)
   const [partnerNickname, setPartnerNickname] = useState<string | null>(null);
   useEffect(() => {
     let alive = true;
@@ -58,11 +69,9 @@ export default function DaysTogetherBadge() {
     };
   }, [partnerId, (couple as any)?.partner_nickname]);
 
-  // 하이라이트 회전 인덱스
   const [idx, setIdx] = useState(0);
   const ACTIONS = ["circle", "box", "highlight"] as const;
 
-  // 함께한 일수 계산
   const daysTogether = useMemo(() => {
     if (!couple?.started_at) return null;
     const today = new Date();
@@ -70,10 +79,9 @@ export default function DaysTogetherBadge() {
     const start0 = new Date(start.toDateString()).getTime();
     const today0 = new Date(today.toDateString()).getTime();
     const diffDays = Math.floor((today0 - start0) / 86400000);
-    return diffDays + 1; // 하루부터 시작
+    return diffDays + 1;
   }, [couple?.started_at]);
 
-  // 액션 회전 타이머
   const ANIM_MS = 2800;
   const ITERS = 2;
   const GAP_MS = 3000;
@@ -86,14 +94,13 @@ export default function DaysTogetherBadge() {
   }, [idx, couple?.started_at]);
 
   const currentAction = ACTIONS[idx] ?? "highlight";
-  const COLOR = "#F5D9B8"; // 포근한 포테이토 베이지
+  const COLOR = "#F5D9B8";
 
   const [open, setOpen] = useState(false);
   const [sending, setSending] = useState<string | null>(null);
 
   if (!couple) return <div />;
 
-  // ✅ 내 닉네임: useUser()의 user에서 안전하게 추출
   const myNickname =
     (user as any)?.user_metadata?.nickname ??
     (user as any)?.nickname ??
@@ -103,9 +110,9 @@ export default function DaysTogetherBadge() {
 
   const partnerLabel = partnerNickname ?? "상대";
 
-  /* ───────────────── Action Dialog ───────────────── */
+  /* ───────── Action Dialog ───────── */
 
-  // 보낼 수 있는 액션들 (이모지 버전)
+  // ✅ 이모지 → Font Awesome 아이콘으로 교체
   const ACTION_ITEMS: {
     key: Extract<
       NotificationType,
@@ -113,42 +120,42 @@ export default function DaysTogetherBadge() {
     >;
     label: string;
     desc: string;
-    emoji: string;
-    accent?: string; // 버튼 색상 변주용(optional)
+    icon: IconDefinition;
+    accent?: string;
   }[] = [
     {
       key: "콕찌르기",
       label: "콕찌르기",
       desc: "가볍게 관심 보내기",
-      emoji: "👉",
+      icon: faHandPointRight,
       accent: "amber",
     },
     {
       key: "뽀뽀하기",
       label: "뽀뽀하기",
       desc: "달달한 인사",
-      emoji: "💋",
+      icon: faFaceKissWinkHeart,
       accent: "rose",
     },
     {
       key: "머리쓰다듬기",
       label: "머리 쓰다듬기",
       desc: "다정하게 토닥",
-      emoji: "🤍",
+      icon: faHandHoldingHeart,
       accent: "slate",
     },
     {
       key: "안아주기",
       label: "안아주기",
       desc: "따뜻한 포옹",
-      emoji: "🤗",
+      icon: faHands,
       accent: "orange",
     },
     {
       key: "간지럽히기",
       label: "간지럽히기",
       desc: "웃음 버튼 ON",
-      emoji: "😂",
+      icon: faFaceGrinSquintTears,
       accent: "sky",
     },
   ];
@@ -186,18 +193,17 @@ export default function DaysTogetherBadge() {
   return (
     <div className={"w-full px-4 py-3 mt-2"}>
       <div className="flex items-center justify-center gap-3">
-        {/* 닉네임 ❤️ 닉네임 (하트 이모지로 교체) */}
+        {/* 닉네임 ❤️ 닉네임 → ❤️ Font Awesome */}
         <div className="flex items-center gap-2 text-[#5b3d1d] min-w-0">
           <span className="text-[18px] sm:text-[24px] font-extrabold truncate">
             {myNickname}
           </span>
-          <span
-            className="animate-pulse text-[18px] sm:text-[20px] select-none"
-            aria-hidden
-          >
-            ❤️
+          <span className="animate-pulse select-none" aria-hidden>
+            <FontAwesomeIcon
+              icon={faHeart}
+              className="h-[18px] w-[18px] sm:h-[20px] sm:w-[20px] text-rose-500"
+            />
           </span>
-          {/* 파트너 닉네임 -> 클릭 가능 버튼 */}
           <button
             type="button"
             onClick={() => setOpen(true)}
@@ -212,10 +218,8 @@ export default function DaysTogetherBadge() {
           </button>
         </div>
 
-        {/* 세로 구분선 (넓은 화면에서만) */}
         <div className="hidden sm:block h-8 w-px bg-amber-200/70" aria-hidden />
 
-        {/* 함께한지 N일 (하이라이터) */}
         <div className="flex-shrink-0">
           {mounted ? (
             <Highlighter
@@ -268,10 +272,13 @@ export default function DaysTogetherBadge() {
                   )}
                   disabled={Boolean(sending)}
                   onClick={() => handleSend(a.key)}
+                  title={a.desc}
                 >
-                  <span className="mr-2 text-[16px]" aria-hidden>
-                    {a.emoji}
-                  </span>
+                  <FontAwesomeIcon
+                    icon={a.icon}
+                    className="mr-2 h-4 w-4"
+                    aria-hidden
+                  />
                   <span className="truncate">{a.label}</span>
                 </Button>
               ))}

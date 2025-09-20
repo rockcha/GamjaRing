@@ -26,6 +26,11 @@ import {
   TooltipContent,
 } from "@/components/ui/tooltip";
 
+/* ▼▼ Font Awesome 추가 ▼▼ */
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faBook } from "@fortawesome/free-solid-svg-icons";
+/* ▲▲ Font Awesome 추가 ▲▲ */
+
 /* ─ Types ─ */
 type FishRarity = "일반" | "희귀" | "에픽" | "전설";
 
@@ -212,12 +217,8 @@ export default function MarineDexModal() {
         onClick={() => setOpen(true)}
         className="transition-transform duration-150 hover:scale-[1.02] active:scale-100"
       >
-        <img
-          src="/aquarium/marine_dex.gif"
-          alt="도감 아이콘"
-          className="h-7 w-7"
-          draggable={false}
-        />
+        {/* ▼▼ GIF 제거, Font Awesome 아이콘 사용 ▼▼ */}
+        <FontAwesomeIcon icon={faBook} className="mr-2 h-4 w-4" />
         나의 도감
       </Button>
 
