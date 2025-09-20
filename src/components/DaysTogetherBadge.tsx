@@ -15,7 +15,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+
 import { cn } from "@/lib/utils";
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 import type { NotificationType } from "@/utils/notification/sendUserNotification";
@@ -217,8 +217,6 @@ export default function DaysTogetherBadge() {
             {partnerLabel}
           </button>
         </div>
-
-        <div className="hidden sm:block h-8 w-px bg-amber-200/70" aria-hidden />
 
         <div className="flex-shrink-0">
           {mounted ? (

@@ -1,15 +1,10 @@
 // src/layouts/PageLayout.tsx
 import * as React from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import "@/lib/fontawesome";
 
 import AppHeader from "./AppHeader";
-import NotificationDropdown from "../widgets/Notification/NotificationDropdown";
-import MenuButton from "../widgets/MenuButton";
-import PotatoPokeButton from "../widgets/PotatoPokeButton";
-import UserMemoFloating from "@/features/memo/UserFloatingMemo";
-import LogoutButton from "../LogoutButton";
-import NoticeCenterFloatingButton from "@/features/dev-note/NoticeFloatingButton";
-import MapModalButton from "../widgets/MapModalButton";
+
 import FloatingLeftRail from "../widgets/FloatingLeftRail";
 
 type PageLayoutProps = {
