@@ -38,6 +38,7 @@ export default function PageLayout({
     "/stickerBoard": "스티커보드",
     "/timeCapsule": "타임캡슐",
     "/exchange": "교환소",
+    "/miniGame": "미니게임",
   };
 
   // 경로 정규화(뒤 슬래시 제거)

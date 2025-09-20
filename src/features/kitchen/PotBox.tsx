@@ -60,9 +60,17 @@ export default function PotBox({
     () => owned.find((o) => o.is_representative)?.pot_id ?? null,
     [owned]
   );
+
   const [loadingShop, setLoadingShop] = useState(false);
   const [pots, setPots] = useState<CookingPot[]>([]);
   const [actionBusy, setActionBusy] = useState<number | null>(null);
+
+  // id -> title 로컬 맵 (불필요한 단건 조회 줄이기)
+  const potTitleMap = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const p of pots) m.set(p.id, p.title);
+    return m;
+  }, [pots]);
 
   const fetchOwned = async () => {
     try {
@@ -109,25 +117,46 @@ export default function PotBox({
     }
   }, [openShop]);
 
-  // 대표 냄비 이미지
+  const getPotImagePath = (title: string | null | undefined) =>
+    title ? `/cooking/${encodeURIComponent(title)}.png` : "";
+
+  // 대표 냄비 이미지 (기본값 1 제거 + 레이스 가드 + 로컬맵 우선)
   const [repImageSrc, setRepImageSrc] = useState<string | null>(null);
   useEffect(() => {
-    const loadRepImage = async () => {
-      try {
-        const targetPotId = repPotId ?? 1;
-        const { data, error } = await supabase
-          .from("cooking_pots")
-          .select("id, title")
-          .eq("id", targetPotId)
-          .maybeSingle();
-        if (error) throw error;
-        setRepImageSrc(data?.title ? `/cooking/${data.title}.png` : null);
-      } catch {
-        setRepImageSrc(null);
+    let cancelled = false;
+
+    (async () => {
+      // 대표가 확정되지 않았다면 아무 것도 바꾸지 않음 (기본냄비 강제 X)
+      if (repPotId == null) return;
+
+      // 1) 로컬 맵에서 먼저 시도 (요청 줄이기)
+      const localTitle = potTitleMap.get(repPotId);
+      if (localTitle) {
+        if (!cancelled) setRepImageSrc(getPotImagePath(localTitle));
+        return;
       }
+
+      // 2) 없으면 단건 조회 (in-flight 가드)
+      const { data, error } = await supabase
+        .from("cooking_pots")
+        .select("title")
+        .eq("id", repPotId)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error(error);
+        setRepImageSrc(null);
+        return;
+      }
+      setRepImageSrc(getPotImagePath(data?.title));
+    })();
+
+    return () => {
+      cancelled = true;
     };
-    loadRepImage();
-  }, [repPotId]);
+  }, [repPotId, potTitleMap]);
 
   // 낙관적 갱신
   const markOwnedOptimistic = (potId: number) => {
@@ -178,10 +207,11 @@ export default function PotBox({
     try {
       setActionBusy(pot.id);
       markOwnedOptimistic(pot.id);
-      await supabase.rpc("buy_cooking_pot", {
+      const { error } = await supabase.rpc("buy_cooking_pot", {
         p_pot_id: pot.id,
         p_set_as_rep: false,
       });
+      if (error) throw error;
       toast.success("구매 완료!");
       await Promise.all([fetchOwned(), fetchShop()]);
     } catch (e: any) {
@@ -229,7 +259,7 @@ export default function PotBox({
               />
               <div className="pointer-events-none mt-1 flex items-center justify-center text-[11px]">
                 {progress === 100 ? (
-                  <span className="px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border ">
+                  <span className="px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border">
                     완료
                   </span>
                 ) : (
@@ -241,7 +271,7 @@ export default function PotBox({
             </div>
           </div>
 
-          {/* 이모지 팝-페이드 레이어 (깜빡임 최소화) */}
+          {/* 이모지 팝-페이드 레이어 */}
           <FloatingEmojiLayer items={floatingEmojis} />
 
           {/* 좌하단: 상점 */}
@@ -258,7 +288,7 @@ export default function PotBox({
             </Button>
           </div>
 
-          {/* 우하단: 조리 시작 (호버/비활성화 가시성 강화) */}
+          {/* 우하단: 조리 시작 */}
           <div className="absolute right-0 bottom-0 p-2">
             <Button
               className={[
@@ -306,14 +336,15 @@ export default function PotBox({
                     const ownedFlag = isOwned(p.id);
                     const isRep = repPotId === p.id;
                     const busy = actionBusy === p.id;
+                    const imgSrc = getPotImagePath(p.title);
                     return (
                       <Card key={p.id} className="p-3 flex flex-col">
                         <div className="aspect-square rounded-md overflow-hidden border bg-muted/30 grid place-items-center">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
-                            src={`/cooking/${p.title}.png`}
+                            src={imgSrc}
                             alt={p.title}
-                            className="h-full w-full object-contain "
+                            className="h-full w-full object-contain"
                             loading="lazy"
                           />
                         </div>
@@ -415,14 +446,12 @@ const FloatingEmojiLayer = memo(function FloatingEmojiLayer({
 }: {
   items: FloatingItem[];
 }) {
-  // 결정적 오프셋 (id 기반)
   const styleVarsFor = (id: number): React.CSSProperties => {
     const slot = ((id % 9) + 9) % 9; // 0..8
     const xOffsetPct = (slot - 4) * 4; // -16..16
     const delayMs = (id % 6) * 80; // 0..400
     const scale = 1 + (id % 3) * 0.04; // 1,1.04,1.08
     return {
-      // CSS 변수로 전달 → class는 고정, 애니메이션 재시작 방지
       ["--x" as any]: `${xOffsetPct}%`,
       ["--delay" as any]: `${delayMs}ms`,
       ["--scale" as any]: scale.toString(),

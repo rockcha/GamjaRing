@@ -24,12 +24,10 @@ import KitchenPage from "./pages/KitchenPage";
 import FishingPage from "./pages/FishingPage";
 import OddEvenGamesPage from "./features/mini_games/OddEvenGamesPage";
 import StickerBoardPage from "./features/sticker_board/StickerBoardPage";
-import PotatoMoleGame from "./features/mole_game/PotatoMoleGame";
+
 import PartnerTimeCapsulesPage from "./pages/PartnerTimeCapsulesPage";
 import ExchangePage from "./pages/ExchangePage";
-import AlbumsPage from "./features/albums/AlbumsPage";
-import AlbumCreatePage from "./features/albums/AlbumCreatePage";
-import AlbumDetailPage from "./features/albums/AlbumDetailPage";
+import MiniGamePage from "./pages/MiniGamesPage";
 
 export default function App() {
   return (
@@ -42,7 +40,7 @@ export default function App() {
             <Route path="/" element={<Navigate to="/intro" replace />} />
 
             {/* 퍼블릭 */}
-            <Route path="/intro" element={<AlbumsPage />} />
+            <Route path="/intro" element={<IntroPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/auth/reset" element={<ResetPasswardPage />} />
@@ -62,12 +60,8 @@ export default function App() {
               <Route path="fishing" element={<FishingPage />} />
               <Route path="oddEven" element={<OddEvenGamesPage />} />
               <Route path="stickerBoard" element={<StickerBoardPage />} />
-              <Route path="miniGame" element={<PotatoMoleGame />} />
+              <Route path="miniGame" element={<MiniGamePage />} />
               <Route path="exchange" element={<ExchangePage />} />
-
-              <Route path="/albums" element={<AlbumsPage />} />
-              <Route path="/albums/new" element={<AlbumCreatePage />} />
-              <Route path="/albums/:id" element={<AlbumDetailPage />} />
             </Route>
           </Routes>
 

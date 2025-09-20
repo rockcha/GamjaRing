@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 import WeatherCard from "../widgets/WeatherCard";
 import { Separator } from "../ui/separator";
-import DailyFortuneCard from "@/features/fortune/DailyFortuneCard";
+
 import NotificationDropdown from "../widgets/Notification/NotificationDropdown";
 
 import { useUser } from "@/contexts/UserContext";
@@ -40,7 +40,6 @@ import {
   faHourglassHalf,
   faRightLeft,
   faClipboard,
-  faImages,
 } from "@fortawesome/free-solid-svg-icons";
 
 // LucideIcon 시그니처처럼 className만 받아 렌더하는 래퍼
@@ -67,7 +66,6 @@ const Gamepad2 = makeFA(faGamepad) as unknown as LucideIcon;
 const Sticker = makeFA(faClipboard) as unknown as LucideIcon;
 const Hourglass = makeFA(faHourglassHalf) as unknown as LucideIcon; // 타임캡슐
 const ArrowLeftRight = makeFA(faRightLeft) as unknown as LucideIcon;
-const Images = makeFA(faImages) as unknown as LucideIcon; // ✅ 추가
 
 /* ------------------------------ 네비 정의/가드 ------------------------------ */
 type SimpleNavDef = {
@@ -85,8 +83,8 @@ type SimpleNavDef = {
     | "fishing"
     | "stickerBoard"
     | "oddEven"
-    | "miniGame"
-    | "albums";
+    | "miniGame";
+
   label: string;
   icon: LucideIcon; // NavItem과 타입 호환 유지
 };
@@ -100,7 +98,7 @@ const NAV_GROUPS: readonly (readonly SimpleNavDef[])[] = [
     { id: "questions", label: "답변하기", icon: MessageCircleQuestionMark },
     { id: "bundle", label: "답변꾸러미", icon: MessagesSquare },
     { id: "scheduler", label: "스케쥴러", icon: CalendarDays },
-    { id: "albums", label: "사진첩", icon: Images }, // ✅ 추가
+
     { id: "timeCapsule", label: "타임캡슐", icon: Hourglass },
   ],
   [
@@ -127,7 +125,7 @@ const GUARDS: Record<
   info: {},
   questions: { requireLogin: true, requireCouple: true },
   bundle: { requireLogin: true, requireCouple: true },
-  albums: { requireLogin: true, requireCouple: true }, // ✅ 추가
+
   scheduler: { requireLogin: true, requireCouple: true },
   timeCapsule: { requireLogin: true, requireCouple: true },
 
@@ -148,7 +146,7 @@ const FALLBACK_ROUTE: Record<string, string> = {
   questions: "/questions",
   bundle: "/bundle",
   scheduler: "/scheduler",
-  albums: "/albums", // ✅ 추가
+
   timeCapsule: "/timeCapsule",
 
   farm: "/potatoField",
