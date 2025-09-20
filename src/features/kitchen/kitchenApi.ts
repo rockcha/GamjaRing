@@ -5,7 +5,7 @@ import supabase from "@/lib/supabase";
 import {
   INGREDIENT_TITLES,
   type IngredientTitle,
-  RECIPES,
+  RECIPES_NORM,
   type Recipe,
 } from "./type";
 
@@ -22,7 +22,10 @@ const DEFAULT_INGREDIENTS: IngredientRow[] = INGREDIENT_TITLES.map((t) => ({
   title: t,
   num: 0,
 }));
-const DEFAULT_FOODS: FoodRow[] = RECIPES.map((r) => ({ name: r.name, num: 0 }));
+const DEFAULT_FOODS: FoodRow[] = RECIPES_NORM.map((r) => ({
+  name: r.name,
+  num: 0,
+}));
 
 /** couple_kitchen 행 보장 (DB RPC 사용) */
 export async function ensureKitchenRow(coupleId: string): Promise<void> {
@@ -42,7 +45,6 @@ export async function fetchKitchen(coupleId: string): Promise<KitchenRow> {
     .single();
   if (error) throw error;
 
-  // 방어적 기본값
   const normIng: IngredientRow[] = Array.isArray(data.ingredients)
     ? data.ingredients
     : DEFAULT_INGREDIENTS;
@@ -60,16 +62,13 @@ export async function addIngredients(
 ): Promise<void> {
   if (!coupleId || !items || items.length === 0) return;
 
-  // 현재 인벤토리
   const cur = await fetchKitchen(coupleId);
 
-  // 재료별 집계
   const tally = items.reduce<Record<IngredientTitle, number>>((acc, t) => {
     acc[t] = (acc[t] ?? 0) + 1;
     return acc;
   }, {} as Record<IngredientTitle, number>);
 
-  // 증가 반영
   const nextIngredients = cur.ingredients.map((row) => {
     const title = row.title as IngredientTitle;
     const inc = tally[title] ?? 0;
@@ -103,7 +102,7 @@ export async function consumeIngredients(
 
 /** 완성 요리 +delta (foods 배열에서 name으로 증가) */
 export async function addCookedFood(coupleId: string, name: string, delta = 1) {
-  const cur = await fetchKitchen(coupleId); // { foods: {name:string, num:number}[] } 가정
+  const cur = await fetchKitchen(coupleId);
   const found = cur.foods.find((f) => f.name === name);
 
   const next = found
@@ -153,24 +152,53 @@ export async function usePotatoes(
   if (e2) throw e2;
 }
 
-/** 현재 냄비 재료 조합이 어떤 레시피와 '정확히' 일치하는지 */
+/** 레시피 요구량 → 맵으로 */
+export function recipeNeedMap(r: Recipe): Record<IngredientTitle, number> {
+  const m: Record<IngredientTitle, number> = {} as any;
+  for (const { title, qty } of r.ingredients) {
+    m[title] = (m[title] ?? 0) + qty;
+  }
+  return m;
+}
+
+/** 현재 냄비 재료 조합이 어떤 레시피와 '정확히' 일치하는지 (수량 포함) */
 export function matchRecipe(
-  potMap: Record<IngredientTitle, number>
+  potMap: Record<IngredientTitle, number>,
+  recipes: readonly Recipe[] = RECIPES_NORM
 ): Recipe | null {
-  const keys = Object.entries(potMap)
-    .filter(([, n]) => n > 0)
-    .map(([k]) => k as IngredientTitle);
-  const unique = keys.length;
-  for (const r of RECIPES) {
-    if (r.ingredients.length !== unique) continue;
-    const ok =
-      r.ingredients.every((t) => (potMap[t] ?? 0) >= 1) &&
-      keys.every((t) => r.ingredients.includes(t));
+  const entries = Object.entries(potMap).filter(([, n]) => n > 0) as [
+    IngredientTitle,
+    number
+  ][];
+
+  for (const r of recipes) {
+    if (r.ingredients.length !== entries.length) continue;
+    const ok = r.ingredients.every(
+      ({ title, qty }) => (potMap[title] ?? 0) === qty
+    );
     if (ok) return r;
   }
   return null;
 }
 
+/** 요리 가능 판정(≥ 규칙) */
+export function canCookWith(
+  r: Recipe,
+  potMap: Record<IngredientTitle, number>,
+  potatoCount: number
+) {
+  if (potatoCount < r.potato) return false;
+  return r.ingredients.every(({ title, qty }) => (potMap[title] ?? 0) >= qty);
+}
+
+/** 요리 확정: 감자/재료 차감 + 완성 요리 증가 */
+export async function cookRecipe(coupleId: string, recipe: Recipe) {
+  await usePotatoes(coupleId, recipe.potato);
+  await consumeIngredients(coupleId, recipeNeedMap(recipe));
+  await addCookedFood(coupleId, recipe.name, 1);
+}
+
+/** 이모지 스티커 수집 */
 export async function addFoodEmojiToCollection(
   coupleId: string,
   recipeName: string,
@@ -179,7 +207,6 @@ export async function addFoodEmojiToCollection(
   const title = `food:${recipeName}`;
   const now = new Date().toISOString();
 
-  // 1) 존재 여부 확인
   const { data: exists, error: selErr } = await supabase
     .from("sticker_inventory")
     .select("qty")
@@ -190,7 +217,6 @@ export async function addFoodEmojiToCollection(
   if (selErr) throw selErr;
 
   if (exists) {
-    // 2-a) 있으면 qty + 1
     const { error: updErr } = await supabase
       .from("sticker_inventory")
       .update({
@@ -201,7 +227,6 @@ export async function addFoodEmojiToCollection(
       .eq("title", title);
     if (updErr) throw updErr;
   } else {
-    // 2-b) 없으면 생성
     const { error: insErr } = await supabase.from("sticker_inventory").insert({
       couple_id: coupleId,
       title,

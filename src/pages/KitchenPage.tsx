@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import RecipeShelf from "@/features/kitchen/RecipeShelf";
 import PotBox from "@/features/kitchen/PotBox";
 import RecipePreview from "@/features/kitchen/RecipePreview";
-import Inventory from "@/features/kitchen/Inventory"; // 재료 인벤토리 전용
+import Inventory from "@/features/kitchen/Inventory";
 import CookedInventory from "@/features/kitchen/CookedInventory";
 import { addFoodEmojiToCollection } from "@/features/kitchen/kitchenApi";
 import {
@@ -37,48 +37,42 @@ import {
 } from "@/components/ui/dialog";
 import { Coins } from "lucide-react";
 
-// ✅ 추가: 파트너에게 요리 공유 알림용
 import { useUser } from "@/contexts/UserContext";
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 import CookingDoneEffects from "@/features/kitchen/CookingDoneEffects";
 
-// ────────────────────────────────────────────────────────────
-// Types & type guards
-type PotStackItem =
-  | { type: "ingredient"; title: IngredientTitle; emoji: string }
-  | { type: "potato"; emoji: "🥔" };
+// ⬇️ 추가
+import supabase from "@/lib/supabase";
 
-function isIngredient(
-  it: PotStackItem
-): it is Extract<PotStackItem, { type: "ingredient" }> {
-  return it.type === "ingredient";
-}
-// ────────────────────────────────────────────────────────────
-
-type CookingState =
-  | { open: boolean; phase: "progress"; gif: string }
-  | {
-      open: boolean;
-      phase: "done";
-      gif: string;
-      name: RecipeName;
-      emoji: string;
-      sell: number;
-      desc: string;
-    };
+type Floating = { id: number; emoji: string };
 
 export default function KitchenPage() {
   const { couple, addGold } = useCoupleContext();
   const coupleId = couple?.id ?? null;
 
-  // ✅ 추가: 사용자/파트너 정보 (알림 전송)
   const { user } = useUser();
 
   const defaultRecipeName = RECIPES_BY_GRADE["초급"][0]?.name ?? null;
 
   const [potatoCount, setPotatoCount] = useState(0);
   const [invMap, setInvMap] = useState<Record<string, number>>({});
-  const [potStack, setPotStack] = useState<PotStackItem[]>([]);
+
+  // ✅ 스테이징 상태 (이제 potbox 격자에 배치하지 않음)
+  const [stagedIngredients, setStagedIngredients] = useState<
+    Record<IngredientTitle, number>
+  >({} as Record<IngredientTitle, number>);
+  const [stagedPotatoes, setStagedPotatoes] = useState(0);
+
+  // 플로팅 이모지
+  const [floatings, setFloatings] = useState<Floating[]>([]);
+  const pushFloating = (emoji: string) => {
+    const id = Date.now() + Math.floor(Math.random() * 1000);
+    setFloatings((s) => [...s, { id, emoji }]);
+    // 1.5초 뒤 제거
+    setTimeout(() => {
+      setFloatings((s) => s.filter((f) => f.id !== id));
+    }, 1500);
+  };
 
   const [selectedRecipeName, setSelectedRecipeName] = useState<string | null>(
     defaultRecipeName
@@ -92,13 +86,56 @@ export default function KitchenPage() {
     [selectedRecipeName]
   );
 
+  type CookingState =
+    | { open: boolean; phase: "progress"; gif: string }
+    | {
+        open: boolean;
+        phase: "done";
+        gif: string;
+        name: RecipeName;
+        emoji: string;
+        sell: number;
+        desc: string;
+      };
+
   const [cooking, setCooking] = useState<CookingState>({
     open: false,
     phase: "progress",
     gif: "/cooking/cooking1.gif",
   });
 
-  const [highlightIdx, setHighlightIdx] = useState<number | null>(null);
+  // ⬇️ 추가: 대표 냄비 PNG 경로 (모달에서 표시)
+  const [repPotImg, setRepPotImg] = useState<string | null>(null);
+  useEffect(() => {
+    if (!coupleId) return;
+    let live = true;
+    (async () => {
+      try {
+        // 대표 냄비 ID 조회(없으면 1번 기본)
+        const { data: inv } = await supabase
+          .from("couple_pot_inventory")
+          .select("pot_id")
+          .eq("is_representative", true)
+          .maybeSingle();
+
+        const potId = inv?.pot_id ?? 1;
+        const { data: pot } = await supabase
+          .from("cooking_pots")
+          .select("title")
+          .eq("id", potId)
+          .maybeSingle();
+
+        const src = pot?.title ? `/cooking/${pot.title}.png` : null;
+        if (live) setRepPotImg(src);
+      } catch {
+        if (live) setRepPotImg(null);
+      }
+    })();
+    return () => {
+      live = false;
+    };
+    // 모달이 열릴 때마다 최신 대표 냄비로 갱신
+  }, [coupleId, cooking.open]);
 
   // 초기 로드
   useEffect(() => {
@@ -112,98 +149,58 @@ export default function KitchenPage() {
     })();
   }, [coupleId]);
 
-  // 파생
-  const potPotatoes = useMemo(
-    () =>
-      potStack.reduce((acc, it) => (it.type === "potato" ? acc + 1 : acc), 0),
-    [potStack]
-  );
-
-  // 재료별 사용 맵
-  const potMap = useMemo(() => {
-    const m: Partial<Record<IngredientTitle, number>> = {};
-    for (const it of potStack) {
-      if (isIngredient(it)) m[it.title] = (m[it.title] ?? 0) + 1;
-    }
-    return m as Record<IngredientTitle, number>;
-  }, [potStack]);
-
-  // 레시피 변경 시 냄비 비우기
+  // 레시피 변경 시 스테이징 초기화
   useEffect(() => {
-    setPotStack([]);
-    setHighlightIdx(null);
+    setStagedIngredients({} as any);
+    setStagedPotatoes(0);
   }, [selectedRecipeName]);
 
-  // PotBox로 전달
-  const potItemsForBox = useMemo(
-    () =>
-      potStack.map((it, idx) => {
-        if (it.type === "ingredient") {
-          const title: IngredientTitle = it.title;
-          const emoji = it.emoji ?? INGREDIENT_EMOJI[title];
-          return { stackIdx: idx, emoji };
-        }
-        return { stackIdx: idx, emoji: "🥔" as const };
-      }),
-    [potStack]
-  );
+  function requiredQtyFor(title: IngredientTitle): number {
+    const r = selectedRecipe;
+    if (!r) return 0;
+    return r.ingredients.find((x) => x.title === title)?.qty ?? 0;
+  }
 
-  // 인벤토리 → 냄비
-  function addIngredientToPot(title: IngredientTitle, emoji: string) {
+  // 인벤토리 → 스테이징 (수량 허용)
+  function addIngredientToStage(title: IngredientTitle, emoji: string) {
     const r = selectedRecipe;
     if (!r) return toast.error("레시피를 먼저 선택하세요.");
-    if (!r.ingredients.includes(title))
-      return toast.error("이 레시피에 필요한 재료가 아니에요.");
-    if ((potMap[title] ?? 0) >= 1) return toast.error("이미 넣은 재료예요.");
+
+    const need = requiredQtyFor(title);
+    if (need <= 0) return toast.error("이 레시피에 필요한 재료가 아니에요.");
+
+    const used = stagedIngredients[title] ?? 0;
+    if (used >= need)
+      return toast.error(`이미 충분히 넣었어요. (필요: ${need})`);
 
     const have = invMap[title] ?? 0;
-    const used = potMap[title] ?? 0;
-    if (have - used <= 0) return;
+    if (have - used <= 0) return toast.error("해당 재료 재고가 부족해요.");
 
-    setPotStack((s) => {
-      const next: PotStackItem[] = [...s, { type: "ingredient", title, emoji }];
-      setHighlightIdx(next.length - 1);
-      return next;
-    });
+    setStagedIngredients((prev) => ({ ...prev, [title]: used + 1 }));
+    pushFloating(emoji);
   }
 
-  function addPotatoToPot() {
+  function addPotatoToStage() {
     const r = selectedRecipe;
     if (!r) return toast.error("레시피를 먼저 선택하세요.");
-    if (potPotatoes >= r.potato)
+    if (stagedPotatoes >= r.potato)
       return toast.error("필요한 감자 수를 초과했어요.");
-    if (potatoCount - potPotatoes <= 0) return;
+    if (potatoCount - stagedPotatoes <= 0)
+      return toast.error("감자가 부족해요.");
 
-    setPotStack((s) => {
-      const next: PotStackItem[] = [...s, { type: "potato", emoji: "🥔" }];
-      setHighlightIdx(next.length - 1);
-      return next;
-    });
+    setStagedPotatoes((p) => p + 1);
+    pushFloating("🥔");
   }
 
-  function removeByStackIndex(idx: number) {
-    setPotStack((s) => s.filter((_, i) => i !== idx));
-    setHighlightIdx(null);
-  }
-
-  function onRemovePotato() {
-    let idx = -1;
-    for (let i = potStack.length - 1; i >= 0; i--) {
-      const item = potStack[i];
-      if (item?.type === "potato") {
-        idx = i;
-        break;
-      }
-    }
-    if (idx >= 0) removeByStackIndex(idx);
-  }
-
+  // 조리 가능 판정: 스테이징 기준
   const canCook = useMemo(() => {
     const r = selectedRecipe;
     if (!r) return false;
-    if (potPotatoes !== r.potato) return false;
-    return r.ingredients.every((t) => (potMap[t] ?? 0) === 1);
-  }, [selectedRecipe, potPotatoes, potMap]);
+    if (stagedPotatoes !== r.potato) return false;
+    return r.ingredients.every(
+      ({ title, qty }) => (stagedIngredients[title] ?? 0) === qty
+    );
+  }, [selectedRecipe, stagedPotatoes, stagedIngredients]);
 
   async function tryCookNow() {
     const r = selectedRecipe;
@@ -221,25 +218,27 @@ export default function KitchenPage() {
 
     setTimeout(async () => {
       try {
-        const need: Partial<Record<IngredientTitle, number>> = {};
-        r.ingredients.forEach((t) => (need[t] = 1));
-        await consumeIngredients(
-          coupleId,
-          need as Record<IngredientTitle, number>
-        );
+        // 재료 차감 맵
+        const need: Record<IngredientTitle, number> = Object.fromEntries(
+          r.ingredients.map(({ title, qty }) => [title, qty])
+        ) as Record<IngredientTitle, number>;
+
+        await consumeIngredients(coupleId, need);
         await usePotatoes(coupleId, r.potato);
         await addCookedFood(coupleId, r.name, 1);
-        // ✅ 요리 이모지 스티커 컬렉션 추가/누적
         await addFoodEmojiToCollection(coupleId, r.name as RecipeName, r.emoji);
 
+        // 로컬 상태 반영
         const after = { ...invMap };
-        r.ingredients.forEach(
-          (t) => (after[t] = Math.max(0, (after[t] ?? 0) - 1))
-        );
+        r.ingredients.forEach(({ title, qty }) => {
+          after[title] = Math.max(0, (after[title] ?? 0) - qty);
+        });
         setInvMap(after);
         setPotatoCount((p) => Math.max(0, p - r.potato));
-        setPotStack([]);
-        setHighlightIdx(null);
+
+        // 스테이징 초기화
+        setStagedIngredients({} as any);
+        setStagedPotatoes(0);
 
         setCooking({
           open: true,
@@ -251,7 +250,7 @@ export default function KitchenPage() {
           desc: getFoodDesc(r.name as RecipeName),
         });
 
-        // ✅ 파트너 알림 (옵션)
+        // 파트너 알림 (실패 무시)
         try {
           if (user?.id && user?.partner_id) {
             await sendUserNotification({
@@ -294,27 +293,32 @@ export default function KitchenPage() {
 
   return (
     <div className="mx-auto max-w-6xl py-4">
-      {/* 상단 3열 레이아웃: 재료 인벤토리 위치 유지 */}
+      {/* 상단 3열 레이아웃 */}
       <div className="grid md:grid-cols-3 gap-6 min-h-[560px]">
         <Inventory
           potatoCount={potatoCount}
-          potPotatoes={potPotatoes}
+          potPotatoes={0}
           invMap={invMap}
-          potMap={potMap}
-          onClickIngredient={addIngredientToPot}
-          onClickPotato={addPotatoToPot}
+          stagedIngredients={stagedIngredients}
+          stagedPotatoes={stagedPotatoes}
+          onClickIngredient={addIngredientToStage}
+          onClickPotato={addPotatoToStage}
         />
 
         <div className="flex flex-col items-stretch gap-3">
           <RecipePreview recipe={selectedRecipe as Recipe} />
           <PotBox
-            items={potItemsForBox as any}
-            potatoCount={potPotatoes}
-            onRemoveByIndex={removeByStackIndex}
-            onDecreasePotato={onRemovePotato}
-            highlightStackIdx={highlightIdx}
             canCook={canCook}
             onCook={tryCookNow}
+            floatingEmojis={floatings}
+            totalRequired={
+              (selectedRecipe?.potato ?? 0) +
+              (selectedRecipe?.ingredients?.reduce((a, b) => a + b.qty, 0) ?? 0)
+            }
+            stagedTotal={
+              stagedPotatoes +
+              Object.values(stagedIngredients).reduce((a, b) => a + b, 0)
+            }
           />
         </div>
 
@@ -324,7 +328,7 @@ export default function KitchenPage() {
         />
       </div>
 
-      {/* 하단 전체폭: 완성 요리 인벤토리 */}
+      {/* 하단: 완성 요리 인벤토리 */}
       <CookedInventory className="mt-6 w-full" />
 
       {/* 조리 중/완료 모달 */}
@@ -336,13 +340,29 @@ export default function KitchenPage() {
           {cooking.phase === "progress" ? (
             <>
               <DialogHeader>
-                <DialogTitle>조리 중… ⏳</DialogTitle>
+                <DialogTitle>
+                  {selectedRecipe?.name
+                    ? `${selectedRecipe.name} 만드는 중…`
+                    : "조리 중…"}
+                </DialogTitle>
               </DialogHeader>
-              <div className="flex flex-col items-center gap-3 py-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={cooking.gif} alt="cooking" className="object-fill" />
+
+              <div className="flex flex-col items-center gap-4 py-3">
+                {/* 대표 냄비 PNG (gif 대신) */}
+                {repPotImg ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={repPotImg}
+                    alt="cooking pot"
+                    className="h-40 w-40 object-contain animate-[cookPulse_1.6s_ease-in-out_infinite]"
+                  />
+                ) : (
+                  <div className="h-40 w-40 rounded-full bg-amber-50 grid place-items-center text-3xl animate-pulse">
+                    🍲
+                  </div>
+                )}
                 <div className="text-sm text-muted-foreground">
-                  잠시만 기다려주세요.
+                  불을 지피고 있어요…
                 </div>
               </div>
             </>
@@ -350,27 +370,29 @@ export default function KitchenPage() {
             <>
               <DialogHeader>
                 <DialogTitle>요리 완성!</DialogTitle>
-                {/* 🔥 완성 이펙트 */}
-                <CookingDoneEffects emoji={cooking.emoji} gold={cooking.sell} />
+                <CookingDoneEffects
+                  emoji={(cooking as any).emoji}
+                  gold={(cooking as any).sell}
+                />
               </DialogHeader>
 
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
                   <div className="h-16 w-16 rounded-2xl border bg-white grid place-items-center text-4xl">
-                    {cooking.emoji}
+                    {(cooking as any).emoji}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-lg font-semibold leading-tight">
-                        {cooking.name}
+                        {(cooking as any).name}
                       </h3>
                       <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs text-amber-800 bg-amber-50">
                         <Coins className="h-3.5 w-3.5" />
-                        판매가 {cooking.sell}
+                        판매가 {(cooking as any).sell}
                       </span>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {cooking.desc}
+                      {(cooking as any).desc}
                     </p>
                   </div>
                 </div>
@@ -389,6 +411,15 @@ export default function KitchenPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* ⬇️ 간단한 요리 펄스 효과 */}
+      <style>{`
+        @keyframes cookPulse {
+          0%   { transform: scale(.98); filter: drop-shadow(0 0 0 rgba(0,0,0,0)); }
+          50%  { transform: scale(1.02); filter: drop-shadow(0 10px 22px rgba(245,158,11,.35)); }
+          100% { transform: scale(.98); filter: drop-shadow(0 0 0 rgba(0,0,0,0)); }
+        }
+      `}</style>
     </div>
   );
 }

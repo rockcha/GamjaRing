@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Loader2, LogIn, LogOut, NotebookPen, Settings } from "lucide-react";
-import UserMemoModal from "@/features/memo/UserFloatingMemo";
+
 import { useNavigate } from "react-router-dom";
 
 export type AvatarWidgetSize = "sm" | "md" | "lg";
@@ -298,17 +298,6 @@ export default function AvatarWidget({
           <div className="my-2 h-px bg-neutral-200" />
 
           {/* 액션들 */}
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-2 px-2"
-            onClick={() => {
-              setMenuOpen(false);
-              setMemoOpen(true);
-            }}
-          >
-            <NotebookPen className="h-4 w-4" />
-            <span className="text-sm">메모장</span>
-          </Button>
 
           <Button
             variant="ghost"
@@ -349,9 +338,6 @@ export default function AvatarWidget({
           )}
         </PopoverContent>
       </Popover>
-
-      {/* 메모장 모달 */}
-      <UserMemoModal open={memoOpen} onOpenChange={setMemoOpen} />
     </>
   );
 }

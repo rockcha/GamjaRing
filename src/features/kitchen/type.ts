@@ -1,9 +1,10 @@
 // src/features/kitchen/type.ts
 
 /**
- * Kitchen domain types (refactored)
- * - 재료 15종: { title, emoji }
- * - 레시피: { name, emoji, grade, potato, ingredients[], sell }  // 재료 최대 4개
+ * Kitchen domain (refactored)
+ * - 재료: 15종 고정
+ * - 레시피: 감자 1|2, 재료는 {title, qty}
+ * - 등급별 총 재료수: 초급 6, 중급 10, 고급 14 (레시피별 합계 기준)
  */
 
 export const INGREDIENTS = [
@@ -21,7 +22,7 @@ export const INGREDIENTS = [
   { title: "고기", emoji: "🍖" },
   { title: "망고", emoji: "🥭" },
   { title: "케찹", emoji: "🥫" },
-  { title: "녹색채소", emoji: "🥬" }, //
+  { title: "녹색채소", emoji: "🥬" },
 ] as const;
 
 export type IngredientTitle = (typeof INGREDIENTS)[number]["title"];
@@ -45,41 +46,56 @@ export const GRADE_LABEL: Record<RecipeGrade, string> = {
   고급: "어려움",
 };
 
-/** 레시피 모델 (재료 최대 4개) */
+/** 레시피 모델 */
+export type RecipeIngredient = { title: IngredientTitle; qty: number };
 export type Recipe = {
   name: string;
   emoji: string; // 단일 이모지
   grade: RecipeGrade;
-  potato: number; // 감자 개수
-  ingredients: IngredientTitle[]; // 1~4개
+  potato: 1 | 2; // ✅ 1~2
+  ingredients: RecipeIngredient[]; // ✅ 수량 포함
   sell: number; // 판매가(골드)
 };
 
-/** 레시피 15개 (이름/이모지/재료 리팩토링 반영) */
+/**
+ * 재료 수량 규칙
+ * - 초급: 합계 6 → (2재료면 3,3) / (3재료면 2,2,2)
+ * - 중급: 합계 10 → (3재료 4,3,3) / (4재료 3,3,2,2)
+ * - 고급: 합계 14 → (4재료 4,4,3,3) / (5재료 3,3,3,3,2)
+ */
 export const RECIPES: readonly Recipe[] = [
-  // ── 초급 ──
+  // ── 초급(합계 6) ──
   {
     name: "프렌치 프라이",
     emoji: "🍟",
     grade: "초급",
-    potato: 3,
-    ingredients: ["케찹", "소금"],
+    potato: 1,
+    ingredients: [
+      { title: "케찹", qty: 3 },
+      { title: "소금", qty: 3 },
+    ],
     sell: 35,
   },
   {
     name: "감자 바게트",
     emoji: "🥖",
     grade: "초급",
-    potato: 3,
-    ingredients: ["밀", "우유"],
+    potato: 2,
+    ingredients: [
+      { title: "밀", qty: 3 },
+      { title: "우유", qty: 3 },
+    ],
     sell: 35,
   },
   {
     name: "감자 토스트",
     emoji: "🍞",
     grade: "초급",
-    potato: 2,
-    ingredients: ["밀", "꿀"],
+    potato: 1,
+    ingredients: [
+      { title: "밀", qty: 3 },
+      { title: "꿀", qty: 3 },
+    ],
     sell: 34,
   },
   {
@@ -87,15 +103,21 @@ export const RECIPES: readonly Recipe[] = [
     emoji: "🍦",
     grade: "초급",
     potato: 1,
-    ingredients: ["얼음", "꿀"],
+    ingredients: [
+      { title: "얼음", qty: 3 },
+      { title: "꿀", qty: 3 },
+    ],
     sell: 33,
   },
   {
     name: "감자전",
     emoji: "🥘",
     grade: "초급",
-    potato: 3,
-    ingredients: ["밀", "계란"],
+    potato: 2,
+    ingredients: [
+      { title: "밀", qty: 3 },
+      { title: "계란", qty: 3 },
+    ],
     sell: 34,
   },
   {
@@ -103,7 +125,10 @@ export const RECIPES: readonly Recipe[] = [
     emoji: "🍹",
     grade: "초급",
     potato: 1,
-    ingredients: ["망고", "얼음"],
+    ingredients: [
+      { title: "망고", qty: 3 },
+      { title: "얼음", qty: 3 },
+    ],
     sell: 31,
   },
   {
@@ -111,7 +136,10 @@ export const RECIPES: readonly Recipe[] = [
     emoji: "🍺",
     grade: "초급",
     potato: 2,
-    ingredients: ["밀", "얼음"],
+    ingredients: [
+      { title: "밀", qty: 3 },
+      { title: "얼음", qty: 3 },
+    ],
     sell: 33,
   },
   {
@@ -119,7 +147,10 @@ export const RECIPES: readonly Recipe[] = [
     emoji: "🍫",
     grade: "초급",
     potato: 1,
-    ingredients: ["꿀", "얼음"],
+    ingredients: [
+      { title: "꿀", qty: 3 },
+      { title: "얼음", qty: 3 },
+    ],
     sell: 28,
   },
   {
@@ -127,7 +158,11 @@ export const RECIPES: readonly Recipe[] = [
     emoji: "🍩",
     grade: "초급",
     potato: 1,
-    ingredients: ["버터", "꿀", "밀"],
+    ingredients: [
+      { title: "버터", qty: 2 },
+      { title: "꿀", qty: 2 },
+      { title: "밀", qty: 2 },
+    ],
     sell: 38,
   },
   {
@@ -135,122 +170,184 @@ export const RECIPES: readonly Recipe[] = [
     emoji: "🧋",
     grade: "초급",
     potato: 1,
-    ingredients: ["우유", "꿀", "얼음"],
+    ingredients: [
+      { title: "우유", qty: 2 },
+      { title: "꿀", qty: 2 },
+      { title: "얼음", qty: 2 },
+    ],
     sell: 37,
   },
 
-  // ── 중급 ──
+  // ── 중급(합계 10) ──
   {
     name: "감자 샌드위치",
     emoji: "🥪",
     grade: "중급",
-    potato: 3,
-    ingredients: ["밀", "치즈", "케찹", "녹색채소"],
+    potato: 2,
+    ingredients: [
+      { title: "밀", qty: 3 },
+      { title: "치즈", qty: 3 },
+      { title: "케찹", qty: 2 },
+      { title: "녹색채소", qty: 2 },
+    ],
     sell: 62,
   },
   {
     name: "감자 와플",
     emoji: "🧇",
     grade: "중급",
-    potato: 3,
-    ingredients: ["계란", "우유", "버터"],
+    potato: 2,
+    ingredients: [
+      { title: "계란", qty: 4 },
+      { title: "우유", qty: 3 },
+      { title: "버터", qty: 3 },
+    ],
     sell: 59,
   },
   {
     name: "감자 핫도그",
     emoji: "🌭",
     grade: "중급",
-    potato: 3,
-    ingredients: ["밀", "고기", "케찹"],
+    potato: 1,
+    ingredients: [
+      { title: "밀", qty: 4 },
+      { title: "고기", qty: 3 },
+      { title: "케찹", qty: 3 },
+    ],
     sell: 55,
   },
   {
     name: "감자 샐러드",
     emoji: "🥗",
     grade: "중급",
-    potato: 4,
-    ingredients: ["망고", "양파", "녹색채소"],
+    potato: 2,
+    ingredients: [
+      { title: "망고", qty: 3 },
+      { title: "양파", qty: 3 },
+      { title: "녹색채소", qty: 4 },
+    ],
     sell: 60,
   },
   {
     name: "감자 오믈렛",
     emoji: "🍳",
     grade: "중급",
-    potato: 4,
-    ingredients: ["계란", "버터", "양파"],
+    potato: 2,
+    ingredients: [
+      { title: "계란", qty: 4 },
+      { title: "버터", qty: 3 },
+      { title: "양파", qty: 3 },
+    ],
     sell: 63,
   },
   {
     name: "감자버거",
     emoji: "🍔",
     grade: "중급",
-    potato: 3,
-    ingredients: ["녹색채소", "양파", "플랫브레드"],
+    potato: 2,
+    ingredients: [
+      { title: "녹색채소", qty: 3 },
+      { title: "양파", qty: 3 },
+      { title: "플랫브레드", qty: 4 },
+    ],
     sell: 64,
   },
   {
     name: "감자만두",
     emoji: "🥟",
     grade: "중급",
-    potato: 5,
-    ingredients: ["밀", "고기"],
+    potato: 2,
+    ingredients: [
+      { title: "밀", qty: 6 },
+      { title: "고기", qty: 4 },
+    ],
     sell: 62,
   },
   {
     name: "감자 팬케이크",
     emoji: "🥞",
     grade: "중급",
-    potato: 2,
-    ingredients: ["플랫브레드", "꿀", "버터", "계란"],
+    potato: 1,
+    ingredients: [
+      { title: "플랫브레드", qty: 2 },
+      { title: "꿀", qty: 2 },
+      { title: "버터", qty: 3 },
+      { title: "계란", qty: 3 },
+    ],
     sell: 68,
   },
   {
     name: "감자 소금빵",
     emoji: "🥐",
     grade: "중급",
-    potato: 4,
-    ingredients: ["소금", "밀", "계란"],
+    potato: 1,
+    ingredients: [
+      { title: "소금", qty: 3 },
+      { title: "밀", qty: 3 },
+      { title: "계란", qty: 4 },
+    ],
     sell: 65,
   },
   {
     name: "감자 냉사케",
     emoji: "🍶",
     grade: "중급",
-    potato: 7,
-    ingredients: ["얼음"],
+    potato: 1,
+    ingredients: [{ title: "얼음", qty: 10 }],
     sell: 60,
   },
-  // ── 고급 ──
+
+  // ── 고급(합계 14) ──
   {
     name: "포테이토 피자",
     emoji: "🍕",
     grade: "고급",
-    potato: 5,
-    ingredients: ["플랫브레드", "치즈", "양파", "베이컨"],
+    potato: 2,
+    ingredients: [
+      { title: "플랫브레드", qty: 4 },
+      { title: "치즈", qty: 4 },
+      { title: "양파", qty: 3 },
+      { title: "베이컨", qty: 3 },
+    ],
     sell: 80,
   },
   {
     name: "감자 타코",
     emoji: "🌮",
     grade: "고급",
-    potato: 3,
-    ingredients: ["플랫브레드", "고기", "녹색채소", "치즈"],
+    potato: 2,
+    ingredients: [
+      { title: "플랫브레드", qty: 3 },
+      { title: "고기", qty: 3 },
+      { title: "녹색채소", qty: 4 },
+      { title: "치즈", qty: 4 },
+    ],
     sell: 82,
   },
   {
     name: "감자 부리또",
     emoji: "🌯",
     grade: "고급",
-    potato: 4,
-    ingredients: ["플랫브레드", "고기", "치즈", "녹색채소"],
+    potato: 2,
+    ingredients: [
+      { title: "플랫브레드", qty: 3 },
+      { title: "고기", qty: 4 },
+      { title: "치즈", qty: 3 },
+      { title: "녹색채소", qty: 4 },
+    ],
     sell: 86,
   },
   {
     name: "감자 퐁듀",
     emoji: "🫕",
     grade: "고급",
-    potato: 4,
-    ingredients: ["치즈", "우유", "밀", "버터"],
+    potato: 2,
+    ingredients: [
+      { title: "치즈", qty: 4 },
+      { title: "우유", qty: 4 },
+      { title: "밀", qty: 3 },
+      { title: "버터", qty: 3 },
+    ],
     sell: 85,
   },
   {
@@ -258,23 +355,38 @@ export const RECIPES: readonly Recipe[] = [
     emoji: "🍨",
     grade: "고급",
     potato: 1,
-    ingredients: ["꿀", "얼음", "망고", "우유", "버터"], // 현재 5개
-    sell: 90, // 5개 기준. 4개로 줄이면 31 정도 권장
+    ingredients: [
+      { title: "꿀", qty: 3 },
+      { title: "얼음", qty: 3 },
+      { title: "망고", qty: 4 },
+      { title: "우유", qty: 4 },
+    ],
+    sell: 90,
   },
   {
     name: "감자면",
     emoji: "🍜",
     grade: "고급",
-    potato: 3,
-    ingredients: ["밀", "소금", "계란", "고기"], // 현재 5개
+    potato: 1,
+    ingredients: [
+      { title: "밀", qty: 4 },
+      { title: "소금", qty: 3 },
+      { title: "계란", qty: 3 },
+      { title: "고기", qty: 4 },
+    ],
     sell: 84,
   },
   {
     name: "감자카레",
     emoji: "🍛",
     grade: "고급",
-    potato: 4,
-    ingredients: ["소금", "고기", "녹색채소", "베이컨"], // 현재 5개
+    potato: 2,
+    ingredients: [
+      { title: "소금", qty: 3 },
+      { title: "고기", qty: 3 },
+      { title: "녹색채소", qty: 4 },
+      { title: "베이컨", qty: 4 },
+    ],
     sell: 88,
   },
   {
@@ -282,15 +394,24 @@ export const RECIPES: readonly Recipe[] = [
     emoji: "🥙",
     grade: "고급",
     potato: 2,
-    ingredients: ["플랫브레드", "고기", "녹색채소", "양파", "소금"], // 현재 5개
+    ingredients: [
+      { title: "플랫브레드", qty: 3 },
+      { title: "고기", qty: 4 },
+      { title: "녹색채소", qty: 3 },
+      { title: "양파", qty: 4 },
+    ],
     sell: 90,
   },
   {
     name: "감자전골탕",
     emoji: "🍲",
     grade: "고급",
-    potato: 8,
-    ingredients: ["소금", "고기", "양파"], // 현재 5개
+    potato: 2,
+    ingredients: [
+      { title: "소금", qty: 4 },
+      { title: "고기", qty: 5 },
+      { title: "양파", qty: 5 },
+    ],
     sell: 86,
   },
   {
@@ -298,7 +419,13 @@ export const RECIPES: readonly Recipe[] = [
     emoji: "🍡",
     grade: "고급",
     potato: 1,
-    ingredients: ["계란", "고기", "밀", "베이컨", "꿀"], // 현재 5개
+    ingredients: [
+      { title: "계란", qty: 3 },
+      { title: "고기", qty: 3 },
+      { title: "밀", qty: 4 },
+      { title: "베이컨", qty: 2 },
+      { title: "꿀", qty: 2 },
+    ],
     sell: 80,
   },
 ] as const;
@@ -310,28 +437,17 @@ export const RECIPES_BY_GRADE: Record<RecipeGrade, Recipe[]> = {
   고급: RECIPES.filter((r) => r.grade === "고급"),
 };
 
-/** 헬퍼: 재료 이모지 얻기 */
-export const getIngredientEmoji = (title: IngredientTitle) =>
-  INGREDIENT_EMOJI[title];
-
-/** ───────────────────────────────────────────────────────────
- *  레시피 메타: 외부에서 이름/설명/이모지 손쉽게 사용
- *  - RecipeName: 레시피 이름 유니온
- *  - FoodInfo: 이름 + 설명
- *  - FOOD_META: 레시피별 한 줄 설명
- *  - RECIPE_EMOJI: 이름 → 이모지 매핑 (UI에서 편하게 사용)
- *  - getFoodMeta / getFoodDesc 헬퍼
- *  ─────────────────────────────────────────────────────────── */
+/** 이름 유니온 */
 export type RecipeName = (typeof RECIPES)[number]["name"];
 
-export type FoodInfo = {
-  name: RecipeName;
-  /** 메뉴 카드/툴팁에 쓰기 좋은 한 줄 설명 */
-  desc: string;
-};
+/** 이름 → 이모지 매핑 (UI 재사용) */
+export const RECIPE_EMOJI: Record<RecipeName, string> = Object.fromEntries(
+  RECIPES.map((r) => [r.name as RecipeName, r.emoji])
+) as Record<RecipeName, string>;
 
+/** 음식 한줄 설명 (기존 유지) */
+export type FoodInfo = { name: RecipeName; desc: string };
 export const FOOD_META: Record<RecipeName, FoodInfo> = {
-  // ────────────────── 초급 ──────────────────
   "프렌치 프라이": {
     name: "프렌치 프라이",
     desc: "겉은 바삭, 속은 크리미. 케찹 한 점에 사라지는 시간 도둑.",
@@ -373,7 +489,6 @@ export const FOOD_META: Record<RecipeName, FoodInfo> = {
     desc: "쫀득함은 기본, 고소한 우유에 감자풍미 스며든 한 잔.",
   },
 
-  // ────────────────── 중급 ──────────────────
   "감자 샌드위치": {
     name: "감자 샌드위치",
     desc: "손안의 피크닉. 아삭한 채소와 치즈가 감자를 감싸요.",
@@ -415,7 +530,6 @@ export const FOOD_META: Record<RecipeName, FoodInfo> = {
     desc: "얼음 사이로 스며드는 깔끔한 향—차게 즐기는 사케.",
   },
 
-  // ────────────────── 고급 ──────────────────
   "포테이토 피자": {
     name: "포테이토 피자",
     desc: "치즈의 행복 위에 든든한 감자를 얹은 한 조각의 호사.",
@@ -452,17 +566,14 @@ export const FOOD_META: Record<RecipeName, FoodInfo> = {
     name: "감자 전골탕",
     desc: "진한 국물에 고기와 감자가 우러난 뜨끈한 한 냄비.",
   },
-  감자경단: {
-    name: "감자 경단",
-    desc: "여러가지 재료와 쫀득함을 한번에.",
-  },
+  감자경단: { name: "감자 경단", desc: "여러가지 재료와 쫀득함을 한번에." },
 } as const;
 
-/** 이름 → 이모지 매핑 (UI에서 재사용) */
-export const RECIPE_EMOJI: Record<RecipeName, string> = Object.fromEntries(
-  RECIPES.map((r) => [r.name as RecipeName, r.emoji])
-) as Record<RecipeName, string>;
-
-/** 헬퍼 (noUncheckedIndexedAccess 대응: non-null 단언 사용) */
+/** 헬퍼 */
 export const getFoodMeta = (name: RecipeName): FoodInfo => FOOD_META[name]!;
 export const getFoodDesc = (name: RecipeName): string => FOOD_META[name]!.desc;
+export const getIngredientEmoji = (title: IngredientTitle) =>
+  INGREDIENT_EMOJI[title];
+
+/** 호환: 기존 코드가 RECIPES_NORM를 import하는 경우를 위해 alias 제공 */
+export const RECIPES_NORM = RECIPES;

@@ -11,18 +11,20 @@ import WeatherCard from "./WeatherCard";
 
 import KoreanQuoteButton from "./KoreanQuoteButton";
 import TimeCapsuleButton from "@/features/time-capsule/TimeCapsuleButton";
+import UserMemoEmojiButton from "@/features/memo/UserFloatingMemo";
 
 export default function FloatingLeftRail() {
   return (
     <div className="fixed left-2 top-1/2 -translate-y-1/2 z-[50] flex flex-col items-center gap-2">
-      <PotatoPokeButton />
+      {/* <PotatoPokeButton /> */}
+
+      <UserMemoEmojiButton />
+      <TimeCapsuleButton />
       <WeatherCard />
       <DailyFortuneCard />
       <NoticeCenterFloatingButton />
-      <MapModalButton />
-      <PotatoExchange />
+
       <KoreanQuoteButton />
-      <TimeCapsuleButton />
     </div>
   );
 }

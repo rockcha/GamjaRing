@@ -20,22 +20,23 @@ export default function Inventory({
   potatoCount,
   potPotatoes,
   invMap,
-  potMap,
+  stagedIngredients,
+  stagedPotatoes,
   onClickIngredient,
   onClickPotato,
 }: {
   potatoCount: number;
-  potPotatoes: number;
+  potPotatoes: number; // 남은 감자 계산용(인벤토리 총량 - 스테이징이 아니라면 0으로 넘겨도 무관)
   invMap: Record<string, number>;
-  potMap: Record<IngredientTitle, number>;
+  stagedIngredients: Record<IngredientTitle, number>;
+  stagedPotatoes: number;
   onClickIngredient: (title: IngredientTitle, emoji: string) => void;
   onClickPotato: () => void;
 }) {
-  const potatoLeft = Math.max(0, potatoCount - potPotatoes);
+  const potatoLeft = Math.max(0, potatoCount - stagedPotatoes);
 
   return (
     <Card className="relative flex flex-col rounded-2xl bg-[#FAF7F2] shadow-sm">
-      {/* 헤더 */}
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
@@ -50,10 +51,9 @@ export default function Inventory({
       </CardHeader>
       <Separator />
 
-      {/* 콘텐츠 */}
       <CardContent className="p-3">
         <TooltipProvider delayDuration={150}>
-          {/* 감자 카드 */}
+          {/* 감자 버튼 */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -102,8 +102,9 @@ export default function Inventory({
           >
             {INGREDIENTS.map((it) => {
               const have = invMap[it.title] ?? 0;
-              const used = potMap[it.title as IngredientTitle] ?? 0;
-              const left = Math.max(0, have - used);
+              const staged =
+                stagedIngredients[it.title as IngredientTitle] ?? 0;
+              const left = Math.max(0, have - staged);
               const disabled = left <= 0;
 
               return (
@@ -140,8 +141,10 @@ export default function Inventory({
                       <Badge
                         variant="secondary"
                         className={cn(
-                          "absolute right-1 bottom-1 text-[10px] px-1.5 py-0.5 tabular-nums",
-                          "bg-amber-50 text-amber-800 border border-amber-200"
+                          "absolute right-0.5 bottom-0.5",
+                          "px-1 py-0.5 text-[9px] leading-none rounded",
+                          "font-normal tabular-nums",
+                          "border border-amber-200 bg-amber-50 text-amber-800"
                         )}
                       >
                         ×{left}
@@ -154,6 +157,42 @@ export default function Inventory({
                 </Tooltip>
               );
             })}
+          </div>
+
+          {/* 현재 넣은 재료 섹션 */}
+          <Separator className="my-4" />
+          <div>
+            <div className="text-sm font-medium text-amber-900 mb-2">
+              현재 넣은 재료
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {stagedPotatoes > 0 && (
+                <Badge className="bg-white text-amber-900 border-amber-200">
+                  🥔 ×{stagedPotatoes}
+                </Badge>
+              )}
+              {INGREDIENTS.map((it) => {
+                const cnt = stagedIngredients[it.title as IngredientTitle] ?? 0;
+                if (cnt <= 0) return null;
+                return (
+                  <Badge
+                    key={`staged-${it.title}`}
+                    className="bg-white text-amber-900 border-amber-200"
+                  >
+                    {it.emoji} ×{cnt}
+                  </Badge>
+                );
+              })}
+              {stagedPotatoes === 0 &&
+                INGREDIENTS.every(
+                  (it) =>
+                    (stagedIngredients[it.title as IngredientTitle] ?? 0) === 0
+                ) && (
+                  <span className="text-xs text-muted-foreground">
+                    아직 넣은 재료가 없어요.
+                  </span>
+                )}
+            </div>
           </div>
         </TooltipProvider>
       </CardContent>

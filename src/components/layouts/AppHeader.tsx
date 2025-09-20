@@ -17,6 +17,7 @@ import {
   Gamepad2,
   Sticker,
   Hourglass, // ✅ 타임캡슐 아이콘 추가
+  ArrowLeftRight,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,7 @@ type SimpleNavDef = {
     | "bundle"
     | "scheduler"
     | "timeCapsule" // ✅ 추가
+    | "exchange" // ✅ 추가
     | "farm"
     | "kitchen"
     | "aquarium"
@@ -72,6 +74,7 @@ const NAV_GROUPS: readonly (readonly SimpleNavDef[])[] = [
   [
     { id: "farm", label: "농장", icon: Tractor },
     { id: "kitchen", label: "조리실", icon: CookingPot },
+    { id: "exchange", label: "교환소", icon: ArrowLeftRight }, // ✅ 같은 그룹에
   ],
   // 2개
   [
@@ -99,6 +102,7 @@ const GUARDS: Record<
 
   farm: { requireLogin: true, requireCouple: true },
   kitchen: { requireLogin: true, requireCouple: true },
+  exchange: { requireLogin: true, requireCouple: true }, // ✅ 추가
   aquarium: { requireLogin: true, requireCouple: true },
   fishing: { requireLogin: true, requireCouple: true },
 
@@ -117,6 +121,7 @@ const FALLBACK_ROUTE: Record<string, string> = {
 
   farm: "/potatoField",
   kitchen: "/kitchen",
+  exchange: "/exchange", // ✅ 추가
   aquarium: "/aquarium",
   fishing: "/fishing",
 
@@ -238,6 +243,10 @@ export default function AppHeader({
       <div className="border-t bg-white/65 backdrop-blur-md supports-[backdrop-filter]:bg-white/55">
         <div className="mx-auto w-full max-w-screen-2xl py-2">
           <div className="grid grid-cols-1 md:grid-cols-2 px-1 items-start">
+            {/* : TodayQuestion 카드 */}
+            <div className="min-w-0 px-1 ">
+              <TodayQuestionInline />
+            </div>
             {/* 좌측: 네비 (아이콘 크기만큼 자동 줄바꿈) */}
             <nav aria-label="주 네비게이션" className="min-w-0">
               <div
@@ -270,11 +279,6 @@ export default function AppHeader({
                 ))}
               </div>
             </nav>
-
-            {/* 우측: TodayQuestion 카드 */}
-            <div className="min-w-0">
-              <TodayQuestionInline />
-            </div>
           </div>
         </div>
       </div>

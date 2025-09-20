@@ -26,7 +26,7 @@ export default function CookedInventory({ className }: { className?: string }) {
   const [selName, setSelName] = useState<RecipeName | null>(null);
   const [selling, setSelling] = useState(false);
 
-  // name → recipe 매핑 (판매가 등)
+  // name → recipe 매핑
   const RECIPE_BY_NAME = useMemo(
     () =>
       Object.fromEntries(RECIPES.map((r) => [r.name, r] as const)) as Record<
@@ -67,11 +67,8 @@ export default function CookedInventory({ className }: { className?: string }) {
 
     try {
       setSelling(true);
-      // 1) 골드 지급
       addGold?.(selRecipe.sell);
-      // 2) DB 수량 -1
       await addCookedFood(coupleId, selName, -1);
-      // 3) 로컬 상태 업데이트
       setFoods((prev) =>
         prev.map((f) =>
           f.name === selName ? { ...f, num: Math.max(0, f.num - 1) } : f
@@ -143,7 +140,6 @@ export default function CookedInventory({ className }: { className?: string }) {
         )}
       </div>
 
-      {/* 모달: 완성된 요리 보기 */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>

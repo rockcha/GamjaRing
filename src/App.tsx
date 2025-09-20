@@ -26,6 +26,7 @@ import OddEvenGamesPage from "./features/mini_games/OddEvenGamesPage";
 import StickerBoardPage from "./features/sticker_board/StickerBoardPage";
 import PotatoMoleGame from "./features/mole_game/PotatoMoleGame";
 import PartnerTimeCapsulesPage from "./pages/PartnerTimeCapsulesPage";
+import ExchangePage from "./pages/ExchangePage";
 
 export default function App() {
   return (
@@ -59,6 +60,7 @@ export default function App() {
               <Route path="oddEven" element={<OddEvenGamesPage />} />
               <Route path="stickerBoard" element={<StickerBoardPage />} />
               <Route path="miniGame" element={<PotatoMoleGame />} />
+              <Route path="exchange" element={<ExchangePage />} />
             </Route>
           </Routes>
 
