@@ -7,30 +7,20 @@ import { useEffect, useMemo, useState } from "react";
 import { Highlighter } from "@/components/magicui/highlighter";
 import supabase from "@/lib/supabase";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-
 import { cn } from "@/lib/utils";
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 import type { NotificationType } from "@/utils/notification/sendUserNotification";
 
-/* ✅ Font Awesome */
+/* (선택) 닉네임 사이 하트는 그대로 사용 */
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faHeart,
-  faHandPointRight,
-  faFaceKissWinkHeart,
-  faHandHoldingHeart,
-  faHands,
-  faFaceGrinSquintTears,
-  type IconDefinition,
-} from "@fortawesome/free-solid-svg-icons";
+import { faHeart } from "@fortawesome/free-solid-svg-icons";
+
+type ActionKey = Extract<
+  NotificationType,
+  "콕찌르기" | "뽀뽀하기" | "머리쓰다듬기" | "안아주기" | "간지럽히기"
+>;
 
 export default function DaysTogetherBadge() {
   const { couple, partnerId } = useCoupleContext();
@@ -39,35 +29,6 @@ export default function DaysTogetherBadge() {
   useEffect(() => setMounted(true), []);
 
   const [partnerNickname, setPartnerNickname] = useState<string | null>(null);
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        if (!partnerId) {
-          setPartnerNickname((couple as any)?.partner_nickname ?? null);
-          return;
-        }
-        const { data, error } = await supabase
-          .from("users")
-          .select("nickname")
-          .eq("id", partnerId)
-          .single();
-        if (!alive) return;
-        if (error) {
-          setPartnerNickname((couple as any)?.partner_nickname ?? null);
-        } else {
-          setPartnerNickname(
-            data?.nickname ?? (couple as any)?.partner_nickname ?? null
-          );
-        }
-      } catch {
-        setPartnerNickname((couple as any)?.partner_nickname ?? null);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [partnerId, (couple as any)?.partner_nickname]);
 
   const [idx, setIdx] = useState(0);
   const ACTIONS = ["circle", "box", "highlight"] as const;
@@ -99,6 +60,47 @@ export default function DaysTogetherBadge() {
   const [open, setOpen] = useState(false);
   const [sending, setSending] = useState<string | null>(null);
 
+  /** ── 클릭 이펙트 상태 (버튼 위로 이모지 튀어오르기) ───────── */
+  const [activeEffects, setActiveEffects] = useState<
+    Record<ActionKey, boolean>
+  >({
+    콕찌르기: false,
+    뽀뽀하기: false,
+    머리쓰다듬기: false,
+    안아주기: false,
+    간지럽히기: false,
+  });
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        if (!partnerId) {
+          setPartnerNickname((couple as any)?.partner_nickname ?? null);
+          return;
+        }
+        const { data, error } = await supabase
+          .from("users")
+          .select("nickname")
+          .eq("id", partnerId)
+          .single();
+        if (!alive) return;
+        if (error) {
+          setPartnerNickname((couple as any)?.partner_nickname ?? null);
+        } else {
+          setPartnerNickname(
+            data?.nickname ?? (couple as any)?.partner_nickname ?? null
+          );
+        }
+      } catch {
+        setPartnerNickname((couple as any)?.partner_nickname ?? null);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [partnerId, (couple as any)?.partner_nickname]);
+
   if (!couple) return <div />;
 
   const myNickname =
@@ -107,60 +109,71 @@ export default function DaysTogetherBadge() {
     (user as any)?.profile?.nickname ??
     (user as any)?.email?.split?.("@")?.[0] ??
     "나";
-
   const partnerLabel = partnerNickname ?? "상대";
 
-  /* ───────── Action Dialog ───────── */
-
-  // ✅ 이모지 → Font Awesome 아이콘으로 교체
+  /** ── 이모지 액션 정의 (아이콘 → 이모지) ───────────────── */
   const ACTION_ITEMS: {
-    key: Extract<
-      NotificationType,
-      "콕찌르기" | "뽀뽀하기" | "머리쓰다듬기" | "안아주기" | "간지럽히기"
-    >;
+    key: ActionKey;
     label: string;
     desc: string;
-    icon: IconDefinition;
-    accent?: string;
+    emoji: string;
+    bg: string; // 버튼 배경 톤
+    ring: string; // 포커스 링 톤
   }[] = [
     {
       key: "콕찌르기",
       label: "콕찌르기",
       desc: "가볍게 관심 보내기",
-      icon: faHandPointRight,
-      accent: "amber",
+      emoji: "👉",
+      bg: "bg-amber-50 hover:bg-amber-100 border-amber-200",
+      ring: "focus-visible:ring-amber-300",
     },
     {
       key: "뽀뽀하기",
       label: "뽀뽀하기",
       desc: "달달한 인사",
-      icon: faFaceKissWinkHeart,
-      accent: "rose",
+      emoji: "😘",
+      bg: "bg-rose-50 hover:bg-rose-100 border-rose-200",
+      ring: "focus-visible:ring-rose-300",
     },
     {
       key: "머리쓰다듬기",
       label: "머리 쓰다듬기",
       desc: "다정하게 토닥",
-      icon: faHandHoldingHeart,
-      accent: "slate",
+      emoji: "🫶",
+      bg: "bg-slate-50 hover:bg-slate-100 border-slate-200",
+      ring: "focus-visible:ring-slate-300",
     },
     {
       key: "안아주기",
       label: "안아주기",
       desc: "따뜻한 포옹",
-      icon: faHands,
-      accent: "orange",
+      emoji: "🤗",
+      bg: "bg-orange-50 hover:bg-orange-100 border-orange-200",
+      ring: "focus-visible:ring-orange-300",
     },
     {
       key: "간지럽히기",
       label: "간지럽히기",
       desc: "웃음 버튼 ON",
-      icon: faFaceGrinSquintTears,
-      accent: "sky",
+      emoji: "😂",
+      bg: "bg-sky-50 hover:bg-sky-100 border-sky-200",
+      ring: "focus-visible:ring-sky-300",
     },
   ];
 
-  async function handleSend(type: (typeof ACTION_ITEMS)[number]["key"]) {
+  function triggerBurst(k: ActionKey) {
+    setActiveEffects((s) => ({ ...s, [k]: false })); // 재시작을 위해 일단 꺼주고
+    requestAnimationFrame(() => {
+      setActiveEffects((s) => ({ ...s, [k]: true }));
+      // 자동 종료
+      window.setTimeout(() => {
+        setActiveEffects((s) => ({ ...s, [k]: false }));
+      }, 700);
+    });
+  }
+
+  async function handleSend(type: ActionKey, emoji: string) {
     if (!partnerId) {
       toast.error("파트너 정보를 찾을 수 없어요.");
       return;
@@ -171,6 +184,7 @@ export default function DaysTogetherBadge() {
       return;
     }
     try {
+      triggerBurst(type); // 이펙트 먼저
       setSending(type);
       const { error } = await sendUserNotification({
         senderId,
@@ -180,7 +194,9 @@ export default function DaysTogetherBadge() {
       if (error) {
         toast.error("알림 전송에 실패했어요. 잠시 후 다시 시도해주세요.");
       } else {
-        toast.success(`‘${partnerLabel}’에게 ${type} 알림을 보냈어요!`);
+        toast.success(
+          `‘${partnerLabel}’에게 ${emoji} ${type} 알림을 보냈어요!`
+        );
         setOpen(false);
       }
     } catch {
@@ -192,8 +208,9 @@ export default function DaysTogetherBadge() {
 
   return (
     <div className={"w-full px-4 py-3 mt-2"}>
+      {/* 헤더 영역 */}
       <div className="flex items-center justify-center gap-3">
-        {/* 닉네임 ❤️ 닉네임 → ❤️ Font Awesome */}
+        {/* 닉네임 ❤️ 닉네임 */}
         <div className="flex items-center gap-2 text-[#5b3d1d] min-w-0">
           <span className="text-[18px] sm:text-[24px] font-extrabold truncate">
             {myNickname}
@@ -208,7 +225,7 @@ export default function DaysTogetherBadge() {
             type="button"
             onClick={() => setOpen(true)}
             className={cn(
-              "text-[18px] sm:text-[24px] font-extrabold truncate max-w-[40vw] ",
+              "text-[18px] sm:text-[24px] font-extrabold truncate max-w-[40vw]",
               "hover:text-[#7a532a] transition-colors"
             )}
             aria-label={`${partnerLabel}에게 액션 보내기`}
@@ -218,6 +235,7 @@ export default function DaysTogetherBadge() {
           </button>
         </div>
 
+        {/* 함께한 일수 하이라이트 */}
         <div className="flex-shrink-0">
           {mounted ? (
             <Highlighter
@@ -254,6 +272,20 @@ export default function DaysTogetherBadge() {
       {/* ───────── Action Dialog ───────── */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-[420px]">
+          {/* 클릭 이펙트용 키프레임 */}
+          <style>{`
+            @keyframes floatUp {
+              0% { transform: translate(-50%, 0) scale(0.8); opacity: 0; }
+              50% { opacity: 1; }
+              100% { transform: translate(-50%, -22px) scale(1.25); opacity: 0; }
+            }
+            @keyframes popTap {
+              0% { transform: scale(1); }
+              50% { transform: scale(0.94); }
+              100% { transform: scale(1); }
+            }
+          `}</style>
+
           <div className="space-y-2">
             <p className="py-2 text-sm text-muted-foreground">
               아래에서 하나를 선택하면 연인에게 즉시 알림이 전송돼요.
@@ -261,24 +293,51 @@ export default function DaysTogetherBadge() {
 
             <div className="grid grid-cols-2 gap-2">
               {ACTION_ITEMS.map((a) => (
-                <Button
-                  key={a.key}
-                  variant="secondary"
-                  className={cn(
-                    "justify-start h-12 px-3 text-[13px] font-semibold",
-                    "bg-amber-50 hover:bg-amber-100 text-[#6b4a2a] border border-amber-200"
+                <div key={a.key} className="relative">
+                  {/* 떠오르는 이모지 이펙트 */}
+                  {activeEffects[a.key] && (
+                    <span
+                      aria-hidden
+                      style={{
+                        position: "absolute",
+                        left: "50%",
+                        top: -6,
+                        animation: "floatUp 700ms ease-out forwards",
+                        pointerEvents: "none",
+                        fontSize: 18,
+                        filter: "drop-shadow(0 1px 0 rgba(0,0,0,0.08))",
+                      }}
+                    >
+                      {a.emoji}
+                    </span>
                   )}
-                  disabled={Boolean(sending)}
-                  onClick={() => handleSend(a.key)}
-                  title={a.desc}
-                >
-                  <FontAwesomeIcon
-                    icon={a.icon}
-                    className="mr-2 h-4 w-4"
-                    aria-hidden
-                  />
-                  <span className="truncate">{a.label}</span>
-                </Button>
+
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className={cn(
+                      "justify-start h-12 px-3 text-[13px] font-semibold",
+                      "border transition-transform active:scale-95",
+                      a.bg,
+                      "focus-visible:outline-none focus-visible:ring-2",
+                      a.ring
+                    )}
+                    disabled={Boolean(sending)}
+                    onClick={() => handleSend(a.key, a.emoji)}
+                    title={a.desc}
+                    // 탭 효과 (키프레임 팝)
+                    style={{
+                      animation:
+                        sending === a.key ? undefined : "popTap 160ms ease-out",
+                    }}
+                    aria-label={`${partnerLabel}에게 ${a.label} 보내기 (${a.emoji})`}
+                  >
+                    <span className="mr-2 text-[18px]" aria-hidden>
+                      {a.emoji}
+                    </span>
+                    <span className="truncate">{a.label}</span>
+                  </Button>
+                </div>
               ))}
             </div>
           </div>

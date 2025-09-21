@@ -75,7 +75,7 @@ export default function MiniGamePage() {
 
   const stopGame = () => setIsRunning(false);
 
-  // 하단(플레이 영역) 포스터 이미지: /public/minigame/(게임 id).png
+  // 하단 포스터 이미지: /public/minigame/(게임 id).png
   const posterUrl = selectedGame
     ? `/minigame/${encodeURIComponent(selectedGame.id)}.png`
     : null;
@@ -124,8 +124,7 @@ export default function MiniGamePage() {
                       title={`${g.title} (참가비 ${g.entryFee}G)`}
                       onClick={() => {
                         setSelectedId(g.id);
-                        // 접힌 상태에서도 아이콘 클릭으로 즉시 교체 가능
-                        // 실행 중인 상태는 유지
+                        // 실행 중 상태는 유지
                       }}
                       className={cn(
                         "relative grid h-12 w-12 place-items-center rounded-xl border transition",
@@ -151,7 +150,7 @@ export default function MiniGamePage() {
               </div>
             </ScrollArea>
           ) : (
-            // 미선택: 기존 전체 목록(아이콘 + 제목 + 설명 버튼)
+            // 미선택: 전체 목록
             <ScrollArea className="h-[560px] pr-2">
               <div className="space-y-2">
                 {GAMES.map((g) => {
@@ -271,7 +270,7 @@ export default function MiniGamePage() {
 
           <Separator className="my-4" />
 
-          {/* 하단: 대기/플레이 영역 (선택 전/후에 따른 포스터/플레이) */}
+          {/* 하단: 대기/플레이 영역 */}
           <div className="min-h-[520px] grid place-items-center">
             {!selectedGame ? (
               <img
