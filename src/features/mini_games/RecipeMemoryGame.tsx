@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,12 +33,13 @@ import { toast } from "sonner";
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { INGREDIENTS } from "@/features/kitchen/type";
 
-/* Font Awesome (아이콘 메타용) */
+/* 아이콘 (메타 표시용) */
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUtensils } from "@fortawesome/free-solid-svg-icons";
 
-/* 애니메이션 */
-import { motion, AnimatePresence } from "framer-motion";
+/* Canvas 2D 시퀀스 뷰 */
+import CanvasSequenceView from "@/features/mini_games/canvas/CanvasSequenceView";
+import type { CanvasSequenceViewHandle } from "@/features/mini_games/canvas/CanvasSequenceView";
 
 /* 페이지에서 사용하는 게임 메타 타입 */
 export type MiniGameDef = {
@@ -52,110 +53,24 @@ export type MiniGameDef = {
 };
 
 type Props = { onExit?: () => void };
-
-function Stepper({ step, total }: { step: number; total: number }) {
-  return (
-    <div className="flex items-center gap-2">
-      {Array.from({ length: total }).map((_, i) => {
-        const active = i < step;
-        return (
-          <div
-            key={i}
-            className={cn(
-              "h-2.5 w-2.5 rounded-full transition",
-              active ? "bg-amber-500" : "bg-slate-300"
-            )}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
-/** 보상 연출: 중앙에서 감자/숫자 파티클이 위로 흩뿌려짐 */
-function RewardBurst({
-  amount,
-  onDone,
-}: {
-  amount: number;
-  onDone?: () => void;
-}) {
-  const count = 12;
-  const items = Array.from({ length: count });
-  useEffect(() => {
-    const id = setTimeout(() => onDone?.(), 1200);
-    return () => clearTimeout(id);
-  }, [onDone]);
-  return (
-    <div className="pointer-events-none fixed inset-0 z-[70] grid place-items-center">
-      <div className="relative">
-        <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-xl font-bold">
-          +{amount} 🥔
-        </div>
-        {items.map((_, i) => {
-          const angle = (i / count) * Math.PI * 2;
-          const dx = Math.cos(angle) * 120;
-          const dy = Math.sin(angle) * 80 - 40;
-          return (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, x: 0, y: 0, scale: 0.6, rotate: 0 }}
-              animate={{
-                opacity: [0, 1, 1, 0],
-                x: dx,
-                y: dy,
-                scale: [0.6, 1, 1],
-                rotate: (Math.random() - 0.5) * 50,
-              }}
-              transition={{ duration: 0.9, ease: "easeOut", delay: i * 0.01 }}
-              className="absolute text-lg"
-            >
-              🥔
-            </motion.div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function SubtleConfetti() {
-  const pieces = 24;
-  return (
-    <div className="pointer-events-none fixed inset-0 z-[60] overflow-hidden">
-      {Array.from({ length: pieces }).map((_, i) => (
-        <motion.div
-          key={i}
-          initial={{ y: -40, x: (i / pieces) * window.innerWidth, opacity: 0 }}
-          animate={{ y: window.innerHeight + 40, opacity: [0, 1, 1, 0] }}
-          transition={{
-            duration: 1.2 + Math.random() * 0.6,
-            ease: "easeIn",
-            delay: Math.random() * 0.2,
-          }}
-          className="absolute h-2 w-2 rounded-sm bg-amber-400"
-        />
-      ))}
-    </div>
-  );
-}
-
-/* ───────────────────────── 메인 게임 ───────────────────────── */
-
-type Phase = "show" | "hold" | "input"; // show: 개별 fade-in, hold: 전부 노출 2초, input: 가림
+type Phase = "show" | "hold" | "input";
 
 export function RecipeMemoryGame({ onExit }: Props) {
   const { addPotatoes, fetchCoupleData } = useCoupleContext();
 
+  // 단계/보상
   const LEVELS = useMemo(() => [4, 5, 6], []);
   const REWARDS = useMemo(() => [1, 3, 6], []);
-
   const [levelIdx, setLevelIdx] = useState<number>(0);
+
+  // 플레이 상태
   const [sequence, setSequence] = useState<string[]>([]);
   const [phase, setPhase] = useState<Phase>("show");
   const [progress, setProgress] = useState<number>(0);
   const [inputs, setInputs] = useState<string[]>([]);
   const [checking, setChecking] = useState<boolean>(false);
+
+  // 다이얼로그
   const [betweenOpen, setBetweenOpen] = useState<boolean>(false);
   const [finalOpen, setFinalOpen] = useState<{
     open: boolean;
@@ -164,10 +79,14 @@ export function RecipeMemoryGame({ onExit }: Props) {
     message?: string;
   }>({ open: false, success: false, reward: 0 });
 
+  // UI 상태
   const [showHowTo, setShowHowTo] = useState(false);
-  const [justReward, setJustReward] = useState<number | null>(null);
   const [motd, setMotd] = useState<string>("");
 
+  // 캔버스 핸들
+  const canvasRef = useRef<CanvasSequenceViewHandle | null>(null);
+
+  // 파생값
   const need = LEVELS[levelIdx];
   const totalSteps = LEVELS.length;
   const currentStep = levelIdx + 1;
@@ -179,18 +98,21 @@ export function RecipeMemoryGame({ onExit }: Props) {
       "셰프의 길은 기억력에서 시작돼요 👩‍🍳👨‍🍳",
       "조용히 집중! 기억이 맛을 바꿔요 🍲",
       "완벽한 레시피를 위해, 지금이 골든타임 ⏳",
-      // --- 추가 문구 ---
       "첫 재료가 리듬을 만든다, 시작을 잊지 마세요 🎵",
       "눈보다 마음으로 순서를 그려보세요 🪄",
       "틀려도 괜찮아, 다음엔 더 완벽해질 거예요 🌱",
       "호흡을 고르고… 하나씩 떠올려요 🌬️",
-      "작게 속삭여 보세요: 1번, 2번, 3번… 📣",
-      "맛있는 기억은 천천히 익어요 ⏲️",
-      "반짝! 떠오르는 그 순간을 붙잡아요 💡",
       "마지막 두 개가 제일 헷갈려요, 침착하게 🙌",
       "아이콘의 색감/모양 포인트를 떠올려보세요 🎨",
       "정답은 언제나 순서에 있어요 ↔️",
     ],
+    []
+  );
+
+  // title -> emoji 매핑
+  const emojisByTitle = useMemo(
+    () =>
+      Object.fromEntries(INGREDIENTS.map((i) => [i.title, (i as any).emoji])),
     []
   );
 
@@ -215,6 +137,7 @@ export function RecipeMemoryGame({ onExit }: Props) {
     setMotd("");
   };
 
+  // 단계 바뀌면 새 라운드 시작
   useEffect(() => {
     startRound();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -222,36 +145,33 @@ export function RecipeMemoryGame({ onExit }: Props) {
 
   /**
    * 공개 단계 타이밍
-   * - show: 3초간 진행(Progress 표시), 카드들은 순차 fade-in
+   * - show: 3초간 진행(Progress 표시), 카드들은 순차 fade-in + 스크래치 리빌
    * - hold: 모든 카드 노출 후 2초 유지
    * - input: 전부 가려짐 (답안 입력 가능)
    */
   useEffect(() => {
     if (phase !== "show") return;
-
-    // 3초 progress
     let t = 0;
     const total = 3000;
-    theLoop: {
-      const step = 30;
-      const intId = window.setInterval(() => {
-        t += step;
-        setProgress(Math.min(100, Math.round((t / total) * 100)));
-        if (t >= total) {
-          window.clearInterval(intId);
-          setPhase("hold");
-          const holdId = window.setTimeout(() => {
-            setPhase("input");
-            setMotd(MOTD_POOL[Math.floor(Math.random() * MOTD_POOL.length)]);
-          }, 2000);
-          // cleanup for hold timer if needed
-          return () => window.clearTimeout(holdId);
-        }
-      }, step);
-      return () => window.clearInterval(intId);
-    }
+    const step = 30;
+    const intId = window.setInterval(() => {
+      t += step;
+      setProgress(Math.min(100, Math.round((t / total) * 100)));
+      if (t >= total) {
+        window.clearInterval(intId);
+        setPhase("hold");
+        const holdId = window.setTimeout(() => {
+          setPhase("input");
+          setMotd(MOTD_POOL[Math.floor(Math.random() * MOTD_POOL.length)]);
+        }, 2000);
+        // cleanup for hold timer
+        return () => window.clearTimeout(holdId);
+      }
+    }, step);
+    return () => window.clearInterval(intId);
   }, [phase, MOTD_POOL]);
 
+  // 입력 조작
   const addInput = (title: string) => {
     if (phase !== "input" || checking) return;
     if (inputs.length >= need) return;
@@ -260,12 +180,15 @@ export function RecipeMemoryGame({ onExit }: Props) {
   const undo = () => setInputs((prev) => prev.slice(0, -1));
   const clear = () => setInputs([]);
 
+  // 캔버스에서 카드 클릭한 경우
+  const onCanvasPick = (title: string) => addInput(title);
+
+  // 보상 지급
   const grantPotato = async (amount: number) => {
     try {
       const ok = await addPotatoes?.(amount);
       if (!ok) throw new Error("보상을 지급하지 못했어요.");
       await fetchCoupleData?.();
-      setJustReward(amount);
       toast.success(`감자 ${amount}개 획득!`);
     } catch (e: any) {
       console.error(e);
@@ -273,15 +196,16 @@ export function RecipeMemoryGame({ onExit }: Props) {
     }
   };
 
+  // 제출
   const submit = async () => {
     if (inputs.length !== need) return;
     setChecking(true);
 
     const ok = inputs.every((t, i) => t === sequence[i]);
-
-    await new Promise((r) => setTimeout(r, 160));
+    await new Promise((r) => setTimeout(r, 120));
 
     if (!ok) {
+      canvasRef.current?.shake(140, 10); // ❌ 오답 흔들림
       setChecking(false);
       setFinalOpen({
         open: true,
@@ -291,6 +215,10 @@ export function RecipeMemoryGame({ onExit }: Props) {
       });
       return;
     }
+
+    // ✅ 정답 — 히트스톱 + 파티클
+    canvasRef.current?.hitStop(90, 0.05);
+    canvasRef.current?.emitBurst();
 
     const reward = REWARDS[levelIdx];
     if (levelIdx === LEVELS.length - 1) {
@@ -308,9 +236,11 @@ export function RecipeMemoryGame({ onExit }: Props) {
     }
   };
 
+  // 중간 다이얼로그: 그만하기(보상 수령)
   const stopAndClaim = async () => {
     const reward = REWARDS[levelIdx];
     await grantPotato(reward);
+    canvasRef.current?.emitBurst();
     setBetweenOpen(false);
     setFinalOpen({
       open: true,
@@ -320,6 +250,7 @@ export function RecipeMemoryGame({ onExit }: Props) {
     });
   };
 
+  // 계속하기
   const continueNext = () => {
     setBetweenOpen(false);
     setLevelIdx((i) => i + 1);
@@ -331,17 +262,13 @@ export function RecipeMemoryGame({ onExit }: Props) {
     if (!o) onExit?.(); // 실패, 보상 수령, 3단계 성공 모두 포함
   };
 
-  // 시퀀스 카드 그리드
-  const seqGridCols =
-    need >= 6 ? "grid-cols-6" : need === 5 ? "grid-cols-5" : "grid-cols-4";
-
   const isShowingAny = phase === "show" || phase === "hold";
   const disableInputs = isShowingAny || checking;
 
   return (
     <TooltipProvider>
       <div className="space-y-4 w-full">
-        {/* 헤더: 타이틀 + 설명 버튼(항상 우측 고정) + 단계 스텝퍼 */}
+        {/* 헤더: 타이틀 + 설명 버튼 + 단계 스텝퍼 */}
         <div className="flex items-center gap-2 justify-between">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-bold flex items-center gap-2">
@@ -349,7 +276,6 @@ export function RecipeMemoryGame({ onExit }: Props) {
               레시피 기억 게임
             </h2>
 
-            {/* 게임 설명 버튼 (항상 타이틀 오른쪽 고정) */}
             <Popover open={showHowTo} onOpenChange={setShowHowTo}>
               <PopoverTrigger asChild>
                 <Button size="sm" variant="outline" className="gap-1">
@@ -370,46 +296,35 @@ export function RecipeMemoryGame({ onExit }: Props) {
             <Badge variant="secondary">
               단계 {currentStep} / {totalSteps}
             </Badge>
-            <Stepper step={currentStep} total={totalSteps} />
+            <div className="flex items-center gap-2">
+              {Array.from({ length: totalSteps }).map((_, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    "h-2.5 w-2.5 rounded-full transition",
+                    i < currentStep ? "bg-amber-500" : "bg-slate-300"
+                  )}
+                />
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* 시퀀스 표시 영역 */}
+        {/* 시퀀스 표시 영역 (Canvas 2D 렌더) */}
         <Card className="p-4 w-full">
           {isShowingAny ? (
             <div>
               <Progress value={progress} />
-              <div
-                className={cn(
-                  "mt-4 grid gap-3 justify-items-center",
-                  seqGridCols
-                )}
-              >
-                <AnimatePresence initial={false}>
-                  {sequence.map((t, i) => (
-                    <motion.div
-                      key={`${t}-${i}`}
-                      initial={{ opacity: 0, y: 8, scale: 0.98 }}
-                      animate={{
-                        opacity: 1,
-                        y: 0,
-                        scale: 1,
-                      }}
-                      exit={{ opacity: 0, y: -6, scale: 0.98 }}
-                      transition={{
-                        duration: 0.22,
-                        delay: phase === "show" ? i * 0.12 : 0, // 개별 페이드인
-                        ease: "easeOut",
-                      }}
-                      className="rounded-lg border p-3 text-center bg-amber-50/60 w-full"
-                    >
-                      <div className="text-3xl leading-none">
-                        {INGREDIENTS.find((x) => x.title === t)?.emoji}
-                      </div>
-                      <div className="text-xs mt-1 whitespace-nowrap">{t}</div>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
+              <div className="mt-4">
+                <CanvasSequenceView
+                  ref={canvasRef}
+                  titles={sequence}
+                  emojisByTitle={emojisByTitle}
+                  phase={phase} // "show" | "hold" | "input"
+                  className="w-full"
+                  style={{ aspectRatio: "3 / 1" }}
+                  onPick={onCanvasPick}
+                />
               </div>
             </div>
           ) : (
@@ -417,7 +332,6 @@ export function RecipeMemoryGame({ onExit }: Props) {
               <div className="text-sm text-muted-foreground">
                 시퀀스가 가려졌어요. 아래에서 <b>순서대로</b> 재료를 선택하세요.
               </div>
-              {/* 랜덤 안내 문구 */}
               {motd && (
                 <div className="rounded-md border bg-amber-50 text-amber-900 px-3 py-1.5 text-xs">
                   {motd}
@@ -464,7 +378,7 @@ export function RecipeMemoryGame({ onExit }: Props) {
             </ScrollArea>
           </Card>
 
-          {/* 오른쪽: 답안(순서 고정 입력 / DnD 제거) */}
+          {/* 오른쪽: 답안(순서 고정 입력) */}
           <Card className="p-3">
             <h3 className="text-sm font-semibold mb-2">
               내 답안 ({inputs.length}/{need})
@@ -563,7 +477,7 @@ export function RecipeMemoryGame({ onExit }: Props) {
           </DialogContent>
         </Dialog>
 
-        {/* 최종 결과: 성공/실패 명확 구분 */}
+        {/* 최종 결과 */}
         <Dialog
           open={finalOpen.open}
           onOpenChange={handleFinalDialogOpenChange}
@@ -604,26 +518,7 @@ export function RecipeMemoryGame({ onExit }: Props) {
               <Button onClick={onExit}>게임 목록으로</Button>
             </DialogFooter>
           </DialogContent>
-          {finalOpen.success && <SubtleConfetti />}
         </Dialog>
-
-        {/* 방금 보상 지급 시, 감자 파티클 */}
-        <AnimatePresence>
-          {justReward !== null && (
-            <motion.div
-              key="reward-burst"
-              initial={{ opacity: 1 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onAnimationComplete={() => setJustReward(null)}
-            >
-              <RewardBurst
-                amount={justReward}
-                onDone={() => setJustReward(null)}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
     </TooltipProvider>
   );
