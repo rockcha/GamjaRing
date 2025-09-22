@@ -53,7 +53,7 @@ const TRAIL_MAX_POINTS = 160;
 const TRAIL_POINT_MIN_DIST = 9;
 const OFF_MARGIN = 60;
 const SAFETY_TIMEOUT_MS = 12000;
-const GOLD_PER_HIT = 5;
+const GOLD_PER_HIT = 10;
 
 // +5 플로팅 큐 타입
 type GainCue = { id: number; t: number; dur: number };
