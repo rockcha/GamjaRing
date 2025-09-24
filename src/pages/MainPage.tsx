@@ -12,6 +12,8 @@ import CoupleMusicCard from "@/components/widgets/Cards/CoupleMusicCard";
 import DailyFortuneCard from "@/features/fortune/DailyFortuneCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import AquariumPreviewCard from "@/components/widgets/Cards/AquariumPreviewCard";
+import CoupleDailyMessageCard from "@/components/widgets/Cards/CoupleDailyMessageCard";
+import TodayMessageCard from "@/components/widgets/Cards/TodayMessageCard";
 
 export default function MainPage() {
   const { isCoupled, loading } = useUser(); // ✅ loading 가져오기
@@ -56,7 +58,7 @@ export default function MainPage() {
 
         {/* 오른쪽: 질문 + 일정 */}
         <div className="flex flex-col  min-w-0">
-          <AquariumPreviewCard />
+          <TodayMessageCard />
         </div>
       </div>
     </div>
