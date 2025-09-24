@@ -12,14 +12,24 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 import type { NotificationType } from "@/utils/notification/sendUserNotification";
-
-/* (선택) 닉네임 사이 하트는 그대로 사용 */
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHeart } from "@fortawesome/free-solid-svg-icons";
 
+/** ⬇️ 새 액션 포함해서 확장 */
 type ActionKey = Extract<
   NotificationType,
-  "콕찌르기" | "뽀뽀하기" | "머리쓰다듬기" | "안아주기" | "간지럽히기"
+  | "콕찌르기"
+  | "뽀뽀하기"
+  | "머리쓰다듬기"
+  | "안아주기"
+  | "간지럽히기"
+  | "응원하기"
+  | "애교부리기"
+  | "하이파이브"
+  | "선물하기"
+  | "유혹하기"
+  | "윙크하기"
+  | "심쿵멘트"
 >;
 
 export default function DaysTogetherBadge() {
@@ -60,7 +70,7 @@ export default function DaysTogetherBadge() {
   const [open, setOpen] = useState(false);
   const [sending, setSending] = useState<string | null>(null);
 
-  /** ── 클릭 이펙트 상태 (버튼 위로 이모지 튀어오르기) ───────── */
+  /** 클릭 이펙트 상태 */
   const [activeEffects, setActiveEffects] = useState<
     Record<ActionKey, boolean>
   >({
@@ -69,6 +79,13 @@ export default function DaysTogetherBadge() {
     머리쓰다듬기: false,
     안아주기: false,
     간지럽히기: false,
+    응원하기: false,
+    애교부리기: false,
+    하이파이브: false,
+    선물하기: false,
+    유혹하기: false,
+    윙크하기: false,
+    심쿵멘트: false,
   });
 
   useEffect(() => {
@@ -111,14 +128,14 @@ export default function DaysTogetherBadge() {
     "나";
   const partnerLabel = partnerNickname ?? "상대";
 
-  /** ── 이모지 액션 정의 (아이콘 → 이모지) ───────────────── */
+  /** ⬇️ 이모지 액션 리스트 (NEW 포함) */
   const ACTION_ITEMS: {
     key: ActionKey;
     label: string;
     desc: string;
     emoji: string;
-    bg: string; // 버튼 배경 톤
-    ring: string; // 포커스 링 톤
+    bg: string;
+    ring: string;
   }[] = [
     {
       key: "콕찌르기",
@@ -160,13 +177,70 @@ export default function DaysTogetherBadge() {
       bg: "bg-sky-50 hover:bg-sky-100 border-sky-200",
       ring: "focus-visible:ring-sky-300",
     },
+
+    // ===== NEW(이쁘게 컬러 분산) =====
+    {
+      key: "응원하기",
+      label: "응원하기",
+      desc: "힘내! 파워 충전",
+      emoji: "💪",
+      bg: "bg-lime-50 hover:bg-lime-100 border-lime-200",
+      ring: "focus-visible:ring-lime-300",
+    },
+    {
+      key: "애교부리기",
+      label: "애교 부리기",
+      desc: "심장 녹이기",
+      emoji: "🥰",
+      bg: "bg-pink-50 hover:bg-pink-100 border-pink-200",
+      ring: "focus-visible:ring-pink-300",
+    },
+    {
+      key: "하이파이브",
+      label: "하이파이브",
+      desc: "찰칵! 팀워크",
+      emoji: "🙌",
+      bg: "bg-indigo-50 hover:bg-indigo-100 border-indigo-200",
+      ring: "focus-visible:ring-indigo-300",
+    },
+    {
+      key: "선물하기",
+      label: "선물하기",
+      desc: "깜짝 서프라이즈",
+      emoji: "🎁",
+      bg: "bg-violet-50 hover:bg-violet-100 border-violet-200",
+      ring: "focus-visible:ring-violet-300",
+    },
+    {
+      key: "유혹하기",
+      label: "유혹하기",
+      desc: "치명적인 눈빛",
+      emoji: "😏",
+      bg: "bg-fuchsia-50 hover:bg-fuchsia-100 border-fuchsia-200",
+      ring: "focus-visible:ring-fuchsia-300",
+    },
+    {
+      key: "윙크하기",
+      label: "윙크하기",
+      desc: "시그널 전달",
+      emoji: "😉",
+      bg: "bg-emerald-50 hover:bg-emerald-100 border-emerald-200",
+      ring: "focus-visible:ring-emerald-300",
+    },
+    {
+      key: "심쿵멘트",
+      label: "심쿵 멘트",
+      desc: "한 마디로 K.O",
+      emoji: "💘",
+      bg: "bg-amber-50/70 hover:bg-amber-100/80 border-amber-200",
+      ring: "focus-visible:ring-amber-300",
+    },
   ];
 
   function triggerBurst(k: ActionKey) {
-    setActiveEffects((s) => ({ ...s, [k]: false })); // 재시작을 위해 일단 꺼주고
+    setActiveEffects((s) => ({ ...s, [k]: false }));
     requestAnimationFrame(() => {
       setActiveEffects((s) => ({ ...s, [k]: true }));
-      // 자동 종료
       window.setTimeout(() => {
         setActiveEffects((s) => ({ ...s, [k]: false }));
       }, 700);
@@ -184,7 +258,7 @@ export default function DaysTogetherBadge() {
       return;
     }
     try {
-      triggerBurst(type); // 이펙트 먼저
+      triggerBurst(type);
       setSending(type);
       const { error } = await sendUserNotification({
         senderId,
@@ -208,9 +282,8 @@ export default function DaysTogetherBadge() {
 
   return (
     <div className={"w-full px-4 py-3 mt-2"}>
-      {/* 헤더 영역 */}
+      {/* 헤더 */}
       <div className="flex items-center justify-center gap-3">
-        {/* 닉네임 ❤️ 닉네임 */}
         <div className="flex items-center gap-2 text-[#5b3d1d] min-w-0">
           <span className="text-[18px] sm:text-[24px] font-extrabold truncate">
             {myNickname}
@@ -269,10 +342,9 @@ export default function DaysTogetherBadge() {
         </div>
       </div>
 
-      {/* ───────── Action Dialog ───────── */}
+      {/* Action Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[420px]">
-          {/* 클릭 이펙트용 키프레임 */}
+        <DialogContent className="sm:max-w-[520px]">
           <style>{`
             @keyframes floatUp {
               0% { transform: translate(-50%, 0) scale(0.8); opacity: 0; }
@@ -291,7 +363,8 @@ export default function DaysTogetherBadge() {
               아래에서 하나를 선택하면 연인에게 즉시 알림이 전송돼요.
             </p>
 
-            <div className="grid grid-cols-2 gap-2">
+            {/* ⬇️ 2열 → 작은 화면 2, sm이상 3열로 넓혔어 */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {ACTION_ITEMS.map((a) => (
                 <div key={a.key} className="relative">
                   {/* 떠오르는 이모지 이펙트 */}
@@ -317,7 +390,7 @@ export default function DaysTogetherBadge() {
                     variant="secondary"
                     className={cn(
                       "justify-start h-12 px-3 text-[13px] font-semibold",
-                      "border transition-transform active:scale-95",
+                      "border transition-transform active:scale-95 rounded-xl",
                       a.bg,
                       "focus-visible:outline-none focus-visible:ring-2",
                       a.ring
@@ -325,7 +398,6 @@ export default function DaysTogetherBadge() {
                     disabled={Boolean(sending)}
                     onClick={() => handleSend(a.key, a.emoji)}
                     title={a.desc}
-                    // 탭 효과 (키프레임 팝)
                     style={{
                       animation:
                         sending === a.key ? undefined : "popTap 160ms ease-out",
