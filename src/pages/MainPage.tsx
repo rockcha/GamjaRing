@@ -61,10 +61,7 @@ export default function MainPage() {
 
         {/* 오른쪽: 질문 + 일정 */}
         <div className="flex flex-col  min-w-0">
-          {/* <TodayMessageCard /> */}
-          {/* <GloomyMessageCard /> */}
-          <GloomyRatingsBoard />
-          <GloomyRatingsCompletedBoard />
+          <TodayMessageCard />
         </div>
       </div>
     </div>
