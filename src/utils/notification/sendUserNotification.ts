@@ -33,7 +33,9 @@ export type NotificationType =
   | "낚시성공"
   | "생산시설구매"
   | "타임캡슐"
-  | "타임캡슐해제";
+  | "타임캡슐해제"
+  | "음침한말"; // ✅ NEW
+
 export interface SendUserNotificationInput {
   senderId: string;
   receiverId: string;
@@ -41,17 +43,9 @@ export interface SendUserNotificationInput {
   senderNickname?: string;
   description?: string;
   isRequest?: boolean;
-
-  /** '음식공유'에 표시할 음식 이름 (선택) */
   foodName?: string;
-
-  /** 하위호환 유지(미사용) */
-  gold?: number;
-
-  /** '물품구매' | '물품판매' | '낚시성공' | '생산시설구매' 표시 이름 (선택) */
+  gold?: number; // (미사용)
   itemName?: string;
-
-  /** 타임캡슐 제목(선택) — 봉인/해제 공통 사용 */
   capsuleTitle?: string;
 }
 
@@ -65,9 +59,7 @@ function withObjectJosa(name: string) {
   return `${name}${jong === 0 ? "를" : "을"}`;
 }
 
-/** 기본 액션 문구(특수 케이스 제외) */
-
-// ── 2) 기본 문구 매핑 업데이트: "어깨주무르기" 삭제, 신규 3종 추가
+/* ───────────────── 기본 문구 매핑 ───────────────── */
 const ACTION_BY_TYPE: Record<
   Exclude<
     NotificationType,
@@ -96,15 +88,16 @@ const ACTION_BY_TYPE: Record<
   애교부리기: "애교를 부렸어요 🥰",
   하이파이브: "하이파이브 했어요 🙌",
   선물하기: "작은 선물을 건넸어요 🎁",
-  유혹하기: "살짝 유혹했어요 😏", // ✅ NEW
-  윙크하기: "윙크를 날렸어요 😉", // ✅ NEW
-  심쿵멘트: "멘트 한마디에 심쿵했어요 💘", // ✅ NEW
+  유혹하기: "살짝 유혹했어요 😏",
+  윙크하기: "윙크를 날렸어요 😉",
+  심쿵멘트: "멘트 한마디에 심쿵했어요 💘",
   감자진화: "감자를 한 단계 진화시켰어요 🌱",
   일정등록: "일정을 등록했어요 📅",
   일정수정: "일정을 수정했어요 ✍️",
   일정삭제: "일정을 삭제했어요 🗑️",
   반응추가: "반응을 남겼어요 💬",
   음악등록: "음악을 등록했어요 🎵",
+  음침한말: "음침한 말을 추가했어요😏 평가해주세요!", // ✅ NEW
 };
 
 /* ───────────────── Core ───────────────── */
@@ -114,7 +107,7 @@ export const sendUserNotification = async ({
   type,
   isRequest,
   foodName,
-  gold, // (미사용) 하위호환
+  gold, // (미사용)
   itemName,
   capsuleTitle,
 }: SendUserNotificationInput) => {
@@ -192,11 +185,8 @@ export const sendUserNotification = async ({
   }
 
   const fixedDescription = `${nickname}님이 ${action}`.trim();
-
-  // 3) '커플요청'은 자동 true
   const finalIsRequest = type === "커플요청" ? true : Boolean(isRequest);
 
-  // 4) 저장
   const { error } = await supabase.from("user_notification").insert([
     {
       sender_id: senderId,
@@ -209,13 +199,6 @@ export const sendUserNotification = async ({
 
   if (error) {
     console.error("❌ notification 삽입 실패:", error.message);
-    console.log("debug info", {
-      senderId,
-      receiverId,
-      type,
-      description: fixedDescription,
-      is_request: finalIsRequest,
-    });
   }
 
   return { error };

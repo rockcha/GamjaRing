@@ -40,6 +40,7 @@ import {
   faHourglassHalf,
   faRightLeft,
   faClipboard,
+  faGhost,
 } from "@fortawesome/free-solid-svg-icons";
 
 // LucideIcon 시그니처처럼 className만 받아 렌더하는 래퍼
@@ -66,6 +67,7 @@ const Gamepad2 = makeFA(faGamepad) as unknown as LucideIcon;
 const Sticker = makeFA(faClipboard) as unknown as LucideIcon;
 const Hourglass = makeFA(faHourglassHalf) as unknown as LucideIcon; // 타임캡슐
 const ArrowLeftRight = makeFA(faRightLeft) as unknown as LucideIcon;
+const Ghost = makeFA(faGhost) as unknown as LucideIcon;
 
 /* ------------------------------ 네비 정의/가드 ------------------------------ */
 type SimpleNavDef = {
@@ -83,7 +85,8 @@ type SimpleNavDef = {
     | "fishing"
     | "stickerBoard"
     | "oddEven"
-    | "miniGame";
+    | "miniGame"
+    | "gloomy";
 
   label: string;
   icon: LucideIcon; // NavItem과 타입 호환 유지
@@ -100,6 +103,7 @@ const NAV_GROUPS: readonly (readonly SimpleNavDef[])[] = [
     { id: "scheduler", label: "스케쥴러", icon: CalendarDays },
 
     { id: "timeCapsule", label: "타임캡슐", icon: Hourglass },
+    { id: "gloomy", label: "음침한 방", icon: Ghost }, // ✅ 추가
   ],
   [
     { id: "farm", label: "농장", icon: Tractor },
@@ -128,6 +132,7 @@ const GUARDS: Record<
 
   scheduler: { requireLogin: true, requireCouple: true },
   timeCapsule: { requireLogin: true, requireCouple: true },
+  gloomy: { requireLogin: true, requireCouple: true }, // ✅ 추가
 
   farm: { requireLogin: true, requireCouple: true },
   kitchen: { requireLogin: true, requireCouple: true },
@@ -148,6 +153,7 @@ const FALLBACK_ROUTE: Record<string, string> = {
   scheduler: "/scheduler",
 
   timeCapsule: "/timeCapsule",
+  gloomy: "/gloomy",
 
   farm: "/potatoField",
   kitchen: "/kitchen",

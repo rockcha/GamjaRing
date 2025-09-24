@@ -39,6 +39,7 @@ export default function PageLayout({
     "/timeCapsule": "타임캡슐",
     "/exchange": "교환소",
     "/miniGame": "미니게임",
+    "/gloomy": "음침한 방",
   };
 
   // 경로 정규화(뒤 슬래시 제거)
