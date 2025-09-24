@@ -28,6 +28,7 @@ import StickerBoardPage from "./features/sticker_board/StickerBoardPage";
 import PartnerTimeCapsulesPage from "./pages/PartnerTimeCapsulesPage";
 import ExchangePage from "./pages/ExchangePage";
 import MiniGamePage from "./pages/MiniGamesPage";
+import GloomyPage from "./pages/GloomyPage";
 
 export default function App() {
   return (
@@ -62,6 +63,7 @@ export default function App() {
               <Route path="stickerBoard" element={<StickerBoardPage />} />
               <Route path="miniGame" element={<MiniGamePage />} />
               <Route path="exchange" element={<ExchangePage />} />
+              <Route path="gloomy" element={<GloomyPage />} />
             </Route>
           </Routes>
 
