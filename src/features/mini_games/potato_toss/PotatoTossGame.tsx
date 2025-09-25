@@ -16,6 +16,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBullseye,
   faCoins,
+  faMeteor,
   faRotateRight,
 } from "@fortawesome/free-solid-svg-icons";
 import type { MiniGameDef } from "@/features/mini_games/RecipeMemoryGame";
@@ -34,7 +35,7 @@ import {
 import type { TossEvent, RoundEventPlan } from "./events";
 import {
   planRoundEvent,
-  spawnPreRoundGood,
+  spawnPreRoundGoodOrObstacle,
   spawnPostLaunchObstacles,
   updateEvent,
   drawEvent,
@@ -85,8 +86,9 @@ export function PotatoTossGame({ onExit }: { onExit?: () => void }) {
 
   // 라운드 계획 & 스폰 상태
   const roundPlanRef = useRef<RoundEventPlan>({ type: "none" });
-  const goodEventRef = useRef<TossEvent | null>(null); // 발사 전 1개
-  const obstaclesRef = useRef<TossEvent[]>([]); // 발사 후 1~2개
+  const goodEventRef = useRef<TossEvent | null>(null); // 보상(발사 전 1개)
+  const preObstaclesRef = useRef<TossEvent[]>([]); // 방해물(발사 전 둥실)
+  const obstaclesRef = useRef<TossEvent[]>([]); // 방해물(발사 후 급강하 = rock)
   // 배너: "스테이지당 하나" — 스테이지 끝날 때까지 유지
   const [banner, setBanner] = useState<{
     text: string;
@@ -135,7 +137,7 @@ export function PotatoTossGame({ onExit }: { onExit?: () => void }) {
     x: number;
     y: number;
   } | null>(null);
-  const triggerSuccessWave = (x: number, y: number, dur = 420) =>
+  const triggerSuccessWave = (x: number, y: number, dur = 520) =>
     (successWaveRef.current = { t: 0, dur, x, y });
 
   type Spark = {
@@ -152,16 +154,42 @@ export function PotatoTossGame({ onExit }: { onExit?: () => void }) {
   const spawnSparks = (x: number, y: number, n = 26, color = "#16a34a") => {
     for (let i = 0; i < n; i++) {
       const ang = Math.random() * Math.PI * 2;
-      const spd = 180 + Math.random() * 260;
+      const spd = 220 + Math.random() * 300;
       sparksRef.current.push({
         x,
         y,
         vx: Math.cos(ang) * spd,
         vy: Math.sin(ang) * spd - 80,
-        life: 600 + Math.random() * 400,
-        max: 600 + Math.random() * 400,
-        size: 2 + Math.random() * 2.5,
+        life: 720 + Math.random() * 480,
+        max: 720 + Math.random() * 480,
+        size: 2 + Math.random() * 2.8,
         color,
+      });
+    }
+  };
+  // 보상용 콘페티(다색)
+  const spawnConfetti = (x: number, y: number, n = 36) => {
+    const colors = [
+      "#10b981",
+      "#22c55e",
+      "#86efac",
+      "#34d399",
+      "#059669",
+      "#a7f3d0",
+      "#6ee7b7",
+    ];
+    for (let i = 0; i < n; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const spd = 260 + Math.random() * 340;
+      sparksRef.current.push({
+        x,
+        y,
+        vx: Math.cos(ang) * spd,
+        vy: Math.sin(ang) * spd - 120,
+        life: 700 + Math.random() * 600,
+        max: 700 + Math.random() * 600,
+        size: 2 + Math.random() * 3.2,
+        color: colors[Math.floor(Math.random() * colors.length)],
       });
     }
   };
@@ -200,7 +228,7 @@ export function PotatoTossGame({ onExit }: { onExit?: () => void }) {
   const dprRef = useRef(1);
   useEffect(() => {
     const cvs = canvasRef.current!;
-    const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+    const dpr = Math.max(1, Math.min(3, (window as any).devicePixelRatio || 1));
     cvs.style.display = "block";
     cvs.style.width = `${size.w}px`;
     cvs.style.height = `${size.h}px`;
@@ -286,26 +314,41 @@ export function PotatoTossGame({ onExit }: { onExit?: () => void }) {
 
   // ===== 라운드 계획 & 스폰 =====
   const setupRoundPlanAndSpawnGood = () => {
-    const plan = planRoundEvent(); // 없음 0.4 / 보상 0.3 / 방해물 0.3 (보상: 별 0.4/상자 0.6)
+    const plan = planRoundEvent();
     roundPlanRef.current = plan;
     goodEventRef.current = null;
     obstaclesRef.current = [];
+    preObstaclesRef.current = [];
 
     if (plan.type === "good" && plan.goodKind) {
-      // 보상: 발사 전 스폰 + 배너(라운드 내내 유지)
-      const ev = spawnPreRoundGood(size, plan.goodKind);
+      const ev = spawnPreRoundGoodOrObstacle(size, plan.goodKind);
       goodEventRef.current = ev;
-      setBanner({
-        text: `특별 보상 등장 !! — ${EVENT_TEXT[plan.goodKind].title}: ${
-          EVENT_TEXT[plan.goodKind].desc
-        }`,
-        variant: "good",
-      });
-    } else if (plan.type === "obstacle") {
-      // 방해물: 배너만 먼저 띄우고, 실제 스폰은 발사 직후
-      setBanner({ text: "방해물 등장 !! 조심하세요", variant: "obstacle" });
+      setBanner({ text: EVENT_TEXT[plan.goodKind].banner, variant: "good" });
+    } else if (plan.type === "obstacle" && plan.obstacleKind) {
+      if (plan.obstacleKind === "rock") {
+        // rock은 발사 직후 스폰 → 배너만 먼저
+        setBanner({ text: EVENT_TEXT["rock"].banner, variant: "obstacle" });
+      } else {
+        // rock 제외 모든 방해물은 시작부터 둥실
+        const count = 1 + Math.floor(Math.random() * 3); // 1~3개
+        const evs: TossEvent[] = [];
+        for (let i = 0; i < count; i++) {
+          evs.push(
+            // ▶️ obstacleKind를 그대로 전달: ghost면 👻만, umbrella면 ☂️만
+            spawnPreRoundGoodOrObstacle(
+              size,
+              plan.obstacleKind as "ghost" | "bee" | "helicopter" | "umbrella"
+            )
+          );
+        }
+        preObstaclesRef.current = evs;
+        setBanner({
+          text: EVENT_TEXT[plan.obstacleKind].banner,
+          variant: "obstacle",
+        });
+      }
     } else {
-      setBanner(null); // 이벤트 없음
+      setBanner(null);
     }
   };
 
@@ -473,8 +516,8 @@ export function PotatoTossGame({ onExit }: { onExit?: () => void }) {
       if (!sw) return;
       sw.t += dtMs;
       const k = clamp01(sw.t / sw.dur),
-        r = 24 + 110 * k,
-        a = 0.35 * (1 - k);
+        r = 30 + 140 * k,
+        a = 0.42 * (1 - k);
       const grad = ctx.createRadialGradient(sw.x, sw.y, 0, sw.x, sw.y, r);
       grad.addColorStop(0, `rgba(16,185,129,${a})`);
       grad.addColorStop(1, `rgba(16,185,129,0)`);
@@ -510,7 +553,6 @@ export function PotatoTossGame({ onExit }: { onExit?: () => void }) {
       if (k >= 1) centerCueRef.current = null;
     };
 
-    // 상단 중앙 배너 (라운드 내내 유지)
     const drawFancyBanner = (text: string, variant: "good" | "obstacle") => {
       const padX = 16;
       ctx.save();
@@ -531,7 +573,6 @@ export function PotatoTossGame({ onExit }: { onExit?: () => void }) {
         grad.addColorStop(1, "rgba(190,18,60,0.95)");
       }
 
-      // 사각형 + 그림자
       ctx.shadowColor = "rgba(0,0,0,0.25)";
       ctx.shadowBlur = 10;
       ctx.shadowOffsetY = 2;
@@ -546,7 +587,6 @@ export function PotatoTossGame({ onExit }: { onExit?: () => void }) {
       ctx.closePath();
       ctx.fill();
 
-      // 텍스트 (살짝 펄스)
       ctx.fillStyle = "white";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -556,7 +596,6 @@ export function PotatoTossGame({ onExit }: { onExit?: () => void }) {
       ctx.scale(s, s);
       ctx.fillText(text, 0, 0);
       ctx.restore();
-
       ctx.restore();
     };
 
@@ -611,11 +650,19 @@ export function PotatoTossGame({ onExit }: { onExit?: () => void }) {
       drawLauncher();
       drawCuteBasket();
 
-      // 사전 보상 이벤트 업데이트 & 드로우
+      // Pre-round: good / obstacle(ghost/bee)
       const good = goodEventRef.current;
       if (good) {
         updateEvent(good, dt, size);
         drawEvent(ctx, good);
+      }
+
+      preObstaclesRef.current = preObstaclesRef.current.filter(
+        (ev) => ev.alive
+      );
+      for (const ev of preObstaclesRef.current) {
+        updateEvent(ev, dt, size);
+        drawEvent(ctx, ev);
       }
 
       // 발사체
@@ -640,38 +687,47 @@ export function PotatoTossGame({ onExit }: { onExit?: () => void }) {
           if (pts.length > TRAIL_MAX_POINTS) pts.shift();
         }
 
-        // 방해물 업데이트 & 충돌
+        // 방해물(Post: rock)
         obstaclesRef.current = obstaclesRef.current.filter((ev) => ev.alive);
         for (const ev of obstaclesRef.current) {
           updateEvent(ev, dt, size);
           drawEvent(ctx, ev);
           if (!ev.hit && checkCollision(proj, ev)) {
             ev.hit = true;
-            const color = "#ef4444";
-            spawnSparks(ev.x, ev.y, 18, color);
-            if (ev.kind === "rock") {
-              proj.vy = -Math.abs(proj.vy) * 0.55;
-              proj.vx *= 0.85;
-            } else {
-              const sign = proj.x < ev.x ? -1 : 1;
-              proj.vx = Math.max(60, Math.abs(proj.vx)) * sign * 0.65;
-              proj.vy *= 0.9;
-            }
+            spawnSparks(ev.x, ev.y, 18, "#ef4444");
+            // rock 반응(살짝 튀기기)
+            proj.vy = -Math.abs(proj.vy) * 0.55;
+            proj.vx *= 0.85;
             ev.alive = false;
           }
         }
 
-        // 보상 이벤트 충돌
+        // 사전 방해물(ghost/bee) 충돌
+        for (const ev of preObstaclesRef.current) {
+          if (ev.alive && !ev.hit && checkCollision(proj, ev)) {
+            ev.hit = true;
+            spawnSparks(ev.x, ev.y, 16, "#f43f5e");
+            // 경로 교란(살짝 각 방향으로 비틀어주기)
+            const sign = proj.x < ev.x ? -1 : 1;
+            proj.vx = Math.max(60, Math.abs(proj.vx)) * sign * 0.65;
+            proj.vy *= 0.9;
+          }
+        }
+        // 사전 보상 충돌
         if (good && !good.hit && good.alive && checkCollision(proj, good)) {
           good.hit = true;
-          const reward = GOOD_REWARD[good.kind];
-          spawnSparks(good.x, good.y, 26, "#22c55e");
+          const reward = GOOD_REWARD[good.kind as "star" | "chest" | "balloon"];
+          // 이펙트 강화: 콘페티 + 서지 + 살짝 셰이크
+          spawnConfetti(good.x, good.y, 42);
+          spawnSparks(good.x, good.y, 28, "#22c55e");
+          triggerSuccessWave(good.x, good.y, 600);
+          triggerShake(120, 6);
           toast.success(`보너스 +${reward}G!`, { duration: 900 });
           bonusGoldRef.current += reward;
           good.alive = false;
         }
 
-        // 성공 체크
+        // 성공 체크(바스켓 림 통과)
         const getOpening = () => {
           const { w } = baseField.bucketSize;
           const rimInset = 10;
@@ -699,7 +755,7 @@ export function PotatoTossGame({ onExit }: { onExit?: () => void }) {
           }
         }
 
-        // 실패
+        // 실패 판정
         if (!resolvedRef.current) {
           const offRight = proj.x - proj.r > size.w + OFF_MARGIN;
           const offLeft = proj.x + proj.r < -OFF_MARGIN;
@@ -713,15 +769,22 @@ export function PotatoTossGame({ onExit }: { onExit?: () => void }) {
           }
         }
       } else {
-        // 비행 중이 아닐 때도 방해물 잔존분 그려주고 자연 소멸
+        // 비행 중이 아닐 때도 잔존물 업데이트
         obstaclesRef.current = obstaclesRef.current.filter((ev) => ev.alive);
         for (const ev of obstaclesRef.current) {
           updateEvent(ev, dt, size);
           drawEvent(ctx, ev);
         }
+        preObstaclesRef.current = preObstaclesRef.current.filter(
+          (ev) => ev.alive
+        );
+        for (const ev of preObstaclesRef.current) {
+          updateEvent(ev, dt, size);
+          drawEvent(ctx, ev);
+        }
       }
 
-      // 스파크
+      // 스파크 파티클
       sparksRef.current = sparksRef.current.filter((s) => {
         s.life -= dtMs;
         const k = Math.max(0, s.life / s.max);
@@ -737,7 +800,7 @@ export function PotatoTossGame({ onExit }: { onExit?: () => void }) {
         return s.life > 0;
       });
 
-      // 이펙트/트레일/감자
+      // 이펙트
       drawSuccessWave(dtMs);
       drawTrail();
       if (projectileRef.current.active)
@@ -778,7 +841,7 @@ export function PotatoTossGame({ onExit }: { onExit?: () => void }) {
       // 중앙 SUCCESS / MISS
       drawCenterCue(dtMs);
 
-      // 상단 배너(라운드 내내 유지)
+      // 상단 배너
       if (banner) drawFancyBanner(banner.text, banner.variant);
 
       ctx.restore();
@@ -828,27 +891,27 @@ export function PotatoTossGame({ onExit }: { onExit?: () => void }) {
     return () => ac.abort();
   }, [throws]);
 
-  // 키보드: W/S 각도 (차징 중에도 변경 허용)
+  // 키보드: W/S 각도 (속도 ↑: 2도)
   useEffect(() => {
     const ac = new AbortController();
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.code === "KeyW") {
         if (
-          stateRef.current === GameState.Idle ||
-          stateRef.current === GameState.Between ||
-          stateRef.current === GameState.Charging
+          [GameState.Idle, GameState.Between, GameState.Charging].includes(
+            stateRef.current
+          )
         ) {
-          const na = Math.min(75, angleRef.current + 1);
+          const na = Math.min(75, angleRef.current + 2);
           setAngle((angleRef.current = na));
           e.preventDefault();
         }
       } else if (e.code === "KeyS") {
         if (
-          stateRef.current === GameState.Idle ||
-          stateRef.current === GameState.Between ||
-          stateRef.current === GameState.Charging
+          [GameState.Idle, GameState.Between, GameState.Charging].includes(
+            stateRef.current
+          )
         ) {
-          const na = Math.max(15, angleRef.current - 1);
+          const na = Math.max(15, angleRef.current - 2);
           setAngle((angleRef.current = na));
           e.preventDefault();
         }
@@ -890,14 +953,12 @@ export function PotatoTossGame({ onExit }: { onExit?: () => void }) {
     p.active = true;
     p.launchedAt = performance.now();
 
-    // 방해물 스폰(발사 직후) — 배너는 라운드 시작 시 이미 노출되어 있음(유지)
+    // 방해물 스폰(발사 직후): rock만 해당
     if (
       roundPlanRef.current.type === "obstacle" &&
-      roundPlanRef.current.obstacleKind
+      roundPlanRef.current.obstacleKind === "rock"
     ) {
-      obstaclesRef.current.push(
-        ...spawnPostLaunchObstacles(size, roundPlanRef.current.obstacleKind)
-      );
+      obstaclesRef.current.push(...spawnPostLaunchObstacles(size, "rock"));
     }
 
     // Safety
@@ -940,7 +1001,7 @@ export function PotatoTossGame({ onExit }: { onExit?: () => void }) {
         spawnSparks(
           x ?? baseField.launch.x,
           y ?? baseField.launch.y,
-          28,
+          30,
           "#10b981"
         );
         triggerCenterCue("SUCCESS");
@@ -968,12 +1029,13 @@ export function PotatoTossGame({ onExit }: { onExit?: () => void }) {
 
         // 다음 라운드 진입
         setTimeout(() => {
-          // 잔여 방해물/보상 정리
+          // 잔여물 정리
           obstaclesRef.current = [];
+          preObstaclesRef.current = [];
           goodEventRef.current = null;
 
           stateRef.current = GameState.Idle;
-          setupRoundPlanAndSpawnGood(); // 새로 계획 + (보상이면) 스폰
+          setupRoundPlanAndSpawnGood();
         }, 120);
       } else {
         stateRef.current = GameState.Finished;
@@ -982,10 +1044,9 @@ export function PotatoTossGame({ onExit }: { onExit?: () => void }) {
     }, 300);
   };
 
-  // 게임 시작 시 1회 라운드 계획 + 보상 스폰
+  // 게임 시작 시 1회 라운드 계획 + 스폰
   useEffect(() => {
-    setupRoundPlanAndSpawnGood();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setupRoundPlanAndSpawnGood(); /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, []);
 
   // 보너스 골드 누적(보상 이벤트용)
@@ -1104,9 +1165,8 @@ export function PotatoTossGame({ onExit }: { onExit?: () => void }) {
             open={resultOpen}
             onOpenChange={(o) => {
               setResultOpen(o);
-              if (!o && stateRef.current === GameState.Finished) {
+              if (!o && stateRef.current === GameState.Finished)
                 void claimAndExit();
-              }
             }}
           >
             <DialogContent>
@@ -1135,16 +1195,16 @@ export function PotatoTossGame({ onExit }: { onExit?: () => void }) {
 export const potatoTossMeta: MiniGameDef = {
   id: "potato-toss",
   title: "감자 던지기",
-  icon: <FontAwesomeIcon icon={faBullseye} className="h-5 w-5" />,
+  icon: <FontAwesomeIcon icon={faMeteor} className="h-5 w-5" />,
   entryFee: 30,
   howTo:
-    "1) 각도: W/S (차징 중에도 변경 가능)\n" +
+    "1) 각도: W/S (차징 중에도 변경 가능, 2° 단위)\n" +
     "2) 캔버스를 꾹 누르면 파워가 차징되고, 떼면 발사됩니다. 발사 원점은 화살표 끝입니다.\n" +
     "3) 성공은 바구니 윗입구 직선을 아래로 통과해야 인정(옆면 접촉 무효)\n" +
     "4) 성공 1회당 5G가 누적됩니다.\n" +
-    "5) 매 스테이지는 이벤트 상태가 하나입니다(배너 고정 표시). 확률: 없음 40%, 보상 30%, 방해물 30%.\n" +
-    "   - 보상(별똥별 40% / 상자 60%): 발사 전에 1개 스폰, 맞추면 +30G / +15G, 궤도 변화 없음\n" +
-    "   - 방해물(돌덩이/유령 50:50): 발사 직후 1~2개를 랜덤 위치에서 고속 스폰, 맞으면 궤도 변경\n" +
+    "5) 라운드당 하나의 상태가 유지됩니다(배너 고정). 확률: 없음 35%, 보상 40%, 방해 25%.\n" +
+    "   - 보상(⭐️/🎁/🎈): 스테이지 시작부터 둥실. 맞추면 +30/+15/+7G\n" +
+    "   - 방해(👻/🐝/🪨): 👻/🐝는 시작부터 둥실, 🪨은 발사 후 상단에서 급강하\n" +
     "6) 발사 전 예측 궤적은 표시하지 않고, 발사 후 궤적 트레일만 남습니다.",
   Component: PotatoTossGame,
 };
