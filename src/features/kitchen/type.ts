@@ -143,6 +143,17 @@ export const RECIPES: readonly Recipe[] = [
     sell: 33,
   },
   {
+    name: "감자즙",
+    emoji: "🍷",
+    grade: "초급",
+    potato: 5,
+    ingredients: [
+      { title: "양파", qty: 3 },
+      { title: "얼음", qty: 3 },
+    ],
+    sell: 30,
+  },
+  {
     name: "감자초콜렛",
     emoji: "🍫",
     grade: "초급",
@@ -228,6 +239,7 @@ export const RECIPES: readonly Recipe[] = [
     ],
     sell: 60,
   },
+
   {
     name: "감자 오믈렛",
     emoji: "🍳",
@@ -239,6 +251,18 @@ export const RECIPES: readonly Recipe[] = [
       { title: "양파", qty: 3 },
     ],
     sell: 63,
+  },
+  {
+    name: "감자 푸딩",
+    emoji: "🍮",
+    grade: "중급",
+    potato: 5,
+    ingredients: [
+      { title: "계란", qty: 5 },
+      { title: "버터", qty: 3 },
+      { title: "우유", qty: 3 },
+    ],
+    sell: 64,
   },
   {
     name: "감자버거",
@@ -323,6 +347,19 @@ export const RECIPES: readonly Recipe[] = [
       { title: "치즈", qty: 4 },
     ],
     sell: 82,
+  },
+  {
+    name: "감자 도시락",
+    emoji: "🍱",
+    grade: "고급",
+    potato: 5,
+    ingredients: [
+      { title: "양파", qty: 3 },
+      { title: "베이컨", qty: 4 },
+      { title: "녹색채소", qty: 4 },
+      { title: "고기", qty: 4 },
+    ],
+    sell: 84,
   },
   {
     name: "감자 부리또",

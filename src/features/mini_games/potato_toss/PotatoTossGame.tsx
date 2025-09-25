@@ -11,8 +11,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useCoupleContext } from "@/contexts/CoupleContext";
 
@@ -20,8 +18,8 @@ import { useCoupleContext } from "@/contexts/CoupleContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBullseye,
-  faGaugeHigh,
-  faHandPointer,
+  faCoins,
+  faRotateRight,
 } from "@fortawesome/free-solid-svg-icons";
 
 /* 공용 메타 타입 */
@@ -29,11 +27,12 @@ import type { MiniGameDef } from "@/features/mini_games/RecipeMemoryGame";
 
 /** ─────────────────────────────────────────────────────────────
  * Potato Toss — 포물선 던지기 (Canvas 2D)
- * - OX 히스토리 제거 → 상단 스탯 칩(진행 n/10, 명중, 보상) 고정
- * - 보상은 우상단에 고정(누적 표기). 히트마다 중앙 "+5" 플로팅
- * - 보상: 종료 시 일괄 지급(5G/성공)
- * - 성공 연출 중복 호출 제거: endThrow에서만 실행
- * - 바구니 위치는 라운드 종료 후에만 변경
+ * 변경점:
+ * - 반응형에서 부모 width 절대 초과 금지 (max-w-full + 내부 사이즈 산정)
+ * - 화살표 tip = 실제 발사 시작점 (시각/물리 완전 일치; 보정 제거)
+ * - 각도 연동형 파워바 제거
+ * - 클릭/터치한 위치에 임시 수평 파워바 표시, 발사 시 제거
+ * - 누적보상: 성공 1회당 5G (표기 일치)
  * ───────────────────────────────────────────────────────────── */
 
 type Props = { onExit?: () => void };
@@ -44,19 +43,70 @@ const POWER_MIN = 20;
 const POWER_MAX = 100;
 const ANGLE_MIN = 15;
 const ANGLE_MAX = 75;
-
-// 파워→초기속도(px/s)
-const powerToVelocity = (p: number) => 320 + (p / 100) * 820;
+const GOLD_PER_HIT = 5;
 
 const CHARGE_DURATION_MS = 1200;
 const TRAIL_MAX_POINTS = 160;
 const TRAIL_POINT_MIN_DIST = 9;
 const OFF_MARGIN = 60;
 const SAFETY_TIMEOUT_MS = 12000;
-const GOLD_PER_HIT = 10;
 
-// +5 플로팅 큐 타입
+// 화살표 길이 (발사 시작점까지의 시각 길이)
+const LAUNCH_ARROW_LEN = 64;
+
+// 파워→초기속도(px/s)
+const powerToVelocity = (p: number) => 320 + (p / 100) * 820;
+
+/* 상태머신 */
+enum GameState {
+  Idle = "Idle",
+  Charging = "Charging",
+  Flying = "Flying",
+  Resolving = "Resolving",
+  Between = "Between",
+  Finished = "Finished",
+}
+
 type GainCue = { id: number; t: number; dur: number };
+
+function roundRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+) {
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
+
+const toRad = (deg: number) => (deg * Math.PI) / 180;
+
+/** 단일 진실: 화살표 tip 좌표(= 실제 발사 시작점)
+ *  - 어떠한 시각/물리 보정도 넣지 않는다.
+ *  - UI와 물리 모두 이 좌표만 사용.
+ */
+function getLaunchTip({
+  base, // {x,y}
+  angleDeg,
+}: {
+  base: { x: number; y: number };
+  angleDeg: number;
+}) {
+  const theta = toRad(angleDeg);
+  const nx = Math.cos(theta);
+  const ny = -Math.sin(theta);
+  const tipX = base.x + nx * LAUNCH_ARROW_LEN;
+  const tipY = base.y + ny * LAUNCH_ARROW_LEN;
+  return { tipX, tipY, nx, ny };
+}
 
 export function PotatoTossGame({ onExit }: Props) {
   const { addGold, fetchCoupleData } = useCoupleContext() as {
@@ -67,18 +117,18 @@ export function PotatoTossGame({ onExit }: Props) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // 상태
+  // ===== UI 상태 =====
   const [angle, setAngle] = useState<number>(48);
   const [power, setPower] = useState<number>(POWER_MIN);
-  const [charging, setCharging] = useState<boolean>(false);
-  const chargeStartRef = useRef<number | null>(null);
-
   const [throws, setThrows] = useState<number>(0);
   const [hits, setHits] = useState<number>(0);
-  const [busy, setBusy] = useState<boolean>(false);
   const [resultOpen, setResultOpen] = useState<boolean>(false);
 
-  // 플로팅 "+5" 큐
+  // 지급 중복 방지
+  const claimedRef = useRef(false);
+  const [claiming, setClaiming] = useState(false);
+
+  // 플로팅 "+G"
   const [gainCues, setGainCues] = useState<GainCue[]>([]);
   const gainIdRef = useRef<number>(0);
   const spawnGainCue = () => {
@@ -88,18 +138,37 @@ export function PotatoTossGame({ onExit }: Props) {
       () => setGainCues((arr) => arr.filter((g) => g.id !== id)),
       1000
     );
+    (navigator as any)?.vibrate?.(20);
   };
 
-  // 각도 드래그
-  const draggingAngleRef = useRef<boolean>(false);
+  // 상태 refs
+  const stateRef = useRef<GameState>(GameState.Idle);
+  const angleRef = useRef<number>(angle);
+  const powerRef = useRef<number>(power);
+  useEffect(() => {
+    angleRef.current = angle;
+  }, [angle]);
+  useEffect(() => {
+    powerRef.current = power;
+  }, [power]);
 
-  // 중복 방지 락 + 샷 식별자
-  const resolvedRef = useRef<boolean>(false); // 성공/실패 판정 단 1회
-  const recordedRef = useRef<boolean>(false); // 기록 단 1회
+  // 차징
+  const chargeStartRef = useRef<number | null>(null);
+
+  // 클릭 위치 임시 파워바
+  const chargeUiRef = useRef<{ x: number; y: number; visible: boolean }>({
+    x: 0,
+    y: 0,
+    visible: false,
+  });
+
+  // 샷 관리
+  const resolvedRef = useRef<boolean>(false);
   const shotIdRef = useRef<number>(0);
   const activeShotIdRef = useRef<number | null>(null);
+  const processedShotsRef = useRef<Set<number>>(new Set());
 
-  // 실패 연출(화면 흔들림)
+  // 실패 흔들림
   const shakeRef = useRef<{ t: number; dur: number; amp: number }>({
     t: 0,
     dur: 0,
@@ -107,9 +176,10 @@ export function PotatoTossGame({ onExit }: Props) {
   });
   const triggerShake = (ms = 160, amp = 10) => {
     shakeRef.current = { t: 0, dur: ms, amp };
+    (navigator as any)?.vibrate?.([10, 30, 10]);
   };
 
-  // 성공 이펙트(초록 글로우 + 스파클)
+  // 성공 이펙트
   const successWaveRef = useRef<{
     t: number;
     dur: number;
@@ -120,7 +190,7 @@ export function PotatoTossGame({ onExit }: Props) {
     successWaveRef.current = { t: 0, dur, x, y };
   };
 
-  // 초록 스파클 파티클
+  // 초록 스파클
   type Spark = {
     x: number;
     y: number;
@@ -149,18 +219,19 @@ export function PotatoTossGame({ onExit }: Props) {
     }
   };
 
-  // 바구니 글로우(외곽선만)
+  // 바구니 글로우
   const bucketGlowRef = useRef<{ t: number; dur: number }>({ t: 0, dur: 0 });
   const triggerBucketGlow = (ms = 560) => {
     bucketGlowRef.current = { t: 0, dur: ms };
   };
 
-  // 반응형 캔버스
+  // 반응형 캔버스 크기 (부모 초과 금지)
   const [size, setSize] = useState({ w: 720, h: 420 });
   useEffect(() => {
     const el = wrapRef.current!;
     const ro = new ResizeObserver(() => {
-      const w = Math.max(360, Math.min(1000, el.clientWidth));
+      const parentW = el.clientWidth;
+      const w = Math.max(360, Math.min(1000, parentW));
       const h = Math.round(w * 0.58);
       setSize({ w, h });
     });
@@ -168,12 +239,13 @@ export function PotatoTossGame({ onExit }: Props) {
     return () => ro.disconnect();
   }, []);
 
-  // DPR + 컨텍스트 준비 (리사이즈시에만 업데이트)
+  // DPR + 컨텍스트
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const dprRef = useRef<number>(1);
   useEffect(() => {
     const cvs = canvasRef.current!;
     const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+    cvs.style.display = "block";
     cvs.style.width = `${size.w}px`;
     cvs.style.height = `${size.h}px`;
     cvs.width = Math.floor(size.w * dpr);
@@ -196,13 +268,10 @@ export function PotatoTossGame({ onExit }: Props) {
   const baseField = useMemo(() => {
     const groundY = size.h - 44;
     const launch = { x: 68, y: groundY - 18 };
-
     const bucketW = 117;
     const bucketH = 58;
-
     const left = Math.max(launch.x + 230, size.w * 0.42);
     const right = size.w - bucketW - 28;
-
     return {
       groundY,
       launch,
@@ -211,16 +280,35 @@ export function PotatoTossGame({ onExit }: Props) {
     };
   }, [size]);
 
-  // 바구니 위치
+  // 바구니 위치 + 트윈
   const bucketPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const randomizeBucketPosition = () => {
+  const bucketAnimRef = useRef<{
+    from: number;
+    to: number;
+    t: number;
+    dur: number;
+  } | null>(null);
+  const setBucketImmediate = (x: number) => {
+    bucketPosRef.current.x = x;
+    bucketAnimRef.current = null;
+  };
+  const tweenBucket = (toX: number, dur = 320) => {
+    const from = bucketPosRef.current.x;
+    bucketAnimRef.current = { from, to: toX, t: 0, dur };
+  };
+  const randomizeBucketPosition = (withTween = false) => {
     const { left, right } = baseField.bucketRange;
     const x = left + Math.random() * Math.max(10, right - left);
-    const y = baseField.groundY - baseField.bucketSize.h;
-    bucketPosRef.current = { x, y };
+    const { h: bH } = baseField.bucketSize;
+    const yMin = Math.round(size.h * 0.5);
+    const yMax = baseField.groundY - bH;
+    const y = yMin + Math.random() * Math.max(0, yMax - yMin);
+    bucketPosRef.current.y = y;
+    if (withTween) tweenBucket(x, 320);
+    else setBucketImmediate(x);
   };
   useEffect(() => {
-    randomizeBucketPosition();
+    randomizeBucketPosition(false);
   }, [baseField]);
 
   // 발사체
@@ -240,9 +328,7 @@ export function PotatoTossGame({ onExit }: Props) {
   // 트레일
   const trailRef = useRef<Array<{ x: number; y: number }>>([]);
 
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-
-  // 루프
+  // 렌더 루프
   useEffect(() => {
     if (!canvasRef.current || !ctxRef.current) return;
     const ctx = ctxRef.current;
@@ -252,6 +338,7 @@ export function PotatoTossGame({ onExit }: Props) {
     let dtMs = 16;
 
     const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+    const clampDt = (ms: number) => Math.min(ms, 33);
 
     const drawBackground = () => {
       const img = bgImgRef.current;
@@ -283,45 +370,40 @@ export function PotatoTossGame({ onExit }: Props) {
       ctx.fillRect(0, baseField.groundY, size.w, size.h - baseField.groundY);
     };
 
-    // 빨간 화살표 + 왼쪽 파워 게이지(캔버스 내)
+    // 화살표(시각) — getLaunchTip 사용 (보정 없음)
     const drawLauncher = () => {
       const { x, y } = baseField.launch;
-      const r = 64;
-      const theta = toRad(angle);
-      const tipX = x + Math.cos(theta) * r;
-      const tipY = y - Math.sin(theta) * r;
+      const { tipX, tipY, nx, ny } = getLaunchTip({
+        base: { x, y },
+        angleDeg: angleRef.current,
+      });
 
-      // 파워 게이지(왼쪽 수직바)
-      const barW = 10,
-        barH = 110;
-      const bx = x - 30 - barW;
-      const by = y - barH;
-      const ratio = (power - POWER_MIN) / (POWER_MAX - POWER_MIN);
-      ctx.fillStyle = "#e5e7eb";
-      ctx.fillRect(bx, by, barW, barH);
-      ctx.fillStyle = "#22c55e";
-      ctx.fillRect(bx, by + (1 - ratio) * barH, barW, ratio * barH);
-      ctx.strokeStyle = "#9ca3af";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(bx, by, barW, barH);
-
-      // 빨간 화살표
+      // 본체(샤프트)
       ctx.strokeStyle = "#ef4444";
-      ctx.lineWidth = 6;
+      ctx.lineWidth = 4;
       ctx.lineCap = "round";
       ctx.beginPath();
       ctx.moveTo(x, y);
       ctx.lineTo(tipX, tipY);
       ctx.stroke();
 
-      const headLen = 16,
-        headWidth = 14;
-      const nx = Math.cos(theta),
-        ny = -Math.sin(theta);
+      // 각도 뱃지
+      ctx.fillStyle = "#ef4444";
+      roundRectPath(ctx, x - 18, y - 22, 46, 20, 6);
+      ctx.fill();
+      ctx.fillStyle = "white";
+      ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillText(`${angleRef.current}°`, x - 12, y - 12);
+
+      // 화살촉(아펙스=발사점과 동일)
       const perpX = -ny,
         perpY = nx;
+      const headLen = 10,
+        headWidth = 12;
       const p1x = tipX,
-        p1y = tipY;
+        p1y = tipY; // 꼭짓점=발사점
       const p2x = tipX - nx * headLen + perpX * (headWidth / 2);
       const p3x = tipX - nx * headLen - perpX * (headWidth / 2);
       const p2y = tipY - ny * headLen + perpY * (headWidth / 2);
@@ -338,17 +420,13 @@ export function PotatoTossGame({ onExit }: Props) {
     const drawCuteBasket = () => {
       const { w, h } = baseField.bucketSize;
       const { x, y } = bucketPosRef.current;
-
-      // 몸통
       const g = ctx.createLinearGradient(x, y, x, y + h);
       g.addColorStop(0, "#fde68a");
       g.addColorStop(1, "#f59e0b");
       ctx.fillStyle = g;
-      ctx.beginPath();
-      (ctx as any).roundRect?.(x, y + 10, w, h - 10, 12);
+      roundRectPath(ctx, x, y + 10, w, h - 10, 12);
       ctx.fill();
 
-      // 앞면 짜임
       ctx.strokeStyle = "rgba(120,53,15,0.25)";
       ctx.lineWidth = 2;
       for (let i = 0; i < 6; i++) {
@@ -358,13 +436,11 @@ export function PotatoTossGame({ onExit }: Props) {
         ctx.stroke();
       }
 
-      // 입구 테두리
       ctx.fillStyle = "#92400e";
-      ctx.beginPath();
-      (ctx as any).roundRect?.(x - 3, y, w + 6, 16, 8);
+      roundRectPath(ctx, x - 3, y, w + 6, 16, 8);
       ctx.fill();
 
-      // 하트 엠블럼
+      // 하트
       ctx.fillStyle = "#ef4444";
       ctx.beginPath();
       const cx = x + w / 2,
@@ -405,7 +481,7 @@ export function PotatoTossGame({ onExit }: Props) {
       ctx.restore();
     };
 
-    // 바구니 윗입구 직선
+    // 바구니 윗입구
     const getOpening = () => {
       const { w } = baseField.bucketSize;
       const rimInset = 10;
@@ -415,7 +491,6 @@ export function PotatoTossGame({ onExit }: Props) {
       return { x1, x2, y };
     };
 
-    // 초록 글로우(외곽선만)
     const drawBucketGlow = (alpha: number) => {
       const { w, h } = baseField.bucketSize;
       const { x, y } = bucketPosRef.current;
@@ -425,8 +500,7 @@ export function PotatoTossGame({ onExit }: Props) {
       ctx.lineWidth = 12;
       ctx.shadowColor = "rgba(16,185,129,0.9)";
       ctx.shadowBlur = 18;
-      ctx.beginPath();
-      (ctx as any).roundRect?.(x - 8, y - 6, w + 16, h + 14, 14);
+      roundRectPath(ctx, x - 8, y - 6, w + 16, h + 14, 14);
       ctx.stroke();
       ctx.restore();
     };
@@ -450,18 +524,64 @@ export function PotatoTossGame({ onExit }: Props) {
       if (k >= 1) successWaveRef.current = null;
     };
 
+    const updateBucketTween = (dtLocal: number) => {
+      const anim = bucketAnimRef.current;
+      if (!anim) return;
+      anim.t += dtLocal;
+      const k = Math.min(1, anim.t / anim.dur);
+      const ease = 1 - Math.pow(1 - k, 3);
+      bucketPosRef.current.x = anim.from + (anim.to - anim.from) * ease;
+      if (k >= 1) bucketAnimRef.current = null;
+    };
+
+    const drawChargeBar = () => {
+      if (!chargeUiRef.current.visible) return;
+      const { x, y } = chargeUiRef.current;
+      const ratio = (powerRef.current - POWER_MIN) / (POWER_MAX - POWER_MIN);
+      const barW = 160;
+      const barH = 10;
+      const rx = Math.round(x - barW / 2);
+      const ry = Math.round(y - 30);
+      ctx.save();
+      ctx.fillStyle = "#e5e7eb";
+      roundRectPath(ctx, rx, ry, barW, barH, 6);
+      ctx.fill();
+      ctx.fillStyle = "#22c55e";
+      roundRectPath(ctx, rx, ry, Math.max(6, barW * ratio), barH, 6);
+      ctx.fill();
+      ctx.strokeStyle = "#9ca3af";
+      ctx.lineWidth = 1;
+      roundRectPath(ctx, rx, ry, barW, barH, 6);
+      ctx.stroke();
+      ctx.fillStyle = "#111827";
+      ctx.font = "11px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(`${Math.round(powerRef.current)}%`, x, ry - 2);
+      ctx.restore();
+    };
+
+    const lastUiUpdateRef = { current: 0 };
+
     const step = () => {
       const now = performance.now();
-      dtMs = now - prev;
+      dtMs = clampDt(now - prev);
       prev = now;
       const dt = dtMs / 1000;
 
       // 차징
-      if (charging && chargeStartRef.current != null) {
+      if (
+        stateRef.current === GameState.Charging &&
+        chargeStartRef.current != null
+      ) {
         const elapsed = now - chargeStartRef.current;
         const k = Math.min(1, elapsed / CHARGE_DURATION_MS);
-        const p = POWER_MIN + k * (POWER_MAX - POWER_MIN);
-        setPower(Math.round(p));
+        const p = Math.round(POWER_MIN + k * (POWER_MAX - POWER_MIN));
+        powerRef.current = p;
+        if (now - lastUiUpdateRef.current > 80) {
+          lastUiUpdateRef.current = now;
+          setPower(p);
+        }
       }
 
       // 흔들림
@@ -479,7 +599,10 @@ export function PotatoTossGame({ onExit }: Props) {
         if (k >= 1) shakeRef.current.dur = 0;
       }
 
+      updateBucketTween(dtMs);
+
       // 배경/오브젝트
+      const ctx = ctxRef.current!;
       ctx.clearRect(0, 0, size.w, size.h);
       ctx.save();
       ctx.translate(offX, offY);
@@ -487,61 +610,73 @@ export function PotatoTossGame({ onExit }: Props) {
       drawLauncher();
       drawCuteBasket();
 
-      // 발사체 업데이트
-      const p = projectileRef.current;
-      if (p.active) {
-        p.prevX = p.x;
-        p.prevY = p.y;
-        p.vy += GRAVITY * dt;
-        p.x += p.vx * dt;
-        p.y += p.vy * dt;
+      // 발사체 물리
+      const proj = projectileRef.current;
+      if (stateRef.current === GameState.Flying && proj.active) {
+        proj.prevX = proj.x;
+        proj.prevY = proj.y;
+        proj.vy += GRAVITY * dt;
+        proj.x += proj.vx * dt;
+        proj.y += proj.vy * dt;
 
         // 트레일
         const pts = trailRef.current;
         if (
           pts.length === 0 ||
-          Math.hypot(p.x - pts[pts.length - 1].x, p.y - pts[pts.length - 1].y) >
-            TRAIL_POINT_MIN_DIST
+          Math.hypot(
+            proj.x - pts[pts.length - 1].x,
+            proj.y - pts[pts.length - 1].y
+          ) > TRAIL_POINT_MIN_DIST
         ) {
-          pts.push({ x: p.x, y: p.y });
+          pts.push({ x: proj.x, y: proj.y });
           if (pts.length > TRAIL_MAX_POINTS) pts.shift();
         }
 
-        // 성공 체크(윗입구 선 아래로 통과) — ※ 연출은 endThrow에서만!
+        // 성공 체크: 윗입구 선 통과
         const { x1, x2, y } = getOpening();
-        const prevBottom = p.prevY + p.r;
-        const currBottom = p.y + p.r;
+        const prevBottom = proj.prevY + proj.r;
+        const currBottom = proj.y + proj.r;
         if (
           !resolvedRef.current &&
-          p.vy > 0 &&
+          proj.vy > 0 &&
           prevBottom < y &&
-          currBottom >= y &&
-          p.x >= x1 &&
-          p.x <= x2
+          currBottom >= y
         ) {
-          resolvedRef.current = true;
-          p.active = false;
-          endThrow(true, p.x, y, activeShotIdRef.current!);
+          const t = (y - prevBottom) / (currBottom - prevBottom);
+          const crossX = proj.prevX + (proj.x - proj.prevX) * t;
+          if (crossX >= x1 && crossX <= x2) {
+            resolvedRef.current = true;
+            proj.active = false;
+            if (proj.safetyTimer) {
+              clearTimeout(proj.safetyTimer);
+              proj.safetyTimer = undefined;
+            }
+            endThrow(true, crossX, y, activeShotIdRef.current!);
+          }
         }
 
-        // 지면/오프스크린 실패
-        if (p.active && !resolvedRef.current) {
-          const offRight = p.x - p.r > size.w + OFF_MARGIN;
-          const offLeft = p.x + p.r < -OFF_MARGIN;
-          const offBottom = p.y - p.r > size.h + OFF_MARGIN;
-          const hitGround = p.y + p.r >= baseField.groundY;
+        // 실패 조건
+        if (!resolvedRef.current) {
+          const offRight = proj.x - proj.r > size.w + OFF_MARGIN;
+          const offLeft = proj.x + proj.r < -OFF_MARGIN;
+          const offBottom = proj.y - proj.r > size.h + OFF_MARGIN;
+          const hitGround = proj.y + proj.r >= baseField.groundY;
           if (hitGround || offRight || offLeft || offBottom) {
             resolvedRef.current = true;
-            p.active = false;
-            endThrow(false, p.x, p.y, activeShotIdRef.current!);
+            proj.active = false;
+            if (proj.safetyTimer) {
+              clearTimeout(proj.safetyTimer);
+              proj.safetyTimer = undefined;
+            }
+            endThrow(false, proj.x, proj.y, activeShotIdRef.current!);
           }
         }
       }
 
-      // 성공 웨이브
+      // 성공 이펙트
       drawSuccessWave();
 
-      // 바구니 글로우
+      // 글로우
       if (bucketGlowRef.current.dur > 0) {
         bucketGlowRef.current.t += dtMs;
         const k = Math.max(
@@ -571,11 +706,12 @@ export function PotatoTossGame({ onExit }: Props) {
         return true;
       });
 
-      // 트레일 & 발사체
+      // 트레일/발사체
       drawTrail();
-      if (p.active) {
-        drawPotatoEmoji(p.x, p.y);
-      }
+      if (proj.active) drawPotatoEmoji(proj.x, proj.y);
+
+      // 임시 파워바
+      drawChargeBar();
 
       ctx.restore();
       raf = requestAnimationFrame(step);
@@ -583,101 +719,126 @@ export function PotatoTossGame({ onExit }: Props) {
 
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
-  }, [size, baseField, angle, power, charging]);
+  }, [size, baseField]);
 
-  // 각도 드래그 (캔버스 상에서만)
+  // pointerdown: 차징 시작 + 클릭 위치 기록(임시 파워바)
   useEffect(() => {
     const cvs = canvasRef.current;
     if (!cvs) return;
 
-    const withinHandleOrBase = (px: number, py: number) => {
-      const { x, y } = baseField.launch;
-      const r = 64;
-      const hx = x + Math.cos(toRad(angle)) * r;
-      const hy = y - Math.sin(toRad(angle)) * r;
-      const onHandle = Math.hypot(px - hx, py - hy) <= 16;
-      const nearBase = Math.hypot(px - x, py - y) <= 64;
-      return onHandle || nearBase;
+    const onPD = (e: PointerEvent) => {
+      if (
+        stateRef.current !== GameState.Idle &&
+        stateRef.current !== GameState.Between
+      )
+        return;
+      if (throws >= MAX_THROWS) return;
+
+      const rect = cvs.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const clampedX = Math.max(12, Math.min(rect.width - 12, x));
+      const clampedY = Math.max(12, Math.min(rect.height - 12, y));
+
+      chargeUiRef.current = { x: clampedX, y: clampedY, visible: true };
+
+      beginCharge();
+      e.preventDefault();
     };
 
-    const updateAngleByPointer = (px: number, py: number) => {
-      const dx = px - baseField.launch.x;
-      const dy = py - baseField.launch.y;
-      let deg = (Math.atan2(-dy, dx) * 180) / Math.PI;
-      deg = Math.max(ANGLE_MIN, Math.min(ANGLE_MAX, deg));
-      setAngle(Math.round(deg));
-    };
+    cvs.addEventListener("pointerdown", onPD);
+    return () => cvs.removeEventListener("pointerdown", onPD);
+  }, [throws]);
 
-    const onDown = (e: PointerEvent) => {
-      if (busy || charging || projectileRef.current.active) return;
-      const r = cvs.getBoundingClientRect();
-      const x = e.clientX - r.left,
-        y = e.clientY - r.top;
-      if (withinHandleOrBase(x, y)) {
-        draggingAngleRef.current = true;
-        e.preventDefault();
-        updateAngleByPointer(x, y);
+  // 릴리즈: 발사 & 임시 파워바 숨김
+  useEffect(() => {
+    const up = () => {
+      if (stateRef.current === GameState.Charging) {
+        chargeUiRef.current.visible = false;
+        releaseAndThrow();
       }
     };
-    const onMove = (e: PointerEvent) => {
-      if (!draggingAngleRef.current) return;
-      const r = cvs.getBoundingClientRect();
-      updateAngleByPointer(e.clientX - r.left, e.clientY - r.top);
-    };
-    const onUp = () => {
-      draggingAngleRef.current = false;
-    };
-
-    cvs.addEventListener("pointerdown", onDown);
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
+    window.addEventListener("mouseup", up);
+    window.addEventListener("touchend", up);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("mouseleave", up);
     return () => {
-      cvs.removeEventListener("pointerdown", onDown);
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("mouseup", up);
+      window.removeEventListener("touchend", up);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("mouseleave", up);
     };
-  }, [baseField, busy, charging, angle]);
+  }, []);
 
-  // 차징(꾹)
+  // 키보드 입력 — W/S만
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "KeyW") {
+        if (
+          stateRef.current === GameState.Idle ||
+          stateRef.current === GameState.Between
+        ) {
+          setAngle((a) => {
+            const na = Math.min(ANGLE_MAX, a + 1);
+            angleRef.current = na;
+            return na;
+          });
+          e.preventDefault();
+        }
+      } else if (e.code === "KeyS") {
+        if (
+          stateRef.current === GameState.Idle ||
+          stateRef.current === GameState.Between
+        ) {
+          setAngle((a) => {
+            const na = Math.max(ANGLE_MIN, a - 1);
+            angleRef.current = na;
+            return na;
+          });
+          e.preventDefault();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  // 차징 시작
   const beginCharge = () => {
-    if (busy) return;
-    if (throws >= MAX_THROWS) return;
-    if (projectileRef.current.active) return;
-    if (draggingAngleRef.current) return;
-    setCharging(true);
+    stateRef.current = GameState.Charging;
     chargeStartRef.current = performance.now();
+    powerRef.current = POWER_MIN;
     setPower(POWER_MIN);
     trailRef.current = [];
+    (navigator as any)?.vibrate?.(10);
   };
 
-  // 릴리즈 + 발사 (shotId 생성)
+  // 릴리즈→투척 (tip에서 발사) — getLaunchTip 사용 (보정 없음)
   const releaseAndThrow = () => {
-    if (!charging) return; // 꾹 누르지 않은 경우 무시
-    setCharging(false);
-    if (busy || throws >= MAX_THROWS || projectileRef.current.active) return;
+    stateRef.current = GameState.Flying;
 
-    setBusy(true);
-    resolvedRef.current = false;
-    recordedRef.current = false;
-
-    // shot id
     const newId = ++shotIdRef.current;
     activeShotIdRef.current = newId;
+    resolvedRef.current = false;
 
-    const v = powerToVelocity(power);
-    const theta = toRad(angle);
+    const v = powerToVelocity(powerRef.current);
+
+    const { tipX, tipY, nx, ny } = getLaunchTip({
+      base: baseField.launch,
+      angleDeg: angleRef.current,
+    });
 
     const p = projectileRef.current;
-    p.x = baseField.launch.x;
-    p.y = baseField.launch.y;
+    p.x = tipX; // 동일 좌표
+    p.y = tipY; // 동일 좌표
     p.prevX = p.x;
     p.prevY = p.y;
-    p.vx = Math.cos(theta) * v;
-    p.vy = -Math.sin(theta) * v;
+    p.vx = nx * v;
+    p.vy = ny * v; // ny는 -sin(θ)
     p.active = true;
     p.launchedAt = performance.now();
 
-    // 세이프티
     p.safetyTimer = window.setTimeout(() => {
       if (p.active && !resolvedRef.current) {
         resolvedRef.current = true;
@@ -687,31 +848,18 @@ export function PotatoTossGame({ onExit }: Props) {
     }, SAFETY_TIMEOUT_MS);
   };
 
-  // mouseup/touchend 릴리즈
-  useEffect(() => {
-    const up = () => releaseAndThrow();
-    window.addEventListener("mouseup", up);
-    window.addEventListener("touchend", up);
-    window.addEventListener("mouseleave", up);
-    return () => {
-      window.removeEventListener("mouseup", up);
-      window.removeEventListener("touchend", up);
-      window.removeEventListener("mouseleave", up);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [charging, busy, throws, angle, power]);
-
-  // 투척 종료(성공/실패 확정 시 단 1회 기록) — 성공 연출은 여기서만!
+  // 투척 종료(중복 가드)
   const endThrow = (
     scored: boolean,
     x?: number,
     y?: number,
     shotId?: number
   ) => {
-    // 샷 식별 불일치 또는 이미 기록되었으면 무시
-    if (shotId != null && activeShotIdRef.current !== shotId) return;
-    if (recordedRef.current) return;
-    recordedRef.current = true;
+    if (shotId != null) {
+      if (processedShotsRef.current.has(shotId)) return;
+      if (activeShotIdRef.current !== shotId) return;
+      processedShotsRef.current.add(shotId);
+    }
     activeShotIdRef.current = null;
 
     const p = projectileRef.current;
@@ -720,12 +868,13 @@ export function PotatoTossGame({ onExit }: Props) {
       p.safetyTimer = undefined;
     }
 
+    stateRef.current = GameState.Resolving;
+
     setThrows((t) => {
       const next = t + 1;
 
       if (scored) {
         setHits((h) => h + 1);
-        // ✅ 성공 연출(단 1회) — 이전 중복 호출 제거됨
         triggerSuccessWave(x ?? baseField.launch.x, y ?? baseField.launch.y);
         triggerBucketGlow(560);
         spawnGreenSparks(x ?? baseField.launch.x, y ?? baseField.launch.y, 28);
@@ -734,18 +883,29 @@ export function PotatoTossGame({ onExit }: Props) {
         triggerShake(180, 12);
       }
 
-      // 다음 라운드 세팅(결과 확정 후에만 위치 변경)
+      // 다음 라운드
       window.setTimeout(() => {
-        setBusy(false);
+        trailRef.current = [];
         if (next < MAX_THROWS) {
-          randomizeBucketPosition();
-          trailRef.current = [];
+          stateRef.current = GameState.Between;
+
+          const { left, right } = baseField.bucketRange;
+          const toX = left + Math.random() * Math.max(10, right - left);
+          tweenBucket(toX, 320);
+
+          const { h: bH } = baseField.bucketSize;
+          const yMin = Math.round(size.h * 0.5);
+          const yMax = baseField.groundY - bH;
+          bucketPosRef.current.y =
+            yMin + Math.random() * Math.max(0, yMax - yMin);
+
+          setTimeout(() => (stateRef.current = GameState.Idle), 120);
+        } else {
+          stateRef.current = GameState.Finished;
+          setTimeout(() => setResultOpen(true), 420);
         }
       }, 300);
 
-      if (next >= MAX_THROWS) {
-        window.setTimeout(() => setResultOpen(true), 420);
-      }
       return next;
     });
   };
@@ -753,6 +913,11 @@ export function PotatoTossGame({ onExit }: Props) {
   const totalGold = hits * GOLD_PER_HIT;
 
   const claimAndExit = async () => {
+    if (claimedRef.current || claiming) {
+      onExit?.();
+      return;
+    }
+    setClaiming(true);
     try {
       if (totalGold > 0) {
         const ok = await addGold?.(totalGold);
@@ -763,167 +928,117 @@ export function PotatoTossGame({ onExit }: Props) {
           toast.error("보상 지급 실패", { duration: 1200 });
         }
       }
+      claimedRef.current = true;
     } catch (e) {
       console.error(e);
       toast.error("보상 지급 오류", { duration: 1200 });
     } finally {
+      setClaiming(false);
       onExit?.();
     }
   };
 
-  const progressPct = Math.round((throws / MAX_THROWS) * 100);
-
   return (
-    <div className="w-full" ref={wrapRef}>
-      {/* 상단 스탯 바 */}
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="min-w-[200px]">
-          <Progress value={progressPct} />
-        </div>
-        <div className="hidden md:flex items-center gap-2">
-          {/* 진행도 칩 */}
-          <div className="rounded-lg border bg-white/70 backdrop-blur px-3 py-1.5 text-sm font-semibold text-slate-800 shadow-sm">
-            진행 <span className="font-extrabold text-slate-900">{throws}</span>{" "}
-            / {MAX_THROWS}
-          </div>
-          {/* 명중 칩 */}
-          <div className="rounded-lg border bg-emerald-50/80 backdrop-blur px-3 py-1.5 text-sm font-semibold text-emerald-700 shadow-sm">
-            명중 <span className="font-extrabold text-emerald-700">{hits}</span>
-          </div>
-          {/* 보상 칩 */}
-          <div className="rounded-lg border bg-yellow-50/90 backdrop-blur px-3 py-1.5 text-sm font-semibold text-yellow-800 shadow-sm">
-            보상{" "}
-            <span className="font-extrabold text-yellow-900">{totalGold}G</span>
-          </div>
+    <div className="w-full flex justify-center">
+      {/* 부모 안에서만 렌더되도록 max-w-full */}
+      <div className="w-full max-w-full">
+        <div ref={wrapRef} className="w-full max-w-full">
+          <Card className="p-3 relative overflow-hidden">
+            {/* 중앙 플로팅 "+G" */}
+            <div className="pointer-events-none absolute inset-0 z-30 grid place-items-center">
+              {gainCues.map((g) => (
+                <span
+                  key={g.id}
+                  className="animate-[floatFade_0.9s_ease-out_forwards] text-3xl font-extrabold text-emerald-500 drop-shadow-md"
+                >
+                  +{GOLD_PER_HIT}
+                </span>
+              ))}
+            </div>
+
+            {/* 캔버스 */}
+            <div className="w-full max-w-full">
+              <canvas
+                ref={canvasRef}
+                style={{ display: "block", maxWidth: "100%" }}
+              />
+            </div>
+
+            {/* 하단 통계 */}
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="rounded-2xl border bg-white/70 backdrop-blur px-4 py-3 shadow-sm">
+                <div className="flex items-center gap-2 text-slate-700">
+                  <FontAwesomeIcon icon={faRotateRight} className="h-4 w-4" />
+                  <span className="text-sm font-semibold">시도 횟수</span>
+                </div>
+                <div className="mt-1 text-2xl md:text-3xl font-extrabold tracking-tight">
+                  {throws}{" "}
+                  <span className="text-base text-slate-500">
+                    / {MAX_THROWS}
+                  </span>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border bg-yellow-50/70 backdrop-blur px-4 py-3 shadow-sm">
+                <div className="flex items-center gap-2 text-yellow-800">
+                  <FontAwesomeIcon icon={faCoins} className="h-4 w-4" />
+                  <span className="text-sm font-semibold">누적 보상</span>
+                </div>
+                <div className="mt-1 text-2xl md:text-3xl font-extrabold tracking-tight text-yellow-900">
+                  {totalGold}G
+                </div>
+              </div>
+            </div>
+
+            {/* "+G" 애니메이션 키프레임 */}
+            <style jsx>{`
+              @keyframes floatFade {
+                0% {
+                  transform: translateY(8px) scale(0.98);
+                  opacity: 0;
+                }
+                20% {
+                  opacity: 1;
+                }
+                60% {
+                  transform: translateY(-8px) scale(1.02);
+                }
+                100% {
+                  transform: translateY(-18px) scale(1.02);
+                  opacity: 0;
+                }
+              }
+            `}</style>
+          </Card>
+
+          {/* 결과 모달 — 바깥 클릭으로 닫혀도 자동 보상 */}
+          <Dialog
+            open={resultOpen}
+            onOpenChange={(o) => {
+              setResultOpen(o);
+              if (!o && stateRef.current === GameState.Finished) {
+                claimAndExit();
+              }
+            }}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>결과</DialogTitle>
+                <DialogDescription className="text-sm">
+                  총 명중: <b>{hits}</b> / {MAX_THROWS}
+                  <br />총 획득 예정 보상:{" "}
+                  <b className="text-emerald-600">{hits * GOLD_PER_HIT}G</b>
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="sm:justify-end">
+                <Button onClick={claimAndExit} disabled={claiming}>
+                  보상 받기 & 게임 목록으로
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
-
-      <Card className="p-3 relative overflow-hidden">
-        {/* 모바일에서도 잘 보이도록 좌/우 상단 고정 표시 */}
-        <div className="absolute left-6 top-6 z-20 rounded-lg bg-white/70 backdrop-blur px-2.5 py-1.5 border text-base md:text-xl font-extrabold text-slate-800 shadow-sm">
-          {throws}/{MAX_THROWS}
-        </div>
-
-        <div className="absolute right-6 top-6 z-20 rounded-lg bg-emerald-50/80 backdrop-blur px-2.5 py-1.5 border border-emerald-200 text-sm md:text-base font-bold text-emerald-700 shadow-sm">
-          보상 {totalGold}G
-        </div>
-
-        {/* 중앙 상단: 명중 카운트 강조 */}
-        <div className="absolute left-1/2 -translate-x-1/2 top-6 z-20 rounded-lg bg-white/60 backdrop-blur px-3 py-1.5 border text-base md:text-lg font-bold text-slate-800 shadow-sm">
-          <FontAwesomeIcon
-            icon={faBullseye}
-            className="mr-2 h-4 w-4 text-emerald-600"
-          />
-          명중 <span className="font-extrabold">{hits}</span>
-        </div>
-
-        {/* 중앙 플로팅 "+5" 큐 */}
-        <div className="pointer-events-none absolute inset-0 z-30 grid place-items-center">
-          {gainCues.map((g) => (
-            <span
-              key={g.id}
-              className="animate-[floatFade_0.9s_ease-out_forwards] text-3xl font-extrabold text-emerald-500 drop-shadow-md"
-            >
-              +{GOLD_PER_HIT}
-            </span>
-          ))}
-        </div>
-
-        {/* 캔버스 */}
-        <div className="w-full">
-          <canvas ref={canvasRef} />
-        </div>
-
-        {/* 컨트롤 패널 — 슬림(기본값 버튼 제거) */}
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-          {/* 각도 */}
-          <div className="rounded-lg border p-3">
-            <div className="flex items-center justify-between mb-2">
-              <div className="font-semibold text-sm flex items-center gap-2">
-                <FontAwesomeIcon icon={faGaugeHigh} className="h-4 w-4" />
-                각도 (캔버스 드래그 가능)
-              </div>
-              <span className="text-xs text-muted-foreground">{angle}°</span>
-            </div>
-            <input
-              type="range"
-              min={ANGLE_MIN}
-              max={ANGLE_MAX}
-              step={1}
-              value={angle}
-              onChange={(e) => setAngle(parseInt(e.target.value))}
-              className="w-full"
-              disabled={busy || projectileRef.current.active || charging}
-            />
-          </div>
-
-          {/* 파워 현재값 안내 */}
-          <div className="rounded-lg border p-3">
-            <div className="flex items-center justify-between mb-2">
-              <div className="font-semibold text-sm flex items-center gap-2">
-                <FontAwesomeIcon icon={faHandPointer} className="h-4 w-4" />
-                파워(꾹 누르기)
-              </div>
-              <span className="text-xs text-muted-foreground">{power}%</span>
-            </div>
-            <div className="text-xs text-muted-foreground">
-              버튼을 꾹 누르면 파워가 차고, 손을 떼면 발사돼요.
-            </div>
-          </div>
-
-          {/* 액션 */}
-          <div className="rounded-lg border p-3 grid place-items-center">
-            <Button
-              onMouseDown={() => beginCharge()}
-              onTouchStart={() => beginCharge()}
-              className={cn("gap-2 px-6", charging && "animate-pulse")}
-              disabled={
-                busy || projectileRef.current.active || throws >= MAX_THROWS
-              }
-            >
-              <FontAwesomeIcon icon={faHandPointer} className="h-4 w-4" />
-              {charging ? "꾹 누르는 중..." : "THROW (꾹)"}
-            </Button>
-          </div>
-        </div>
-
-        {/* "+5" 애니메이션 키프레임 */}
-        <style jsx>{`
-          @keyframes floatFade {
-            0% {
-              transform: translateY(8px) scale(0.98);
-              opacity: 0;
-            }
-            20% {
-              opacity: 1;
-            }
-            60% {
-              transform: translateY(-8px) scale(1.02);
-            }
-            100% {
-              transform: translateY(-18px) scale(1.02);
-              opacity: 0;
-            }
-          }
-        `}</style>
-      </Card>
-
-      {/* 결과 모달 — 종료 시 일괄 지급 */}
-      <Dialog open={resultOpen} onOpenChange={(o) => setResultOpen(o)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>결과</DialogTitle>
-            <DialogDescription className="text-sm">
-              총 명중: <b>{hits}</b> / {MAX_THROWS}
-              <br />총 획득 예정 보상:{" "}
-              <b className="text-emerald-600">{totalGold}G</b>
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="sm:justify-end">
-            <Button onClick={claimAndExit}>보상 받기 & 게임 목록으로</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
@@ -935,9 +1050,9 @@ export const potatoTossMeta: MiniGameDef = {
   icon: <FontAwesomeIcon icon={faBullseye} className="h-5 w-5" />,
   entryFee: 50,
   howTo:
-    "1) 각도는 슬라이더 또는 캔버스의 빨간 화살표를 드래그해 조절합니다.\n" +
-    "2) THROW 버튼을 꾹 누르면 파워가 차고, 손을 떼면 발사됩니다.\n" +
-    "3) 성공은 바구니 윗입구 직선을 아래로 통과해야 인정됩니다(옆면 접촉 무효).\n" +
-    "4) 성공 횟수에 따라 10골드가 누적되며, 게임 종료 후 일괄 지급됩니다.",
+    "1) 각도: W/S (꾹 누르면 연속).\n" +
+    "2) 캔버스(게임 배경)를 꾹 누르면 파워가 차징되고, 떼면 발사됩니다. 발사 원점은 화살표 끝입니다.\n" +
+    "3) 성공은 바구니 윗입구 직선을 아래로 통과해야 인정(옆면 접촉 무효).\n" +
+    "4) 성공 1회당 5골드 누적, 종료 후 자동 지급(모달 바깥 클릭해도 지급, 중복 방지).",
   Component: PotatoTossGame,
 };
