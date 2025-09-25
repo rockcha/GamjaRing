@@ -28,6 +28,7 @@ import ResultDialog, {
   type FishResult as DialogFishResult,
   type Rarity,
 } from "@/features/fishing/ResultDialog";
+import NewSpeciesBanner from "@/components/widgets/Cards/NewSpeciesBanner";
 
 /* ──────────────────────────────────────────────────────────── */
 const DND_MIME = "application/x-ingredient" as const;
@@ -436,6 +437,8 @@ export default function FishingPage() {
             setPrevSrc(null);
           }}
         />
+
+        <NewSpeciesBanner />
         {/* 비네트 */}
         <div className="pointer-events-none absolute inset-0 [background:radial-gradient(60%_60%_at_50%_40%,rgba(0,0,0,0)_0%,rgba(0,0,0,.25)_100%)] md:[background:radial-gradient(55%_65%_at_50%_35%,rgba(0,0,0,0)_0%,rgba(0,0,0,.18)_100%)]" />
         {/* 중앙 위치 배지 */}

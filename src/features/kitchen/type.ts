@@ -143,6 +143,17 @@ export const RECIPES: readonly Recipe[] = [
     sell: 33,
   },
   {
+    name: "감자즙",
+    emoji: "🍷",
+    grade: "초급",
+    potato: 5,
+    ingredients: [
+      { title: "양파", qty: 3 },
+      { title: "얼음", qty: 3 },
+    ],
+    sell: 30,
+  },
+  {
     name: "감자초콜렛",
     emoji: "🍫",
     grade: "초급",
@@ -228,6 +239,7 @@ export const RECIPES: readonly Recipe[] = [
     ],
     sell: 60,
   },
+
   {
     name: "감자 오믈렛",
     emoji: "🍳",
@@ -239,6 +251,18 @@ export const RECIPES: readonly Recipe[] = [
       { title: "양파", qty: 3 },
     ],
     sell: 63,
+  },
+  {
+    name: "감자 푸딩",
+    emoji: "🍮",
+    grade: "중급",
+    potato: 5,
+    ingredients: [
+      { title: "계란", qty: 5 },
+      { title: "버터", qty: 3 },
+      { title: "우유", qty: 3 },
+    ],
+    sell: 64,
   },
   {
     name: "감자버거",
@@ -323,6 +347,19 @@ export const RECIPES: readonly Recipe[] = [
       { title: "치즈", qty: 4 },
     ],
     sell: 82,
+  },
+  {
+    name: "감자 도시락",
+    emoji: "🍱",
+    grade: "고급",
+    potato: 5,
+    ingredients: [
+      { title: "양파", qty: 3 },
+      { title: "베이컨", qty: 4 },
+      { title: "녹색채소", qty: 4 },
+      { title: "고기", qty: 4 },
+    ],
+    sell: 84,
   },
   {
     name: "감자 부리또",
@@ -566,6 +603,19 @@ export const FOOD_META: Record<RecipeName, FoodInfo> = {
     name: "감자 전골탕",
     desc: "진한 국물에 고기와 감자가 우러난 뜨끈한 한 냄비.",
   },
+  감자도시락: {
+    name: "감자 도시락",
+    desc: "포슬한 감자반찬 가득—구이·샐러드·조림을 한 상자에 담은 든든한 한 끼.",
+  },
+  감자푸딩: {
+    name: "감자 푸딩",
+    desc: "부드럽고 몽글—감자의 담백함과 우유의 고소함이 녹아든 디저트.",
+  },
+  감자즙: {
+    name: "감자즙",
+    desc: "갓 착즙한 순한 풍미—담백하게 목 넘기는 건강 한 잔.",
+  },
+
   감자경단: { name: "감자 경단", desc: "여러가지 재료와 쫀득함을 한번에." },
 } as const;
 
