@@ -32,9 +32,13 @@ import {
   type MiniGameDef,
 } from "@/features/mini_games/RecipeMemoryGame";
 import { potatoTossMeta } from "@/features/mini_games/potato_toss/PotatoTossGame";
-import { mazeMeta } from "@/features/mini_games/MazeGame";
+import { shadowPiecesMeta } from "@/features/mini_games/shadow_pieces";
 
-const GAMES: MiniGameDef[] = [recipeMemoryMeta, potatoTossMeta, mazeMeta];
+const GAMES: MiniGameDef[] = [
+  recipeMemoryMeta,
+  potatoTossMeta,
+  shadowPiecesMeta,
+];
 
 export default function MiniGamePage() {
   const { couple, spendGold, fetchCoupleData } = useCoupleContext();

@@ -1195,7 +1195,7 @@ export function PotatoTossGame({ onExit }: { onExit?: () => void }) {
 export const potatoTossMeta: MiniGameDef = {
   id: "potato-toss",
   title: "감자 던지기",
-  icon: <FontAwesomeIcon icon={faMeteor} className="h-5 w-5" />,
+  icon: "🎯",
   entryFee: 30,
   howTo:
     "1) 각도: W/S (차징 중에도 변경 가능, 2° 단위)\n" +
