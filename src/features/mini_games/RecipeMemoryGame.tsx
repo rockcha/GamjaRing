@@ -528,7 +528,7 @@ export function RecipeMemoryGame({ onExit }: Props) {
 export const recipeMemoryMeta: MiniGameDef = {
   id: "recipe-memory",
   title: "레시피 기억 게임",
-  icon: <FontAwesomeIcon icon={faUtensils} className="h-5 w-5" />,
+  icon: "🧠",
   entryFee: 30,
   howTo:
     "1) 화면에 3초 동안 재료들이 순서대로 나타납니다.\n2) 이후 순서와 재료를 기억해 동일하게 제출하세요.\n3) 각 단계마다 보상이 커집니다.\n4) 성공 시 계속/그만을 선택할 수 있고, 실패 시 누적 보상은 사라집니다.",
