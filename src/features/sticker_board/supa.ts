@@ -1,4 +1,4 @@
-// 공유 supabase 클라이언트를 사용 (createClient 쓰지 않음)
+// supa.ts
 import supabase from "@/lib/supabase";
 import type { BoardMeta, InventoryRow, PlacedSticker } from "./types";
 
@@ -76,6 +76,19 @@ export async function upsertBoardColor(coupleId: string, color: string) {
   if (error) throw error;
 }
 
+// --- NEW: Board size upsert -----------------------------------------------------
+
+/** 보드 width/height 일부 필드 업서트 (없으면 생성) */
+export async function upsertBoardSize(
+  coupleId: string,
+  patch: { height?: number; width?: number }
+) {
+  const { error } = await supabase
+    .from("sticker_boards")
+    .upsert({ couple_id: coupleId, ...patch }, { onConflict: "couple_id" });
+  if (error) throw error;
+}
+
 // --- Mutations / RPC -------------------------------------------------------------
 
 export async function placeFromInventory(
@@ -123,4 +136,4 @@ export async function moveToBack(coupleId: string, id: string) {
   if (error) throw error;
 }
 
-export { supabase }; // 필요 시 외부에서 사용
+export { supabase };

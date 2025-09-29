@@ -438,7 +438,7 @@ export default function FishingPage() {
           }}
         />
 
-        <NewSpeciesBanner />
+        <NewSpeciesBanner respectReducedMotion />
         {/* 비네트 */}
         <div className="pointer-events-none absolute inset-0 [background:radial-gradient(60%_60%_at_50%_40%,rgba(0,0,0,0)_0%,rgba(0,0,0,.25)_100%)] md:[background:radial-gradient(55%_65%_at_50%_35%,rgba(0,0,0,0)_0%,rgba(0,0,0,.18)_100%)]" />
         {/* 중앙 위치 배지 */}

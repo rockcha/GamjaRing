@@ -13,6 +13,7 @@ import {
   updateSticker,
   getPlaced,
   getInventory,
+  upsertBoardSize, // NEW
 } from "./supa";
 import type { PlacedSticker } from "./types";
 import { clamp } from "./clamp";
@@ -112,14 +113,67 @@ export default function StickerBoardPage() {
   const [virtualHeight, setVirtualHeight] = useState(board.height);
   useEffect(() => setVirtualHeight(board.height), [board.height]);
 
-  // 스크롤 컨테이너: 페이지 전체
-  const onScrollContainer = (e: React.UIEvent<HTMLDivElement>) => {
-    const el = e.currentTarget;
-    const nearBottom =
-      el.scrollTop + el.clientHeight >=
-      el.scrollHeight - el.clientHeight * 0.25;
-    if (nearBottom) setVirtualHeight((h) => h + 800);
-  };
+  // NEW: 스크롤 컨테이너 & 센티널
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  // NEW: 하단 근접 시 확장 함수 (DB 동기화 포함)
+  const maybeGrow = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (dist < el.clientHeight * 0.25) {
+      setVirtualHeight((h) => {
+        const next = h + 800;
+        if (coupleId && next > board.height) {
+          upsertBoardSize(coupleId, { height: next }).catch(() => {});
+        }
+        return next;
+      });
+    }
+  }, [coupleId, board.height]);
+
+  // NEW: IntersectionObserver로 센티널 관찰
+  useEffect(() => {
+    const root = containerRef.current;
+    const target = sentinelRef.current;
+    if (!root || !target) return;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) maybeGrow();
+        }
+      },
+      { root, threshold: 0.9 }
+    );
+    io.observe(target);
+
+    const onResize = () => maybeGrow();
+    window.addEventListener("resize", onResize);
+
+    // 초기 컨텐츠가 짧으면 한 번 확장 시도
+    maybeGrow();
+
+    return () => {
+      io.disconnect();
+      window.removeEventListener("resize", onResize);
+    };
+  }, [maybeGrow]);
+
+  // NEW: 초기 로드 후, 배치된 스티커 최하단에 맞춰 최소 높이 보정 + DB 반영
+  useEffect(() => {
+    const maxBottom = placed.reduce(
+      (m, s) => Math.max(m, (s.y ?? 0) + (s.base_h || 0)),
+      0
+    );
+    const needed = Math.max(board.height, maxBottom + 200); // 마진 200
+    if (needed > virtualHeight) setVirtualHeight(needed);
+    if (coupleId && needed > board.height) {
+      upsertBoardSize(coupleId, { height: needed }).catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placed, board.height, coupleId]);
 
   useEffect(() => {
     if (!draggingTitle) {
@@ -204,6 +258,13 @@ export default function StickerBoardPage() {
       const left = Math.round(ptCenter.x - invRow.base_w / 2);
       const top = Math.round(ptCenter.y - invRow.base_h / 2);
 
+      // 🔸 하단 배치 시 화면/DB 높이 즉시 증가(마진 200)
+      const newBottom = top + invRow.base_h + 200;
+      if (newBottom > virtualHeight) setVirtualHeight(newBottom);
+      if (coupleId && newBottom > board.height) {
+        upsertBoardSize(coupleId, { height: newBottom }).catch(() => {});
+      }
+
       // 낙관적: 인벤토리 감소 + 임시 스티커 추가
       setInventory((prev) =>
         prev.map((row) =>
@@ -267,6 +328,8 @@ export default function StickerBoardPage() {
       setPlaced,
       setInventory,
       cancelDrag,
+      virtualHeight,
+      board.height,
     ]
   );
 
@@ -388,8 +451,8 @@ export default function StickerBoardPage() {
 
   return (
     <div
+      ref={containerRef}
       className={`relative h-[100dvh] overflow-y-auto ${gradientClass}`}
-      onScroll={onScrollContainer}
     >
       <div className="flex min-h-[100dvh]">
         {/* 캔버스 + 오버레이 버튼을 한 박스에 묶고, 그 박스를 relative로 */}
@@ -465,15 +528,15 @@ export default function StickerBoardPage() {
                 onFlipX={toggleFlipX}
               />
             </div>
+
+            {/* NEW: 바닥 센티널 */}
+            <div ref={sentinelRef} className="h-[1px] w-full" />
           </div>
         </div>
 
-        {/* 인벤토리 도크: 스크롤은 여기서만! (Dock 안에서는overflow 제거) */}
+        {/* 인벤토리 도크: 스크롤은 여기서만! (Dock 안에서는 overflow 제거) */}
         {edit && (
-          <aside
-            className="sticky top-0 h-[100dvh] w-72 border-l bg-white/80 backdrop-blur overflow-y-auto [scrollbar-gutter:stable] "
-            // ↑ scrollbar-gutter로 스크롤바 공간을 항상 확보(3열 잘림 방지)
-          >
+          <aside className="sticky top-0 h-[100dvh] w-72 border-l bg-white/80 backdrop-blur overflow-y-auto [scrollbar-gutter:stable] ">
             <InventoryDock
               items={inventory}
               onStartDrag={(title, seed) => {
