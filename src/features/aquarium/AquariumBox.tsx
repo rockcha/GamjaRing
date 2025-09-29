@@ -512,7 +512,7 @@ export default function AquariumBox({
   const showBgSkeleton = themeLoading || !bgUrl || !bgReady;
 
   return (
-    <Card className="rounded-2xl shadow-sm">
+    <Card className="rounded-2xl  bg-transparent shadow-none border-none">
       <CardContent className="p-0">
         <div
           ref={containerRef}
