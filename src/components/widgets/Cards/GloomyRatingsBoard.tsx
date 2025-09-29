@@ -34,10 +34,10 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faPlus,
-  faList,
   faFloppyDisk,
-  faQuestion,
   faComment,
+  faTrash,
+  faPen,
 } from "@fortawesome/free-solid-svg-icons";
 
 /* Toast */
@@ -81,6 +81,11 @@ export default function GloomyRatingsBoard({
   const [detailOpen, setDetailOpen] = useState(false);
   const [active, setActive] = useState<GloomyRating | null>(null);
   const [myScoreDraft, setMyScoreDraft] = useState<string>("");
+  const [contentDraft, setContentDraft] = useState<string>("");
+
+  // 삭제 확인 모달
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<GloomyRating | null>(null);
 
   const myName = user?.nickname || "나";
   const [partnerName, setPartnerName] = useState<string>("연인");
@@ -279,21 +284,38 @@ export default function GloomyRatingsBoard({
     }
   };
 
-  /* 상세 모달 */
+  /* 상세 모달 열기 */
   const openDetail = (row: GloomyRating) => {
     setActive(row);
     const which = myScoreField?.(row);
     const myVal =
       which === "author_score" ? row.author_score : row.partner_score;
     setMyScoreDraft(myVal == null ? "" : String(myVal));
+    setContentDraft(row.content ?? "");
     setDetailOpen(true);
   };
 
-  const onSaveMyScore = async () => {
+  /* 저장 (내용 + 내 점수 동시 반영) */
+  const onSaveMyScoreAndContent = async () => {
     if (!active || !user?.id) return;
     const which = myScoreField?.(active);
     if (!which) return;
 
+    // 내용 검증: 작성자만 수정 가능
+    const isMine = active.author_id === user.id;
+    const trimmedContent = contentDraft.trim();
+    if (isMine) {
+      if (!trimmedContent) {
+        toast.error("내용을 비울 수 없어요.");
+        return;
+      }
+      if (trimmedContent.length > maxLen) {
+        toast.error(`내용은 최대 ${maxLen}자까지 가능해요.`);
+        return;
+      }
+    }
+
+    // 점수 검증
     const trimmed = myScoreDraft.trim();
     let value: number | null = null;
     if (trimmed !== "") {
@@ -306,10 +328,19 @@ export default function GloomyRatingsBoard({
     }
 
     try {
-      const payload =
+      const payload: Partial<GloomyRating> =
         which === "author_score"
           ? { author_score: value }
           : { partner_score: value };
+
+      if (isMine && trimmedContent !== active.content) {
+        (payload as any).content = trimmedContent;
+      }
+
+      if (Object.keys(payload).length === 0) {
+        toast.message("변경된 내용이 없어요.");
+        return;
+      }
 
       const { data, error } = await supabase
         .from("gloomy_ratings")
@@ -328,13 +359,45 @@ export default function GloomyRatingsBoard({
           cp[idx] = data;
           return cp;
         });
-        // 양쪽 점수 모두 채워졌으면 리스트에서 자연스럽게 사라짐(visibleItems 필터)
+        // 양쪽 점수 모두 채워졌으면 visibleItems에서 사라짐
         setDetailOpen(false);
       }
-      toast.success("점수를 저장했어요.");
+      toast.success("저장했어요.");
     } catch (e) {
-      console.error("[GloomyRatings] update score error:", e);
-      toast.error("점수 저장 중 오류가 발생했어요.");
+      console.error("[GloomyRatings] update error:", e);
+      toast.error("저장 중 오류가 발생했어요.");
+    }
+  };
+
+  /* 삭제: 작성자만 */
+  const requestDelete = (row: GloomyRating) => {
+    if (row.author_id !== user?.id) {
+      toast.error("작성한 사람만 삭제할 수 있어요.");
+      return;
+    }
+    setDeleteTarget(row);
+    setDeleteOpen(true);
+  };
+
+  const onConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      const { error } = await supabase
+        .from("gloomy_ratings")
+        .delete()
+        .eq("id", deleteTarget.id);
+      if (error) throw error;
+
+      setItems((prev) => prev.filter((x) => x.id !== deleteTarget.id));
+      setDeleteOpen(false);
+      setDeleteTarget(null);
+      // 상세 창이 열려 그 항목을 보고 있었다면 닫기
+      if (active?.id === deleteTarget.id) setDetailOpen(false);
+
+      toast.success("삭제했어요.");
+    } catch (e) {
+      console.error("[GloomyRatings] delete error:", e);
+      toast.error("삭제 중 오류가 발생했어요.");
     }
   };
 
@@ -346,13 +409,15 @@ export default function GloomyRatingsBoard({
             <FontAwesomeIcon icon={faComment} className="mr-2 opacity-80" />
             이런 말 어때?
           </CardTitle>
-          <Button
-            size="sm"
-            className="gap-2"
-            onClick={() => setCreateOpen(true)}
-          >
-            <FontAwesomeIcon icon={faPlus} /> 추가하기
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              className="gap-2"
+              onClick={() => setCreateOpen(true)}
+            >
+              <FontAwesomeIcon icon={faPlus} /> 추가하기
+            </Button>
+          </div>
         </div>
       </CardHeader>
 
@@ -383,90 +448,118 @@ export default function GloomyRatingsBoard({
               const isMine = row.author_id === user?.id;
 
               return (
-                <button
+                <div
                   key={row.id}
-                  onClick={() => openDetail(row)}
                   className={cn(
-                    "w-full text-left rounded-lg border p-0 overflow-hidden transition",
-                    // ✅ 작성자 색 구분: 나=블루 톤 / 연인=퍼플 톤 (심플)
+                    "relative rounded-lg border transition overflow-hidden",
                     isMine
                       ? "border-blue-100 bg-blue-50/40 hover:bg-blue-50"
                       : "border-purple-100 bg-purple-50/40 hover:bg-purple-50",
-                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300"
+                    "focus-within:ring-2 focus-within:ring-neutral-300"
                   )}
-                  title="클릭하여 상세 보기"
                 >
-                  {/* 상단: 내용 헤더 */}
-                  <div
-                    className={cn(
-                      "px-3 py-2 text-xs font-medium",
-                      isMine ? "text-blue-700" : "text-purple-700"
-                    )}
-                  ></div>
+                  {/* 우측 상단: 액션 버튼 (작성자만) */}
+                  {isMine && (
+                    <div className="absolute right-2 top-2 z-10 flex gap-1">
+                      <Button
+                        size="icon"
+                        variant="destructive"
+                        className="h-7 w-7"
+                        title="삭제"
+                        onClick={() => requestDelete(row)}
+                      >
+                        <FontAwesomeIcon
+                          icon={faTrash}
+                          className="h-3.5 w-3.5"
+                        />
+                      </Button>
+                    </div>
+                  )}
 
-                  {/* 내용 본문 */}
-                  <div className="px-3 pb-2 text-sm whitespace-pre-wrap">
-                    {row.content}
-                  </div>
-
-                  <Separator />
-
-                  {/* 하단: 점수 섹션 (라벨+숫자) */}
-                  <div className="px-3 py-2 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1">
-                        <Badge
-                          variant="secondary"
-                          className={cn(
-                            "px-2",
-                            isMine
-                              ? "bg-blue-100 text-blue-700"
-                              : "bg-purple-100 text-purple-700"
-                          )}
-                        >
-                          {myName}
-                        </Badge>
-                        <span
-                          className={cn(
-                            "min-w-[1.5rem] text-base font-semibold tabular-nums text-center",
-                            isMine ? "text-blue-700" : "text-purple-700"
-                          )}
-                        >
-                          {my ?? ""}
-                        </span>
-                      </div>
-
-                      <Separator orientation="vertical" className="h-4" />
-
-                      <div className="flex items-center gap-1">
-                        <Badge
-                          variant="secondary"
-                          className={cn(
-                            "px-2",
-                            isMine
-                              ? "bg-purple-100 text-purple-700"
-                              : "bg-blue-100 text-blue-700"
-                          )}
-                        >
-                          {partnerName}
-                        </Badge>
-                        <span
-                          className={cn(
-                            "min-w-[1.5rem] text-base font-semibold tabular-nums text-center",
-                            isMine ? "text-purple-700" : "text-blue-700"
-                          )}
-                        >
-                          {partner ?? ""}
-                        </span>
-                      </div>
+                  {/* 클릭 영역: 상세 보기 (누구나 열기) */}
+                  <button
+                    onClick={() => openDetail(row)}
+                    className="w-full text-left p-0"
+                    title="클릭하여 상세 보기"
+                  >
+                    {/* 상단 패딩 (아이콘과 겹치지 않게 약간 여백) */}
+                    <div className="px-3 pt-3 pb-2 text-xs font-medium">
+                      <span
+                        className={cn(
+                          isMine ? "text-blue-700" : "text-purple-700"
+                        )}
+                      >
+                        {isMine ? myName : partnerName}
+                      </span>
+                      <span className="text-neutral-400"> · </span>
+                      <span className="text-neutral-500">
+                        점수 입력/수정하려면 클릭
+                      </span>
                     </div>
 
-                    {/* 오른쪽에 살짝의 힌트(아이콘 없이) — 작성자 텍스트/날짜는 제거 */}
-                    <div className="text-[11px] text-neutral-500">
-                      클릭하여 점수 입력/수정
+                    {/* 본문 */}
+                    <div className="px-3 pb-2 text-sm whitespace-pre-wrap">
+                      {row.content}
                     </div>
-                  </div>
-                </button>
+
+                    <Separator />
+
+                    {/* 하단: 점수 */}
+                    <div className="px-3 py-2 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1">
+                          <Badge
+                            variant="secondary"
+                            className={cn(
+                              "px-2",
+                              isMine
+                                ? "bg-blue-100 text-blue-700"
+                                : "bg-purple-100 text-purple-700"
+                            )}
+                          >
+                            {myName}
+                          </Badge>
+                          <span
+                            className={cn(
+                              "min-w-[1.5rem] text-base font-semibold tabular-nums text-center",
+                              isMine ? "text-blue-700" : "text-purple-700"
+                            )}
+                          >
+                            {my ?? ""}
+                          </span>
+                        </div>
+
+                        <Separator orientation="vertical" className="h-4" />
+
+                        <div className="flex items-center gap-1">
+                          <Badge
+                            variant="secondary"
+                            className={cn(
+                              "px-2",
+                              isMine
+                                ? "bg-purple-100 text-purple-700"
+                                : "bg-blue-100 text-blue-700"
+                            )}
+                          >
+                            {partnerName}
+                          </Badge>
+                          <span
+                            className={cn(
+                              "min-w-[1.5rem] text-base font-semibold tabular-nums text-center",
+                              isMine ? "text-purple-700" : "text-blue-700"
+                            )}
+                          >
+                            {partner ?? ""}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="text-[11px] text-neutral-500">
+                        클릭하여 점수 입력/수정
+                      </div>
+                    </div>
+                  </button>
+                </div>
               );
             })
           )}
@@ -528,20 +621,33 @@ export default function GloomyRatingsBoard({
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>상세 보기 & 점수 입력</DialogTitle>
+            <DialogTitle>상세 보기 & 편집</DialogTitle>
           </DialogHeader>
 
           {active ? (
             <div className="space-y-4">
-              {/* 작성자/일자 노출 X → 심플 */}
-              {/* 내용 */}
+              {/* 내용: 작성자만 편집 가능 */}
               <div>
                 <div className="text-xs font-medium text-neutral-500 mb-1">
                   내용
                 </div>
-                <div className="rounded-md border border-neutral-200 bg-white p-3 whitespace-pre-wrap">
-                  {active.content}
-                </div>
+                {active.author_id === user?.id ? (
+                  <>
+                    <Textarea
+                      value={contentDraft}
+                      onChange={(e) => setContentDraft(e.target.value)}
+                      maxLength={maxLen}
+                      className="min-h-[120px]"
+                    />
+                    <div className="text-right text-[11px] text-neutral-500 mt-1">
+                      {contentDraft.length}/{maxLen}
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-md border border-neutral-200 bg-white p-3 whitespace-pre-wrap">
+                    {active.content}
+                  </div>
+                )}
               </div>
 
               {/* 점수 입력 (내 점수만 활성) */}
@@ -592,13 +698,40 @@ export default function GloomyRatingsBoard({
             </div>
           )}
 
+          <DialogFooter className="flex items-center justify-between">
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={() => setDetailOpen(false)}>
+                닫기
+              </Button>
+              <Button className="gap-2" onClick={onSaveMyScoreAndContent}>
+                <FontAwesomeIcon icon={faFloppyDisk} />
+                저장
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ───────────── 삭제 확인 모달 ───────────── */}
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>정말 삭제할까요?</DialogTitle>
+          </DialogHeader>
+          <div className="text-sm text-neutral-600 whitespace-pre-wrap">
+            {deleteTarget?.content}
+          </div>
           <DialogFooter>
-            <Button variant="secondary" onClick={() => setDetailOpen(false)}>
-              닫기
+            <Button variant="secondary" onClick={() => setDeleteOpen(false)}>
+              취소
             </Button>
-            <Button className="gap-2" onClick={onSaveMyScore}>
-              <FontAwesomeIcon icon={faFloppyDisk} />
-              저장
+            <Button
+              variant="destructive"
+              className="gap-2"
+              onClick={onConfirmDelete}
+            >
+              <FontAwesomeIcon icon={faTrash} />
+              삭제
             </Button>
           </DialogFooter>
         </DialogContent>

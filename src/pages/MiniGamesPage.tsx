@@ -1,3 +1,4 @@
+// src/features/mini_games/MiniGamePage.tsx
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
@@ -32,14 +33,21 @@ import {
   type MiniGameDef,
 } from "@/features/mini_games/RecipeMemoryGame";
 import { potatoTossMeta } from "@/features/mini_games/potato_toss/PotatoTossGame";
-import { mazeMeta } from "@/features/mini_games/MazeGame";
+import { shadowPiecesMeta } from "@/features/mini_games/shadow_pieces";
 
-const GAMES: MiniGameDef[] = [recipeMemoryMeta, potatoTossMeta, mazeMeta];
+/** 등록된 게임 목록 */
+const GAMES: MiniGameDef[] = [
+  recipeMemoryMeta,
+  potatoTossMeta,
+  shadowPiecesMeta,
+];
 
 export default function MiniGamePage() {
   const { couple, spendGold, fetchCoupleData } = useCoupleContext();
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    GAMES[0]?.id ?? null
+  );
   const [isRunning, setIsRunning] = useState<boolean>(false);
 
   // 설명 다이얼로그
@@ -90,73 +98,11 @@ export default function MiniGamePage() {
 
   return (
     <div className="mx-auto max-w-screen-2xl px-4 md:px-8 py-6 md:py-10">
-      {/* ── 상단 헤더 (풀블리드 느낌) ─────────────────────────────────────── */}
-      <div className="-mx-4 md:-mx-8 px-4 md:px-8 sticky top-0 z-30 bg-background/75 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-        <div className="flex items-center justify-between py-5 md:py-6">
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight flex items-center gap-3">
-            <Sparkles className="h-8 w-8 md:h-9 md:w-9" />
-            미니게임
-            <Badge
-              variant="outline"
-              className="ml-2 gap-2 text-[0.8rem] py-1 px-2"
-            >
-              <FontAwesomeIcon icon={faGamepad} className="h-4 w-4" />
-              게임을 선택해 시작하세요
-            </Badge>
-          </h1>
-          {/* (옵션) 우측 글로벌 액션 영역 */}
-        </div>
+      {/* 헤더 */}
 
-        {/* 모바일/태블릿: 가로 스트립. 데스크톱에선 레일로 대체 */}
-        <div className="pb-3 md:hidden">
-          <div className="flex gap-4 overflow-x-auto no-scrollbar">
-            {GAMES.map((g) => {
-              const active = selectedId === g.id;
-              return (
-                <button
-                  key={g.id}
-                  onClick={() => {
-                    setSelectedId(g.id);
-                    setIsRunning(false);
-                  }}
-                  className={cn(
-                    "relative aspect-square w-32 rounded-2xl border bg-card transition group",
-                    "hover:bg-muted active:scale-[0.98]",
-                    active
-                      ? "border-primary/50 ring-2 ring-primary/30 shadow-md"
-                      : "border-slate-200"
-                  )}
-                  title={`${g.title} (참가비 ${g.entryFee}G)`}
-                  aria-current={active ? "true" : "false"}
-                >
-                  <div className="flex h-full w-full flex-col items-center justify-center gap-2.5 p-3">
-                    <span
-                      className={cn(
-                        "text-3xl group-hover:scale-110 transition-transform",
-                        active && "text-primary"
-                      )}
-                    >
-                      {g.icon}
-                    </span>
-                    <span
-                      className={cn(
-                        "text-sm font-semibold text-center line-clamp-2 leading-tight",
-                        active && "text-primary"
-                      )}
-                    >
-                      {g.title}
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* ── 본문: md↑ 2단 (좌: 레일 / 우: 콘텐츠) ───────────────────────── */}
+      {/* 본문: md↑ 2단(좌 리스트 / 우 콘텐츠) */}
       <div className="mt-6 md:mt-8 grid md:grid-cols-[320px,1fr] gap-6 md:gap-8">
-        {/* 좌측 레일 (데스크톱 전용) */}
+        {/* 좌측 레일 (데스크톱) */}
         <aside className="hidden md:block sticky top-[92px] self-start">
           <Card className="rounded-3xl shadow-sm">
             <ul className="p-3 space-y-1.5">
@@ -189,11 +135,8 @@ export default function MiniGamePage() {
                         </span>
                       </span>
                       <div className="min-w-0">
-                        <p className="font-semibold truncate text-lg">
+                        <p className="font-semibold truncate text-base">
                           {g.title}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          참가비 {g.entryFee}G
                         </p>
                       </div>
                     </button>
@@ -206,41 +149,52 @@ export default function MiniGamePage() {
 
         {/* 우측 콘텐츠 */}
         <section className="min-w-0">
-          {/* 상단 정보 헤더 */}
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-4 min-w-0">
-              {!!selectedGame && (
-                <div className="inline-flex h-14 w-14 items-center justify-center rounded-3xl bg-primary/10 text-primary shadow-sm shrink-0">
-                  <span className="text-3xl">{selectedGame.icon}</span>
+          {/* 상단 통합 액션(모바일/데스크 공통) */}
+          {!!selectedGame && (
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm shrink-0">
+                  <span className="text-2xl">{selectedGame.icon}</span>
                 </div>
-              )}
-              <h2 className="text-3xl md:text-4xl font-extrabold leading-tight truncate">
-                {selectedGame?.title ?? "미니게임 대기 화면"}
-              </h2>
-            </div>
+                <h2 className="text-2xl md:text-3xl font-extrabold leading-tight truncate">
+                  {selectedGame.title}
+                </h2>
+              </div>
 
-            {!!selectedGame && (
               <div className="flex items-center gap-2">
                 <Badge
                   variant="secondary"
-                  className="gap-2 text-sm py-1.5 px-2.5"
-                >
-                  <FontAwesomeIcon icon={faCoins} className="h-4 w-4" />
-                  {selectedGame.entryFee}G
-                </Badge>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setHowTarget(selectedGame)}
-                  className="gap-2"
-                >
-                  <FontAwesomeIcon
-                    icon={faCircleQuestion}
-                    className="h-4 w-4"
-                  />
-                  설명
-                </Button>
-                {isRunning && (
+                  className="gap-2 hidden sm:inline-flex"
+                ></Badge>
+
+                {!isRunning ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setHowTarget(selectedGame)}
+                      className="gap-2"
+                    >
+                      <FontAwesomeIcon
+                        icon={faCircleQuestion}
+                        className="h-4 w-4"
+                      />
+                      설명
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={startGame}
+                      className="gap-2"
+                      aria-label="게임 시작"
+                    >
+                      <FontAwesomeIcon
+                        icon={faCirclePlay}
+                        className="h-4 w-4"
+                      />
+                      시작
+                    </Button>
+                  </>
+                ) : (
                   <Button
                     variant="secondary"
                     size="sm"
@@ -252,13 +206,13 @@ export default function MiniGamePage() {
                   </Button>
                 )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          <Separator className="my-6" />
+          <Separator className="my-4" />
 
           {/* 플레이 영역 */}
-          <div className="min-h-[620px] grid place-items-center">
+          <div className="min-h-[60vh] md:min-h-[620px] grid place-items-center">
             {!selectedGame ? (
               // 선택 전 플레이스홀더
               <img
@@ -269,9 +223,8 @@ export default function MiniGamePage() {
             ) : !isRunning ? (
               // 대기 화면: 포스터 + 유리버튼
               <div className="w-full max-w-6xl mx-auto">
-                <div className="relative overflow-hidden rounded-[28px] ring-1 ring-slate-200/80 bg-white/70 shadow-md">
-                  <div className="relative aspect-video w-full min-h-[540px]">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                <div className="relative overflow-hidden rounded-[28px] ring-1 ring-slate-200/80 bg-white/70 shadow-lg">
+                  <div className="relative aspect-video w-full min-h-[360px] sm:min-h-[420px] md:min-h-[520px]">
                     <img
                       src={`/minigame/${encodeURIComponent(
                         selectedGame.id
@@ -282,14 +235,14 @@ export default function MiniGamePage() {
                     />
                     {/* 상·하 그래디언트 + 글래스 */}
                     <div className="absolute inset-0 pointer-events-none">
-                      <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/25 to-black/45" />
-                      <div className="absolute inset-6 rounded-3xl bg-white/5 backdrop-blur-[2px] ring-1 ring-white/10" />
+                      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/45" />
+                      <div className="absolute inset-4 sm:inset-6 rounded-3xl bg-white/5 backdrop-blur-[2px] ring-1 ring-white/10" />
                     </div>
                     {/* 중앙 Play 버튼 */}
                     <div className="absolute inset-0 grid place-items-center">
                       <Button
                         onClick={startGame}
-                        className="h-16 md:h-18 px-8 md:px-10 gap-3 rounded-full text-lg md:text-xl hover:bg-neutral-700 "
+                        className="h-14 sm:h-16 px-8 sm:px-10 gap-3 rounded-full text-base sm:text-lg md:text-xl hover:bg-neutral-700"
                         aria-label="게임 시작"
                       >
                         <FontAwesomeIcon
@@ -299,6 +252,19 @@ export default function MiniGamePage() {
                         게임 시작 ({selectedGame.entryFee} G)
                       </Button>
                     </div>
+                    {/* 좌상단 칩 */}
+                    <div className="absolute left-4 top-4 sm:left-6 sm:top-6">
+                      <Badge
+                        variant="outline"
+                        className="bg-black/30 text-white"
+                      >
+                        <FontAwesomeIcon
+                          icon={faCoins}
+                          className="mr-1.5 h-3.5 w-3.5"
+                        />
+                        참가비 {selectedGame.entryFee}G
+                      </Badge>
+                    </div>
                   </div>
                 </div>
                 <p className="mt-4 text-center text-sm text-muted-foreground">
@@ -306,7 +272,7 @@ export default function MiniGamePage() {
                 </p>
               </div>
             ) : (
-              // 진행 중: 실제 게임
+              // 진행 중: 실제 게임 컴포넌트
               <selectedGame.Component onExit={stopGame} />
             )}
           </div>
@@ -327,15 +293,10 @@ export default function MiniGamePage() {
         </DialogContent>
       </Dialog>
 
-      {/* 스크롤바 숨김 보조 스타일 */}
-      <style jsx global>{`
-        .no-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .no-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
+      {/* 전역 보조 스타일 (styled-jsx 제거) */}
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
     </div>
   );

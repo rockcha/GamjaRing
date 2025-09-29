@@ -3,7 +3,7 @@
 /**
  * Kitchen domain (refactored)
  * - 재료: 15종 고정
- * - 레시피: 감자 1|2, 재료는 {title, qty}
+ * - 레시피: 감자 1|2 (※ 현재 데이터는 기존 값 유지)
  * - 등급별 총 재료수: 초급 6, 중급 10, 고급 14 (레시피별 합계 기준)
  */
 
@@ -52,13 +52,13 @@ export type Recipe = {
   name: string;
   emoji: string; // 단일 이모지
   grade: RecipeGrade;
-  potato: number; // ✅ 1~2
-  ingredients: RecipeIngredient[]; // ✅ 수량 포함
+  potato: number; // 기존 데이터 유지(4~5)
+  ingredients: RecipeIngredient[];
   sell: number; // 판매가(골드)
 };
 
 /**
- * 재료 수량 규칙
+ * 재료 수량 규칙 (설계 가이드)
  * - 초급: 합계 6 → (2재료면 3,3) / (3재료면 2,2,2)
  * - 중급: 합계 10 → (3재료 4,3,3) / (4재료 3,3,2,2)
  * - 고급: 합계 14 → (4재료 4,4,3,3) / (5재료 3,3,3,3,2)
@@ -141,6 +141,17 @@ export const RECIPES: readonly Recipe[] = [
       { title: "얼음", qty: 3 },
     ],
     sell: 33,
+  },
+  {
+    name: "감자즙",
+    emoji: "🍷",
+    grade: "초급",
+    potato: 5,
+    ingredients: [
+      { title: "양파", qty: 3 },
+      { title: "얼음", qty: 3 },
+    ],
+    sell: 30,
   },
   {
     name: "감자초콜렛",
@@ -241,6 +252,18 @@ export const RECIPES: readonly Recipe[] = [
     sell: 63,
   },
   {
+    name: "감자 푸딩",
+    emoji: "🍮",
+    grade: "중급",
+    potato: 5,
+    ingredients: [
+      { title: "계란", qty: 5 },
+      { title: "버터", qty: 3 },
+      { title: "우유", qty: 3 },
+    ],
+    sell: 64,
+  },
+  {
     name: "감자버거",
     emoji: "🍔",
     grade: "중급",
@@ -323,6 +346,19 @@ export const RECIPES: readonly Recipe[] = [
       { title: "치즈", qty: 4 },
     ],
     sell: 82,
+  },
+  {
+    name: "감자 도시락",
+    emoji: "🍱",
+    grade: "고급",
+    potato: 5,
+    ingredients: [
+      { title: "양파", qty: 3 },
+      { title: "베이컨", qty: 4 },
+      { title: "녹색채소", qty: 4 },
+      { title: "고기", qty: 4 },
+    ],
+    sell: 84,
   },
   {
     name: "감자 부리또",
@@ -445,9 +481,15 @@ export const RECIPE_EMOJI: Record<RecipeName, string> = Object.fromEntries(
   RECIPES.map((r) => [r.name as RecipeName, r.emoji])
 ) as Record<RecipeName, string>;
 
-/** 음식 한줄 설명 (기존 유지) */
+/** 음식 한줄 설명 */
 export type FoodInfo = { name: RecipeName; desc: string };
-export const FOOD_META: Record<RecipeName, FoodInfo> = {
+
+/**
+ * ⚠️ 키는 반드시 Recipe.name과 100% 동일해야 함.
+ *  - "감자 푸딩", "감자 도시락" 등 공백 포함하여 정확히 일치
+ *  - "감자카레", "감자케밥", "감자전골탕" 등 공백 없음으로 일치
+ */
+export const FOOD_META = {
   "프렌치 프라이": {
     name: "프렌치 프라이",
     desc: "겉은 바삭, 속은 크리미. 케찹 한 점에 사라지는 시간 도둑.",
@@ -509,6 +551,10 @@ export const FOOD_META: Record<RecipeName, FoodInfo> = {
     name: "감자 오믈렛",
     desc: "부드러운 계란 속에 숨겨둔 포근한 감자—브런치의 정석.",
   },
+  "감자 푸딩": {
+    name: "감자 푸딩",
+    desc: "부드럽고 몽글—감자의 담백함과 우유의 고소함이 녹아든 디저트.",
+  },
   감자버거: {
     name: "감자버거",
     desc: "두툼한 감자 패티와 신선한 채소, 한입에 꽉 찬 포만감.",
@@ -526,7 +572,7 @@ export const FOOD_META: Record<RecipeName, FoodInfo> = {
     desc: "소금 알갱이 톡톡, 버터와 감자가 만드는 바삭결.",
   },
   "감자 냉사케": {
-    name: "감자 냉사케",
+    name: "감자 냱사케",
     desc: "얼음 사이로 스며드는 깔끔한 향—차게 즐기는 사케.",
   },
 
@@ -537,6 +583,10 @@ export const FOOD_META: Record<RecipeName, FoodInfo> = {
   "감자 타코": {
     name: "감자 타코",
     desc: "따뜻한 플랫브레드에 감자를 포근히 감싼 한 손 요리.",
+  },
+  "감자 도시락": {
+    name: "감자 도시락",
+    desc: "포슬한 감자반찬 가득—구이·샐러드·조림을 한 상자에 담은 든든한 한 끼.",
   },
   "감자 부리또": {
     name: "감자 부리또",
@@ -555,23 +605,27 @@ export const FOOD_META: Record<RecipeName, FoodInfo> = {
     desc: "쫄깃한 감자면에 깊은 육수 한 젓가락, 면치기의 즐거움.",
   },
   감자카레: {
-    name: "감자 카레",
+    name: "감자카레",
     desc: "부드러운 감자와 진한 카레 소스의 안정적 한 그릇.",
   },
   감자케밥: {
-    name: "감자 케밥",
+    name: "감자케밥",
     desc: "불향 고기와 신선한 채소, 감자를 품은 플랫브레드 롤.",
   },
   감자전골탕: {
-    name: "감자 전골탕",
+    name: "감자전골탕",
     desc: "진한 국물에 고기와 감자가 우러난 뜨끈한 한 냄비.",
   },
-  감자경단: { name: "감자 경단", desc: "여러가지 재료와 쫀득함을 한번에." },
-} as const;
+  감자경단: {
+    name: "감자경단",
+    desc: "여러가지 재료와 쫀득함을 한번에.",
+  },
+} as const satisfies Record<RecipeName, FoodInfo>;
 
-/** 헬퍼 */
-export const getFoodMeta = (name: RecipeName): FoodInfo => FOOD_META[name]!;
-export const getFoodDesc = (name: RecipeName): string => FOOD_META[name]!.desc;
+// ↑ 타입 체크로 키가 레시피 이름과 다르면 컴파일 에러가 납니다.
+
+export const getFoodMeta = (name: RecipeName): FoodInfo => FOOD_META[name];
+export const getFoodDesc = (name: RecipeName): string => FOOD_META[name].desc;
 export const getIngredientEmoji = (title: IngredientTitle) =>
   INGREDIENT_EMOJI[title];
 
