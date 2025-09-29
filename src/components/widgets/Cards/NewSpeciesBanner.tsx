@@ -17,7 +17,7 @@ type FeaturedRow = {
   created_at: string;
   entity_id: string;
   name_ko: string | null;
-  rarity: string | null; // can be Korean or English
+  rarity: string | null;
   price: number | null;
   size: number | null;
   description: string | null;
@@ -25,7 +25,6 @@ type FeaturedRow = {
 
 type RarityKey = "common" | "rare" | "epic" | "legend";
 
-/** Normalize rarity: Korean → English keys */
 function normalizeRarity(raw?: string | null): RarityKey {
   const v = (raw ?? "common").toString().trim().toLowerCase();
   if (v === "common" || v === "rare" || v === "epic" || v === "legend")
@@ -37,7 +36,6 @@ function normalizeRarity(raw?: string | null): RarityKey {
   return "common";
 }
 
-/** Rarity-based styles */
 const rarityStyle: Record<
   RarityKey,
   { card: string; badge: string; ring: string }
@@ -65,7 +63,6 @@ const rarityStyle: Record<
   },
 };
 
-/** Build public image path: /public/aquarium/<rarity>/<id>.png  */
 function buildEntityImageUrl(rarity: string | null, id: string) {
   const r = normalizeRarity(rarity);
   return `/aquarium/${r}/${id}.png`;
@@ -83,21 +80,24 @@ function RarityBadge({ rarity }: { rarity?: string | null }) {
 }
 
 export default function NewSpeciesBanner({
-  limit = 12,
-  speed = 30, // px/sec (자동 스크롤 속도)
+  limit = 30,
+  speed = 24, // 기본 속도 살짝 상향
+  pauseOnHover = false, // 호버 일시정지 원하면 true로
   className,
 }: {
   limit?: number;
-  speed?: number;
+  speed?: number; // px/sec
+  pauseOnHover?: boolean;
   className?: string;
 }) {
   const [rows, setRows] = useState<FeaturedRow[] | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // ▼ 스크롤/드래그 제어
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const trackRef = useRef<HTMLDivElement | null>(null);
   const isHoveredRef = useRef(false);
   const isDraggingRef = useRef(false);
+  const isFocusedRef = useRef(false);
   const startXRef = useRef(0);
   const startScrollLeftRef = useRef(0);
   const rafRef = useRef<number | null>(null);
@@ -111,14 +111,8 @@ export default function NewSpeciesBanner({
         .from("v_aquarium_featured")
         .select("*")
         .limit(limit);
-
       if (!alive) return;
-      if (error) {
-        console.error(error);
-        setRows([]);
-      } else {
-        setRows((data as FeaturedRow[]) ?? []);
-      }
+      setRows(error ? [] : (data as FeaturedRow[]) ?? []);
       setLoading(false);
     })();
     return () => {
@@ -129,60 +123,123 @@ export default function NewSpeciesBanner({
   const list = rows ?? [];
   const loopList = useMemo(() => [...list, ...list], [list]);
 
-  // 초기 위치 세팅 + rAF 루프 시작
+  const reinitPosition = () => {
+    const vp = viewportRef.current;
+    const track = trackRef.current;
+    if (!vp || !track) return;
+    setTranslateX(track, 0);
+    const half = track.scrollWidth / 2;
+    if (half > 0) vp.scrollLeft = Math.max(0, Math.floor(half / 2));
+  };
+
   useEffect(() => {
     const vp = viewportRef.current;
     if (!vp) return;
 
-    const init = () => {
-      // 콘텐츠가 2배로 복제되므로 절반 중앙 근처로 위치
-      const half = vp.scrollWidth / 2;
-      if (half > 0) {
-        // 뷰포트 가운데쯤으로 위치시키면 앞/뒤로 자연스럽게 드래그 가능
-        vp.scrollLeft = half / 2;
-      }
+    const onResize = () => reinitPosition();
+    const ro =
+      "ResizeObserver" in window
+        ? new ResizeObserver(() => reinitPosition())
+        : null;
+
+    const imgLoadHandler = () => reinitPosition();
+    const bindImgListeners = () => {
+      const imgs = Array.from(vp.querySelectorAll("img"));
+      imgs.forEach((img) =>
+        img.addEventListener("load", imgLoadHandler, { once: true })
+      );
+      return () => {
+        imgs.forEach((img) =>
+          img.removeEventListener("load", imgLoadHandler as any)
+        );
+      };
     };
 
-    // 이미지 로딩 이후에도 한번 더 보정
-    const imgLoadHandler = () => init();
-    vp.querySelectorAll("img").forEach((img) =>
-      img.addEventListener("load", imgLoadHandler, { once: true })
-    );
+    const unbind = bindImgListeners();
+    window.addEventListener("resize", onResize);
+    ro?.observe?.(vp);
+    reinitPosition();
 
-    init();
+    return () => {
+      window.removeEventListener("resize", onResize);
+      ro?.disconnect?.();
+      unbind();
+    };
+  }, [loopList.length]);
 
+  useEffect(() => {
     const step = (ts: number) => {
-      const vpNow = viewportRef.current;
-      if (!vpNow) return;
+      const vp = viewportRef.current;
+      const track = trackRef.current;
 
-      if (!lastTsRef.current) lastTsRef.current = ts;
-      const dt = (ts - lastTsRef.current) / 1000;
-      lastTsRef.current = ts;
+      if (!vp || !track) {
+        rafRef.current = requestAnimationFrame(step);
+        return;
+      }
 
       const canAuto =
-        !isHoveredRef.current &&
         !isDraggingRef.current &&
-        vpNow.scrollWidth > vpNow.clientWidth;
+        !(pauseOnHover && isHoveredRef.current) &&
+        !isFocusedRef.current &&
+        speed > 0;
 
-      if (canAuto && speed > 0) {
-        vpNow.scrollLeft += speed * dt; // 자동 스크롤
-        // 무한 루프 보정
-        const half = vpNow.scrollWidth / 2;
-        if (vpNow.scrollLeft >= half) vpNow.scrollLeft -= half;
-        if (vpNow.scrollLeft < 0) vpNow.scrollLeft += half;
+      if (!lastTsRef.current) lastTsRef.current = ts;
+      const dt = Math.max(0, (ts - lastTsRef.current) / 1000);
+      lastTsRef.current = ts;
+
+      if (canAuto) {
+        if (Math.abs(getTranslateX(track)) > 0.5) setTranslateX(track, 0);
+
+        const trackW = track.scrollWidth || 0;
+        const hasOverflow = trackW > vp.clientWidth + 1;
+
+        if (hasOverflow) {
+          const half = trackW / 2;
+          vp.scrollLeft += speed * dt;
+          if (vp.scrollLeft >= half) vp.scrollLeft -= half;
+          if (vp.scrollLeft < 0) vp.scrollLeft += half;
+        } else {
+          // 오버플로우 없어도 확실히 보이게 왕복
+          const nowX = getTranslateX(track);
+          const amplitude = Math.max(
+            16,
+            Math.min(64, Math.round(vp.clientWidth * 0.08))
+          );
+          const drift = speed * 0.6 * dt;
+          const nextX = wrapPingPong(nowX - drift, -amplitude, amplitude);
+          setTranslateX(track, nextX);
+        }
       }
 
       rafRef.current = requestAnimationFrame(step);
     };
 
-    rafRef.current = requestAnimationFrame(step);
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    const onVisibility = () => {
+      if (document.hidden) {
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      } else {
+        if (!rafRef.current) {
+          lastTsRef.current = 0;
+          rafRef.current = requestAnimationFrame(step);
+        }
+      }
     };
-  }, [loopList.length, speed]);
 
-  // 포인터 드래그 핸들러
+    document.addEventListener("visibilitychange", onVisibility);
+    lastTsRef.current = 0;
+    queueMicrotask(reinitPosition);
+    rafRef.current = requestAnimationFrame(step);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    };
+  }, [speed, pauseOnHover, loopList.length]);
+
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
     const vp = viewportRef.current;
     if (!vp) return;
     isDraggingRef.current = true;
@@ -195,15 +252,16 @@ export default function NewSpeciesBanner({
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isDraggingRef.current) return;
     const vp = viewportRef.current;
-    if (!vp) return;
-
+    const track = trackRef.current;
+    if (!vp || !track) return;
     const dx = e.clientX - startXRef.current;
     vp.scrollLeft = startScrollLeftRef.current - dx;
 
-    // 무한 루프 보정
-    const half = vp.scrollWidth / 2;
-    if (vp.scrollLeft >= half) vp.scrollLeft -= half;
-    if (vp.scrollLeft < 0) vp.scrollLeft += half;
+    const half = (track.scrollWidth || 0) / 2;
+    if (half > 0) {
+      if (vp.scrollLeft >= half) vp.scrollLeft -= half;
+      if (vp.scrollLeft < 0) vp.scrollLeft += half;
+    }
   };
 
   const onPointerUpOrCancel = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -213,6 +271,22 @@ export default function NewSpeciesBanner({
     try {
       vp.releasePointerCapture?.(e.pointerId);
     } catch {}
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const vp = viewportRef.current;
+    const track = trackRef.current;
+    if (!vp || !track) return;
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+      const delta = Math.round(vp.clientWidth * 0.2);
+      vp.scrollLeft += e.key === "ArrowRight" ? delta : -delta;
+
+      const half = (track.scrollWidth || 0) / 2;
+      if (half > 0) {
+        if (vp.scrollLeft >= half) vp.scrollLeft -= half;
+        if (vp.scrollLeft < 0) vp.scrollLeft += half;
+      }
+    }
   };
 
   if (loading) {
@@ -237,18 +311,14 @@ export default function NewSpeciesBanner({
 
   if (!list.length) return null;
 
-  // 카드 너비/갭은 스타일로 처리 (자동 스크롤은 JS가 수행)
   return (
     <Card className={cn("overflow-hidden", className)}>
-      {/* component-scoped styles */}
       <style>{`
-        /* 스크롤바 숨김 */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
 
       <div className="p-4 relative">
-        {/* 상단 가독성 강화용 그라데이션 띠 */}
         <div
           aria-hidden
           className={cn(
@@ -259,7 +329,6 @@ export default function NewSpeciesBanner({
           )}
         />
 
-        {/* 제목 캡션 배지 */}
         <div className="mb-2 flex items-center gap-2">
           <span
             className={cn(
@@ -274,7 +343,6 @@ export default function NewSpeciesBanner({
           </span>
         </div>
 
-        {/* viewport (가로 스크롤 + 드래그) */}
         <div
           ref={viewportRef}
           className={cn(
@@ -284,15 +352,25 @@ export default function NewSpeciesBanner({
           )}
           aria-label="신규 어종 자동 스크롤 배너"
           role="listbox"
-          onMouseEnter={() => (isHoveredRef.current = true)}
-          onMouseLeave={() => (isHoveredRef.current = false)}
+          tabIndex={0}
+          onKeyDown={onKeyDown}
+          onFocus={() => (isFocusedRef.current = true)}
+          onBlur={() => (isFocusedRef.current = false)}
+          onMouseEnter={() => {
+            if (pauseOnHover) isHoveredRef.current = true;
+          }}
+          onMouseLeave={() => {
+            if (pauseOnHover) isHoveredRef.current = false;
+          }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUpOrCancel}
           onPointerCancel={onPointerUpOrCancel}
         >
-          {/* track: 2배 복제로 무한 루프 구현 */}
-          <div className="flex gap-3 py-1 w-max">
+          <div
+            ref={trackRef}
+            className="flex gap-3 py-1 w-max will-change-transform"
+          >
             {loopList.map((r, idx) => {
               const rarity = normalizeRarity(r.rarity);
               const sty = rarityStyle[rarity];
@@ -309,7 +387,7 @@ export default function NewSpeciesBanner({
                     "ring-1 ring-inset",
                     sty.ring
                   )}
-                  tabIndex={0}
+                  tabIndex={-1}
                 >
                   <div className="relative aspect-[5/3] overflow-hidden rounded-xl border bg-background/50">
                     <img
@@ -338,14 +416,36 @@ export default function NewSpeciesBanner({
         </div>
 
         <div className="mt-2 flex justify-between items-center gap-2">
-          <div className="text-[11px] text-neutral-500">
-            드래그해서 이동할 수 있어요.
-          </div>
           <div className="text-[11px] bg-white/80 rounded-xl text-muted-foreground px-3 py-1">
-            배너에 마우스를 올리면 일시정지됩니다.
+            {pauseOnHover
+              ? "마우스를 올리면 일시정지돼요."
+              : "천천히 자동으로 이동합니다. 드래그로도 넘길 수 있어요."}
           </div>
         </div>
       </div>
     </Card>
   );
+}
+
+/* utils */
+function getTranslateX(el: HTMLElement): number {
+  const style = window.getComputedStyle(el);
+  const matrix = style.transform || "matrix(1, 0, 0, 1, 0, 0)";
+  const matched = matrix.match(/matrix\(([^)]+)\)/);
+  if (!matched) return 0;
+  const parts = matched[1].split(",").map((v) => parseFloat(v.trim()));
+  return parts.length >= 6 && Number.isFinite(parts[4]) ? parts[4] : 0;
+}
+
+function setTranslateX(el: HTMLElement, x: number) {
+  el.style.transform = `translateX(${x}px)`;
+}
+
+/** -limit ~ +limit 사이 왕복 */
+function wrapPingPong(x: number, min: number, max: number) {
+  if (min >= max) return 0;
+  const range = max - min;
+  let t = (x - min) % (2 * range);
+  if (t < 0) t += 2 * range;
+  return t <= range ? min + t : max - (t - range);
 }

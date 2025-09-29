@@ -190,12 +190,17 @@ function AquariumPage() {
     setIdx(n - 1);
   };
 
-  /** AquariumBox와 동일 프레임(정중앙, 고정 크기) — 오버레이 기준 컨테이너 */
-  const frameStyle = { height: "74vh", width: "min(100%, calc(85vw ))" };
+  /** AquariumBox와 동일 프레임(정중앙, 고정 크기) — 오버레이 기준 컨테이너
+   *  모바일에서 너무 길지 않게 svh 사용 + 최대 높이 제한
+   */
+  const frameStyle = {
+    height: "min(72svh, 680px)",
+    width: "min(100%, 100vw)",
+  } as const;
 
   return (
     <div className="min-h-[calc(100svh-64px)] w-full flex flex-col">
-      <div className="relative mx-20 mt-4 ">
+      <div className="relative mx-2 sm:mx-6 lg:mx-20 mt-2 sm:mt-4">
         <div
           aria-hidden
           className="absolute inset-0 z-0 pointer-events-none flex items-center justify-center"
@@ -211,7 +216,7 @@ function AquariumPage() {
         {/* 본체: 현재 탱크만 렌더 (앞쪽에 오게 z-10) */}
         <div className="relative z-10">
           {cur ? (
-            <AquariumBox tankNo={cur.tank_no} />
+            <AquariumBox tankNo={cur.tank_no} heightVh={68} />
           ) : (
             <div
               className="relative rounded-xl overflow-hidden mx-auto grid place-items-center"
@@ -230,29 +235,29 @@ function AquariumPage() {
           style={frameStyle}
         >
           <div className="relative h-full w-full">
-            {/* 상단 중앙: 제목(편집) + 어항 구매 버튼(가격 with 골드 이모지) */}
+            {/* 상단 중앙: 제목(편집) + 어항 구매 버튼 */}
             <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 pointer-events-auto">
               <span
                 className={cn(
                   "inline-flex items-center gap-1 rounded-full",
-                  "bg-white/80 border backdrop-blur px-2.5 py-1 text-xs text-slate-800 shadow"
+                  "bg-white/80 border backdrop-blur px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs text-slate-800 shadow"
                 )}
                 title={
                   themeTitle ? `현재 테마: ${themeTitle}` : "현재 테마: 기본"
                 }
               >
-                <span aria-hidden className="text-[13px]">
+                <span aria-hidden className="text-[12px] sm:text-[13px]">
                   현재 테마 :
                 </span>
                 <b className="font-semibold">{themeTitle || "기본 테마"}</b>
               </span>
               {!editing ? (
                 <button
-                  className="group inline-flex items-center gap-2 rounded-full bg-black/35 text-white text-xs sm:text-sm px-3 py-1 backdrop-blur-sm"
+                  className="group inline-flex items-center gap-2 rounded-full bg-black/35 text-white text-xs sm:text-sm px-2.5 sm:px-3 py-0.5 sm:py-1 backdrop-blur-sm"
                   onClick={() => setEditing(true)}
                   title="어항 이름 수정"
                 >
-                  <span className="font-semibold tracking-wide">
+                  <span className="font-semibold tracking-wide line-clamp-1 max-w-[40vw] sm:max-w-none">
                     {cur?.title || "이름 없는 어항"}
                   </span>
                   <Pencil className="w-3.5 h-3.5 opacity-80 group-hover:opacity-100" />
@@ -266,7 +271,7 @@ function AquariumPage() {
                       if (e.key === "Enter") saveTitle();
                       if (e.key === "Escape") setEditing(false);
                     }}
-                    className="bg-transparent px-1 text-sm outline-none w-48"
+                    className="bg-transparent px-1 text-sm outline-none w-40 sm:w-48"
                     maxLength={30}
                     autoFocus
                   />
@@ -288,11 +293,11 @@ function AquariumPage() {
               )}
             </div>
 
-            {/* 좌하단: 현재 테마 제목 배지 + 새로고침 */}
+            {/* 좌하단: 새로고침 */}
             {cur && (
               <div className="absolute left-2 bottom-0 flex flex-col gap-2 z-10 pointer-events-none">
                 <Button
-                  className=" z-50 shadow pointer-events-auto"
+                  className="z-50 shadow pointer-events-auto h-8 px-3 text-xs"
                   variant="secondary"
                   onClick={() => window.location.reload()}
                   title="페이지를 새로고침합니다"
@@ -303,19 +308,19 @@ function AquariumPage() {
               </div>
             )}
 
-            {/* 좌상단: 도감 + 테마샵 + 상세 버튼 */}
-            <div className="absolute left-2 top-2 z-10 flex  gap-2 pointer-events-auto">
+            {/* 좌상단: 상세 버튼(모바일 간격 축소) */}
+            <div className="absolute left-2 top-2 z-10 flex gap-2 pointer-events-auto">
               {cur && <AquariumDetailButton tankNo={cur.tank_no} />}
             </div>
 
-            {/* ✅ 좌/우 화살표 — AquariumBox 좌우 중앙 */}
+            {/* 좌/우 화살표 */}
             {tanks.length > 1 && (
               <>
                 <button
                   className={cn(
-                    "absolute left-2 top-1/2 -translate-y-1/2 z-20",
+                    "absolute left-1.5 sm:left-2 top-1/2 -translate-y-1/2 z-20",
                     "pointer-events-auto rounded-full bg-white/70 hover:bg-white",
-                    "border shadow p-2"
+                    "border shadow p-1.5 sm:p-2"
                   )}
                   onClick={prev}
                   aria-label="이전 어항"
@@ -325,9 +330,9 @@ function AquariumPage() {
                 </button>
                 <button
                   className={cn(
-                    "absolute right-2 top-1/2 -translate-y-1/2 z-20",
+                    "absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 z-20",
                     "pointer-events-auto rounded-full bg-white/70 hover:bg-white",
-                    "border shadow p-2"
+                    "border shadow p-1.5 sm:p-2"
                   )}
                   onClick={next}
                   aria-label="다음 어항"
@@ -338,9 +343,9 @@ function AquariumPage() {
               </>
             )}
 
-            {/* ✅ 우상단: 번호 입력만 (Enter로 이동) */}
-            <div className="flex flex-col gap-1 absolute right-2 top-2 z-10 pointer-events-auto">
-              <div className="inline-flex items-center rounded-full bg-white/75 border backdrop-blur-sm text-gray-900 text-xs shadow px-2 py-1">
+            {/* 우상단: 번호 이동 + 구매 + 모달/테마 */}
+            <div className="flex flex-col gap-1 absolute right-1.5 sm:right-2 top-2 z-10 pointer-events-auto">
+              <div className="inline-flex items-center rounded-full bg-white/75 border backdrop-blur-sm text-gray-900 text-[11px] sm:text-xs shadow px-1.5 sm:px-2 py-0.5 sm:py-1">
                 <Input
                   type="number"
                   inputMode="numeric"
@@ -359,7 +364,7 @@ function AquariumPage() {
                     }
                   }}
                   placeholder={String(cur?.tank_no ?? 1)}
-                  className="h-7 w-14 text-center text-xs border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="h-7 w-12 sm:w-14 text-center text-[11px] sm:text-xs border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                   aria-label={`어항 번호 입력 (1-${tanks.length || 1})`}
                 />
                 <span className="ml-1 opacity-70">/ {tanks.length || 1}</span>
@@ -367,8 +372,8 @@ function AquariumPage() {
               <button
                 onClick={() => setConfirmOpen(true)}
                 className={cn(
-                  "inline-flex items-center gap-1 rounded-full mb-2",
-                  "bg-white/90 border px-2 py-1 text-xs shadow hover:bg-white"
+                  "inline-flex items-center gap-1 rounded-full mb-1",
+                  "bg-white/90 border px-2 py-0.5 sm:py-1 text-[11px] sm:text-xs shadow hover:bg-white"
                 )}
                 title={`어항 구매 (🪙${TANK_PRICE.toLocaleString("ko-KR")})`}
               >
@@ -389,7 +394,7 @@ function AquariumPage() {
       </div>
 
       {tanks.length > 1 && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
+        <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
           <div className="flex items-center gap-1.5">
             {tanks.map((t, i) => {
               const active = i === idx;

@@ -5,9 +5,7 @@ import React, { memo } from "react";
 import { type LucideIcon } from "lucide-react"; // 타입만 유지 (호환용)
 import { cn } from "@/lib/utils";
 
-import WeatherCard from "../widgets/WeatherCard";
 import { Separator } from "../ui/separator";
-
 import NotificationDropdown from "../widgets/Notification/NotificationDropdown";
 
 import { useUser } from "@/contexts/UserContext";
@@ -101,9 +99,8 @@ const NAV_GROUPS: readonly (readonly SimpleNavDef[])[] = [
     { id: "questions", label: "답변하기", icon: MessageCircleQuestionMark },
     { id: "bundle", label: "답변꾸러미", icon: MessagesSquare },
     { id: "scheduler", label: "스케쥴러", icon: CalendarDays },
-
     { id: "timeCapsule", label: "타임캡슐", icon: Hourglass },
-    { id: "gloomy", label: "음침한 방", icon: Ghost }, // ✅ 추가
+    { id: "gloomy", label: "음침한 방", icon: Ghost },
   ],
   [
     { id: "farm", label: "농장", icon: Tractor },
@@ -132,7 +129,7 @@ const GUARDS: Record<
 
   scheduler: { requireLogin: true, requireCouple: true },
   timeCapsule: { requireLogin: true, requireCouple: true },
-  gloomy: { requireLogin: true, requireCouple: true }, // ✅ 추가
+  gloomy: { requireLogin: true, requireCouple: true },
 
   farm: { requireLogin: true, requireCouple: true },
   kitchen: { requireLogin: true, requireCouple: true },
@@ -180,7 +177,7 @@ const TitleCluster = memo(function TitleCluster({
           {routeTitle}
         </h1>
       </div>
-      <div className="min-h-[38px] flex items-center">
+      <div className="min-h-[38px] hidden md:flex items-center">
         <p className="text-[15px] font-medium text-neutral-700 truncate">
           우리의 기록이 자라나는 공간,{" "}
           <span className="font-semibold text-amber-600">감자링</span>
@@ -191,6 +188,7 @@ const TitleCluster = memo(function TitleCluster({
 });
 
 const CenterCluster = memo(function CenterCluster() {
+  // 폰에서 중앙에 DaysTogetherBadge만
   return (
     <div className="relative self-center order-last md:order-none">
       <div className="flex items-center gap-3 md:justify-center overflow-x-auto overscroll-x-contain">
@@ -201,13 +199,29 @@ const CenterCluster = memo(function CenterCluster() {
   );
 });
 
-const RightCluster = memo(function RightCluster() {
+// 데스크톱 전용 우측 묶음
+const RightClusterDesktop = memo(function RightClusterDesktop() {
   return (
-    <div className="flex items-center justify-end gap-2">
-      {/* <WeatherCard /> */}
+    <div className="hidden md:flex items-center justify-end gap-2">
       <NotificationDropdown />
       <CoupleBalanceCard showDelta dense />
       <AvatarWidget />
+    </div>
+  );
+});
+
+// ✅ 모바일 전용: DaysTogetherBadge 아래 **다음 줄**에 Balance + 알림 + Avatar
+const RightClusterMobile = memo(function RightClusterMobile() {
+  return (
+    <div className="md:hidden px-3 pb-2">
+      <div className="flex items-center justify-end gap-2">
+        <CoupleBalanceCard showDelta dense />
+        {/* 알림 드롭다운을 모바일에도 노출 */}
+        <div className="-mr-1">
+          <NotificationDropdown />
+        </div>
+        <AvatarWidget />
+      </div>
     </div>
   );
 });
@@ -259,6 +273,12 @@ export default function AppHeader({
         className
       )}
     >
+      {/* 스크롤바 감추기(모바일 네비) */}
+      <style>{`
+        .scrollbar-none::-webkit-scrollbar { display: none; }
+        .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
+
       {/* 상단 헤더 */}
       <div className="mx-auto w-full max-w-screen-2xl px-3 sm:px-4">
         <div
@@ -271,30 +291,46 @@ export default function AppHeader({
           <TitleCluster routeTitle={routeTitle} />
           <div className="hidden md:block" />
           <CenterCluster />
-          <RightCluster />
+          <RightClusterDesktop />
         </div>
       </div>
+
+      {/* ✅ 모바일 전용: DaysTogetherBadge 다음 줄에 배치 (알림 포함) */}
+      <RightClusterMobile />
 
       {/* ✅ 하단: 좌우 반반 레이아웃 */}
       <div className="border-t bg-white/65 backdrop-blur-md supports-[backdrop-filter]:bg-white/55">
         <div className="mx-auto w-full max-w-screen-2xl py-2">
-          <div className="grid grid-cols-1 md:grid-cols-2 px-1 items-start">
-            {/* : TodayQuestion 카드 */}
-            <div className="min-w-0 px-1 ">
+          <div className="grid grid-cols-1 md:grid-cols-2 px-1 items-start gap-y-2">
+            {/* 좌측: TodayQuestion 카드 (폰/데스크톱 공통) */}
+            <div className="min-w-0 px-1">
               <TodayQuestionInline />
             </div>
-            {/* 좌측: 네비 (아이콘 크기만큼 자동 줄바꿈) */}
-            <nav aria-label="주 네비게이션" className="min-w-0">
+
+            {/* 우측: 네비 (폰은 가로 스와이프, 데스크톱은 자동 랩) */}
+            <nav
+              aria-label="주 네비게이션"
+              className={cn(
+                "min-w-0 md:pl-1",
+                // 모바일에서 가로 스와이프
+                "md:[overflow:visible] overflow-x-auto scrollbar-none touch-pan-x overscroll-x-contain",
+                // 가장자리 여백 제거해 풀폭 체감
+                "-mx-3 px-3 md:mx-0 md:px-0"
+              )}
+            >
               <div
                 className={cn(
-                  "grid grid-flow-col auto-cols-max",
-                  "gap-x-2 gap-y-1 justify-start content-start"
+                  // 모바일: 스와이프 가능한 가로 플로우 + 스냅
+                  "grid grid-flow-col auto-cols-max md:auto-cols-max",
+                  "gap-x-2 gap-y-1",
+                  "justify-start content-start",
+                  "snap-x snap-mandatory"
                 )}
               >
                 {NAV_GROUPS.map((group, gi) => (
                   <React.Fragment key={gi}>
                     {group.map(({ id, label, icon }) => (
-                      <div key={id}>
+                      <div key={id} className="snap-start">
                         <NavItem
                           icon={icon}
                           label={label}
@@ -303,12 +339,14 @@ export default function AppHeader({
                         />
                       </div>
                     ))}
+
+                    {/* 그룹 구분자: 데스크톱에서만 보이도록 */}
                     {gi < NAV_GROUPS.length - 1 && (
                       <Separator
                         orientation="vertical"
                         decorative
                         aria-hidden
-                        className="h-8 w-px shrink-0 self-center bg-slate-200"
+                        className="hidden md:block h-8 w-px shrink-0 self-center bg-slate-200"
                       />
                     )}
                   </React.Fragment>

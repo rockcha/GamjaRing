@@ -15,7 +15,7 @@ import type { NotificationType } from "@/utils/notification/sendUserNotification
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHeart } from "@fortawesome/free-solid-svg-icons";
 
-/** ⬇️ 새 액션 포함해서 확장 */
+/** ⬇️ 새 액션 반영한 키 타입 */
 type ActionKey = Extract<
   NotificationType,
   | "콕찌르기"
@@ -26,10 +26,15 @@ type ActionKey = Extract<
   | "응원하기"
   | "애교부리기"
   | "하이파이브"
-  | "선물하기"
+  | "꽃 선물하기"
   | "유혹하기"
   | "윙크하기"
-  | "심쿵멘트"
+  | "사랑스럽게 쳐다보기"
+  | "사랑고백 속삭이기"
+  | "오구오구해주기"
+  | "깜짝쪽지"
+  | "어깨토닥이기"
+  | "하트날리기"
 >;
 
 export default function DaysTogetherBadge() {
@@ -82,10 +87,15 @@ export default function DaysTogetherBadge() {
     응원하기: false,
     애교부리기: false,
     하이파이브: false,
-    선물하기: false,
+    "꽃 선물하기": false,
     유혹하기: false,
     윙크하기: false,
-    심쿵멘트: false,
+    "사랑스럽게 쳐다보기": false,
+    "사랑고백 속삭이기": false,
+    오구오구해주기: false,
+    깜짝쪽지: false,
+    어깨토닥이기: false,
+    하트날리기: false,
   });
 
   useEffect(() => {
@@ -149,7 +159,7 @@ export default function DaysTogetherBadge() {
       key: "뽀뽀하기",
       label: "뽀뽀하기",
       desc: "달달한 인사",
-      emoji: "😘",
+      emoji: "💋",
       bg: "bg-rose-50 hover:bg-rose-100 border-rose-200",
       ring: "focus-visible:ring-rose-300",
     },
@@ -178,7 +188,7 @@ export default function DaysTogetherBadge() {
       ring: "focus-visible:ring-sky-300",
     },
 
-    // ===== NEW(이쁘게 컬러 분산) =====
+    // ===== NEW/기존 혼합 (컬러 분산) =====
     {
       key: "응원하기",
       label: "응원하기",
@@ -204,10 +214,10 @@ export default function DaysTogetherBadge() {
       ring: "focus-visible:ring-indigo-300",
     },
     {
-      key: "선물하기",
-      label: "선물하기",
+      key: "꽃 선물하기",
+      label: "꽃 선물하기",
       desc: "깜짝 서프라이즈",
-      emoji: "🎁",
+      emoji: "💐",
       bg: "bg-violet-50 hover:bg-violet-100 border-violet-200",
       ring: "focus-visible:ring-violet-300",
     },
@@ -228,12 +238,54 @@ export default function DaysTogetherBadge() {
       ring: "focus-visible:ring-emerald-300",
     },
     {
-      key: "심쿵멘트",
-      label: "심쿵 멘트",
-      desc: "한 마디로 K.O",
+      key: "사랑스럽게 쳐다보기",
+      label: "사랑스럽게 쳐다보기",
+      desc: "한 눈빛으로 K.O",
       emoji: "💘",
       bg: "bg-amber-50/70 hover:bg-amber-100/80 border-amber-200",
       ring: "focus-visible:ring-amber-300",
+    },
+
+    // ===== 신규 5종 =====
+    {
+      key: "사랑고백 속삭이기",
+      label: "사랑고백 속삭이기",
+      desc: "귓속말로 두근두근",
+      emoji: "💞",
+      bg: "bg-rose-50/70 hover:bg-rose-100/80 border-rose-200",
+      ring: "focus-visible:ring-rose-300",
+    },
+    {
+      key: "오구오구해주기",
+      label: "오구오구해주기",
+      desc: "귀여움 폭발 케어",
+      emoji: "🐻",
+      bg: "bg-amber-50/70 hover:bg-amber-100/80 border-amber-200",
+      ring: "focus-visible:ring-amber-300",
+    },
+    {
+      key: "깜짝쪽지",
+      label: "깜짝 쪽지",
+      desc: "쓱 건네는 메모",
+      emoji: "✉️",
+      bg: "bg-blue-50/70 hover:bg-blue-100/80 border-blue-200",
+      ring: "focus-visible:ring-blue-300",
+    },
+    {
+      key: "어깨토닥이기",
+      label: "어깨 토닥이기",
+      desc: "조용히 응원하기",
+      emoji: "🤍",
+      bg: "bg-slate-50/70 hover:bg-slate-100/80 border-slate-200",
+      ring: "focus-visible:ring-slate-300",
+    },
+    {
+      key: "하트날리기",
+      label: "하트 날리기",
+      desc: "사르르 애정 발사",
+      emoji: "🫰",
+      bg: "bg-pink-50/70 hover:bg-pink-100/80 border-pink-200",
+      ring: "focus-visible:ring-pink-300",
     },
   ];
 
@@ -344,7 +396,7 @@ export default function DaysTogetherBadge() {
 
       {/* Action Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[520px]">
+        <DialogContent className="sm:max-w-[560px]">
           <style>{`
             @keyframes floatUp {
               0% { transform: translate(-50%, 0) scale(0.8); opacity: 0; }
@@ -363,7 +415,7 @@ export default function DaysTogetherBadge() {
               아래에서 하나를 선택하면 연인에게 즉시 알림이 전송돼요.
             </p>
 
-            {/* ⬇️ 2열 → 작은 화면 2, sm이상 3열로 넓혔어 */}
+            {/* ⬇️ 작은 화면 2열, sm 이상 3열 */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {ACTION_ITEMS.map((a) => (
                 <div key={a.key} className="relative">

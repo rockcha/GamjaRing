@@ -1,5 +1,15 @@
+// src/features/aquarium/FishSprite.tsx
 "use client";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  forwardRef,
+  memo,
+} from "react";
 
 /** keyframes 1회 주입 */
 function injectKeyframesOnce() {
@@ -78,7 +88,6 @@ type HueKey = keyof typeof HUE_MAP;
 
 function hexToRgba(hex: string, alpha = 1) {
   const raw = (hex || "").replace("#", "").trim().toLowerCase();
-  // 허용: 3자리/6자리 16진수만, 아니면 기본값
   const m =
     /^[0-9a-f]{3}$/.test(raw) || /^[0-9a-f]{6}$/.test(raw) ? raw : "000";
 
@@ -106,7 +115,11 @@ function getGlowForHue(hue?: string | null): {
 } {
   const key = (hue ?? "").toLowerCase().trim();
   if (!key || key === "none") {
-    return { dropFilter: "", haloColor: null, haloOpacity: 0 };
+    return {
+      dropFilter: "drop-shadow(0 2px 2px rgba(0,0,0,.2))",
+      haloColor: null,
+      haloOpacity: 0,
+    };
   }
   const set = (HUE_MAP as any)[key as HueKey] ?? HUE_MAP.blue;
 
@@ -115,7 +128,7 @@ function getGlowForHue(hue?: string | null): {
   const outer = hexToRgba(set.light, 0.29); // 퍼지는 글로우
   const halo = hexToRgba(set.light, 0.38); // 라디얼 오라
   return {
-    dropFilter: `drop-shadow(0 0 10px ${inner}) drop-shadow(0 0 22px ${outer})`,
+    dropFilter: `drop-shadow(0 2px 2px rgba(0,0,0,.25)) drop-shadow(0 0 10px ${inner}) drop-shadow(0 0 22px ${outer})`,
     haloColor: halo,
     haloOpacity: 0.6,
   };
@@ -134,39 +147,61 @@ export type SpriteFish = {
   glowColor?: string | null; // hue 키워드('blue' | 'none' 등)
 };
 
-export default function FishSprite({
-  fish,
-  overridePos,
-  popIn = false,
-  containerScale = 1,
-  onMouseDown,
-  isDragging = false,
-  /** 드롭 후 해당 topPct를 기준으로 유영(수직 대역 이동 끄고 보브만) */
-  lockTop = false,
-}: {
+type PerfMode = "high" | "medium" | "low";
+
+type Props = {
   fish: SpriteFish;
   overridePos: { leftPct: number; topPct: number }; // 0~100
   popIn?: boolean;
   containerScale?: number;
   onMouseDown?: (e: React.MouseEvent<HTMLDivElement>) => void;
   isDragging?: boolean;
+  /** 드롭 후 해당 topPct를 기준으로 유영(수직 대역 이동 끄고 보브만) */
   lockTop?: boolean;
-}) {
+  perfMode?: PerfMode;
+} & React.HTMLAttributes<HTMLDivElement>;
+
+/** 내부 컴포넌트 */
+const FishSpriteImpl = forwardRef<HTMLDivElement, Props>(function FishSprite(
+  {
+    fish,
+    overridePos,
+    popIn = false,
+    containerScale = 1,
+    onMouseDown,
+    isDragging = false,
+    lockTop = false,
+    perfMode = "high",
+    ...rest
+  },
+  forwardedRef
+) {
   const tokenRef = useRef<number>(makeToken());
   const rand = useMemo(() => mulberry32(tokenRef.current), []);
 
   const isMovable = fish.isMovable !== false; // undefined면 이동체
   const isTrash = (fish.price ?? Number.POSITIVE_INFINITY) <= 10;
 
+  /** 퍼포먼스 모드에 따른 이펙트 강도 */
+  const effects = useMemo(() => {
+    if (perfMode === "low") {
+      return { enableGlow: false, spin: false, bobMul: 0.6, swimMul: 0.7 };
+    }
+    if (perfMode === "medium") {
+      return { enableGlow: true, spin: isTrash, bobMul: 0.85, swimMul: 0.85 };
+    }
+    return { enableGlow: true, spin: isTrash, bobMul: 1.0, swimMul: 1.0 };
+  }, [perfMode, isTrash]);
+
   /** X/Y 모션 파라미터 */
   const motion = useMemo(() => {
     if (!isMovable) return { travel: 0, speedSec: 0, delay: 0, bobPx: 0 };
-    const travel = rand() * 80 + 45;
-    const speedSec = rand() * 6 + 6;
+    const travel = (rand() * 80 + 45) * effects.swimMul;
+    const speedSec = (rand() * 6 + 6) / effects.swimMul;
     const delay = rand() * 2;
-    const bobPx = Math.round(rand() * 12 + 6);
+    const bobPx = Math.round((rand() * 12 + 6) * effects.bobMul);
     return { travel, speedSec, delay, bobPx };
-  }, [rand, isMovable]);
+  }, [rand, isMovable, effects.swimMul, effects.bobMul]);
 
   const [facingLeft, setFacingLeft] = useState(() =>
     isMovable ? rand() < 0.5 : false
@@ -186,11 +221,11 @@ export default function FishSprite({
   /** 크기 */
   const sizeMul = (fish.size ?? 1) * 1.2;
   const base = 62 * sizeMul * containerScale;
-  const minPx = 26 * sizeMul * containerScale;
-  const maxPx = 82 * sizeMul * containerScale;
-  const widthPx = Math.max(minPx, Math.min(maxPx, base));
+  const widthPx = Math.max(
+    26 * sizeMul * containerScale,
+    Math.min(82 * sizeMul * containerScale, base)
+  );
   const widthCss = `${Math.round(widthPx)}px`;
-  const spinSignRef = useRef<number>(rand() < 0.5 ? -1 : 1);
   const sx = facingLeft ? -1 : 1;
   const sy = 1;
 
@@ -207,17 +242,28 @@ export default function FishSprite({
   }, [isMovable, motion.speedSec, rand]);
 
   const spinDurationSec = useMemo(
-    () => (isTrash ? Math.round(14 + rand() * 14) : 0),
-    [isTrash, rand]
+    () => (effects.spin ? Math.round(14 + rand() * 14) : 0),
+    [effects.spin, rand]
   );
   const spinDelay = useMemo(
-    () => (isTrash ? +(rand() * 3).toFixed(2) : 0),
-    [isTrash, rand]
+    () => (effects.spin ? +(rand() * 3).toFixed(2) : 0),
+    [effects.spin, rand]
   );
 
   /** 수직 대역 계산 (lockTop이면 대역 이동 끔) */
   const wrapperRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
+
+  useLayoutEffect(() => {
+    // forwardedRef 연결: 상위에서 DOM 직접 이동 가능
+    if (typeof forwardedRef === "function") {
+      forwardedRef(wrapperRef.current!);
+    } else if (forwardedRef) {
+      (forwardedRef as React.MutableRefObject<HTMLDivElement | null>).current =
+        wrapperRef.current;
+    }
+  }, [forwardedRef]);
+
   const [topBasePx, setTopBasePx] = useState<number | null>(null);
   const [yRangePx, setYRangePx] = useState<number>(0);
 
@@ -287,13 +333,14 @@ export default function FishSprite({
       window.removeEventListener("resize", onResize);
       ro?.disconnect();
     };
-  }, [sy, motion.bobPx, overridePos.topPct, isMovable, lockTop]);
+  }, [sy, motion.bobPx, overridePos.topPct, isMovable, lockTop, fish.swimY]);
 
   useEffect(() => {
     const img = imgRef.current;
     if (!img) return;
     if (img.complete) recomputeTopAndRange();
     else img.addEventListener("load", recomputeTopAndRange, { once: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const swimAnimX =
@@ -315,10 +362,15 @@ export default function FishSprite({
   // hue 키워드: camel/snake 모두 대응(호환성)
   const hueKey = (fish as any).glowColor ?? (fish as any).glow_color ?? null;
 
-  const { dropFilter, haloColor, haloOpacity } = useMemo(
-    () => getGlowForHue(hueKey),
-    [hueKey]
-  );
+  const { dropFilter, haloColor, haloOpacity } = useMemo(() => {
+    if (!effects.enableGlow)
+      return {
+        dropFilter: "drop-shadow(0 2px 2px rgba(0,0,0,.2))",
+        haloColor: null,
+        haloOpacity: 0,
+      };
+    return getGlowForHue(hueKey);
+  }, [hueKey, effects.enableGlow]);
 
   return (
     <div
@@ -337,6 +389,7 @@ export default function FishSprite({
         userSelect: "none",
       }}
       onMouseDown={onMouseDown}
+      {...rest}
     >
       {/* 수직 왕복: lockTop이거나 드래깅 중이면 끔 */}
       <div
@@ -345,8 +398,13 @@ export default function FishSprite({
           animation:
             isMovable && !lockTop && !isDragging
               ? `swim-band ${Math.max(
-                  20,
-                  20
+                  20 *
+                    (perfMode === "low"
+                      ? 0.7
+                      : perfMode === "medium"
+                      ? 0.85
+                      : 1),
+                  18
                 )}s ease-in-out 0s infinite alternate`
               : "none",
           ["--yRangePx" as any]: `${yRangePx}px`,
@@ -406,11 +464,11 @@ export default function FishSprite({
                 className="will-change-transform transform-gpu"
                 style={{
                   animation:
-                    isTrash && !isDragging
+                    effects.spin && !isDragging
                       ? `slow-spin ${spinDurationSec}s linear ${spinDelay}s infinite`
                       : "none",
                   transformOrigin: "50% 50%",
-                  ["--spinSign" as any]: spinSignRef.current,
+                  ["--spinSign" as any]: useRef(rand() < 0.5 ? -1 : 1).current,
                 }}
               >
                 <img
@@ -425,7 +483,7 @@ export default function FishSprite({
                     transition: "transform 240ms ease-out",
                     transformOrigin: "50% 50%",
                     // 기본 그림자 + 색상 글로우
-                    filter: `drop-shadow(0 2px 2px rgba(0,0,0,.25)) ${dropFilter}`,
+                    filter: dropFilter,
                   }}
                   draggable={false}
                 />
@@ -436,4 +494,20 @@ export default function FishSprite({
       </div>
     </div>
   );
-}
+});
+
+/** 메모화: 자신 관련 prop 변경시에만 리렌더 */
+const areEqual = (prev: Props, next: Props) => {
+  return (
+    prev.fish.id === next.fish.id &&
+    prev.overridePos.leftPct === next.overridePos.leftPct &&
+    prev.overridePos.topPct === next.overridePos.topPct &&
+    prev.isDragging === next.isDragging &&
+    prev.containerScale === next.containerScale &&
+    prev.lockTop === next.lockTop &&
+    prev.perfMode === next.perfMode &&
+    prev.popIn === next.popIn
+  );
+};
+
+export default memo(FishSpriteImpl, areEqual);
