@@ -74,7 +74,7 @@ export const RECIPES: readonly Recipe[] = [
       { title: "케찹", qty: 3 },
       { title: "소금", qty: 3 },
     ],
-    sell: 35,
+    sell: 35, 
   },
   {
     name: "감자 바게트",
