@@ -1,12 +1,27 @@
 // src/features/memories/FragmentDetailPage.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  TooltipProvider,
+} from "@/components/ui/tooltip";
+
 import { useNavigate, useParams } from "react-router-dom";
 import {
   getFragment,
@@ -32,19 +47,26 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Calendar } from "@/components/ui/calendar";
 import { toast } from "sonner";
 
-/* -------- FontAwesome -------- */
+/* Icons */
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faHeart,
   faListUl,
-  faFloppyDisk,
   faSpinner,
   faCamera,
   faTrash,
   faCrown,
+  faFloppyDisk,
 } from "@fortawesome/free-solid-svg-icons";
+import {
+  MoreVertical,
+  CalendarDays,
+  Camera,
+  List as ListIcon,
+  Trash2,
+} from "lucide-react";
 
 /* ============== 유틸 ============== */
 function arrayMove<T>(arr: T[], from: number, to: number) {
@@ -54,7 +76,6 @@ function arrayMove<T>(arr: T[], from: number, to: number) {
   return clone;
 }
 
-/** 간단 디바운스 */
 function debounce<T extends (...a: any[]) => any>(fn: T, delay = 600) {
   let t: any;
   return (...args: Parameters<T>) => {
@@ -63,7 +84,6 @@ function debounce<T extends (...a: any[]) => any>(fn: T, delay = 600) {
   };
 }
 
-/** 일정 시간 표시 후 꺼지는 '저장됨' 플래그 */
 function useSavedFlag() {
   const [saved, setSaved] = useState(false);
   const timer = useRef<any>(null);
@@ -74,6 +94,19 @@ function useSavedFlag() {
   };
   useEffect(() => () => clearTimeout(timer.current), []);
   return { saved, showSaved };
+}
+
+function toDateFromYMD(ymd: string): Date | null {
+  if (!ymd) return null;
+  const [y, m, d] = ymd.split("-").map((v) => parseInt(v, 10));
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d);
+}
+function toYMD(date: Date): string {
+  const y = date.getFullYear();
+  const m = `${date.getMonth() + 1}`.padStart(2, "0");
+  const d = `${date.getDate()}`.padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 /* ============== DnD 래퍼 ============== */
@@ -110,6 +143,92 @@ function DraggableRow({
     >
       {children}
     </div>
+  );
+}
+
+/* ============== 우측 툴바 컴포넌트 ============== */
+function ToolbarRight({
+  dateText,
+  onOpenDate,
+  onPickFile,
+  onGoList,
+  onDeleteFragment,
+  busyAddPhoto = false,
+}: {
+  dateText: string;
+  onOpenDate: () => void;
+  onPickFile: () => void;
+  onGoList: () => void;
+  onDeleteFragment: () => void;
+  busyAddPhoto?: boolean;
+}) {
+  return (
+    <TooltipProvider delayDuration={80}>
+      <div className="flex items-center gap-2">
+        {/* 날짜: secondary, md미만 아이콘-only */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={onOpenDate}
+              className="inline-flex items-center gap-2 h-10 px-3 rounded-md bg-secondary text-secondary-foreground hover:opacity-90 transition-colors group max-md:px-2"
+              aria-label="날짜 선택"
+              title={dateText}
+            >
+              <CalendarDays className="size-4 shrink-0" />
+              <span className="hidden md:inline">{dateText}</span>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>날짜 선택 (D)</TooltipContent>
+        </Tooltip>
+
+        {/* 구분선으로 Primary와 보조를 나눔 */}
+        <Separator orientation="vertical" className="h-6" />
+
+        {/* Primary: 사진 추가 */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={onPickFile}
+              disabled={busyAddPhoto}
+              className="inline-flex items-center gap-2 h-10 px-3 rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-colors"
+              aria-label="사진 추가"
+            >
+              <Camera
+                className={`size-4 ${busyAddPhoto ? "animate-pulse" : ""}`}
+              />
+              <span className="hidden sm:inline">사진 추가</span>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>사진 추가 (U)</TooltipContent>
+        </Tooltip>
+
+        {/* 기타/위험 작업: kebab */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="inline-flex h-10 w-10 items-center justify-center rounded-md hover:bg-muted"
+              aria-label="더보기"
+            >
+              <MoreVertical className="size-5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem onClick={onGoList}>
+              <ListIcon className="mr-2 size-4" />
+              추억조각 목록
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={onDeleteFragment}
+              className="text-destructive focus:text-destructive"
+            >
+              <Trash2 className="mr-2 size-4" />
+              삭제하기
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </TooltipProvider>
   );
 }
 
@@ -151,44 +270,45 @@ function PhotoRow({
   const authorId = String(card.author_id ?? "").trim();
   const isAuthor = myId !== "" && authorId !== "" && myId === authorId;
 
+  // 라벨을 "작성자/비작성자" 기준으로 동기화
+  const authorLabel = isAuthor ? myName : partnerName;
+  const partnerLabel = isAuthor ? partnerName : myName;
+
   const canEditAuthor = isAuthor;
   const canEditPartner = !isAuthor;
 
   return (
     <Card className="p-6">
       <div className="flex flex-col xl:flex-row gap-6">
+        {/* 이미지 영역 (오버레이 버튼 제거) */}
         <div className="relative">
-          {/* ✅ 왕관(대표 버튼): 대표면 금색 포커스 */}
-          <button
-            type="button"
-            className={`absolute left-2 top-2 z-10 rounded-full h-9 px-3
-              bg-black/60 hover:bg-black/70 text-white border border-white/40
-              backdrop-blur-sm shadow-sm text-xs font-medium flex items-center gap-2
-              ${isCover ? "ring-2 ring-amber-400" : ""}`}
-            onClick={onSetCover}
-            title="이 사진을 대표로 설정"
-          >
-            <FontAwesomeIcon
-              icon={faCrown}
-              className={isCover ? "text-amber-300" : "text-white"}
-            />
-            {isCover ? "대표 사진" : "대표로"}
-          </button>
-
           <img
             src={publicUrl(card.image_path)}
             alt="memory"
             className="w-full max-w-[520px] h-[340px] object-cover rounded-xl"
             loading="lazy"
           />
+          {isCover && (
+            <div
+              className="absolute left-3 top-3 flex items-center gap-2 px-2.5 py-1.5 rounded-full bg-white/92 shadow-sm ring-1  bg-white ring-white/70 backdrop-blur-sm"
+              title="대표 사진"
+              aria-label="대표 사진"
+            >
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 ring-1 ring-amber-200 shadow-sm">
+                <FontAwesomeIcon icon={faCrown} className="text-amber-500" />
+              </span>
+              <span className="text-xs font-medium text-amber-700">대표</span>
+            </div>
+          )}
         </div>
 
+        {/* 우측: 캡션 + 액션 */}
         <div className="flex-1 grid gap-5 min-w-[360px]">
-          {/* 내 캡션 (항상 위) */}
+          {/* 작성자 캡션 */}
           <div className="grid gap-1">
             <div className="flex items-center gap-2">
               <Label className="text-xs font-medium text-slate-500">
-                {myName}의 캡션
+                {authorLabel}의 캡션
               </Label>
               {savingAuthor && (
                 <span className="text-xs text-slate-400 flex items-center gap-1">
@@ -208,19 +328,19 @@ function PhotoRow({
               disabled={!canEditAuthor}
               placeholder={
                 canEditAuthor
-                  ? "이 사진에 대해서 설명해주세요!"
-                  : "작성자만 수정할 수 있어요"
+                  ? "이 사진에 대한 설명을 적어주세요."
+                  : "작성자만 수정할 수 있어요."
               }
               rows={4}
               className="resize-y leading-6"
             />
           </div>
 
-          {/* 상대 닉네임 캡션 */}
+          {/* 비작성자 캡션 */}
           <div className="grid gap-1">
             <div className="flex items-center gap-2">
               <Label className="text-xs font-medium text-slate-500">
-                {partnerName}의 캡션
+                {partnerLabel}의 캡션
               </Label>
               {savingPartner && (
                 <span className="text-xs text-slate-400 flex items-center gap-1">
@@ -242,15 +362,28 @@ function PhotoRow({
               disabled={!canEditPartner}
               placeholder={
                 canEditPartner
-                  ? "사진에 대한 내 생각을 남겨줘!"
-                  : "상대가 나중에 작성할 수 있어요"
+                  ? "사진에 대한 내 생각을 남겨보세요."
+                  : "상대가 작성할 수 있어요."
               }
               rows={4}
               className="resize-y leading-6"
             />
           </div>
 
-          <div className="flex justify-end">
+          {/* 액션: 대표 지정 / 카드 삭제 */}
+          <div className="flex items-center justify-between">
+            <Button
+              variant={isCover ? "default" : "secondary"}
+              size="sm"
+              onClick={onSetCover}
+              className="gap-2"
+              title="대표 사진으로 지정"
+              aria-label="대표 사진으로 지정"
+            >
+              <FontAwesomeIcon icon={faCrown} />
+              {isCover ? "대표 사진" : "대표로 지정"}
+            </Button>
+
             <Button variant="ghost" size="sm" onClick={onAskDelete}>
               <FontAwesomeIcon icon={faTrash} className="mr-2" />
               사진 카드 삭제
@@ -267,21 +400,18 @@ export default function FragmentDetailPage() {
   const nav = useNavigate();
   const { id } = useParams();
 
-  // 컨텍스트
   const { couple, partnerId } = useCoupleContext();
   const { user } = useUser();
 
-  // 통일된 현재 사용자 식별자 (Auth UID 우선, 없으면 profile id)
+  // profile id 우선 권장
   const currentUid = useMemo(
-    () => (user?.authId ?? user?.id) || null,
-    [user?.authId, user?.id]
+    () => (user?.id ?? user?.authId) || null,
+    [user?.id, user?.authId]
   );
 
-  // 닉네임
   const myName = useMemo(() => user?.nickname ?? "나", [user?.nickname]);
   const [partnerName, setPartnerName] = useState<string>("연인");
 
-  // 파트너 닉네임 로드
   useEffect(() => {
     let mounted = true;
     async function loadPartnerNickname() {
@@ -307,7 +437,7 @@ export default function FragmentDetailPage() {
   const [frag, setFrag] = useState<Fragment | null>(null);
   const [cards, setCards] = useState<MemoryCard[]>([]);
 
-  // ====== 자동 저장 상태(제목/날짜/요약)
+  // 자동 저장 상태
   const [title, setTitle] = useState("");
   const [savingTitle, setSavingTitle] = useState(false);
   const { saved: savedTitle, showSaved: flashSavedTitle } = useSavedFlag();
@@ -320,7 +450,10 @@ export default function FragmentDetailPage() {
   const [savingSummary, setSavingSummary] = useState(false);
   const { saved: savedSummary, showSaved: flashSavedSummary } = useSavedFlag();
 
-  // ====== 카드 캡션 로컬 상태 + 저장 상태
+  // 날짜 Dialog
+  const [dateOpen, setDateOpen] = useState(false);
+
+  // 카드 캡션 로컬/저장 상태
   const [cardTexts, setCardTexts] = useState<
     Record<string, { author: string; partner: string }>
   >({});
@@ -337,7 +470,7 @@ export default function FragmentDetailPage() {
     Record<string, boolean>
   >({});
 
-  // 작성자 이름(현재 사용자와 비교)
+  // 작성자명
   const authorName = useMemo(() => {
     if (!frag) return "작성자";
     const fAuthor = String(frag.author_id ?? "").trim();
@@ -352,11 +485,13 @@ export default function FragmentDetailPage() {
     id?: string;
   }>(null);
 
-  // 하트 이펙트
+  // 하트 이펙트 (+1)
   const [boom, setBoom] = useState(false);
+  const [plusOne, setPlusOne] = useState(false);
   const boomTimer = useRef<number | null>(null);
+  const plusTimer = useRef<number | null>(null);
 
-  // 파일 선택(숨김) + 헤더 버튼으로 트리거
+  // 파일 선택 ref
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   // DnD refs
@@ -364,7 +499,7 @@ export default function FragmentDetailPage() {
   const dragOver = useRef<number | null>(null);
   const isDragging = useRef(false);
 
-  // ===== 데이터 로드
+  // 데이터 로드
   async function loadAll() {
     if (!id) return;
     const [f, sum] = await Promise.all([getFragment(id), getSummary(id)]);
@@ -388,11 +523,12 @@ export default function FragmentDetailPage() {
     loadAll();
     return () => {
       if (boomTimer.current) window.clearTimeout(boomTimer.current);
+      if (plusTimer.current) window.clearTimeout(plusTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // ===== 자동 저장 디바운스 함수들
+  // 디바운스 저장기
   const debouncedSaveTitle = useMemo(
     () =>
       debounce(async (value: string) => {
@@ -422,7 +558,7 @@ export default function FragmentDetailPage() {
         } finally {
           setSavingDate(false);
         }
-      }, 600),
+      }, 300),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [frag?.id]
   );
@@ -495,7 +631,7 @@ export default function FragmentDetailPage() {
     };
   }, []);
 
-  // ===== 순서 반영
+  // 정렬 반영
   async function persistOrder(next: MemoryCard[]) {
     await Promise.all(
       next.map((c, idx) =>
@@ -506,7 +642,6 @@ export default function FragmentDetailPage() {
     );
     toast.success("사진 카드 순서를 저장했어요");
   }
-
   function onDragStartIdx(i: number) {
     dragFrom.current = i;
     isDragging.current = true;
@@ -530,7 +665,7 @@ export default function FragmentDetailPage() {
     await persistOrder(next);
   }
 
-  // ===== 액션들
+  // 액션들
   async function handleAddCard(file: File) {
     if (!couple?.id || !id) return;
     if (!currentUid) {
@@ -575,26 +710,28 @@ export default function FragmentDetailPage() {
     if (!id || !frag) return;
     const next = await heartPlus(id);
     setFrag({ ...frag, hearts: next });
+
+    // ❤️ 이펙트
     setBoom(true);
     if (boomTimer.current) window.clearTimeout(boomTimer.current);
-    boomTimer.current = window.setTimeout(() => setBoom(false), 600);
+    boomTimer.current = window.setTimeout(() => setBoom(false), 450);
+
+    // +1 떠오르기
+    setPlusOne(true);
+    if (plusTimer.current) window.clearTimeout(plusTimer.current);
+    plusTimer.current = window.setTimeout(() => setPlusOne(false), 650);
   }
 
-  /** ✅ 조각(프래그먼트) 삭제: 모든 카드 파일 삭제 후 조각 삭제 */
   async function confirmDeleteFragment() {
     if (!id) return;
     try {
-      // 1) 현재 로드된 카드들의 스토리지 이미지 모두 삭제
       const paths = cards.map((c) => c.image_path).filter(Boolean);
       if (paths.length > 0) {
         await Promise.allSettled(paths.map((p) => removeMemoryImage(p)));
       }
-
-      // 2) 조각 삭제
       await deleteFragment(id);
-
       toast.success("추억 조각과 모든 사진을 삭제했어요");
-      setConfirmOpen(null); // ✅ 다이얼로그 닫기
+      setConfirmOpen(null);
       nav("/memories");
     } catch (e) {
       console.error(e);
@@ -602,209 +739,161 @@ export default function FragmentDetailPage() {
     }
   }
 
-  /** ✅ 카드 삭제: 파일 삭제 → 카드 레코드 삭제 → 커버면 null 처리 */
   async function confirmDeleteCard(cardId: string) {
     const target = cards.find((c) => c.id === cardId);
     if (!target) {
       setConfirmOpen(null);
       return;
     }
-
     try {
-      // 1) 파일 삭제
       await removeMemoryImage(target.image_path);
-
-      // 2) DB 카드 삭제
       await deleteCard(cardId);
-
-      // 3) 로컬 상태 갱신
       setCards((prev) => prev.filter((c) => c.id !== cardId));
       setCardTexts((m) => {
         const { [cardId]: _, ...rest } = m;
         return rest;
       });
-
-      // 4) 대표 사진이었으면 cover_photo_path = null
       if (frag && frag.cover_photo_path === target.image_path) {
         const updated = await updateFragment(frag.id, {
           cover_photo_path: null,
         });
         setFrag(updated);
       }
-
       toast.success("사진 카드(파일 포함)를 삭제했어요");
-      setConfirmOpen(null); // ✅ 다이얼로그 닫기
+      setConfirmOpen(null);
     } catch (e) {
       console.error(e);
       toast.error("삭제 중 오류가 발생했어요. 다시 시도해 주세요.");
     }
   }
 
-  /* ===== sticky offset (페이지 레이아웃에서 이미 설정) ===== */
+  // 단축키: H/U/D/L
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const k = e.key.toLowerCase();
+      if (k === "h") {
+        e.preventDefault();
+        addHeart();
+      } else if (k === "u") {
+        e.preventDefault();
+        fileRef.current?.click();
+      } else if (k === "d") {
+        e.preventDefault();
+        setDateOpen(true);
+      } else if (k === "l") {
+        e.preventDefault();
+        nav("/memories");
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [frag, id, cards]);
+
   const STICKY_TOP = "top-40 md:top-40";
 
+  const dateText =
+    eventDate && toDateFromYMD(eventDate)
+      ? toDateFromYMD(eventDate)!.toLocaleDateString()
+      : "날짜 선택";
+
   return (
-    <div className="mx-auto max-w-7xl p-6 space-y-8">
+    <div className="mx-auto max-w-[1400px] p-6 space-y-8">
       {frag && (
         <>
-          {/* ✅ STICKY 헤더: 하트 · 제목 · 날짜 · 버튼들 정리 */}
+          {/* ✅ Sticky 툴바 (정리 버전) */}
           <div
-            className={`sticky ${STICKY_TOP} z-30 -mx-6 px-6 py-3
-            bg-white/85 backdrop-blur supports-[backdrop-filter]:bg-white/70
-            border-b`}
+            className={`sticky ${STICKY_TOP} z-30 -mx-6 px-6 h-14 grid grid-cols-[auto_1fr_auto] items-center gap-3
+            bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/65 rounded-xl
+            border-b shadow-[0_1px_0_rgba(0,0,0,0.03)]`}
           >
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              {/* 좌측: 하트 + 카운트 + 제목 + 날짜 */}
-              <div className="flex items-center gap-4 min-w-0">
-                {/* 하트 버튼(둥근) */}
-                <div className="relative">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-10 w-10 rounded-full"
-                    onClick={addHeart}
-                    aria-label="좋아요"
-                    title={`좋아요 ${frag.hearts}`}
-                  >
-                    <FontAwesomeIcon icon={faHeart} />
-                  </Button>
-                  {boom && (
-                    <span className="pointer-events-none absolute inset-0 grid place-items-center">
-                      <span className="animate-heart-burst text-2xl">🎔</span>
-                    </span>
-                  )}
-                </div>
-                <span className="text-sm text-slate-600 w-8">
+            {/* 좌: 하트/카운트 */}
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10 rounded-full text-xl"
+                  onClick={addHeart}
+                  aria-label="좋아요"
+                  title={`좋아요 ${frag.hearts}`}
+                >
+                  <span className="pointer-events-none select-none">❤️</span>
+                </Button>
+                {boom && (
+                  <span className="pointer-events-none absolute inset-0 grid place-items-center">
+                    <span className="animate-heart-burst text-2xl">❤️</span>
+                  </span>
+                )}
+              </div>
+              <div className="relative">
+                <span className="text-base md:text-lg text-slate-700 tabular-nums">
                   {frag.hearts}
                 </span>
-
-                {/* 제목(완전 자동 저장) */}
-                <div className="flex items-center gap-2 min-w-0">
-                  <input
-                    value={title}
-                    onChange={(e) => {
-                      setTitle(e.target.value);
-                      debouncedSaveTitle(e.target.value);
-                    }}
-                    className="bg-transparent outline-none text-2xl md:text-4xl font-extrabold tracking-tight min-w-0"
-                  />
-                  {savingTitle && (
-                    <span className="text-xs text-slate-400 flex items-center gap-1">
-                      <FontAwesomeIcon icon={faSpinner} spin /> 저장중…
-                    </span>
-                  )}
-                  {savedTitle && !savingTitle && (
-                    <span className="text-[11px] text-emerald-600 flex items-center gap-1">
-                      <FontAwesomeIcon icon={faFloppyDisk} />
-                      저장됨
-                    </span>
-                  )}
-                </div>
-
-                {/* 날짜 (데스크톱) */}
-                <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground shrink-0 ml-2">
-                  <Label className="text-muted-foreground">날짜</Label>
-                  <Input
-                    type="date"
-                    value={eventDate}
-                    onChange={(e) => {
-                      setEventDate(e.target.value);
-                      debouncedSaveDate(e.target.value);
-                    }}
-                    className="h-9 w-[190px]"
-                  />
-                  {savingDate && (
-                    <span className="text-xs text-slate-400 flex items-center gap-1">
-                      <FontAwesomeIcon icon={faSpinner} spin /> 저장중…
-                    </span>
-                  )}
-                  {savedDate && !savingDate && (
-                    <span className="text-[11px] text-emerald-600 flex items-center gap-1">
-                      <FontAwesomeIcon icon={faFloppyDisk} />
-                      저장됨
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* 우측 액션: 깔끔한 아이콘 버튼 그룹 */}
-              <div className="flex items-center gap-2">
-                {/* 사진 추가 */}
-                <div>
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0] ?? null;
-                      if (file) handleAddCard(file);
-                      if (fileRef.current) fileRef.current.value = "";
-                    }}
-                  />
-                  <Button
-                    onClick={() => fileRef.current?.click()}
-                    className="gap-2"
-                  >
-                    <FontAwesomeIcon icon={faCamera} />
-                    사진 추가
-                  </Button>
-                </div>
-
-                {/* 목록으로 */}
-                <Button
-                  variant="secondary"
-                  onClick={() => nav("/memories")}
-                  className="gap-2"
-                >
-                  <FontAwesomeIcon icon={faListUl} />
-                  목록
-                </Button>
-
-                {/* 삭제 */}
-                <Button
-                  variant="ghost"
-                  onClick={() => setConfirmOpen({ type: "fragment" })}
-                  className="gap-2"
-                >
-                  <FontAwesomeIcon icon={faTrash} />
-                  삭제
-                </Button>
-              </div>
-            </div>
-
-            {/* 작성 메타 + 모바일 날짜 */}
-            <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-              <div className="md:hidden flex items-center gap-2">
-                <Label className="text-muted-foreground">날짜</Label>
-                <Input
-                  type="date"
-                  value={eventDate}
-                  onChange={(e) => {
-                    setEventDate(e.target.value);
-                    debouncedSaveDate(e.target.value);
-                  }}
-                  className="h-8 w-[170px]"
-                />
-                {savingDate && (
-                  <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                    <FontAwesomeIcon icon={faSpinner} spin /> 저장중…
-                  </span>
-                )}
-                {savedDate && !savingDate && (
-                  <span className="text-[11px] text-emerald-600 flex items-center gap-1">
-                    <FontAwesomeIcon icon={faFloppyDisk} />
-                    저장됨
+                {plusOne && (
+                  <span className="absolute -right-6 -top-2 text-red-500 text-sm animate-plus-one">
+                    +1
                   </span>
                 )}
               </div>
-              <span>작성자: {authorName}</span>
-              <span>·</span>
-              <span>작성일: {new Date(frag.created_at).toLocaleString()}</span>
             </div>
+
+            {/* 중: 제목 (저장 칩만 표기) */}
+            <div className="min-w-0 flex items-center gap-2 ml-6 ">
+              <input
+                value={title}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  debouncedSaveTitle(e.target.value);
+                }}
+                placeholder="제목"
+                className="bg-transparent outline-none text-2xl md:text-4xl font-extrabold tracking-tight min-w-0 w-full truncate"
+                aria-label="제목"
+              />
+              {savingTitle && (
+                <span className="text-xs text-slate-400 flex items-center gap-1 whitespace-nowrap">
+                  <FontAwesomeIcon icon={faSpinner} spin /> 저장중…
+                </span>
+              )}
+              {savedTitle && !savingTitle && (
+                <span className="text-[11px] text-emerald-600 flex items-center gap-1 whitespace-nowrap">
+                  <FontAwesomeIcon icon={faFloppyDisk} />
+                  저장됨
+                </span>
+              )}
+            </div>
+
+            {/* 우: 정리된 액션 */}
+            <ToolbarRight
+              dateText={dateText}
+              onOpenDate={() => setDateOpen(true)}
+              onPickFile={() => fileRef.current?.click()}
+              onGoList={() => nav("/memories")}
+              onDeleteFragment={() => setConfirmOpen({ type: "fragment" })}
+            />
+          </div>
+
+          {/* 메타줄 (2차 정보) */}
+          <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+            <span>작성자: {authorName}</span>
+            <span>·</span>
+            <span>작성일: {new Date(frag.created_at).toLocaleString()}</span>
           </div>
         </>
       )}
+
+      {/* 숨겨진 파일 input */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0] ?? null;
+          if (file) handleAddCard(file);
+          if (fileRef.current) fileRef.current.value = "";
+        }}
+      />
 
       {/* 카드 리스트 */}
       <div className="grid gap-5">
@@ -817,16 +906,9 @@ export default function FragmentDetailPage() {
             <DraggableRow
               key={c.id}
               index={idx}
-              onDragStartIdx={(i) => {
-                // for accessibility feel
-                void i;
-              }}
-              onDragOverIdx={() => {}}
-              onDropToIdx={(i) => {
-                const from = idx;
-                if (from === i) return;
-                // 외부 DnD 핸들러 사용
-              }}
+              onDragStartIdx={onDragStartIdx}
+              onDragOverIdx={onDragOverIdx}
+              onDropToIdx={onDropToIdx}
             >
               <PhotoRow
                 card={c}
@@ -844,7 +926,7 @@ export default function FragmentDetailPage() {
                   debouncedSaveCardAuthor(c.id)(v);
                 }}
                 onChangePartner={(v) => {
-                  if (isAuthor) return; // 상대만 수정
+                  if (isAuthor) return;
                   setCardTexts((m) => ({
                     ...m,
                     [c.id]: { ...(m[c.id] ?? { author: "" }), partner: v },
@@ -864,10 +946,10 @@ export default function FragmentDetailPage() {
         })}
       </div>
 
-      {/* 추억 정리글 (완전 자동 저장) */}
+      {/* 추억 정리글 */}
       <Card className="p-6 space-y-3">
         <div className="flex items-center gap-2">
-          <div className="font-medium">마지막 추억 정리</div>
+          <div className="font-medium">메모하기</div>
           {savingSummary && (
             <span className="text-xs text-slate-400 flex items-center gap-1">
               <FontAwesomeIcon icon={faSpinner} spin /> 저장중…
@@ -891,6 +973,34 @@ export default function FragmentDetailPage() {
           placeholder="사진 없이 글로 정리해도 좋아요."
         />
       </Card>
+
+      {/* 날짜 Dialog + 큰 달력 */}
+      <Dialog open={dateOpen} onOpenChange={setDateOpen}>
+        <DialogContent className="max-w-[720px]">
+          <DialogHeader>
+            <DialogTitle>날짜 선택</DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <Calendar
+              mode="single"
+              selected={toDateFromYMD(eventDate) ?? new Date()}
+              onSelect={(d) => {
+                if (!d) return;
+                const ymd = toYMD(d);
+                setEventDate(ymd);
+                debouncedSaveDate(ymd);
+                setDateOpen(false);
+              }}
+              className="mx-auto"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDateOpen(false)}>
+              닫기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* 삭제 확인 다이얼로그 */}
       <Dialog
@@ -934,14 +1044,21 @@ export default function FragmentDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* 하트 이펙트 */}
+      {/* 이펙트 스타일 */}
       <style>{`
 @keyframes heart-burst {
   0%   { transform: scale(0.6); opacity: 0; }
   30%  { transform: scale(1.2); opacity: .9; }
-  100% { transform: scale(1.8); opacity: 0; }
+  100% { transform: scale(1.8) translateY(-6px); opacity: 0; }
 }
-.animate-heart-burst { animation: heart-burst 600ms ease-out forwards; }
+.animate-heart-burst { animation: heart-burst 450ms ease-out forwards; }
+
+@keyframes plus-one-pop {
+  0%   { transform: translateY(6px); opacity: 0; }
+  30%  { transform: translateY(-2px); opacity: 1; }
+  100% { transform: translateY(-14px); opacity: 0; }
+}
+.animate-plus-one { animation: plus-one-pop 650ms ease-out forwards; }
 `}</style>
     </div>
   );

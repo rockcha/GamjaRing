@@ -36,11 +36,6 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 // icons
@@ -57,20 +52,23 @@ import {
 // 작성자 표시
 import AvatarWidget from "@/components/widgets/AvatarWidget";
 
+// utils
+import { cn } from "@/lib/utils";
+
 const TYPE_OPTIONS: ScheduleType[] = ["데이트", "기념일", "기타 일정"];
 
-// 카운트 뱃지 색(작은 점)
-const dotClass: Record<ScheduleType, string> = {
+// 유형 색상(칸에 나오는 일정 pill 스타일)
+const TYPE_STYLE: Record<ScheduleType, string> = {
+  데이트: "bg-pink-50 ring-1 ring-pink-200 text-pink-900/80",
+  기념일: "bg-amber-50 ring-1 ring-amber-200 text-amber-900/80",
+  "기타 일정": "bg-blue-50 ring-1 ring-blue-200 text-blue-900/80",
+};
+
+// 작은 점(아이콘용)
+const dotBg: Record<ScheduleType, string> = {
   데이트: "bg-pink-500",
   기념일: "bg-amber-500",
   "기타 일정": "bg-blue-500",
-};
-
-// Popover 리스트 행의 은은한 배경/테두리 색
-const typeRowClass: Record<ScheduleType, string> = {
-  데이트: "bg-pink-50 hover:bg-pink-100/60 border-pink-100",
-  기념일: "bg-amber-50 hover:bg-amber-100/60 border-amber-100",
-  "기타 일정": "bg-blue-50 hover:bg-blue-100/60 border-blue-100",
 };
 
 // YYYY-MM-DD
@@ -136,7 +134,6 @@ export default function CoupleSchedulerPage() {
     const year = cursor.getFullYear();
     const month = cursor.getMonth();
     const firstDay = new Date(year, month, 1).getDay();
-
     const lastDate = new Date(year, month + 1, 0).getDate();
 
     const cells: Array<{ date: Date | null }> = [];
@@ -163,9 +160,10 @@ export default function CoupleSchedulerPage() {
     setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1));
 
   const handleOpenCreate = (date?: string) => {
+    const base = date ?? formatYMD(today);
     setNewTitle("");
     setNewType("데이트");
-    setNewDate(date ?? formatYMD(today));
+    setNewDate(base);
     setNewDesc("");
     setOpenCreate(true);
   };
@@ -280,41 +278,56 @@ export default function CoupleSchedulerPage() {
     date.getMonth() === today.getMonth() &&
     date.getDate() === today.getDate();
 
-  // 날짜별 유형 카운트
-  const getCounts = (arr: CoupleSchedule[]) => {
-    const base: Record<ScheduleType, number> = {
-      데이트: 0,
-      기념일: 0,
-      "기타 일정": 0,
-    };
-    for (const it of arr) base[it.type]++;
-    return base;
-  };
-
   return (
-    <main className="mx-auto w-full max-w-screen-lg px-4 md:px-6">
+    <main className="mx-auto w-full max-w-screen-2xl px-4 md:px-8">
       <Card className="relative bg-white border shadow-sm pt-4">
         {/* 우상단 FAB: 일정 추가 */}
         <Button
           onClick={() => handleOpenCreate()}
           size="icon"
-          className="absolute top-4 right-4 h-9 w-9 hover:cursor-pointer"
+          className="absolute top-4 right-20 h-9 w-9 hover:cursor-pointer"
           title="일정 추가"
           aria-label="일정 추가"
         >
           <CalendarPlus className="h-5 w-5" />
         </Button>
 
-        {/* 월 타이틀만 중앙 정렬 (네비 버튼은 아래 그리드 옆으로 이동) */}
-        <div className="flex items-center justify-center">
+        {/* 월 타이틀 + 네비 */}
+        <div className="flex items-center justify-between px-4">
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              onClick={goPrevMonth}
+              size="icon"
+              aria-label="이전 달"
+              title="이전 달"
+              className="rounded-full"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+          </div>
+
           <CardTitle className="text-base md:text-lg py-1">
             {cursor.getFullYear()}년 {cursor.getMonth() + 1}월
           </CardTitle>
+
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              onClick={goNextMonth}
+              size="icon"
+              aria-label="다음 달"
+              title="다음 달"
+              className="rounded-full"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
 
-        <CardContent className="p-3 sm:p-4">
+        <CardContent className="p-3 md:p-4">
           {/* 요일 헤더 */}
-          <div className="mb-2 grid grid-cols-7 text-center text-xs sm:text-sm font-medium text-muted-foreground">
+          <div className="mb-3 grid grid-cols-7 text-center text-xs md:text-sm font-medium text-muted-foreground">
             {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
               <div key={d} className="py-2">
                 {d}
@@ -322,178 +335,39 @@ export default function CoupleSchedulerPage() {
             ))}
           </div>
 
-          {/* 달력 그리드 + 좌우 네비(달력 밖, 세로 중앙) */}
-          <div className="relative">
-            {/* 왼쪽 네비: 달력 영역 '밖'으로 살짝 빼서 배치 */}
-            <div className="hidden sm:flex absolute top-1/2 -translate-y-1/2 -left-10 md:-left-12 lg:-left-14 z-10">
-              <Button
-                variant="ghost"
-                onClick={goPrevMonth}
-                className="hover:cursor-pointer rounded-full"
-                size="icon"
-                aria-label="이전 달"
-                title="이전 달"
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </Button>
-            </div>
-
-            {/* 오른쪽 네비: 달력 영역 '밖'으로 살짝 빼서 배치 */}
-            <div className="hidden sm:flex absolute top-1/2 -translate-y-1/2 -right-10 md:-right-12 lg:-right-14 z-10">
-              <Button
-                variant="ghost"
-                onClick={goNextMonth}
-                className="hover:cursor-pointer rounded-full"
-                size="icon"
-                aria-label="다음 달"
-                title="다음 달"
-              >
-                <ChevronRight className="h-5 w-5" />
-              </Button>
-            </div>
-
-            {/* 달력 그리드 */}
-            <div className="grid grid-cols-7 gap-[6px] sm:gap-1">
-              {daysInMonth.map(({ date }, idx) => {
-                const key = date ? formatYMD(date) : `blank-${idx}`;
-                const dayKey = date ? formatYMD(date) : "";
-                const dayItems = date ? itemsByDate.get(dayKey) ?? [] : [];
-                const counts = getCounts(dayItems);
-
-                // 빈칸
-                if (!date) {
-                  return (
-                    <div
-                      key={key}
-                      className="aspect-[5/6] sm:aspect-[4/3] lg:aspect-[16/10] rounded-lg border bg-muted/30"
-                    />
-                  );
-                }
-
-                // 날짜 칸 본문
-                const DayCellInner = (
-                  <div className="h-full flex flex-col p-1">
-                    <div
-                      className={[
-                        "text-xs font-semibold",
-                        isToday(date)
-                          ? "text-foreground"
-                          : "text-muted-foreground",
-                      ].join(" ")}
-                    >
-                      {date.getDate()}
-                    </div>
-
-                    {/* 유형 카운트 */}
-                    <div className="mt-1 flex-1 min-h-0">
-                      <div className="flex flex-col gap-1">
-                        {(
-                          ["데이트", "기념일", "기타 일정"] as ScheduleType[]
-                        ).map((t) => {
-                          const c = counts[t];
-                          if (!c) return null;
-                          return (
-                            <div
-                              key={t}
-                              className="flex items-center justify-between px-2 py-[3px] text-[10px] leading-none"
-                            >
-                              <span className="flex items-center gap-1">
-                                <span
-                                  className={`inline-block h-2.5 w-2.5 rounded-full ${dotClass[t]}`}
-                                />
-                                {t}
-                              </span>
-                              <span className="font-semibold">{c}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                );
-
-                // Popover: 제목 리스트
+          {/* 큰 달력: 7열 × 6행, 각 행 최소 높이 넉넉히 */}
+          <div
+            className={cn(
+              "grid grid-cols-7 gap-1 md:gap-2",
+              "[grid-template-rows:repeat(6,minmax(140px,1fr))]",
+              "md:[grid-template-rows:repeat(6,minmax(160px,1fr))]",
+              "lg:[grid-template-rows:repeat(6,minmax(180px,1fr))]"
+            )}
+          >
+            {daysInMonth.map(({ date }, idx) => {
+              if (!date) {
                 return (
-                  <Popover key={key}>
-                    <PopoverTrigger asChild>
-                      {/* 날짜칸 기본 호버 효과 */}
-                      <button
-                        className={[
-                          "aspect-[5/6] sm:aspect-[4/3] lg:aspect-[16/10]",
-                          "rounded-lg border bg-white min-w-0 overflow-hidden text-left",
-                          "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                          "transition hover:bg-amber-50 hover:border-accent hover:shadow-sm",
-                        ].join(" ")}
-                      >
-                        {DayCellInner}
-                      </button>
-                    </PopoverTrigger>
-
-                    <PopoverContent
-                      align="center"
-                      className="w-80 p-0 overflow-hidden"
-                      sideOffset={8}
-                    >
-                      <div className="p-3">
-                        <div className="flex items-center justify-between">
-                          <div className="font-semibold">
-                            {dayKey} 일정 목록
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 px-2 text-xs"
-                            onClick={() => handleOpenCreate(dayKey)}
-                          >
-                            <Plus className="h-3.5 w-3.5 mr-1" />
-                            추가
-                          </Button>
-                        </div>
-                        <Separator className="my-3" />
-
-                        {dayItems.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">
-                            일정이 없습니다.
-                          </p>
-                        ) : (
-                          <ScrollArea className="max-h-72 pr-2">
-                            <div className="space-y-2">
-                              {dayItems.map((it) => (
-                                <button
-                                  key={it.id}
-                                  onClick={() => handleOpenDetail(it)}
-                                  className={[
-                                    "w-full rounded-md border px-3 py-2 text-left",
-                                    // 유형별 은은한 배경/테두리 색
-                                    typeRowClass[it.type],
-                                    "transition focus:outline-none",
-                                  ].join(" ")}
-                                  title={it.title}
-                                >
-                                  <div className="flex items-center justify-between gap-2">
-                                    <div className="truncate font-medium">
-                                      {it.title}
-                                    </div>
-                                    <span className="text-[11px] text-muted-foreground">
-                                      {it.type}
-                                    </span>
-                                  </div>
-                                  {it.description?.trim() ? (
-                                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                                      {it.description}
-                                    </p>
-                                  ) : null}
-                                </button>
-                              ))}
-                            </div>
-                          </ScrollArea>
-                        )}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+                  <div
+                    key={`blank-${idx}`}
+                    className="rounded-lg border bg-muted/30"
+                  />
                 );
-              })}
-            </div>
+              }
+
+              const key = formatYMD(date);
+              const dayItems = itemsByDate.get(key) ?? [];
+
+              return (
+                <DayCell
+                  key={key}
+                  date={date}
+                  isToday={isToday(date)}
+                  items={dayItems}
+                  onAddQuick={handleOpenCreate}
+                  onOpenDetail={handleOpenDetail}
+                />
+              );
+            })}
           </div>
 
           {loading && (
@@ -697,5 +571,91 @@ export default function CoupleSchedulerPage() {
         </DialogContent>
       </Dialog>
     </main>
+  );
+}
+
+/* ───────────────── DayCell: 달력 칸 내부에서 일정 바로 노출 ───────────────── */
+function DayCell({
+  date,
+  isToday,
+  items,
+  onAddQuick,
+  onOpenDetail,
+}: {
+  date: Date;
+  isToday: boolean;
+  items: CoupleSchedule[];
+  onAddQuick: (ymd: string) => void;
+  onOpenDetail: (it: CoupleSchedule) => void;
+}) {
+  const ymd = formatYMD(date);
+
+  return (
+    <div className="rounded-lg border bg-white overflow-hidden flex flex-col">
+      {/* 날짜 헤더 (클릭시 빠른추가) */}
+      <button
+        onClick={() => onAddQuick(ymd)}
+        className={cn(
+          "flex items-center justify-between px-2 py-1.5 border-b",
+          isToday ? "bg-primary/5" : "bg-muted/20",
+          "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        )}
+        title={`${ymd} 일정 추가`}
+        aria-label={`${ymd} 일정 추가`}
+      >
+        <span
+          className={cn(
+            "text-xs md:text-sm font-semibold tabular-nums",
+            isToday ? "text-primary" : "text-foreground"
+          )}
+        >
+          {date.getDate()}
+        </span>
+        <span className="text-[10px] md:text-xs text-muted-foreground">
+          {items.length ? `${items.length}개` : ""}
+        </span>
+      </button>
+
+      {/* 일정 리스트 (칸 내부 스크롤) */}
+      <ScrollArea className="flex-1 p-2">
+        <div className="space-y-1.5">
+          {items.length === 0 ? (
+            <div className="text-[11px] md:text-xs text-muted-foreground/70">
+              일정 없음
+            </div>
+          ) : (
+            items.map((it) => (
+              <button
+                key={it.id}
+                onClick={() => onOpenDetail(it)}
+                className={cn(
+                  "w-full text-left rounded-md px-2 py-1.5 text-[11px] md:text-xs",
+                  "hover:brightness-[.97] active:scale-[.99] transition",
+                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  TYPE_STYLE[it.type]
+                )}
+                title={it.title}
+                aria-label={`${it.type} - ${it.title}`}
+              >
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={cn(
+                      "inline-block size-2 rounded-full shrink-0",
+                      dotBg[it.type]
+                    )}
+                  />
+                  <span className="truncate font-medium">{it.title}</span>
+                </div>
+                {it.description?.trim() ? (
+                  <div className="mt-0.5 text-[10px] opacity-70 line-clamp-2">
+                    {it.description}
+                  </div>
+                ) : null}
+              </button>
+            ))
+          )}
+        </div>
+      </ScrollArea>
+    </div>
   );
 }

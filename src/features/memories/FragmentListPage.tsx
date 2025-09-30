@@ -12,8 +12,9 @@ import { listFragments } from "./api";
 import type { Fragment } from "./types";
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { publicUrl } from "./storage";
-import { CalendarDays, Plus, Search } from "lucide-react"; // Heart 제거
+import { Plus, Search } from "lucide-react"; // CalendarDays 제거
 
+/** View mode */
 type ViewKey = "grid" | "timeline";
 
 export default function FragmentListPage() {
@@ -71,9 +72,9 @@ export default function FragmentListPage() {
   }, [view]);
 
   return (
-    <div className="mx-auto max-w-6xl p-4 space-y-5">
+    <div className="mx-auto max-w-7xl p-4 space-y-6">
       {/* Sticky Toolbar */}
-      <div className="sticky top-0 z-10 backdrop-blur py-3">
+      <div className="sticky top-40 z-10  py-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-semibold tracking-tight">
@@ -92,35 +93,22 @@ export default function FragmentListPage() {
               />
             </div>
 
-            {/* 🔥 더 가시적인 세그먼트형 탭 */}
+            {/* 세그먼트형 탭 */}
             <Tabs
               value={view}
               onValueChange={(v) => setView(v as ViewKey)}
               className="w-fit"
             >
-              <TabsList
-                className="
-                  h-10 rounded-full bg-muted/60 p-1 shadow-sm
-                  ring-1 ring-border
-                "
-              >
+              <TabsList className="h-10 rounded-full bg-muted/60 p-1 shadow-sm ring-1 ring-border">
                 <TabsTrigger
                   value="grid"
-                  className="
-                    data-[state=active]:bg-background data-[state=active]:shadow
-                    data-[state=active]:text-foreground
-                    rounded-full px-4 text-[13px] font-semibold
-                  "
+                  className="data-[state=active]:bg-background data-[state=active]:shadow data-[state=active]:text-foreground rounded-full px-4 text-[13px] font-semibold"
                 >
                   📌 리스트
                 </TabsTrigger>
                 <TabsTrigger
                   value="timeline"
-                  className="
-                    data-[state=active]:bg-background data-[state=active]:shadow
-                    data-[state=active]:text-foreground
-                    rounded-full px-4 text-[13px] font-semibold
-                  "
+                  className="data-[state=active]:bg-background data-[state=active]:shadow data-[state=active]:text-foreground rounded-full px-4 text-[13px] font-semibold"
                 >
                   🕘 타임라인
                 </TabsTrigger>
@@ -160,10 +148,53 @@ export default function FragmentListPage() {
 }
 
 /* ---------------------------
- * Grid View
- * - 제목: 이미지 아래 흰 영역, 1줄
- * - 날짜: 이미지 좌상단 오버레이
- * - 하트: ❤️ 이모지 + 우측 상단 고정
+ * Reusable: ImageBox — 레터박스 + object-contain (노크롭)
+ * --------------------------*/
+function ImageBox({
+  src,
+  alt,
+  hearts = 0,
+  aspect = "aspect-[4/3]", // 16/10, 1/1 등 원하는 비율로 변경 가능
+}: {
+  src?: string | null;
+  alt?: string | null;
+  hearts?: number;
+  aspect?: string;
+}) {
+  return (
+    <div
+      className={`relative w-full ${aspect} bg-muted rounded-t-lg overflow-hidden`}
+    >
+      {/* contain: 절대 크롭 안 함 */}
+      {src ? (
+        <img
+          src={src}
+          alt={alt ?? ""}
+          className="absolute inset-0 w-full h-full object-contain"
+          loading="lazy"
+          decoding="async"
+          fetchPriority="low"
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+        />
+      ) : (
+        <div className="absolute inset-0" />
+      )}
+
+      {/* 하트 오버레이: 좌상단 고정 */}
+      <div
+        className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-background/85 backdrop-blur px-2 py-1 text-[11px] shadow"
+        title={`하트 ${hearts}개`}
+        aria-label="하트 수"
+      >
+        <span aria-hidden>❤️</span>
+        <span className="tabular-nums">{hearts}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------
+ * Grid View — 노크롭 + 하트 오버레이 + 아래 날짜/제목
  * --------------------------*/
 function GridView({
   items,
@@ -181,58 +212,24 @@ function GridView({
           tabIndex={0}
           onClick={() => onOpen(f.id)}
           onKeyDown={(e) => e.key === "Enter" && onOpen(f.id)}
-          className="group overflow-hidden transition hover:shadow-lg hover:ring-1 hover:ring-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="group overflow-hidden transition hover:-translate-y-[1px] hover:shadow-lg hover:ring-1 hover:ring-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          aria-label={`${f.title ?? "무제"} 열기`}
         >
-          {/* Cover */}
-          <div className="relative">
-            {f.cover_photo_path ? (
-              <img
-                src={publicUrl(f.cover_photo_path)}
-                alt={f.title}
-                className="w-full aspect-[16/10] object-cover"
-                loading="lazy"
-                decoding="async"
-                fetchPriority="low"
-              />
-            ) : (
-              <div className="w-full aspect-[16/10] bg-muted" />
-            )}
+          <ImageBox
+            src={f.cover_photo_path ? publicUrl(f.cover_photo_path) : undefined}
+            alt={f.title}
+            hearts={f.hearts ?? 0}
+            aspect="aspect-[4/3]"
+          />
 
-            {/* 날짜: 좌상단 */}
-            <div
-              className="
-                absolute left-2 top-2 inline-flex items-center gap-1
-                rounded-full bg-black/55 px-2 py-1 text-xs text-white
-                backdrop-blur supports-[backdrop-filter]:bg-black/45
-              "
-              title={formatDate(f.event_date)}
-            >
-              <CalendarDays className="size-3.5" />
-              <span className="tabular-nums">{formatDate(f.event_date)}</span>
+          {/* 아래 날짜/제목 — 이미지 밖 */}
+          <div className="border-t border-border/60" />
+          <div className="px-3 pt-2 pb-3 bg-transparent">
+            <div className="text-[12px] text-muted-foreground/90 tabular-nums tracking-wide">
+              {formatDate(f.event_date)}
             </div>
-
-            {/* ❤️ 하트: 우측 상단 고정 */}
             <div
-              className="
-                absolute right-2 top-2 inline-flex items-center gap-1
-                rounded-full bg-black/60 px-2 py-1 text-xs text-white
-                backdrop-blur supports-[backdrop-filter]:bg-black/45
-              "
-              aria-label="하트 수"
-              title={`하트 ${f.hearts ?? 0}개`}
-            >
-              <span aria-hidden>❤️</span>
-              <span className="tabular-nums">{f.hearts ?? 0}</span>
-            </div>
-          </div>
-
-          {/* Body: 제목만(1줄) */}
-          <div className="p-3 bg-background">
-            <div
-              className="
-                text-[15px] font-semibold leading-snug
-                line-clamp-1
-              "
+              className="mt-1 text-[15px] font-semibold leading-snug line-clamp-2 tracking-tight"
               title={f.title ?? ""}
             >
               {f.title}
@@ -245,10 +242,7 @@ function GridView({
 }
 
 /* ---------------------------
- * Timeline View
- * - 제목: 이미지 아래 흰 영역, **조금 더 큰 폰트**
- * - 날짜: 이미지 좌상단 오버레이
- * - 하트: ❤️ 이모지 + 우측 상단 고정
+ * Timeline View — 노크롭 + 하트 오버레이 + 아래 날짜/제목(큰 제목) + 좌측 레일
  * --------------------------*/
 function TimelineView({
   items,
@@ -260,86 +254,55 @@ function TimelineView({
   const groups = useMemo(() => groupByYearMonth(items), [items]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       {groups.map(({ ym, rows }) => (
-        <section key={ym} className="relative">
-          {/* Year-Month header */}
-          <div className="mb-4 text-lg font-semibold">{ym}</div>
-
-          {/* 타임라인 레일 (노드 점 없음) */}
-          <div className="relative pl-8">
-            <div className="absolute left-3 top-0 bottom-0 w-[2px] bg-muted" />
-
-            <div className="space-y-6">
-              {rows.map((f) => (
-                <div key={f.id} className="relative">
-                  <Card
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => onOpen(f.id)}
-                    onKeyDown={(e) => e.key === "Enter" && onOpen(f.id)}
-                    className="group overflow-hidden transition hover:shadow-lg hover:ring-1 hover:ring-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ml-2"
-                  >
-                    <div className="relative">
-                      {f.cover_photo_path ? (
-                        <img
-                          src={publicUrl(f.cover_photo_path)}
-                          alt={f.title}
-                          className="w-full aspect-[16/9] object-cover"
-                          loading="lazy"
-                          decoding="async"
-                          fetchPriority="low"
-                        />
-                      ) : (
-                        <div className="w-full aspect-[16/9] bg-muted" />
-                      )}
-
-                      {/* 날짜: 좌상단 */}
-                      <div
-                        className="
-                          absolute left-2 top-2 inline-flex items-center gap-1
-                          rounded-full bg-black/55 px-2 py-1 text-xs text-white
-                          backdrop-blur supports-[backdrop-filter]:bg-black/45
-                        "
-                        title={formatDate(f.event_date)}
-                      >
-                        <CalendarDays className="size-3.5" />
-                        <span className="tabular-nums">
-                          {formatDate(f.event_date)}
-                        </span>
-                      </div>
-
-                      {/* ❤️ 하트: 우측 상단 고정 */}
-                      <div
-                        className="
-                          absolute right-2 top-2 inline-flex items-center gap-1
-                          rounded-full bg-black/60 px-2 py-1 text-xs text-white
-                          backdrop-blur supports-[backdrop-filter]:bg-black/45
-                        "
-                        aria-label="하트 수"
-                        title={`하트 ${f.hearts ?? 0}개`}
-                      >
-                        <span aria-hidden>❤️</span>
-                        <span className="tabular-nums">{f.hearts ?? 0}</span>
-                      </div>
-                    </div>
-
-                    {/* Body: 제목만(타임라인은 폰트 조금 크게) */}
-                    <div className="p-3 bg-background">
-                      <div
-                        className="
-                          text-[16px] md:text-[17px] font-semibold leading-snug
-                          line-clamp-2
-                        "
-                        title={f.title ?? ""}
-                      >
-                        {f.title}
-                      </div>
-                    </div>
-                  </Card>
-                </div>
-              ))}
+        <section key={ym} className="relative pl-24">
+          {/* 좌측 레일 + 월 헤더 */}
+          <div className="absolute left-10 top-0 bottom-0 w-[2px] bg-muted" />
+          <div className="absolute left-0 top-0">
+            <div className="rounded-lg bg-muted/40 px-3 py-1 text-[12px] tabular-nums font-medium shadow-sm">
+              {ym}
             </div>
+          </div>
+
+          <div className="space-y-6">
+            {rows.map((f) => (
+              <div key={f.id} className="relative">
+                <Card
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onOpen(f.id)}
+                  onKeyDown={(e) => e.key === "Enter" && onOpen(f.id)}
+                  className="group overflow-hidden transition hover:-translate-y-[1px] hover:shadow-lg hover:ring-1 hover:ring-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  aria-label={`${f.title ?? "무제"} 열기`}
+                >
+                  <ImageBox
+                    src={
+                      f.cover_photo_path
+                        ? publicUrl(f.cover_photo_path)
+                        : undefined
+                    }
+                    alt={f.title}
+                    hearts={f.hearts ?? 0}
+                    aspect="aspect-[16/9]"
+                  />
+
+                  {/* 아래 날짜/제목 — 이미지 밖 */}
+                  <div className="border-t border-border/60" />
+                  <div className="px-3 pt-2 pb-3 bg-transparent">
+                    <div className="text-[12px] text-muted-foreground/90 tabular-nums tracking-wide">
+                      {formatDate(f.event_date)}
+                    </div>
+                    <div
+                      className="mt-1 text-[16px] md:text-[17px] font-semibold leading-snug line-clamp-2 tracking-tight"
+                      title={f.title ?? ""}
+                    >
+                      {f.title}
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            ))}
           </div>
         </section>
       ))}
@@ -397,7 +360,7 @@ function SkeletonGrid() {
     <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(260px,1fr))]">
       {Array.from({ length: 6 }).map((_, i) => (
         <Card key={i} className="overflow-hidden">
-          <div className="w-full aspect-[16/10] animate-pulse bg-muted" />
+          <div className="w-full aspect-[4/3] animate-pulse bg-muted rounded-t-lg" />
           <div className="space-y-2 p-3">
             <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
             <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
