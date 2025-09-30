@@ -66,8 +66,7 @@ function useInjectKeyframesOnce() {
     document.head.appendChild(style);
     injectedRef.current = true;
     return () => {
-      // 남겨둬도 무방하지만, 컴포넌트 완전 언마운트 시 정리하고 싶다면 주석 해제
-      // style.remove();
+      // style.remove(); // 필요 시 주석 해제
     };
   }, []);
 }
@@ -94,7 +93,6 @@ function RarityFX({
 
   if (!alive) return null;
 
-  // 스파클 6~8개 랜덤(간단) — 렌더마다 달라도 시각적으로 문제 없고 가벼움
   const count = rarity === "전설" ? 12 : 10;
   const sparkles = Array.from({ length: count }).map((_, i) => {
     const left = `${Math.random() * 80 + 10}%`;
@@ -118,20 +116,16 @@ function RarityFX({
 
   return (
     <>
-      {/* 대각선 샤인 */}
       <div className="bulk-fx-shine" />
-      {/* 오라(등급색) */}
       <div
         className="bulk-fx-aura"
         style={
           {
             borderRadius: 12,
-            // CSS 변수로 박스섀도 색 주입
             ["--fx-color" as any]: color,
           } as React.CSSProperties
         }
       />
-      {/* 스파클 */}
       <div className="pointer-events-none absolute inset-0">{sparkles}</div>
     </>
   );
@@ -168,6 +162,13 @@ export default function BulkResultsModal({
 
   const tankOptions = tanks.length ? tanks : [{ tank_no: 1, title: "1 번" }];
 
+  // ✅ 기본 선택: 마지막 어항
+  const lastTankNo = useMemo(
+    () =>
+      tankOptions.length ? tankOptions[tankOptions.length - 1].tank_no : 1,
+    [tankOptions]
+  );
+
   const grouped = useMemo(() => {
     const g: Record<Rarity, BulkCatch[]> = {
       전설: [],
@@ -185,23 +186,19 @@ export default function BulkResultsModal({
   const [fxActive, setFxActive] = useState<Record<string, boolean>>({});
   const timersRef = useRef<Record<string, number>>({});
 
-  // results가 바뀔 때, 에픽/전설에 대해 2초간 이펙트 on
   useEffect(() => {
     if (!results?.length) return;
     const rareIds = results
       .filter((r) => r.rarity === "에픽" || r.rarity === "전설")
       .map((r) => r.id);
 
-    // 켜기
     setFxActive((prev) => {
       const next = { ...prev };
       rareIds.forEach((id) => (next[id] = true));
       return next;
     });
 
-    // 끄기 타이머 설정(2초)
     rareIds.forEach((id) => {
-      // 기존 타이머 있으면 먼저 정리
       if (timersRef.current[id]) {
         window.clearTimeout(timersRef.current[id]);
       }
@@ -216,7 +213,6 @@ export default function BulkResultsModal({
     });
 
     return () => {
-      // 언마운트/갱신 시 타이머 정리 (옵션)
       rareIds.forEach((id) => {
         if (timersRef.current[id]) {
           window.clearTimeout(timersRef.current[id]);
@@ -245,6 +241,11 @@ export default function BulkResultsModal({
               성공 {totalCaught} / 실패 {failCount} · 종류{" "}
               {results?.length ?? 0}
             </div>
+            {/* 안내 문구: 기본 보관 어항 */}
+            <div className="mt-1 text-xs text-muted-foreground">
+              기본 보관 어항은{" "}
+              <span className="font-semibold">마지막 어항</span>으로 지정됩니다.
+            </div>
           </DialogHeader>
 
           <div className="px-6 py-4 overflow-auto grow">
@@ -264,7 +265,8 @@ export default function BulkResultsModal({
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                       {grouped[ra].map((f) => {
                         const theme = classesByRarity(f.rarity);
-                        const sel = placements[f.id] ?? defaultTank ?? 1;
+                        // ✅ 기본 선택을 마지막 어항으로
+                        const sel = placements[f.id] ?? lastTankNo;
 
                         const isRare =
                           f.rarity === "에픽" || f.rarity === "전설";
@@ -275,12 +277,14 @@ export default function BulkResultsModal({
                             key={f.id}
                             className={cn(
                               "rounded-xl border p-2 shadow-sm transition-colors",
+                              "hover:shadow-md focus-within:ring-2 focus-within:ring-indigo-200", // UI 개선
                               theme.card
                             )}
                           >
                             <div
                               className={cn(
                                 "relative w-full aspect-square rounded-lg border grid place-items-center overflow-hidden bg-white",
+                                "shadow-[inset_0_0_0_1px_rgba(0,0,0,0.03)]", // UI 개선
                                 theme.imgBorder
                               )}
                             >
@@ -344,9 +348,10 @@ export default function BulkResultsModal({
                                   [f.id]: Number(v),
                                 }))
                               }
-                              disabled={busy}
+                              disabled={busy || tankOptions.length <= 1}
+                              aria-label={`${f.label} 보관 어항 선택`}
                             >
-                              <SelectTrigger className="h-8 w-full">
+                              <SelectTrigger className="h-8 w-full focus:ring-2 focus:ring-indigo-200">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>

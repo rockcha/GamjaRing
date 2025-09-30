@@ -29,6 +29,9 @@ import PartnerTimeCapsulesPage from "./pages/PartnerTimeCapsulesPage";
 import ExchangePage from "./pages/ExchangePage";
 import MiniGamePage from "./pages/MiniGamesPage";
 import GloomyPage from "./pages/GloomyPage";
+import FragmentListPage from "./features/memories/FragmentListPage";
+import FragmentFormPage from "./features/memories/FragmentFormPage";
+import FragmentDetailPage from "./features/memories/FragmentDetailPage";
 
 export default function App() {
   return (
@@ -63,7 +66,13 @@ export default function App() {
               <Route path="stickerBoard" element={<StickerBoardPage />} />
               <Route path="miniGame" element={<MiniGamePage />} />
               <Route path="exchange" element={<ExchangePage />} />
+
               <Route path="gloomy" element={<GloomyPage />} />
+
+              <Route path="/memories" element={<FragmentListPage />} />
+
+              <Route path="/memories/new" element={<FragmentFormPage />} />
+              <Route path="/memories/:id" element={<FragmentDetailPage />} />
             </Route>
           </Routes>
 
