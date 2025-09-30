@@ -13,8 +13,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { Loader2, LogIn, LogOut, NotebookPen, Settings } from "lucide-react";
-
+import { Loader2, LogIn, LogOut, Settings, Home, Info } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export type AvatarWidgetSize = "sm" | "md" | "lg";
@@ -110,7 +109,6 @@ export default function AvatarWidget({
   const [loading, setLoading] = useState<boolean>(type === "partner");
 
   const [menuOpen, setMenuOpen] = useState(false);
-  const [memoOpen, setMemoOpen] = useState(false);
   const [authBusy, setAuthBusy] = useState(false);
   const isLoggedIn = !!user;
 
@@ -175,14 +173,15 @@ export default function AvatarWidget({
   );
   const initial = nickname.trim()?.[0] || "🙂";
 
-  const handleLogin = () => {
+  const go = (path: string) => {
     setMenuOpen(false);
-    navigate("/login");
+    navigate(path);
   };
-  const handleGoSettings = () => {
-    setMenuOpen(false);
-    navigate("/settings");
-  };
+  const handleLogin = () => go("/login");
+  const handleGoSettings = () => go("/settings");
+  const handleGoMain = () => go("/main");
+  const handleGoInfo = () => go("/info");
+
   const handleLogout = async () => {
     if (authBusy) return;
     try {
@@ -196,7 +195,7 @@ export default function AvatarWidget({
     }
   };
 
-  /* ── 아바타 본체(링/이니셜/스케일업 포함) ── */
+  /* ── 아바타 본체 ── */
   const body = (
     <div className={cn("inline-flex flex-col items-center", className)}>
       <div className="relative">
@@ -247,12 +246,7 @@ export default function AvatarWidget({
 
   // 파트너 아바타거나 메뉴 비활성: 바로 렌더
   if (type === "partner" || !enableMenu) {
-    return (
-      <>
-        {body}
-        {/* 파트너/비활성에는 메뉴/모달 없음 */}
-      </>
-    );
+    return <>{body}</>;
   }
 
   /* ── 유저 아바타 + Popover 메뉴 ── */
@@ -271,9 +265,9 @@ export default function AvatarWidget({
           </button>
         </PopoverTrigger>
 
-        <PopoverContent align="center" side="bottom" className="w-56 p-2">
+        <PopoverContent align="center" side="bottom" className="w-56 py-4">
           {/* 미니 헤더 */}
-          <div className="mb-2 flex items-center gap-2 px-2">
+          <div className="mb-2 flex items-center gap-2 justify-center">
             <div className="h-5 w-5 rounded-full overflow-hidden bg-neutral-100">
               {imgUrl ? (
                 <img
@@ -291,14 +285,30 @@ export default function AvatarWidget({
               <div className="text-sm font-semibold text-neutral-800 truncate">
                 {nickname}
               </div>
-              <div className="text-[11px] text-neutral-500">내 프로필</div>
             </div>
           </div>
 
           <div className="my-2 h-px bg-neutral-200" />
 
-          {/* 액션들 */}
+          {/* 신규 상단 메뉴: 메인페이지, 감자링이란? */}
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-2 px-2"
+            onClick={handleGoMain}
+          >
+            <Home className="h-4 w-4" />
+            <span className="text-sm">메인페이지</span>
+          </Button>
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-2 px-2"
+            onClick={handleGoInfo}
+          >
+            <Info className="h-4 w-4" />
+            <span className="text-sm">감자링이란?</span>
+          </Button>
 
+          {/* 기존: 마이페이지 */}
           <Button
             variant="ghost"
             className="w-full justify-start gap-2 px-2 mt-1"
@@ -310,6 +320,7 @@ export default function AvatarWidget({
 
           <div className="my-2 h-px bg-neutral-200" />
 
+          {/* 로그인/로그아웃 */}
           {isLoggedIn ? (
             <Button
               variant="ghost"

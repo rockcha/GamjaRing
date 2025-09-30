@@ -1,3 +1,4 @@
+// src/pages/AquariumPage.tsx (전체 코드)
 "use client";
 
 import { useEffect, useState, useRef } from "react";
@@ -224,16 +225,20 @@ function AquariumPage() {
     };
   }, [cur?.tank_no]);
 
-  /** AquariumBox와 동일 프레임(정중앙, 고정 크기) — 오버레이 기준 컨테이너 */
+  /** ✅ AquariumBox와 동일 규격 */
+  const AQUARIUM_HEIGHT_VH = 68;
+  const AQUARIUM_WIDTH_CSS = "min(100%, calc(85vw))";
+
+  /** ✅ 프레임(좌표 기준) — overlay와 Box가 같은 좌표계 사용 */
   const frameStyle = {
-    height: "min(72svh, 680px)",
-    width: "min(100%, 100vw)",
+    height: `${AQUARIUM_HEIGHT_VH}vh`,
+    width: AQUARIUM_WIDTH_CSS,
   } as const;
 
   return (
     <div className="min-h-[calc(100svh-64px)] w-full flex flex-col">
       <div className="relative mx-2 sm:mx-6 lg:mx-20 mt-2 sm:mt-4">
-        {/* 상단 툴바: 관리하기 · 도감 · 테마 상점 (어항 바깥) */}
+        {/* 상단 툴바: 관리하기 · 도감 · 테마 상점 (프레임 바깥) */}
         <div className="mb-2 sm:mb-3">
           <div className="flex items-center gap-2 rounded-xl border bg-white/70 backdrop-blur px-2.5 py-1.5 shadow-sm">
             {cur && <AquariumDetailButton tankNo={cur.tank_no} />}
@@ -242,202 +247,205 @@ function AquariumPage() {
           </div>
         </div>
 
-        {/* ✅ 로딩용 배경 프레임 (준비되면 페이드아웃) */}
-        <div
-          aria-hidden
-          className={cn(
-            "absolute inset-0 z-0 pointer-events-none flex items-center justify-center transition-opacity duration-500",
-            showBg ? "opacity-100" : "opacity-0"
-          )}
-        >
+        {/* ✅ 프레임 컨테이너: 로딩 PNG + AquariumBox + 모든 오버레이를 같은 기준으로 */}
+        {cur ? (
           <div
-            className="relative rounded-xl overflow-hidden"
+            className="relative mx-auto rounded-2xl overflow-hidden will-change-transform transform-gpu"
             style={frameStyle}
           >
-            <div className="h-full w-full bg-[url('/aquarium/aquarium_background.png')] bg-cover bg-center" />
-          </div>
-        </div>
-
-        {/* 본체: 현재 탱크만 렌더 (앞쪽에 오게 z-10) */}
-        <div className="relative z-10">
-          {cur ? (
-            <div className="relative ">
-              {/* ✅ AquariumBox가 준비되면 handleAquariumReady 호출(옵션 prop) */}
-              <AquariumBox tankNo={cur.tank_no} heightVh={68} />
-
-              {/* ✅ 어항 좌상단: 추가하기 */}
-              <button
-                onClick={() => setConfirmOpen(true)}
-                className={cn(
-                  "absolute left-6 top-2 z-20",
-                  "inline-flex items-center gap-1 rounded-full",
-                  "bg-white/90 border px-3 py-1 text-xs sm:text-sm shadow hover:bg-white"
-                )}
-                title={`어항 추가 (🪙${TANK_PRICE.toLocaleString("ko-KR")})`}
-              >
-                <PlusCircle className="w-6 h-6" />
-                추가하기
-              </button>
-
-              {/* ✅ 어항 상단 중앙: 현재 테마 + 제목(편집) */}
-              <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30">
-                <div className="flex items-center gap-2 pointer-events-auto">
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1 rounded-full",
-                      "bg-white/80 border backdrop-blur px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs text-slate-800 shadow"
-                    )}
-                    title={
-                      themeTitle
-                        ? `현재 테마: ${themeTitle}`
-                        : "현재 테마: 기본"
-                    }
-                  >
-                    <span aria-hidden className="text-[12px] sm:text-[13px]">
-                      현재 테마 :
-                    </span>
-                    <b className="font-semibold">{themeTitle || "기본 테마"}</b>
-                  </span>
-
-                  {!editing ? (
-                    <button
-                      className="group inline-flex items-center gap-2 rounded-full bg-black/35 text-white text-xs sm:text-sm px-2.5 sm:px-3 py-0.5 sm:py-1 backdrop-blur-sm"
-                      onClick={() => setEditing(true)}
-                      title="어항 이름 수정"
-                    >
-                      <span className="font-semibold tracking-wide line-clamp-1 max-w-[40vw] sm:max-w-none">
-                        {cur?.title || "이름 없는 어항"}
-                      </span>
-                      <Pencil className="w-3.5 h-3.5 opacity-80 group-hover:opacity-100" />
-                    </button>
-                  ) : (
-                    <div className="inline-flex items-center gap-1 bg-white/90 border rounded-full px-2 py-1 shadow">
-                      <input
-                        value={titleInput}
-                        onChange={(e) => setTitleInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") saveTitle();
-                          if (e.key === "Escape") setEditing(false);
-                        }}
-                        className="bg-transparent px-1 text-sm outline-none w-40 sm:w-48"
-                        maxLength={30}
-                        autoFocus
-                      />
-                      <button
-                        className="p-1 hover:bg-emerald-50 rounded"
-                        onClick={saveTitle}
-                        title="저장"
-                      >
-                        <Check className="w-4 h-4 text-emerald-600" />
-                      </button>
-                      <button
-                        className="p-1 hover:bg-rose-50 rounded"
-                        onClick={() => setEditing(false)}
-                        title="취소"
-                      >
-                        <X className="w-4 h-4 text-rose-600" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* ✅ 어항 우상단: 현재 번호 / 총개수 + 점프 입력 */}
-              <div className="absolute right-8 top-2 z-20">
-                <div className="inline-flex items-center rounded-full bg-white/75 border backdrop-blur-sm text-gray-900 text-[11px] sm:text-xs shadow px-1.5 sm:px-2 py-0.5 sm:py-1 pointer-events-auto">
-                  <span className="tabular-nums ">
-                    {cur?.tank_no ?? 1} / {tanks.length || 1}
-                  </span>
-                  <Input
-                    type="number"
-                    inputMode="numeric"
-                    min={1}
-                    max={tanks.length || 1}
-                    value={gotoInput}
-                    onChange={(e) => {
-                      const v = e.target.value.replace(/[^\d]/g, "");
-                      setGotoInput(v);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        const n = parseInt(gotoInput || "", 10);
-                        if (!Number.isNaN(n)) jumpTo(n);
-                      }
-                    }}
-                    className="h-7 w-14 text-center text-[11px] sm:text-xs border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-                    aria-label={`어항 번호로 이동 (1-${tanks.length || 1})`}
-                  />
-                </div>
-              </div>
-
-              {/* 좌/우 화살표 — 어항 기준 오버레이 */}
-              {tanks.length > 1 && (
-                <>
-                  <button
-                    className={cn(
-                      "absolute left-0 sm:left-0 top-1/2 -translate-y-1/2 z-20",
-                      "pointer-events-auto rounded-full bg-white/80 hover:bg-white",
-                      "border shadow grid place-items-center",
-                      "h-11 w-11 sm:h-12 sm:w-12"
-                    )}
-                    onClick={prev}
-                    aria-label="이전 어항"
-                    title="이전 어항"
-                  >
-                    <ChevronLeft className="w-6 h-6 sm:w-7 sm:h-7" />
-                  </button>
-                  <button
-                    className={cn(
-                      "absolute right-0 sm:right-0 top-1/2 -translate-y-1/2 z-20",
-                      "pointer-events-auto rounded-full bg-white/80 hover:bg-white",
-                      "border shadow grid place-items-center",
-                      "h-11 w-11 sm:h-12 sm:w-12"
-                    )}
-                    onClick={next}
-                    aria-label="다음 어항"
-                    title="다음 어항"
-                  >
-                    <ChevronRight className="w-6 h-6 sm:w-7 sm:h-7" />
-                  </button>
-                </>
-              )}
-            </div>
-          ) : (
+            {/* ✅ 로딩용 배경 (같은 프레임 기준) */}
             <div
-              className="relative rounded-xl overflow-hidden mx-auto grid place-items-center"
-              style={frameStyle}
+              aria-hidden
+              className={cn(
+                "absolute inset-0 pointer-events-none transition-opacity duration-500",
+                showBg ? "opacity-100" : "opacity-0"
+              )}
             >
-              <div className="px-3 py-1.5 rounded-md bg-white/80 border shadow text-sm">
-                어항을 불러오는 중…
+              <div className="h-full w-full bg-[url('/aquarium/aquarium_background.png')] bg-cover bg-center" />
+            </div>
+
+            {/* ✅ 본체: AquariumBox (같은 프레임 기준) */}
+            <div className="relative z-10 h-full w-full">
+              <AquariumBox
+                tankNo={cur.tank_no}
+                heightVh={AQUARIUM_HEIGHT_VH}
+                // onReady={handleAquariumReady} // ↙ 필요 시 AquariumBox에 onReady 구현 후 사용
+              />
+            </div>
+
+            {/* ✅ 오버레이 UI들 (프레임 기준 절대배치) */}
+            {/* 어항 좌상단: 추가하기 */}
+            <button
+              onClick={() => setConfirmOpen(true)}
+              className={cn(
+                "absolute left-6 top-2 z-20",
+                "inline-flex items-center gap-1 rounded-full",
+                "bg-white/90 border px-3 py-1 text-xs sm:text-sm shadow hover:bg-white"
+              )}
+              title={`어항 추가 (🪙${TANK_PRICE.toLocaleString("ko-KR")})`}
+            >
+              <PlusCircle className="w-6 h-6" />
+              추가하기
+            </button>
+
+            {/* 어항 상단 중앙: 현재 테마 + 제목(편집) */}
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30">
+              <div className="flex items-center gap-2 pointer-events-auto">
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full",
+                    "bg-white/80 border backdrop-blur px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs text-slate-800 shadow"
+                  )}
+                  title={
+                    themeTitle ? `현재 테마: ${themeTitle}` : "현재 테마: 기본"
+                  }
+                >
+                  <span aria-hidden className="text-[12px] sm:text-[13px]">
+                    현재 테마 :
+                  </span>
+                  <b className="font-semibold">{themeTitle || "기본 테마"}</b>
+                </span>
+
+                {!editing ? (
+                  <button
+                    className="group inline-flex items-center gap-2 rounded-full bg-black/35 text-white text-xs sm:text-sm px-2.5 sm:px-3 py-0.5 sm:py-1 backdrop-blur-sm"
+                    onClick={() => setEditing(true)}
+                    title="어항 이름 수정"
+                  >
+                    <span className="font-semibold tracking-wide line-clamp-1 max-w-[40vw] sm:max-w-none">
+                      {cur?.title || "이름 없는 어항"}
+                    </span>
+                    <Pencil className="w-3.5 h-3.5 opacity-80 group-hover:opacity-100" />
+                  </button>
+                ) : (
+                  <div className="inline-flex items-center gap-1 bg-white/90 border rounded-full px-2 py-1 shadow">
+                    <input
+                      value={titleInput}
+                      onChange={(e) => setTitleInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveTitle();
+                        if (e.key === "Escape") setEditing(false);
+                      }}
+                      className="bg-transparent px-1 text-sm outline-none w-40 sm:w-48"
+                      maxLength={30}
+                      autoFocus
+                    />
+                    <button
+                      className="p-1 hover:bg-emerald-50 rounded"
+                      onClick={saveTitle}
+                      title="저장"
+                    >
+                      <Check className="w-4 h-4 text-emerald-600" />
+                    </button>
+                    <button
+                      className="p-1 hover:bg-rose-50 rounded"
+                      onClick={() => setEditing(false)}
+                      title="취소"
+                    >
+                      <X className="w-4 h-4 text-rose-600" />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
-          )}
-        </div>
-        {/* END 본체 */}
-      </div>
 
-      {tanks.length > 1 && (
-        <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
-          <div className="flex items-center gap-1.5">
-            {tanks.map((t, i) => {
-              const active = i === idx;
-              return (
-                <span
-                  key={t.tank_no}
-                  className={cn(
-                    "h-1.5 w-1.5 rounded-full bg-white/70 border pointer-events-auto",
-                    active ? "scale-110 bg-amber-400" : "opacity-70"
-                  )}
-                  onClick={() => setIdx(i)}
-                  title={`${t.tank_no}번`}
-                  role="button"
-                  aria-label={`${t.tank_no}번으로 이동`}
+            {/* 어항 우상단: 현재 번호 / 총개수 + 점프 입력 */}
+            <div className="absolute right-8 top-2 z-20">
+              <div className="inline-flex items-center rounded-full bg-white/75 border backdrop-blur-sm text-gray-900 text-[11px] sm:text-xs shadow px-1.5 sm:px-2 py-0.5 sm:py-1 pointer-events-auto">
+                <span className="tabular-nums ">
+                  {cur?.tank_no ?? 1} / {tanks.length || 1}
+                </span>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={tanks.length || 1}
+                  value={gotoInput}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/[^\d]/g, "");
+                    setGotoInput(v);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      const n = parseInt(gotoInput || "", 10);
+                      if (!Number.isNaN(n)) jumpTo(n);
+                    }
+                  }}
+                  className="h-7 w-14 text-center text-[11px] sm:text-xs border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  aria-label={`어항 번호로 이동 (1-${tanks.length || 1})`}
                 />
-              );
-            })}
+              </div>
+            </div>
+
+            {/* 좌/우 화살표 — 프레임 기준 오버레이 */}
+            {tanks.length > 1 && (
+              <>
+                <button
+                  className={cn(
+                    "absolute left-0 top-1/2 -translate-y-1/2 z-20",
+                    "pointer-events-auto rounded-full bg-white/80 hover:bg-white",
+                    "border shadow grid place-items-center",
+                    "h-11 w-11 sm:h-12 sm:w-12"
+                  )}
+                  onClick={prev}
+                  aria-label="이전 어항"
+                  title="이전 어항"
+                >
+                  <ChevronLeft className="w-6 h-6 sm:w-7 sm:h-7" />
+                </button>
+                <button
+                  className={cn(
+                    "absolute right-0 top-1/2 -translate-y-1/2 z-20",
+                    "pointer-events-auto rounded-full bg-white/80 hover:bg-white",
+                    "border shadow grid place-items-center",
+                    "h-11 w-11 sm:h-12 sm:w-12"
+                  )}
+                  onClick={next}
+                  aria-label="다음 어항"
+                  title="다음 어항"
+                >
+                  <ChevronRight className="w-6 h-6 sm:w-7 sm:h-7" />
+                </button>
+              </>
+            )}
+
+            {/* 하단 인디케이터 — 프레임 내부 정렬 */}
+            {tanks.length > 1 && (
+              <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+                <div className="flex items-center gap-1.5">
+                  {tanks.map((t, i) => {
+                    const active = i === idx;
+                    return (
+                      <span
+                        key={t.tank_no}
+                        className={cn(
+                          "h-1.5 w-1.5 rounded-full bg-white/70 border pointer-events-auto",
+                          active ? "scale-110 bg-amber-400" : "opacity-70"
+                        )}
+                        onClick={() => setIdx(i)}
+                        title={`${t.tank_no}번`}
+                        role="button"
+                        aria-label={`${t.tank_no}번으로 이동`}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        ) : (
+          // 탱크 목록 자체가 아직 없을 때의 플레이스홀더
+          <div
+            className="relative rounded-2xl overflow-hidden mx-auto grid place-items-center"
+            style={frameStyle}
+          >
+            <div className="px-3 py-1.5 rounded-md bg-white/80 border shadow text-sm">
+              어항을 불러오는 중…
+            </div>
+          </div>
+        )}
+        {/* END 프레임 컨테이너 */}
+      </div>
 
       {/* 구매 확인 다이얼로그 */}
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>

@@ -100,14 +100,25 @@ function formatKoreanDateStr(ymd: string) {
 
 export default function FragmentFormPage() {
   const nav = useNavigate();
-  const { couple, partnerId } = useCoupleContext(); // ✅ partnerId 가져와서 알림 보낼 때 사용
+  const { couple, partnerId } = useCoupleContext();
   const { user } = useUser();
 
   const [title, setTitle] = useState("");
   const [eventDate, setEventDate] = useState(
     new Date().toISOString().slice(0, 10)
   );
-  const [drafts, setDrafts] = useState<PhotoDraft[]>([]);
+
+  // ✅ 기본 카드 1장 미리 생성(대표 지정)
+  const [drafts, setDrafts] = useState<PhotoDraft[]>(() => [
+    {
+      id: crypto.randomUUID(),
+      file: null,
+      previewUrl: null,
+      caption_author: "",
+      isCover: true,
+    },
+  ]);
+
   const [summary, setSummary] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -136,7 +147,7 @@ export default function FragmentFormPage() {
         file: null,
         previewUrl: null,
         caption_author: "",
-        isCover: prev.length === 0,
+        isCover: prev.length === 0, // 첫 장이면 대표
       },
     ]);
   }
@@ -290,20 +301,34 @@ export default function FragmentFormPage() {
 
   return (
     <div className="mx-auto max-w-7xl p-6 space-y-8">
-      {/* Sticky 툴바: 날짜 / 사진 카드 추가 / 취소 / 만들기 */}
-      <div className="sticky top-40 z-30 -mx-6 px-6 py-3  ">
-        <div className="flex items-center justify-between gap-3">
-          {/* 중앙에 제목을 끌어올려 Detail과 유사하게 보이도록 */}
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="제목"
-            className="bg-transparent outline-none text-2xl md:text-4xl font-extrabold tracking-tight min-w-0 w-full truncate"
-            aria-label="제목"
-          />
-          <div className="flex items-center gap-2">
+      {/* Sticky 툴바: 1) 제목 + 날짜 / 2) 액션(ghost 통일) */}
+      <div className="sticky top-40 z-30 -mx-6 px-6 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/60 bg-background/80 border-b">
+        <div className="flex flex-col gap-2">
+          {/* 1줄: 제목 + 날짜 버튼 */}
+          <div className="flex items-center justify-between gap-3">
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="제목"
+              className="bg-transparent outline-none text-2xl md:text-4xl font-extrabold tracking-tight min-w-0 w-full truncate"
+              aria-label="제목"
+            />
+
             <Button
-              variant="secondary"
+              variant="default"
+              onClick={addDraft}
+              className="gap-2"
+              aria-label="사진 카드 추가"
+            >
+              <FontAwesomeIcon icon={faPlus} />
+              <span className="hidden sm:inline">사진 카드 추가</span>
+            </Button>
+          </div>
+
+          {/* 2줄: 액션 버튼들(ghost 통일) */}
+          <div className="flex items-center justify-between ">
+            <Button
+              variant="outline"
               onClick={() => {
                 setTempDate(new Date(eventDate));
                 setDateOpen(true);
@@ -316,37 +341,29 @@ export default function FragmentFormPage() {
                 {formatKoreanDateStr(eventDate)}
               </span>
             </Button>
-
-            <Button
-              variant="secondary"
-              onClick={addDraft}
-              className="gap-2"
-              aria-label="사진 카드 추가"
-            >
-              <FontAwesomeIcon icon={faPlus} />
-              <span className="hidden sm:inline">사진 카드 추가</span>
-            </Button>
-
-            <Button
-              variant="outline"
-              onClick={() => history.back()}
-              className="gap-2"
-            >
-              취소
-            </Button>
-
-            <Button
-              disabled={busy || !canSubmit}
-              onClick={handleCreate}
-              className="gap-2"
-            >
-              {busy ? "저장 중…" : "저장하기"}
-            </Button>
+            <div className="flex gap-1">
+              {" "}
+              <Button
+                variant="outline"
+                onClick={() => history.back()}
+                className="gap-2"
+              >
+                취소
+              </Button>
+              <Button
+                variant="outline"
+                disabled={busy || !canSubmit}
+                onClick={handleCreate}
+                className="gap-2"
+              >
+                {busy ? "저장 중…" : "저장하기"}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* 날짜 선택 Dialog (Detail과 동일 패턴) */}
+      {/* 날짜 선택 Dialog */}
       <Dialog open={dateOpen} onOpenChange={setDateOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -416,9 +433,7 @@ export default function FragmentFormPage() {
               <div className="flex flex-col xl:flex-row gap-6">
                 {/* 좌측: 이미지 영역 */}
                 <div className="relative group/preview">
-                  {/* 드래그 핸들 */}
-
-                  {/* 대표 배지 (Detail과 동일한 흰/amber 왕관) */}
+                  {/* 대표 배지 */}
                   {d.isCover && (
                     <div
                       className="absolute left-3 top-3 flex items-center gap-2 px-2.5 py-1.5 rounded-full bg-white/92 shadow-sm ring-1 ring-white/70 backdrop-blur-sm"
@@ -572,7 +587,7 @@ export default function FragmentFormPage() {
         />
       </Card>
 
-      {/* 안내 문구(왕관 배지로 통일) */}
+      {/* 안내 문구 */}
       <p className="text-xs text-muted-foreground">
         사진 카드 순서는 드래그에서 변경할 수 있어요.
       </p>

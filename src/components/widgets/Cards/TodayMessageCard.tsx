@@ -4,7 +4,6 @@
 import { useEffect, useMemo, useState } from "react";
 import supabase from "@/lib/supabase";
 import { useUser } from "@/contexts/UserContext";
-import { useCoupleContext } from "@/contexts/CoupleContext";
 import { cn } from "@/lib/utils";
 
 /* shadcn/ui */
@@ -18,16 +17,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 
 /* Font Awesome */
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faPaperPlane,
-  faMessage,
-  faCommentDots,
-} from "@fortawesome/free-solid-svg-icons";
+import { faPaperPlane, faMessage } from "@fortawesome/free-solid-svg-icons";
 
 /* Toast */
 import { toast } from "sonner";
@@ -68,19 +62,17 @@ const EMOJI_CANDIDATES = [
 
 type Props = { maxLen?: number };
 
+/**
+ * ✅ 리팩토링 포인트
+ * - 연인 칸 완전 제거 (내 메시지 전용)
+ * - 이모지 선택 + 본문 작성 + 저장
+ */
 export default function TodayMessageCard({ maxLen = 140 }: Props) {
   const { user } = useUser();
-  const { partnerId } = useCoupleContext();
 
   const [myMsg, setMyMsg] = useState<UserMessage | null>(null);
-  const [partnerMsg, setPartnerMsg] = useState<UserMessage | null>(null);
-
   const [loadingMy, setLoadingMy] = useState(true);
-  const [loadingPartner, setLoadingPartner] = useState(true);
   const [saving, setSaving] = useState(false);
-
-  const [myName, setMyName] = useState<string>("");
-  const [partnerName, setPartnerName] = useState<string>("연인");
 
   // 작성중 상태
   const [draft, setDraft] = useState("");
@@ -91,30 +83,6 @@ export default function TodayMessageCard({ maxLen = 140 }: Props) {
 
   const charCount = draft.length;
   const remain = maxLen - charCount;
-
-  /* 닉네임 셋업 */
-  useEffect(() => {
-    if (user?.nickname) setMyName(user.nickname);
-    else if (user?.id) setMyName("내 메시지");
-  }, [user?.nickname, user?.id]);
-
-  useEffect(() => {
-    let ignore = false;
-    (async () => {
-      if (!partnerId) return;
-      const { data, error } = await supabase
-        .from("users")
-        .select("nickname")
-        .eq("id", partnerId)
-        .maybeSingle<{ nickname: string }>();
-      if (!ignore) {
-        if (!error && data?.nickname) setPartnerName(data.nickname);
-      }
-    })();
-    return () => {
-      ignore = true;
-    };
-  }, [partnerId]);
 
   /* 내 메시지 불러오기 */
   useEffect(() => {
@@ -151,41 +119,6 @@ export default function TodayMessageCard({ maxLen = 140 }: Props) {
     };
   }, [user?.id]);
 
-  /* 연인 메시지 불러오기 – (RLS 허용 시 direct select) */
-  useEffect(() => {
-    if (!partnerId) {
-      setLoadingPartner(false);
-      setPartnerMsg(null);
-      return;
-    }
-    let ignore = false;
-
-    (async () => {
-      setLoadingPartner(true);
-
-      // 권장: RPC(get_user_message_by_partner) 사용 가능 시 교체
-      const { data, error } = await supabase
-        .from("user_message")
-        .select("*")
-        .eq("author_id", partnerId)
-        .maybeSingle<UserMessage>();
-
-      if (!ignore) {
-        if (error) {
-          console.error("[TodayMessageCard] partner load error:", error);
-          setPartnerMsg(null);
-        } else {
-          setPartnerMsg((data as UserMessage) ?? null);
-        }
-        setLoadingPartner(false);
-      }
-    })();
-
-    return () => {
-      ignore = true;
-    };
-  }, [partnerId]);
-
   const canSave = useMemo(() => {
     return (
       !saving &&
@@ -206,7 +139,7 @@ export default function TodayMessageCard({ maxLen = 140 }: Props) {
       if (error) throw error;
       setMyMsg(data as UserMessage);
       setShowEmojiPicker(false);
-      toast.success("저장되었습니다!"); // ✅ 저장 토스트
+      toast.success("저장되었습니다!");
     } catch (e) {
       console.error("[TodayMessageCard] save error:", e);
       toast.error("저장 중 오류가 발생했어요.");
@@ -220,70 +153,16 @@ export default function TodayMessageCard({ maxLen = 140 }: Props) {
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-xl font-semibold tracking-tight">
-            <FontAwesomeIcon icon={faCommentDots} className="mr-2 opacity-80" />
+            <FontAwesomeIcon icon={faMessage} className="mr-2 opacity-80" />
             오늘의 메시지
           </CardTitle>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-8">
-        {/* ───────────── 연인 메시지 ───────────── */}
-        <section className="space-y-3">
-          <div className="flex items-center gap-2">
-            <FontAwesomeIcon
-              className="opacity-70 text-purple-500"
-              icon={faMessage}
-            />
-            <h3 className="font-medium text-purple-700">{partnerName}</h3>
-          </div>
-
-          <div className="rounded-xl border border-purple-100 bg-purple-50/40 p-4">
-            {loadingPartner ? (
-              <div className="space-y-2">
-                <Skeleton className="h-6 w-32" />
-                <Skeleton className="h-16 w-full" />
-              </div>
-            ) : partnerMsg ? (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-neutral-600">오늘의 기분:</span>
-                  <Badge
-                    variant="outline"
-                    className="rounded-full px-3 py-1 text-base bg-white"
-                  >
-                    {partnerMsg.emoji}
-                  </Badge>
-                </div>
-                <p className="text-sm leading-relaxed whitespace-pre-wrap bg-white/70 rounded-md p-3 border border-white">
-                  {partnerMsg.content}
-                </p>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-neutral-500">
-                  아직 메시지가 없어요.
-                </p>
-                <Skeleton className="h-8 w-8 rounded-full" />
-              </div>
-            )}
-          </div>
-        </section>
-
-        <Separator />
-
+      <CardContent className="space-y-6">
         {/* ───────────── 내 메시지 (항상 펼침) ───────────── */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <FontAwesomeIcon
-                className="opacity-70 text-blue-500"
-                icon={faMessage}
-              />
-              <h3 className="font-medium text-blue-700">
-                {myName || "내 메시지"}
-              </h3>
-            </div>
-
             {/* 선택된 이모지 요약 + 변경 */}
             {!showEmojiPicker && (
               <div className="flex items-center gap-2">
@@ -306,7 +185,6 @@ export default function TodayMessageCard({ maxLen = 140 }: Props) {
             )}
           </div>
 
-          {/* 본문(항상 노출) */}
           <div className="space-y-3 rounded-xl border border-blue-100 bg-blue-50/40 p-3">
             {/* 이모지 선택 or 단일 노출 */}
             {showEmojiPicker ? (
@@ -318,7 +196,7 @@ export default function TodayMessageCard({ maxLen = 140 }: Props) {
                       key={e}
                       onClick={() => {
                         setSelectedEmoji(e);
-                        setShowEmojiPicker(false); // 선택 즉시 그리드 숨김
+                        setShowEmojiPicker(false);
                       }}
                       className={cn(
                         "aspect-square rounded-lg border text-xl flex items-center justify-center transition",
@@ -334,15 +212,7 @@ export default function TodayMessageCard({ maxLen = 140 }: Props) {
                 })}
               </div>
             ) : (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-neutral-500">오늘의 기분:</span>
-                <Badge
-                  variant="outline"
-                  className="rounded-full px-3 py-1 text-base"
-                >
-                  {selectedEmoji}
-                </Badge>
-              </div>
+              <div className="flex items-center gap-2"></div>
             )}
 
             {/* 텍스트 입력 */}

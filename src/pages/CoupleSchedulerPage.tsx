@@ -597,7 +597,7 @@ function DayCell({
         onClick={() => onAddQuick(ymd)}
         className={cn(
           "flex items-center justify-between px-2 py-1.5 border-b",
-          isToday ? "bg-primary/5" : "bg-muted/20",
+          isToday ? "bg-green-100" : "bg-muted/20",
           "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         )}
         title={`${ymd} 일정 추가`}
@@ -629,7 +629,7 @@ function DayCell({
                 key={it.id}
                 onClick={() => onOpenDetail(it)}
                 className={cn(
-                  "w-full text-left rounded-md px-2 py-1.5 text-[11px] md:text-xs",
+                  "w-full text-left  px-2 py-1.5 text-[11px] md:text-xs ",
                   "hover:brightness-[.97] active:scale-[.99] transition",
                   "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   TYPE_STYLE[it.type]

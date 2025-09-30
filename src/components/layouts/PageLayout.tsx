@@ -7,6 +7,8 @@ import AppHeader from "./AppHeader";
 
 import FloatingLeftRail from "../widgets/FloatingLeftRail";
 
+import QuickMenu from "../widgets/QuickMenu";
+
 type PageLayoutProps = {
   /** 명시적으로 넘기면 이 값이 최우선. 없으면 현재 경로로 타이틀 계산 */
   title?: string;
@@ -96,6 +98,7 @@ export default function PageLayout({
       {/* 고정 헤더 */}
       <AppHeader routeTitle={routeTitle} />
       <FloatingLeftRail />
+      <QuickMenu />
 
       {/* 본문 */}
       <main
