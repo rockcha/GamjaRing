@@ -39,6 +39,7 @@ import {
   faRightLeft,
   faClipboard,
   faGhost,
+  faPuzzlePiece, // ✅ 추가: 퍼즐 조각 아이콘
 } from "@fortawesome/free-solid-svg-icons";
 
 // LucideIcon 시그니처처럼 className만 받아 렌더하는 래퍼
@@ -66,6 +67,7 @@ const Sticker = makeFA(faClipboard) as unknown as LucideIcon;
 const Hourglass = makeFA(faHourglassHalf) as unknown as LucideIcon; // 타임캡슐
 const ArrowLeftRight = makeFA(faRightLeft) as unknown as LucideIcon;
 const Ghost = makeFA(faGhost) as unknown as LucideIcon;
+const PuzzlePiece = makeFA(faPuzzlePiece) as unknown as LucideIcon; // ✅ 추가: 추억조각
 
 /* ------------------------------ 네비 정의/가드 ------------------------------ */
 type SimpleNavDef = {
@@ -76,6 +78,7 @@ type SimpleNavDef = {
     | "bundle"
     | "scheduler"
     | "timeCapsule"
+    | "memories" // ✅ 추가: 추억조각
     | "exchange"
     | "farm"
     | "kitchen"
@@ -100,6 +103,7 @@ const NAV_GROUPS: readonly (readonly SimpleNavDef[])[] = [
     { id: "bundle", label: "답변꾸러미", icon: MessagesSquare },
     { id: "scheduler", label: "스케쥴러", icon: CalendarDays },
     { id: "timeCapsule", label: "타임캡슐", icon: Hourglass },
+    { id: "memories", label: "추억조각", icon: PuzzlePiece }, // ✅ 추가
     { id: "gloomy", label: "음침한 방", icon: Ghost },
   ],
   [
@@ -113,7 +117,7 @@ const NAV_GROUPS: readonly (readonly SimpleNavDef[])[] = [
   ],
   [
     { id: "stickerBoard", label: "스티커보드", icon: Sticker },
-    { id: "oddEven", label: "홀짝게임", icon: Dice3 },
+    // { id: "oddEven", label: "홀짝게임", icon: Dice3 },
     { id: "miniGame", label: "미니게임", icon: Gamepad2 },
   ],
 ] as const;
@@ -129,6 +133,7 @@ const GUARDS: Record<
 
   scheduler: { requireLogin: true, requireCouple: true },
   timeCapsule: { requireLogin: true, requireCouple: true },
+  memories: { requireLogin: true, requireCouple: true }, // ✅ 추가
   gloomy: { requireLogin: true, requireCouple: true },
 
   farm: { requireLogin: true, requireCouple: true },
@@ -138,7 +143,7 @@ const GUARDS: Record<
   fishing: { requireLogin: true, requireCouple: true },
 
   stickerBoard: { requireLogin: true, requireCouple: true },
-  oddEven: { requireLogin: true, requireCouple: true },
+  // oddEven: { requireLogin: true, requireCouple: true },
   miniGame: { requireLogin: true, requireCouple: true },
 };
 
@@ -150,6 +155,7 @@ const FALLBACK_ROUTE: Record<string, string> = {
   scheduler: "/scheduler",
 
   timeCapsule: "/timeCapsule",
+  memories: "/memories", // ✅ 추가: 리스트 페이지로 연결
   gloomy: "/gloomy",
 
   farm: "/potatoField",
@@ -159,7 +165,7 @@ const FALLBACK_ROUTE: Record<string, string> = {
   fishing: "/fishing",
 
   stickerBoard: "/stickerBoard",
-  oddEven: "/oddEven",
+  // oddEven: "/oddEven",
   miniGame: "/miniGame",
 };
 
@@ -312,15 +318,12 @@ export default function AppHeader({
               aria-label="주 네비게이션"
               className={cn(
                 "min-w-0 md:pl-1",
-                // 모바일에서 가로 스와이프
                 "md:[overflow:visible] overflow-x-auto scrollbar-none touch-pan-x overscroll-x-contain",
-                // 가장자리 여백 제거해 풀폭 체감
                 "-mx-3 px-3 md:mx-0 md:px-0"
               )}
             >
               <div
                 className={cn(
-                  // 모바일: 스와이프 가능한 가로 플로우 + 스냅
                   "grid grid-flow-col auto-cols-max md:auto-cols-max",
                   "gap-x-2 gap-y-1",
                   "justify-start content-start",
