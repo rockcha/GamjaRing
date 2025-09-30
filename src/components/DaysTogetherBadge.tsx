@@ -337,7 +337,7 @@ export default function DaysTogetherBadge() {
       {/* 헤더 */}
       <div className="flex items-center justify-center gap-3">
         <div className="flex items-center gap-2 text-[#5b3d1d] min-w-0">
-          <span className="text-[18px] sm:text-[24px] font-extrabold truncate">
+          <span className="text-[18px] sm:text-[28px] font-extrabold truncate">
             {myNickname}
           </span>
           <span className="animate-pulse select-none" aria-hidden>
@@ -350,7 +350,7 @@ export default function DaysTogetherBadge() {
             type="button"
             onClick={() => setOpen(true)}
             className={cn(
-              "text-[18px] sm:text-[24px] font-extrabold truncate max-w-[40vw]",
+              "text-[18px] sm:text-[28px] font-extrabold truncate max-w-[40vw]",
               "hover:text-[#7a532a] transition-colors"
             )}
             aria-label={`${partnerLabel}에게 액션 보내기`}

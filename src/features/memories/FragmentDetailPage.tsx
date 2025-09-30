@@ -1,7 +1,7 @@
 // src/features/memories/FragmentDetailPage.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -53,19 +53,22 @@ import { toast } from "sonner";
 /* Icons */
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faListUl,
-  faSpinner,
   faCamera,
   faTrash,
   faCrown,
   faFloppyDisk,
+  faSpinner,
+  faBackward,
+  faBackwardStep,
 } from "@fortawesome/free-solid-svg-icons";
 import {
   MoreVertical,
   CalendarDays,
-  Camera,
   List as ListIcon,
   Trash2,
+  SkipBack,
+  StepBack,
+  SendToBack,
 } from "lucide-react";
 
 /* ============== 유틸 ============== */
@@ -74,26 +77,6 @@ function arrayMove<T>(arr: T[], from: number, to: number) {
   const [item] = clone.splice(from, 1);
   clone.splice(to, 0, item);
   return clone;
-}
-
-function debounce<T extends (...a: any[]) => any>(fn: T, delay = 600) {
-  let t: any;
-  return (...args: Parameters<T>) => {
-    clearTimeout(t);
-    t = setTimeout(() => fn(...args), delay);
-  };
-}
-
-function useSavedFlag() {
-  const [saved, setSaved] = useState(false);
-  const timer = useRef<any>(null);
-  const showSaved = () => {
-    setSaved(true);
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => setSaved(false), 1200);
-  };
-  useEffect(() => () => clearTimeout(timer.current), []);
-  return { saved, showSaved };
 }
 
 function toDateFromYMD(ymd: string): Date | null {
@@ -150,17 +133,19 @@ function DraggableRow({
 function ToolbarRight({
   dateText,
   onOpenDate,
+  onSave,
+  saving,
   onPickFile,
   onGoList,
   onDeleteFragment,
-  busyAddPhoto = false,
 }: {
   dateText: string;
   onOpenDate: () => void;
+  onSave: () => void;
+  saving: boolean;
   onPickFile: () => void;
   onGoList: () => void;
   onDeleteFragment: () => void;
-  busyAddPhoto?: boolean;
 }) {
   return (
     <TooltipProvider delayDuration={80}>
@@ -178,28 +163,35 @@ function ToolbarRight({
               <span className="hidden md:inline">{dateText}</span>
             </button>
           </TooltipTrigger>
-          <TooltipContent>날짜 선택 (D)</TooltipContent>
+          <TooltipContent>날짜 선택</TooltipContent>
         </Tooltip>
 
         {/* 구분선으로 Primary와 보조를 나눔 */}
         <Separator orientation="vertical" className="h-6" />
 
-        {/* Primary: 사진 추가 */}
+        {/* Primary: 저장하기 */}
         <Tooltip>
           <TooltipTrigger asChild>
             <button
-              onClick={onPickFile}
-              disabled={busyAddPhoto}
+              onClick={onSave}
+              disabled={saving}
               className="inline-flex items-center gap-2 h-10 px-3 rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-colors"
-              aria-label="사진 추가"
+              aria-label="저장하기"
             >
-              <Camera
-                className={`size-4 ${busyAddPhoto ? "animate-pulse" : ""}`}
-              />
-              <span className="hidden sm:inline">사진 추가</span>
+              {saving ? (
+                <>
+                  <FontAwesomeIcon icon={faSpinner} className="size-4" spin />
+                  <span className="hidden sm:inline">저장중…</span>
+                </>
+              ) : (
+                <>
+                  <FontAwesomeIcon icon={faFloppyDisk} className="size-4" />
+                  <span className="hidden sm:inline">저장하기</span>
+                </>
+              )}
             </button>
           </TooltipTrigger>
-          <TooltipContent>사진 추가 (U)</TooltipContent>
+          <TooltipContent>변경 사항 저장</TooltipContent>
         </Tooltip>
 
         {/* 기타/위험 작업: kebab */}
@@ -212,11 +204,18 @@ function ToolbarRight({
               <MoreVertical className="size-5" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuContent align="end" className="w-48">
+            {/* ✅ 사진 추가: 삭제 위쪽에 배치 */}
             <DropdownMenuItem onClick={onGoList}>
-              <ListIcon className="mr-2 size-4" />
-              추억조각 목록
+              <FontAwesomeIcon icon={faBackwardStep} className="mr-2" />
+              뒤로가기
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={onPickFile}>
+              <FontAwesomeIcon icon={faCamera} className="mr-2" />
+              사진 추가
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={onDeleteFragment}
@@ -245,10 +244,6 @@ function PhotoRow({
   onSetCover,
   isCover,
   onAskDelete,
-  savingAuthor,
-  savingPartner,
-  savedAuthor,
-  savedPartner,
 }: {
   card: MemoryCard;
   currentUserId?: string | null;
@@ -261,16 +256,11 @@ function PhotoRow({
   onSetCover: () => void;
   isCover: boolean;
   onAskDelete: () => void;
-  savingAuthor: boolean;
-  savingPartner: boolean;
-  savedAuthor: boolean;
-  savedPartner: boolean;
 }) {
   const myId = String(currentUserId ?? "").trim();
   const authorId = String(card.author_id ?? "").trim();
   const isAuthor = myId !== "" && authorId !== "" && myId === authorId;
 
-  // 라벨을 "작성자/비작성자" 기준으로 동기화
   const authorLabel = isAuthor ? myName : partnerName;
   const partnerLabel = isAuthor ? partnerName : myName;
 
@@ -280,7 +270,7 @@ function PhotoRow({
   return (
     <Card className="p-6">
       <div className="flex flex-col xl:flex-row gap-6">
-        {/* 이미지 영역 (오버레이 버튼 제거) */}
+        {/* 이미지 영역 (오버레이 버튼 유지/효과만) */}
         <div className="relative">
           <img
             src={publicUrl(card.image_path)}
@@ -306,22 +296,9 @@ function PhotoRow({
         <div className="flex-1 grid gap-5 min-w-[360px]">
           {/* 작성자 캡션 */}
           <div className="grid gap-1">
-            <div className="flex items-center gap-2">
-              <Label className="text-xs font-medium text-slate-500">
-                {authorLabel}의 캡션
-              </Label>
-              {savingAuthor && (
-                <span className="text-xs text-slate-400 flex items-center gap-1">
-                  <FontAwesomeIcon icon={faSpinner} spin /> 저장중…
-                </span>
-              )}
-              {savedAuthor && !savingAuthor && (
-                <span className="text-[11px] text-emerald-600 flex items-center gap-1">
-                  <FontAwesomeIcon icon={faFloppyDisk} />
-                  저장됨
-                </span>
-              )}
-            </div>
+            <Label className="text-xs font-medium text-slate-500">
+              {authorLabel}의 캡션
+            </Label>
             <Textarea
               value={authorValue}
               onChange={(e) => canEditAuthor && onChangeAuthor(e.target.value)}
@@ -338,22 +315,9 @@ function PhotoRow({
 
           {/* 비작성자 캡션 */}
           <div className="grid gap-1">
-            <div className="flex items-center gap-2">
-              <Label className="text-xs font-medium text-slate-500">
-                {partnerLabel}의 캡션
-              </Label>
-              {savingPartner && (
-                <span className="text-xs text-slate-400 flex items-center gap-1">
-                  <FontAwesomeIcon icon={faSpinner} spin /> 저장중…
-                </span>
-              )}
-              {savedPartner && !savingPartner && (
-                <span className="text-[11px] text-emerald-600 flex items-center gap-1">
-                  <FontAwesomeIcon icon={faFloppyDisk} />
-                  저장됨
-                </span>
-              )}
-            </div>
+            <Label className="text-xs font-medium text-slate-500">
+              {partnerLabel}의 캡션
+            </Label>
             <Textarea
               value={partnerValue}
               onChange={(e) =>
@@ -403,7 +367,6 @@ export default function FragmentDetailPage() {
   const { couple, partnerId } = useCoupleContext();
   const { user } = useUser();
 
-  // profile id 우선 권장
   const currentUid = useMemo(
     () => (user?.id ?? user?.authId) || null,
     [user?.id, user?.authId]
@@ -437,47 +400,29 @@ export default function FragmentDetailPage() {
   const [frag, setFrag] = useState<Fragment | null>(null);
   const [cards, setCards] = useState<MemoryCard[]>([]);
 
-  // 자동 저장 상태
+  // 로컬 상태 (자동저장 제거)
   const [title, setTitle] = useState("");
-  const [savingTitle, setSavingTitle] = useState(false);
-  const { saved: savedTitle, showSaved: flashSavedTitle } = useSavedFlag();
-
   const [eventDate, setEventDate] = useState<string>("");
-  const [savingDate, setSavingDate] = useState(false);
-  const { saved: savedDate, showSaved: flashSavedDate } = useSavedFlag();
-
   const [summary, setSummary] = useState("");
-  const [savingSummary, setSavingSummary] = useState(false);
-  const { saved: savedSummary, showSaved: flashSavedSummary } = useSavedFlag();
 
-  // 날짜 Dialog
-  const [dateOpen, setDateOpen] = useState(false);
+  // 초기 스냅샷(Dirty 계산용)
+  const [initialTitle, setInitialTitle] = useState("");
+  const [initialEventDate, setInitialEventDate] = useState<string>("");
+  const [initialSummary, setInitialSummary] = useState("");
+  const [initialCardTexts, setInitialCardTexts] = useState<
+    Record<string, { author: string; partner: string }>
+  >({});
+  const [initialOrderMap, setInitialOrderMap] = useState<
+    Record<string, number>
+  >({});
 
-  // 카드 캡션 로컬/저장 상태
+  // 캡션 로컬 상태 (자동저장 제거)
   const [cardTexts, setCardTexts] = useState<
     Record<string, { author: string; partner: string }>
   >({});
-  const [savingCardAuthor, setSavingCardAuthor] = useState<
-    Record<string, boolean>
-  >({});
-  const [savingCardPartner, setSavingCardPartner] = useState<
-    Record<string, boolean>
-  >({});
-  const [savedCardAuthor, setSavedCardAuthor] = useState<
-    Record<string, boolean>
-  >({});
-  const [savedCardPartner, setSavedCardPartner] = useState<
-    Record<string, boolean>
-  >({});
 
-  // 작성자명
-  const authorName = useMemo(() => {
-    if (!frag) return "작성자";
-    const fAuthor = String(frag.author_id ?? "").trim();
-    const me = String(currentUid ?? "").trim();
-    if (fAuthor && me && fAuthor === me) return myName;
-    return partnerName;
-  }, [frag, currentUid, myName, partnerName]);
+  // 날짜 Dialog
+  const [dateOpen, setDateOpen] = useState(false);
 
   // 삭제 다이얼로그
   const [confirmOpen, setConfirmOpen] = useState<null | {
@@ -499,6 +444,10 @@ export default function FragmentDetailPage() {
   const dragOver = useRef<number | null>(null);
   const isDragging = useRef(false);
 
+  // 저장 버튼 상태
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+
   // 데이터 로드
   async function loadAll() {
     if (!id) return;
@@ -509,14 +458,29 @@ export default function FragmentDetailPage() {
     setSummary(sum?.content ?? "");
     const all = await listCards(id, 1000, 0);
     setCards(all);
-    const init: Record<string, { author: string; partner: string }> = {};
-    all.forEach((c) => {
-      init[c.id] = {
+
+    const initText: Record<string, { author: string; partner: string }> = {};
+    const initOrder: Record<string, number> = {};
+    all.forEach((c, idx) => {
+      initText[c.id] = {
         author: c.caption_author ?? "",
         partner: c.caption_partner ?? "",
       };
+      initOrder[c.id] = idx;
     });
-    setCardTexts(init);
+
+    // 초기 스냅샷 저장
+    setInitialTitle(f.title);
+    setInitialEventDate(f.event_date);
+    setInitialSummary(sum?.content ?? "");
+    setInitialCardTexts(initText);
+    setInitialOrderMap(initOrder);
+
+    // 로컬 편집 상태 세팅
+    setCardTexts(initText);
+
+    // 초기엔 dirty 아님
+    setDirty(false);
   }
 
   useEffect(() => {
@@ -528,120 +492,54 @@ export default function FragmentDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // 디바운스 저장기
-  const debouncedSaveTitle = useMemo(
-    () =>
-      debounce(async (value: string) => {
-        if (!frag) return;
-        setSavingTitle(true);
-        try {
-          const updated = await updateFragment(frag.id, { title: value });
-          setFrag(updated);
-          flashSavedTitle();
-        } finally {
-          setSavingTitle(false);
-        }
-      }, 600),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [frag?.id]
-  );
+  // Dirty 계산
+  useEffect(() => {
+    if (!frag) return;
+    let changed = false;
 
-  const debouncedSaveDate = useMemo(
-    () =>
-      debounce(async (value: string) => {
-        if (!frag) return;
-        setSavingDate(true);
-        try {
-          const updated = await updateFragment(frag.id, { event_date: value });
-          setFrag(updated);
-          flashSavedDate();
-        } finally {
-          setSavingDate(false);
-        }
-      }, 300),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [frag?.id]
-  );
+    if (title !== initialTitle) changed = true;
+    if (eventDate !== initialEventDate) changed = true;
+    if (summary !== initialSummary) changed = true;
 
-  const debouncedSaveSummary = useMemo(
-    () =>
-      debounce(async (value: string) => {
-        if (!frag) return;
-        setSavingSummary(true);
-        try {
-          await upsertSummary({ fragment_id: frag.id, content: value });
-          flashSavedSummary();
-        } finally {
-          setSavingSummary(false);
+    // 캡션 비교
+    if (!changed) {
+      for (const c of cards) {
+        const cur = cardTexts[c.id] ?? { author: "", partner: "" };
+        const init = initialCardTexts[c.id] ?? { author: "", partner: "" };
+        if (cur.author !== init.author || cur.partner !== init.partner) {
+          changed = true;
+          break;
         }
-      }, 800),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [frag?.id]
-  );
-
-  const debouncedSaveCardAuthor = useMemo(() => {
-    const cache: Record<string, (v: string) => void> = {};
-    return (cardId: string) => {
-      if (!cache[cardId]) {
-        cache[cardId] = debounce(async (value: string) => {
-          setSavingCardAuthor((m) => ({ ...m, [cardId]: true }));
-          try {
-            await updateCard(cardId, { caption_author: value });
-            setSavedCardAuthor((m) => ({ ...m, [cardId]: true }));
-            setTimeout(
-              () =>
-                setSavedCardAuthor((m) => {
-                  const { [cardId]: _, ...rest } = m;
-                  return rest;
-                }),
-              1200
-            );
-          } finally {
-            setSavingCardAuthor((m) => ({ ...m, [cardId]: false }));
-          }
-        }, 600);
       }
-      return cache[cardId];
-    };
-  }, []);
+    }
 
-  const debouncedSaveCardPartner = useMemo(() => {
-    const cache: Record<string, (v: string) => void> = {};
-    return (cardId: string) => {
-      if (!cache[cardId]) {
-        cache[cardId] = debounce(async (value: string) => {
-          setSavingCardPartner((m) => ({ ...m, [cardId]: true }));
-          try {
-            await updateCard(cardId, { caption_partner: value });
-            setSavedCardPartner((m) => ({ ...m, [cardId]: true }));
-            setTimeout(
-              () =>
-                setSavedCardPartner((m) => {
-                  const { [cardId]: _, ...rest } = m;
-                  return rest;
-                }),
-              1200
-            );
-          } finally {
-            setSavingCardPartner((m) => ({ ...m, [cardId]: false }));
-          }
-        }, 600);
+    // 순서 비교
+    if (!changed) {
+      for (let idx = 0; idx < cards.length; idx++) {
+        const c = cards[idx];
+        if (initialOrderMap[c.id] !== idx) {
+          changed = true;
+          break;
+        }
       }
-      return cache[cardId];
-    };
-  }, []);
+    }
 
-  // 정렬 반영
-  async function persistOrder(next: MemoryCard[]) {
-    await Promise.all(
-      next.map((c, idx) =>
-        c.order_index !== idx
-          ? updateCard(c.id, { order_index: idx })
-          : Promise.resolve(c)
-      )
-    );
-    toast.success("사진 카드 순서를 저장했어요");
-  }
+    setDirty(changed);
+  }, [
+    title,
+    eventDate,
+    summary,
+    cardTexts,
+    cards,
+    initialTitle,
+    initialEventDate,
+    initialSummary,
+    initialCardTexts,
+    initialOrderMap,
+    frag,
+  ]);
+
+  // DnD (이제 즉시 저장 X, 로컬 순서만 변경 → 저장 버튼에서 반영)
   function onDragStartIdx(i: number) {
     dragFrom.current = i;
     isDragging.current = true;
@@ -649,7 +547,7 @@ export default function FragmentDetailPage() {
   function onDragOverIdx(i: number) {
     dragOver.current = i;
   }
-  async function onDropToIdx(i: number) {
+  function onDropToIdx(i: number) {
     if (!isDragging.current) return;
     const from = dragFrom.current;
     const to = i;
@@ -662,7 +560,6 @@ export default function FragmentDetailPage() {
       order_index: idx,
     }));
     setCards(next);
-    await persistOrder(next);
   }
 
   // 액션들
@@ -688,19 +585,24 @@ export default function FragmentDetailPage() {
       caption_partner: null,
       order_index: nextIndex,
     });
+
     setCards((prev) => {
       const arr = [...prev, created];
-      setCardTexts((m) => ({
-        ...m,
-        [created.id]: { author: "", partner: "" },
-      }));
-      return arr;
+      return arr.map((c, idx) => ({ ...c, order_index: idx }));
     });
+    setCardTexts((m) => ({
+      ...m,
+      [created.id]: { author: "", partner: "" },
+    }));
+
+    // 새 카드 추가 → 아직 저장 전 상태지만 DB엔 생성됨(이미지/카드 생성 자체는 즉시)
+    // 순서/캡션/제목/요약 등은 Save에서 한번에 반영
     toast.success("사진 카드가 추가되었어요");
   }
 
   async function setCover(path: string) {
     if (!frag) return;
+    // 대표 사진은 즉시 반영 (요청에 제한 없었음)
     const updated = await updateFragment(frag.id, { cover_photo_path: path });
     setFrag(updated);
     toast.success("대표 사진을 변경했어요");
@@ -711,12 +613,10 @@ export default function FragmentDetailPage() {
     const next = await heartPlus(id);
     setFrag({ ...frag, hearts: next });
 
-    // ❤️ 이펙트
     setBoom(true);
     if (boomTimer.current) window.clearTimeout(boomTimer.current);
     boomTimer.current = window.setTimeout(() => setBoom(false), 450);
 
-    // +1 떠오르기
     setPlusOne(true);
     if (plusTimer.current) window.clearTimeout(plusTimer.current);
     plusTimer.current = window.setTimeout(() => setPlusOne(false), 650);
@@ -767,41 +667,94 @@ export default function FragmentDetailPage() {
     }
   }
 
-  // 단축키: H/U/D/L
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      const k = e.key.toLowerCase();
-      if (k === "h") {
-        e.preventDefault();
-        addHeart();
-      } else if (k === "u") {
-        e.preventDefault();
-        fileRef.current?.click();
-      } else if (k === "d") {
-        e.preventDefault();
-        setDateOpen(true);
-      } else if (k === "l") {
-        e.preventDefault();
-        nav("/memories");
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [frag, id, cards]);
+  // ⚠️ 단축키 전면 제거 (요청)
+  // useEffect(() => { ... }, [])  // 삭제
 
   const STICKY_TOP = "top-40 md:top-40";
-
   const dateText =
     eventDate && toDateFromYMD(eventDate)
       ? toDateFromYMD(eventDate)!.toLocaleDateString()
       : "날짜 선택";
 
+  // 저장 버튼(한 번에 반영)
+  async function handleSaveAll() {
+    if (!frag) return;
+    try {
+      setSaving(true);
+
+      const updates: Partial<Fragment> = {};
+      if (title !== initialTitle) updates.title = title;
+      if (eventDate !== initialEventDate) updates.event_date = eventDate;
+
+      const ops: Promise<any>[] = [];
+
+      if (Object.keys(updates).length > 0) {
+        ops.push(updateFragment(frag.id, updates));
+      }
+
+      if (summary !== initialSummary) {
+        ops.push(upsertSummary({ fragment_id: frag.id, content: summary }));
+      }
+
+      // 캡션 변경 반영
+      for (const c of cards) {
+        const cur = cardTexts[c.id] ?? { author: "", partner: "" };
+        const init = initialCardTexts[c.id] ?? { author: "", partner: "" };
+        const cardUpdate: Partial<MemoryCard> = {};
+        if (cur.author !== init.author) cardUpdate.caption_author = cur.author;
+        if (cur.partner !== init.partner)
+          cardUpdate.caption_partner = cur.partner;
+        if (Object.keys(cardUpdate).length > 0) {
+          ops.push(updateCard(c.id, cardUpdate));
+        }
+      }
+
+      // 순서 반영
+      for (let idx = 0; idx < cards.length; idx++) {
+        const c = cards[idx];
+        if (initialOrderMap[c.id] !== idx) {
+          ops.push(updateCard(c.id, { order_index: idx }));
+        }
+      }
+
+      await Promise.all(ops);
+
+      // 저장 완료 후 초기 스냅샷 갱신
+      const refreshed = await listCards(frag.id, 1000, 0);
+      setCards(refreshed);
+
+      const newInitTexts: Record<string, { author: string; partner: string }> =
+        {};
+      const newInitOrder: Record<string, number> = {};
+      refreshed.forEach((c, idx) => {
+        newInitTexts[c.id] = {
+          author: c.caption_author ?? "",
+          partner: c.caption_partner ?? "",
+        };
+        newInitOrder[c.id] = idx;
+      });
+
+      setInitialTitle(title);
+      setInitialEventDate(eventDate);
+      setInitialSummary(summary);
+      setInitialCardTexts(newInitTexts);
+      setInitialOrderMap(newInitOrder);
+
+      setDirty(false);
+      toast.success("변경 사항을 저장했어요");
+    } catch (e) {
+      console.error(e);
+      toast.error("저장 중 오류가 발생했어요.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-[1400px] p-6 space-y-8">
       {frag && (
         <>
-          {/* ✅ Sticky 툴바 (정리 버전) */}
+          {/* ✅ Sticky 툴바 (저장 버튼 추가 / 사진추가 이동) */}
           <div
             className={`sticky ${STICKY_TOP} z-30 -mx-6 px-6 h-14 grid grid-cols-[auto_1fr_auto] items-center gap-3
             bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/65 rounded-xl
@@ -838,35 +791,34 @@ export default function FragmentDetailPage() {
               </div>
             </div>
 
-            {/* 중: 제목 (저장 칩만 표기) */}
+            {/* 중: 제목 (자동저장 제거) */}
             <div className="min-w-0 flex items-center gap-2 ml-6 ">
               <input
                 value={title}
-                onChange={(e) => {
-                  setTitle(e.target.value);
-                  debouncedSaveTitle(e.target.value);
-                }}
+                onChange={(e) => setTitle(e.target.value)}
                 placeholder="제목"
-                className="bg-transparent outline-none text-2xl md:text-4xl font-extrabold tracking-tight min-w-0 w-full truncate"
+                className="bg-transparent outline-none text-xl md:text-2xl font-extrabold tracking-tight min-w-0 w-full truncate"
                 aria-label="제목"
               />
-              {savingTitle && (
+              {/* Dirty 표시(선택) */}
+              {dirty && !saving && (
+                <span className="text-[11px] text-amber-600 whitespace-nowrap">
+                  변경 사항 있음
+                </span>
+              )}
+              {saving && (
                 <span className="text-xs text-slate-400 flex items-center gap-1 whitespace-nowrap">
                   <FontAwesomeIcon icon={faSpinner} spin /> 저장중…
                 </span>
               )}
-              {savedTitle && !savingTitle && (
-                <span className="text-[11px] text-emerald-600 flex items-center gap-1 whitespace-nowrap">
-                  <FontAwesomeIcon icon={faFloppyDisk} />
-                  저장됨
-                </span>
-              )}
             </div>
 
-            {/* 우: 정리된 액션 */}
+            {/* 우: 정리된 액션 (저장/달력/메뉴) */}
             <ToolbarRight
               dateText={dateText}
               onOpenDate={() => setDateOpen(true)}
+              onSave={handleSaveAll}
+              saving={saving}
               onPickFile={() => fileRef.current?.click()}
               onGoList={() => nav("/memories")}
               onDeleteFragment={() => setConfirmOpen({ type: "fragment" })}
@@ -875,7 +827,12 @@ export default function FragmentDetailPage() {
 
           {/* 메타줄 (2차 정보) */}
           <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-            <span>작성자: {authorName}</span>
+            <span>
+              작성자:{" "}
+              {String(frag.author_id ?? "") === String(currentUid ?? "")
+                ? myName
+                : partnerName}
+            </span>
             <span>·</span>
             <span>작성일: {new Date(frag.created_at).toLocaleString()}</span>
           </div>
@@ -923,7 +880,6 @@ export default function FragmentDetailPage() {
                     ...m,
                     [c.id]: { ...(m[c.id] ?? { partner: "" }), author: v },
                   }));
-                  debouncedSaveCardAuthor(c.id)(v);
                 }}
                 onChangePartner={(v) => {
                   if (isAuthor) return;
@@ -931,43 +887,22 @@ export default function FragmentDetailPage() {
                     ...m,
                     [c.id]: { ...(m[c.id] ?? { author: "" }), partner: v },
                   }));
-                  debouncedSaveCardPartner(c.id)(v);
                 }}
                 onSetCover={() => setCover(c.image_path)}
                 isCover={frag?.cover_photo_path === c.image_path}
                 onAskDelete={() => setConfirmOpen({ type: "card", id: c.id })}
-                savingAuthor={!!savingCardAuthor[c.id]}
-                savingPartner={!!savingCardPartner[c.id]}
-                savedAuthor={!!savedCardAuthor[c.id]}
-                savedPartner={!!savedCardPartner[c.id]}
               />
             </DraggableRow>
           );
         })}
       </div>
 
-      {/* 추억 정리글 */}
+      {/* 추억 정리글 (자동저장 제거) */}
       <Card className="p-6 space-y-3">
-        <div className="flex items-center gap-2">
-          <div className="font-medium">메모하기</div>
-          {savingSummary && (
-            <span className="text-xs text-slate-400 flex items-center gap-1">
-              <FontAwesomeIcon icon={faSpinner} spin /> 저장중…
-            </span>
-          )}
-          {savedSummary && !savingSummary && (
-            <span className="text-[11px] text-emerald-600 flex items-center gap-1">
-              <FontAwesomeIcon icon={faFloppyDisk} />
-              저장됨
-            </span>
-          )}
-        </div>
+        <div className="font-medium">메모하기</div>
         <Textarea
           value={summary}
-          onChange={(e) => {
-            setSummary(e.target.value);
-            debouncedSaveSummary(e.target.value);
-          }}
+          onChange={(e) => setSummary(e.target.value)}
           rows={6}
           className="resize-y"
           placeholder="사진 없이 글로 정리해도 좋아요."
@@ -988,7 +923,6 @@ export default function FragmentDetailPage() {
                 if (!d) return;
                 const ymd = toYMD(d);
                 setEventDate(ymd);
-                debouncedSaveDate(ymd);
                 setDateOpen(false);
               }}
               className="mx-auto"

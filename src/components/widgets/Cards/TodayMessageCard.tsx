@@ -21,7 +21,11 @@ import { Badge } from "@/components/ui/badge";
 
 /* Font Awesome */
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPaperPlane, faMessage } from "@fortawesome/free-solid-svg-icons";
+import {
+  faPaperPlane,
+  faMessage,
+  faSave,
+} from "@fortawesome/free-solid-svg-icons";
 
 /* Toast */
 import { toast } from "sonner";
@@ -161,7 +165,7 @@ export default function TodayMessageCard({ maxLen = 140 }: Props) {
 
       <CardContent className="space-y-6">
         {/* ───────────── 내 메시지 (항상 펼침) ───────────── */}
-        <section className="space-y-3">
+        <section className="space-y-1">
           <div className="flex items-center justify-between">
             {/* 선택된 이모지 요약 + 변경 */}
             {!showEmojiPicker && (
@@ -240,23 +244,22 @@ export default function TodayMessageCard({ maxLen = 140 }: Props) {
                     ? `글자수가 ${-remain}자 초과되었어요.`
                     : `최대 ${maxLen}자`}
                 </div>
-                <Button
-                  onClick={onSave}
-                  disabled={!canSave}
-                  className="gap-2"
-                  variant="default"
-                  size="sm"
-                >
-                  <FontAwesomeIcon icon={faPaperPlane} />
-                  저장
-                </Button>
               </div>
             </div>
           </div>
+          <div className="flex justify-end ">
+            {" "}
+            <Button
+              onClick={onSave}
+              disabled={!canSave}
+              className=" mt-4 "
+              variant="default"
+            >
+              저장
+            </Button>
+          </div>
         </section>
       </CardContent>
-
-      <CardFooter className="pt-0" />
     </Card>
   );
 }

@@ -28,7 +28,8 @@ import {
   faLock, // 자물쇠
   faEye, // 비밀번호 보이기
   faEyeSlash, // 비밀번호 숨기기
-  faCircleExclamation, // 경고(에러) 아이콘
+  faCircleExclamation,
+  faHeartPulse, // 경고(에러) 아이콘
 } from "@fortawesome/free-solid-svg-icons";
 /* ▲ Font Awesome */
 
@@ -143,7 +144,7 @@ export default function LoginPage() {
     <div className="min-h-dvh flex flex-col items-center justify-center bg-gradient-to-b from-[#e9d8c8] to-[#d8bca3] px-4 py-8 sm:py-12">
       {/* 브랜드 타이틀 */}
       <div className="mb-4 flex items-center gap-2 text-[#5b3d1d]">
-        <FontAwesomeIcon icon={faHandHoldingHeart} className="h-5 w-5" />
+        <FontAwesomeIcon icon={faHeartPulse} className="h-5 w-5" />
         <span className="text-sm font-medium">
           함께하는 우리의 놀이터, 감자링
         </span>

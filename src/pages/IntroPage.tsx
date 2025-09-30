@@ -95,6 +95,17 @@ export default function IntroPage() {
         }}
       />
 
+      {/* 🔽 중앙 스팟 스크림 (가독성 향상용) */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(44% 28% at 50% 50%, rgba(0,0,0,0.22) 0%, rgba(0,0,0,0.08) 60%, rgba(0,0,0,0) 100%)",
+          mixBlendMode: "multiply",
+        }}
+      />
+
       {/* 중앙 타이포 */}
       <div className="relative z-10 flex flex-col items-center text-center">
         <motion.div
@@ -114,6 +125,12 @@ export default function IntroPage() {
               bg-[linear-gradient(135deg,#6b4e2d_0%,#a0713f_45%,#d39a5b_100%)]
               drop-shadow-[0_1px_0_rgba(0,0,0,0.08)]
             "
+            style={{
+              // 스팟 스크림과 시너지를 주는 얇은 외곽/그림자 (가독성 +)
+              WebkitTextStroke: "0.6px rgba(255,255,255,0.55)",
+              textShadow:
+                "0 1px 2px rgba(0,0,0,0.45), 0 0 8px rgba(0,0,0,0.18)",
+            }}
           >
             감자링
           </h1>
@@ -125,6 +142,9 @@ export default function IntroPage() {
           animate={{ opacity: 0.95, y: 0 }}
           transition={{ delay: 0.15, duration: 0.6, ease: "easeOut" }}
           className="mt-3 text-[13px] sm:text-base text-[#705537]"
+          style={{
+            textShadow: "0 1px 2px rgba(0,0,0,0.35)",
+          }}
           onAnimationComplete={() => {
             // 중복 방지
             if (!routedRef.current) {

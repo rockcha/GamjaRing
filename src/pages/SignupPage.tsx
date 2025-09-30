@@ -34,6 +34,7 @@ import {
   faCircleExclamation,
   faCircleCheck,
   faCircleXmark,
+  faHeartPulse,
 } from "@fortawesome/free-solid-svg-icons";
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
@@ -179,7 +180,7 @@ export default function SignupPage() {
   return (
     <div className="min-h-dvh flex flex-col items-center justify-center bg-gradient-to-b from-[#e9d8c8] to-[#d8bca3] px-4 py-8 sm:py-12">
       <div className="mb-4 flex items-center gap-2 text-[#5b3d1d]">
-        <FontAwesomeIcon icon={faHandHoldingHeart} className="h-5 w-5" />
+        <FontAwesomeIcon icon={faHeartPulse} className="h-5 w-5" />
         <span className="text-sm font-medium">
           함께하는 우리의 놀이터, 감자링
         </span>

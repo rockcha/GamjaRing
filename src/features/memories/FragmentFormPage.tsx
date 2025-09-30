@@ -8,6 +8,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  TooltipProvider,
+} from "@/components/ui/tooltip";
+
 import { createFragment, addCard, upsertSummary, updateFragment } from "./api";
 import { uploadMemoryImage } from "./storage";
 import { useCoupleContext } from "@/contexts/CoupleContext";
@@ -25,17 +40,19 @@ import {
 } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 
-/* Font Awesome */
+/* Icons */
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faImage,
   faCrown,
-  faGripLines,
   faTrashCan,
-  faWandMagicSparkles,
   faPlus,
-  faCalendarDays,
+  faSpinner,
+  faCamera,
+  faBackward,
+  faBackspace,
 } from "@fortawesome/free-solid-svg-icons";
+import { CalendarDays, MoreVertical } from "lucide-react";
 
 type PhotoDraft = {
   id: string;
@@ -96,6 +113,102 @@ function formatKoreanDateStr(ymd: string) {
     month: "2-digit",
     day: "2-digit",
   });
+}
+
+/* ============== 우측 툴바(폼 전용) ============== */
+function FormToolbarRight({
+  dateText,
+  onOpenDate,
+  onSave,
+  saving,
+  canSave,
+  onAddDraft,
+  onGoBack,
+}: {
+  dateText: string;
+  onOpenDate: () => void;
+  onSave: () => void;
+  saving: boolean;
+  canSave: boolean;
+  onAddDraft: () => void;
+  onGoBack: () => void;
+}) {
+  return (
+    <TooltipProvider delayDuration={80}>
+      <div className="flex items-center gap-2">
+        {/* 날짜: secondary, md 미만 아이콘-only */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={onOpenDate}
+              className="inline-flex items-center gap-2 h-10 px-3 rounded-md bg-secondary text-secondary-foreground hover:opacity-90 transition-colors group max-md:px-2"
+              aria-label="날짜 선택"
+              title={dateText}
+              type="button"
+            >
+              <CalendarDays className="size-4 shrink-0" />
+              <span className="hidden md:inline">{dateText}</span>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>날짜 선택</TooltipContent>
+        </Tooltip>
+
+        {/* 구분선 */}
+        <Separator orientation="vertical" className="h-6" />
+
+        {/* Primary: 저장하기 */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={onSave}
+              disabled={saving || !canSave}
+              className="inline-flex items-center gap-2 h-10 px-3 rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-colors"
+              aria-label="저장하기"
+              type="button"
+            >
+              {saving ? (
+                <>
+                  <FontAwesomeIcon icon={faSpinner} className="size-4" spin />
+                  <span className="hidden sm:inline">저장중…</span>
+                </>
+              ) : (
+                <>
+                  {/* 디테일과 톤 일치: 아이콘은 스피너만, 텍스트로 저장하기 */}
+                  <span className="hidden sm:inline">저장하기</span>
+                  <span className="sm:hidden">저장</span>
+                </>
+              )}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>새 추억 조각 저장</TooltipContent>
+        </Tooltip>
+
+        {/* 기타: 케밥 메뉴 */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-md hover:bg-muted"
+              aria-label="더보기"
+            >
+              <MoreVertical className="size-5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem onClick={onGoBack}>
+              <FontAwesomeIcon icon={faBackward} className="mr-2" />
+              뒤로가기
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onAddDraft}>
+              <FontAwesomeIcon icon={faCamera} className="mr-2" />
+              사진 추가
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </TooltipProvider>
+  );
 }
 
 export default function FragmentFormPage() {
@@ -299,68 +412,44 @@ export default function FragmentFormPage() {
     }
   }
 
+  const dateText = formatKoreanDateStr(eventDate) || "날짜 선택";
+  const STICKY_TOP = "top-40 md:top-40";
+
   return (
     <div className="mx-auto max-w-7xl p-6 space-y-8">
-      {/* Sticky 툴바: 1) 제목 + 날짜 / 2) 액션(ghost 통일) */}
-      <div className="sticky top-40 z-30 -mx-6 px-6 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/60 bg-background/80 border-b">
-        <div className="flex flex-col gap-2">
-          {/* 1줄: 제목 + 날짜 버튼 */}
-          <div className="flex items-center justify-between gap-3">
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="제목"
-              className="bg-transparent outline-none text-2xl md:text-4xl font-extrabold tracking-tight min-w-0 w-full truncate"
-              aria-label="제목"
-            />
+      {/* ✅ Sticky 툴바: DetailPage 패턴과 일관화 */}
+      <div
+        className={`sticky ${STICKY_TOP} z-30 -mx-6 px-6 h-14 grid grid-cols-[1fr_auto] md:grid-cols-[auto_1fr_auto] items-center gap-3
+        bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/65 rounded-xl
+        border-b shadow-[0_1px_0_rgba(0,0,0,0.03)]`}
+      >
+        {/* (옵션) 좌측 여백/자리 - DetailPage와 그리드 라인 맞춤 */}
+        <div className="hidden md:block" />
 
-            <Button
-              variant="default"
-              onClick={addDraft}
-              className="gap-2"
-              aria-label="사진 카드 추가"
-            >
-              <FontAwesomeIcon icon={faPlus} />
-              <span className="hidden sm:inline">사진 카드 추가</span>
-            </Button>
-          </div>
-
-          {/* 2줄: 액션 버튼들(ghost 통일) */}
-          <div className="flex items-center justify-between ">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setTempDate(new Date(eventDate));
-                setDateOpen(true);
-              }}
-              className="gap-2"
-              title="날짜 선택"
-            >
-              <FontAwesomeIcon icon={faCalendarDays} />
-              <span className="hidden md:inline">
-                {formatKoreanDateStr(eventDate)}
-              </span>
-            </Button>
-            <div className="flex gap-1">
-              {" "}
-              <Button
-                variant="outline"
-                onClick={() => history.back()}
-                className="gap-2"
-              >
-                취소
-              </Button>
-              <Button
-                variant="outline"
-                disabled={busy || !canSubmit}
-                onClick={handleCreate}
-                className="gap-2"
-              >
-                {busy ? "저장 중…" : "저장하기"}
-              </Button>
-            </div>
-          </div>
+        {/* 중간: 제목 입력 */}
+        <div className="min-w-0 flex items-center gap-2">
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="제목을 입력하세요"
+            className="bg-transparent outline-none text-xl md:text-2xl font-extrabold tracking-tight min-w-0 w-full truncate"
+            aria-label="제목"
+          />
         </div>
+
+        {/* 우측: 날짜/저장/메뉴 */}
+        <FormToolbarRight
+          dateText={dateText}
+          onOpenDate={() => {
+            setTempDate(new Date(eventDate));
+            setDateOpen(true);
+          }}
+          onSave={handleCreate}
+          saving={busy}
+          canSave={canSubmit}
+          onAddDraft={addDraft}
+          onGoBack={() => history.back()}
+        />
       </div>
 
       {/* 날짜 선택 Dialog */}
@@ -465,34 +554,6 @@ export default function FragmentFormPage() {
                       />
                       {/* 하단 그라데이션 */}
                       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 rounded-b-xl bg-gradient-to-t from-black/55 to-transparent" />
-                      {/* 오버레이 툴바 */}
-                      <div className="absolute inset-0 hidden items-end justify-between p-3 group-hover/preview:flex">
-                        <div className="backdrop-blur-sm bg-black/25 rounded-lg px-2 py-1 text-xs text-white">
-                          <span className="opacity-90">미리보기</span>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant={d.isCover ? "default" : "secondary"}
-                            className="gap-2 backdrop-blur bg-white/90"
-                            onClick={() => setCover(d.id)}
-                          >
-                            <FontAwesomeIcon icon={faCrown} />
-                            대표
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="secondary"
-                            className="gap-2 backdrop-blur bg-white/90"
-                            onClick={() => removeDraft(d.id)}
-                          >
-                            <FontAwesomeIcon icon={faTrashCan} />
-                            삭제
-                          </Button>
-                        </div>
-                      </div>
                     </div>
                   ) : (
                     <div className="w-full max-w-[520px] h-[340px] rounded-xl bg-muted grid place-items-center text-sm text-muted-foreground">
@@ -565,8 +626,8 @@ export default function FragmentFormPage() {
                 <FontAwesomeIcon className="opacity-80" icon={faImage} />
               </div>
               <div>
-                사진 카드가 없습니다. 상단의 <b>사진 카드 추가</b> 버튼으로
-                시작하세요.
+                사진 카드가 없습니다. 우측 상단 <b>︙</b> 메뉴에서{" "}
+                <b>사진 카드 추가</b>를 선택하세요.
               </div>
             </div>
           </Card>
