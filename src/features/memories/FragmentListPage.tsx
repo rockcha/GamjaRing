@@ -1,4 +1,3 @@
-// src/features/memories/FragmentListPage.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -179,93 +178,62 @@ export default function FragmentListPage() {
 }
 
 /* =========================
- * 중앙 레일 (월별 이모지 고정 + 일정 간격 + 스크롤 규칙적 흔들림 + 순차 등장)
- * - 각도 랜덤/회전 제거 (항상 0deg)
- * - sin 기반으로 좌우/상하 살짝 흔들리는 귀여운 모션
- * - 섹션 경계 침범 최소화(overflow-hidden + clamp + edge easing)
+ * 중앙 레일 — 앵커-앵커 구간 고정 이모지
+ *  - 스크롤/패럴랙스/wiggle 없음
+ *  - 섹션 내 startPx~endPx 사이에 일정 간격으로 고정
  * =======================*/
-type PawRailProps = {
-  emoji: string; // 사용할 이모지 (월별 고정)
-  step?: number; // 세로 간격(px). 기본 40
-  sideOffset?: number; // 좌우 오프셋(px). 기본 20
-  parallax?: number; // 패럴랙스 강도
-  opacity?: number; // 투명도(0~1)
-  perItemDelayMs?: number;
-  wiggleSpeedX?: number;
-  wiggleSpeedY?: number;
-  wiggleAmpX?: number;
-  wiggleAmpY?: number;
+type FixedRailProps = {
+  emoji: string;
+  step?: number; // 세로 간격(px)
+  sideOffset?: number; // 좌우 번갈아 오프셋(px)
+  opacity?: number;
+  startPx?: number; // 섹션 기준 시작 Y
+  endPx?: number; // 섹션 기준 끝 Y
 };
 
-function PawRail({
+function FixedRail({
   emoji,
   step = 40,
   sideOffset = 20,
-  parallax = 0.12,
-  opacity = 0.85,
-  perItemDelayMs = 50,
-  wiggleSpeedX = 0.02,
-  wiggleSpeedY = 0.018,
-  wiggleAmpX = 2.2,
-  wiggleAmpY = 2.8,
-}: PawRailProps) {
+  opacity = 0.9,
+  startPx = 0,
+  endPx,
+}: FixedRailProps) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [h, setH] = useState(0);
-  const [scrollY, setScrollY] = useState(0);
-  const [containerTop, setContainerTop] = useState(0);
 
+  // 섹션 높이 측정(리사이즈/콘텐츠 로드 반영)
   useEffect(() => {
     if (!wrapRef.current) return;
-    const sec = wrapRef.current.parentElement; // 섹션
+    const sec = wrapRef.current.parentElement;
     if (!sec) return;
 
-    const measure = () => {
-      setH(sec.clientHeight);
-      const rect = sec.getBoundingClientRect();
-      setContainerTop(rect.top + window.scrollY);
-    };
+    const measure = () => setH(sec.clientHeight);
     measure();
 
     const ro = new ResizeObserver(measure);
     ro.observe(sec);
 
-    let raf = 0;
-    const onScroll = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => setScrollY(window.scrollY || 0));
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
+    // 이미지 로딩 후 변경 대응
+    const imgs = Array.from(sec.querySelectorAll("img"));
+    imgs.forEach((img) =>
+      img.addEventListener("load", measure, { once: true })
+    );
+
     window.addEventListener("resize", measure);
+    window.addEventListener("load", measure);
 
     return () => {
       ro.disconnect();
-      window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", measure);
-      cancelAnimationFrame(raf);
+      window.removeEventListener("load", measure);
     };
   }, []);
 
-  const count = Math.max(0, Math.ceil(h / step) + 2);
-
-  const visibleCount = useMemo(() => {
-    const visibleBottom = Math.max(
-      0,
-      scrollY + window.innerHeight - containerTop
-    );
-    const n = Math.floor(visibleBottom / step) + 2;
-    return Math.max(0, Math.min(count, n));
-  }, [scrollY, containerTop, step, count]);
-
-  // helpers
-  const clamp = (v: number, min: number, max: number) =>
-    Math.min(max, Math.max(min, v));
-  const smoothstep = (edge0: number, edge1: number, x: number) => {
-    const t = clamp((x - edge0) / (edge1 - edge0), 0, 1);
-    return t * t * (3 - 2 * t);
-  };
-
-  // 패럴랙스 기본 오프셋
-  const py = (idx: number) => scrollY * parallax * (idx % 2 === 0 ? 1 : -1);
+  const limitStart = Math.max(0, Math.min(h, startPx));
+  const limitEnd = Math.max(limitStart, Math.min(h, endPx ?? h));
+  const usableHeight = Math.max(0, limitEnd - limitStart);
+  const count = Math.max(0, Math.floor(usableHeight / step) + 1);
 
   return (
     <div
@@ -277,58 +245,22 @@ function PawRail({
       {/* 중앙 점선 가이드 */}
       <div className="absolute left-1/2 top-0 -translate-x-1/2 h-full border-l border-dashed border-muted-foreground/30" />
 
+      {/* 고정 배치된 이모지 */}
       {Array.from({ length: count }).map((_, i) => {
-        const yBase = i * step;
-        const side = i % 2 === 0 ? -1 : 1;
-        const dxBase = side * sideOffset;
-
-        // 규칙적 흔들림
-        const phase = i * 0.65;
-
-        // 가장자리 구간에서 wiggle/패럴럭스 감쇠
-        const edgeZone = 80; // px
-        const topEase = smoothstep(edgeZone, edgeZone * 2, yBase);
-        const botEase = smoothstep(edgeZone, edgeZone * 2, h - yBase);
-        const edgeEase = Math.min(topEase, botEase);
-
-        const wiggleX =
-          Math.sin(scrollY * wiggleSpeedX + phase) * wiggleAmpX * edgeEase;
-        const wiggleY =
-          Math.cos(scrollY * wiggleSpeedY + phase) * wiggleAmpY * edgeEase;
-
-        const parallaxY = py(i) * edgeEase;
-
-        // 최종 Y, 섹션 높이 내로 클램프
-        const rawY = yBase + parallaxY + wiggleY;
-        const clampedY = clamp(rawY, 0, Math.max(0, h - 16)); // 여유 16px
-
-        // 가시 여부 + 순차 지연
-        const isVisible = i < visibleCount;
-        const delay = `${i * perItemDelayMs}ms`;
-
-        const tx = `calc(-50% + ${dxBase + wiggleX}px)`;
-        const ty = `${clampedY}px`;
-
+        const y = limitStart + i * step;
+        const side = i % 2 === 0 ? -1 : 1; // 좌우 교차
+        const tx = `calc(-50% + ${side * sideOffset}px)`;
         return (
           <div
             key={i}
-            className="absolute top-0 left-1/2 select-none"
+            className="absolute left-1/2 select-none"
             style={{
-              transform: `translate(${tx}, ${ty}) scale(${
-                isVisible ? 1 : 0.86
-              })`,
-              filter: "drop-shadow(0 1px 0 rgba(0,0,0,0.06))",
-              willChange: "transform, opacity",
-              transition: `opacity 260ms ease, transform 260ms ease`,
-              transitionDelay: delay,
-              opacity: isVisible ? 1 : 0,
+              top: `${y}px`,
+              transform: `translateX(${tx})`,
+              opacity: 1,
             }}
           >
-            <span
-              className="block leading-none"
-              style={{ fontSize: "16px" }}
-              aria-hidden
-            >
+            <span className="block leading-none" style={{ fontSize: 16 }}>
               {emoji}
             </span>
           </div>
@@ -339,7 +271,7 @@ function PawRail({
 }
 
 /* =========================
- * ImageBox — 액자 스타일 (프레임 + 매트 + 사진)
+ * ImageBox — 액자 프레임
  * =======================*/
 function ImageBox({
   src,
@@ -367,7 +299,7 @@ function ImageBox({
           "p-2 md:p-3 transition-transform group-hover:[transform:rotate(-0.2deg)]",
         ].join(" ")}
       >
-        {/* 매트(여백) */}
+        {/* 매트 */}
         <div
           className={[
             "h-full w-full rounded-[18px]",
@@ -464,13 +396,13 @@ function ListView({
 }
 
 /* =========================
- * Rail Caption (Outer) — 카드 반대편 측면 캡션
+ * Rail Caption (Outer)
  * =======================*/
 function RailCaptionOuter({
   outerSide, // "left" | "right"
   date,
   title,
-  emoji, // 월 이모지
+  emoji,
 }: {
   outerSide: "left" | "right";
   date: string;
@@ -492,12 +424,9 @@ function RailCaptionOuter({
       ].join(" ")}
       style={{ lineHeight: 1.12 }}
     >
-      {/* 날짜 */}
       <div className="text-[15px] md:text-[16px] tracking-[0.08em] tabular-nums text-muted-foreground/90 blur-[0.1px]">
         {date}
       </div>
-
-      {/* 제목 (월 이모지 추가) */}
       <div
         className={[
           "mt-0.5 font-semibold text-foreground/90",
@@ -520,7 +449,8 @@ function RailCaptionOuter({
 }
 
 /* =========================
- * Timeline Large — 중앙 레일 + 좌/우 교차
+ * Timeline Large — 섹션 컴포넌트
+ *  - 섹션 앵커에서 start/end 측정 후 FixedRail에 전달
  * =======================*/
 function TimelineLarge({
   items,
@@ -537,105 +467,161 @@ function TimelineLarge({
         const monthNum = parseMonthFromYm(ym);
         const sectionEmoji = monthEmoji(monthNum);
         return (
-          // 섹션 경계 침범 방지
-          <section
+          <MonthSection
             key={ym}
-            id={ymToId(ym)}
-            className="relative py-10 overflow-hidden"
-          >
-            {/* 중앙 레일: 월별 이모지 고정 + 규칙적 흔들림 */}
-            <PawRail
-              emoji={sectionEmoji}
-              step={40}
-              sideOffset={20}
-              parallax={0.1}
-              opacity={0.9}
-              perItemDelayMs={45}
-              wiggleSpeedX={0.018}
-              wiggleSpeedY={0.016}
-              wiggleAmpX={1.8}
-              wiggleAmpY={2.2}
-            />
-
-            {/* 월 헤더칩 (sticky) */}
-            <div className="sticky top-24 z-10 mb-8 text-center">
-              <div
-                className={[
-                  "inline-flex items-center gap-1 rounded-full",
-                  "bg-gradient-to-r from-amber-50/85 to-white/85",
-                  "px-4 py-1.5 text-[12px] tabular-nums font-semibold",
-                  "shadow ring-1 ring-border backdrop-blur-md",
-                ].join(" ")}
-              >
-                <span className="opacity-95">{sectionEmoji}</span>
-                <span className="opacity-95">{ym}</span>
-              </div>
-            </div>
-
-            {/* 지그재그 */}
-            <div className="space-y-12">
-              {rows.map((f, i) => {
-                const isLeftCard = i % 2 === 0;
-                const mt = isLeftCard ? 0 : 8;
-                const dateStr = formatDate(f.event_date);
-                const outerSide: "left" | "right" = isLeftCard
-                  ? "right"
-                  : "left";
-
-                // 카드별 월 이모지 (개별 날짜 기준)
-                const m = new Date(f.event_date).getMonth() + 1;
-                const titleEmoji = monthEmoji(m);
-
-                return (
-                  <article key={f.id} className="relative">
-                    {/* 카드 */}
-                    <div
-                      className={[
-                        "md:w-[calc(50%-2rem)]",
-                        isLeftCard
-                          ? "md:pr-10 md:ml-0 md:mr-auto"
-                          : "md:pl-10 md:ml-auto md:mr-0",
-                      ].join(" ")}
-                      style={{ marginTop: mt }}
-                    >
-                      <Card
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => onOpen(f.id)}
-                        onKeyDown={(e) => e.key === "Enter" && onOpen(f.id)}
-                        className="group overflow-hidden transition hover:-translate-y-[1px] hover:shadow-lg hover:ring-1 hover:ring-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                        aria-label={`${titleEmoji} ${
-                          f.title ?? "무제"
-                        } — ${dateStr}`}
-                      >
-                        <ImageBox
-                          src={
-                            f.cover_photo_path
-                              ? publicUrl(f.cover_photo_path)
-                              : undefined
-                          }
-                          alt={f.title ?? dateStr}
-                          hearts={f.hearts ?? 0}
-                          aspect="aspect-[16/9]"
-                        />
-                      </Card>
-                    </div>
-
-                    {/* 측면 큰 캡션 (타이틀 앞 월 이모지) */}
-                    <RailCaptionOuter
-                      outerSide={outerSide}
-                      date={dateStr}
-                      title={f.title}
-                      emoji={titleEmoji}
-                    />
-                  </article>
-                );
-              })}
-            </div>
-          </section>
+            ym={ym}
+            emoji={sectionEmoji}
+            rows={rows}
+            onOpen={onOpen}
+          />
         );
       })}
     </div>
+  );
+}
+
+function MonthSection({
+  ym,
+  emoji,
+  rows,
+  onOpen,
+}: {
+  ym: string;
+  emoji: string;
+  rows: Fragment[];
+  onOpen: (id: string | number) => void;
+}) {
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const startRef = useRef<HTMLDivElement | null>(null);
+  const endRef = useRef<HTMLDivElement | null>(null);
+  const [bounds, setBounds] = useState<{ startPx: number; endPx: number }>({
+    startPx: 0,
+    endPx: 0,
+  });
+
+  // 섹션 내부에서 start/end 앵커의 오프셋 측정(섹션 기준)
+  useEffect(() => {
+    const measure = () => {
+      const sec = sectionRef.current;
+      if (!sec) return;
+      const secTop = sec.getBoundingClientRect().top + window.scrollY;
+      const s = startRef.current?.getBoundingClientRect().top ?? 0;
+      const e = endRef.current?.getBoundingClientRect().top ?? 0;
+      const sPx = Math.max(0, s + window.scrollY - secTop);
+      const ePx = Math.max(sPx, e + window.scrollY - secTop);
+      setBounds({ startPx: sPx, endPx: ePx });
+    };
+    measure();
+
+    const ro = new ResizeObserver(measure);
+    if (sectionRef.current) ro.observe(sectionRef.current);
+
+    window.addEventListener("resize", measure);
+    window.addEventListener("load", measure);
+
+    const imgs = Array.from(sectionRef.current?.querySelectorAll("img") ?? []);
+    imgs.forEach((img) =>
+      img.addEventListener("load", measure, { once: true })
+    );
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("load", measure);
+    };
+  }, []);
+
+  return (
+    <section
+      ref={sectionRef}
+      id={ymToId(ym)}
+      className="relative py-10 overflow-hidden"
+    >
+      {/* 중앙 레일: 고정 이모지 */}
+      <FixedRail
+        emoji={emoji}
+        step={40}
+        sideOffset={20}
+        opacity={0.9}
+        startPx={bounds.startPx}
+        endPx={bounds.endPx}
+      />
+
+      {/* 월 헤더칩 (sticky) */}
+      <div className="sticky top-24 z-10 mb-8 text-center">
+        <div
+          className={[
+            "inline-flex items-center gap-1 rounded-full",
+            "bg-gradient-to-r from-amber-50/85 to-white/85",
+            "px-4 py-1.5 text-[12px] tabular-nums font-semibold",
+            "shadow ring-1 ring-border backdrop-blur-md",
+          ].join(" ")}
+        >
+          <span className="opacity-95">{emoji}</span>
+          <span className="opacity-95">{ym}</span>
+        </div>
+      </div>
+
+      {/* ⭐ 월 칩 아래부터 이모지 시작 */}
+      <div ref={startRef} className="h-2" />
+
+      {/* 카드들 */}
+      <div className="space-y-12">
+        {rows.map((f, i) => {
+          const isLeftCard = i % 2 === 0;
+          const mt = isLeftCard ? 0 : 8;
+          const dateStr = formatDate(f.event_date);
+          const outerSide: "left" | "right" = isLeftCard ? "right" : "left";
+
+          const m = new Date(f.event_date).getMonth() + 1;
+          const titleEmoji = monthEmoji(m);
+
+          return (
+            <article key={f.id} className="relative">
+              <div
+                className={[
+                  "md:w-[calc(50%-2rem)]",
+                  isLeftCard
+                    ? "md:pr-10 md:ml-0 md:mr-auto"
+                    : "md:pl-10 md:ml-auto md:mr-0",
+                ].join(" ")}
+                style={{ marginTop: mt }}
+              >
+                <Card
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onOpen(f.id)}
+                  onKeyDown={(e) => e.key === "Enter" && onOpen(f.id)}
+                  className="group overflow-hidden transition hover:-translate-y-[1px] hover:shadow-lg hover:ring-1 hover:ring-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  aria-label={`${titleEmoji} ${f.title ?? "무제"} — ${dateStr}`}
+                >
+                  <ImageBox
+                    src={
+                      f.cover_photo_path
+                        ? publicUrl(f.cover_photo_path)
+                        : undefined
+                    }
+                    alt={f.title ?? dateStr}
+                    hearts={f.hearts ?? 0}
+                    aspect="aspect-[16/9]"
+                  />
+                </Card>
+              </div>
+
+              <RailCaptionOuter
+                outerSide={outerSide}
+                date={dateStr}
+                title={f.title}
+                emoji={titleEmoji}
+              />
+            </article>
+          );
+        })}
+      </div>
+
+      {/* ⭐ 다음 달 섹션 시작 직전까지 이모지 */}
+      <div ref={endRef} className="h-6" />
+    </section>
   );
 }
 
@@ -677,7 +663,6 @@ function MonthNavigator({ months }: { months: string[] }) {
     return () => obs.disconnect();
   }, [ids]);
 
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
   const onKeyDown = (e: React.KeyboardEvent) => {
     const idx = ids.findIndex((id) => id === active);
     if (e.key === "ArrowDown" && idx < ids.length - 1) {
@@ -697,7 +682,6 @@ function MonthNavigator({ months }: { months: string[] }) {
   return (
     <TooltipProvider delayDuration={150}>
       <div
-        ref={wrapperRef}
         className="hidden lg:flex fixed right-6 top-1/2 -translate-y-1/2 z-20 max-h[70vh] flex-col items-center gap-2 overflow-y-auto rounded-2xl bg-white/80 px-2 py-3 shadow-md ring-1 ring-border backdrop-blur"
         tabIndex={0}
         role="navigation"
@@ -767,7 +751,7 @@ function MonthNavigator({ months }: { months: string[] }) {
 }
 
 /* =========================
- * Month Navigator (Mobile) — 하단 Sheet + FAB
+ * Month Navigator (Mobile)
  * =======================*/
 function MonthNavigatorMobile({ months }: { months: string[] }) {
   const parsed = useMemo(
