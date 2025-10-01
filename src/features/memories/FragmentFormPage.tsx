@@ -46,11 +46,9 @@ import {
   faImage,
   faCrown,
   faTrashCan,
-  faPlus,
   faSpinner,
   faCamera,
   faBackward,
-  faBackspace,
 } from "@fortawesome/free-solid-svg-icons";
 import { CalendarDays, MoreVertical } from "lucide-react";
 
@@ -136,7 +134,7 @@ function FormToolbarRight({
   return (
     <TooltipProvider delayDuration={80}>
       <div className="flex items-center gap-2">
-        {/* 날짜: secondary, md 미만 아이콘-only */}
+        {/* 날짜 버튼 */}
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -156,7 +154,7 @@ function FormToolbarRight({
         {/* 구분선 */}
         <Separator orientation="vertical" className="h-6" />
 
-        {/* Primary: 저장하기 */}
+        {/* 저장하기 */}
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -173,7 +171,6 @@ function FormToolbarRight({
                 </>
               ) : (
                 <>
-                  {/* 디테일과 톤 일치: 아이콘은 스피너만, 텍스트로 저장하기 */}
                   <span className="hidden sm:inline">저장하기</span>
                   <span className="sm:hidden">저장</span>
                 </>
@@ -183,7 +180,7 @@ function FormToolbarRight({
           <TooltipContent>새 추억 조각 저장</TooltipContent>
         </Tooltip>
 
-        {/* 기타: 케밥 메뉴 */}
+        {/* 케밥 메뉴 */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -392,7 +389,7 @@ export default function FragmentFormPage() {
         await upsertSummary({ fragment_id: frag.id, content: summary.trim() });
       }
 
-      // ✅ 알림 전송: 추억조각 등록 (상대가 존재할 때만)
+      // ✅ 알림 전송
       if (partnerId) {
         try {
           await sendUserNotification({
@@ -413,15 +410,19 @@ export default function FragmentFormPage() {
   }
 
   const dateText = formatKoreanDateStr(eventDate) || "날짜 선택";
-  const STICKY_TOP = "top-40 md:top-40";
+
+  // sticky offset (너무 크게 잡으면 안 붙는 느낌이 날 수 있음)
+  const STICKY_TOP = "top-44 md:top-40";
 
   return (
-    <div className="mx-auto max-w-7xl p-6 space-y-8">
-      {/* ✅ Sticky 툴바: DetailPage 패턴과 일관화 */}
+    // 🔹 최상단 컨테이너에는 overflow-x를 주지 않음 (sticky 안정화)
+    <div className="mx-auto max-w-7xl px-4 md:px-6 py-6 space-y-6">
+      {/* ✅ Sticky 툴바: overflow 컨텍스트 바깥, z-index 상승 */}
       <div
-        className={`sticky ${STICKY_TOP} z-30 -mx-6 px-6 h-14 grid grid-cols-[1fr_auto] md:grid-cols-[auto_1fr_auto] items-center gap-3
-        bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/65 rounded-xl
-        border-b shadow-[0_1px_0_rgba(0,0,0,0.03)]`}
+        className={`sticky ${STICKY_TOP} z-40 px-3 md:-mx-6 md:px-6 h-14
+        grid grid-cols-[1fr_auto] md:grid-cols-[auto_1fr_auto] items-center gap-3
+        bg-white/90 md:bg-white/80 supports-[backdrop-filter]:bg-white/70 backdrop-blur
+        rounded-xl border-b shadow-[0_1px_0_rgba(0,0,0,0.03)]`}
       >
         {/* (옵션) 좌측 여백/자리 - DetailPage와 그리드 라인 맞춤 */}
         <div className="hidden md:block" />
@@ -452,206 +453,211 @@ export default function FragmentFormPage() {
         />
       </div>
 
-      {/* 날짜 선택 Dialog */}
-      <Dialog open={dateOpen} onOpenChange={setDateOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>날짜 선택</DialogTitle>
-          </DialogHeader>
+      {/* 🔹 본문 래퍼에만 가로 오버플로 차단 */}
+      <div className="overflow-x-hidden space-y-8">
+        {/* 날짜 선택 Dialog */}
+        <Dialog open={dateOpen} onOpenChange={setDateOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>날짜 선택</DialogTitle>
+            </DialogHeader>
 
-          <div className="rounded-md border p-2">
-            <Calendar
-              mode="single"
-              selected={tempDate}
-              onSelect={setTempDate}
-              captionLayout="dropdown-buttons"
-              fromYear={2000}
-              toYear={2100}
-              className="w-full"
-            />
-          </div>
+            <div className="rounded-md border p-2">
+              <Calendar
+                mode="single"
+                selected={tempDate}
+                onSelect={setTempDate}
+                captionLayout="dropdown-buttons"
+                fromYear={2000}
+                toYear={2100}
+                className="w-full"
+              />
+            </div>
 
-          <DialogFooter className="gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setDateOpen(false)}
-            >
-              취소
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setTempDate(new Date())}
-            >
-              오늘
-            </Button>
-            <Button
-              type="button"
-              onClick={() => {
-                if (tempDate) setEventDate(toYMD(tempDate));
-                setDateOpen(false);
-              }}
-            >
-              저장
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogFooter className="gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setDateOpen(false)}
+              >
+                취소
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setTempDate(new Date())}
+              >
+                오늘
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  if (tempDate) setEventDate(toYMD(tempDate));
+                  setDateOpen(false);
+                }}
+              >
+                저장
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      {/* 사진 카드들 (드래그 정렬 + 시각 피드백) */}
-      <div className="grid gap-4">
-        {drafts.map((d, idx) => (
-          <DraggableDraft
-            key={d.id}
-            index={idx}
-            onDragStartIdx={onDragStartIdx}
-            onDragOverIdx={onDragOverIdx}
-            onDropToIdx={onDropToIdx}
-          >
-            <Card
-              className={[
-                "p-6 space-y-4 transition-all",
-                "focus-within:ring-2 focus-within:ring-purple-300",
-                isDragging.current ? "opacity-90" : "",
-                d.isCover
-                  ? "ring-2 ring-amber-300"
-                  : "hover:ring-1 hover:ring-muted-foreground/20",
-              ].join(" ")}
+        {/* 사진 카드들 (드래그 정렬 + 시각 피드백) */}
+        <div className="grid gap-4">
+          {drafts.map((d, idx) => (
+            <DraggableDraft
+              key={d.id}
+              index={idx}
+              onDragStartIdx={onDragStartIdx}
+              onDragOverIdx={onDragOverIdx}
+              onDropToIdx={onDropToIdx}
             >
-              <div className="flex flex-col xl:flex-row gap-6">
-                {/* 좌측: 이미지 영역 */}
-                <div className="relative group/preview">
-                  {/* 대표 배지 */}
-                  {d.isCover && (
-                    <div
-                      className="absolute left-3 top-3 flex items-center gap-2 px-2.5 py-1.5 rounded-full bg-white/92 shadow-sm ring-1 ring-white/70 backdrop-blur-sm"
-                      title="대표 사진"
-                      aria-label="대표 사진"
-                    >
-                      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 ring-1 ring-amber-200 shadow-sm">
-                        <FontAwesomeIcon
-                          icon={faCrown}
-                          className="text-amber-500"
-                        />
-                      </span>
-                      <span className="text-xs font-medium text-amber-700">
-                        대표
-                      </span>
-                    </div>
-                  )}
-
-                  {/* 프리뷰 / 플레이스홀더 */}
-                  {d.previewUrl ? (
-                    <div className="relative">
-                      <img
-                        src={d.previewUrl}
-                        alt={`preview-${idx + 1}`}
-                        className={[
-                          "w-full max-w-[520px] h-[340px] object-cover rounded-xl",
-                          "transition-transform duration-150 group-hover/preview:scale-[1.01]",
-                        ].join(" ")}
-                      />
-                      {/* 하단 그라데이션 */}
-                      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 rounded-b-xl bg-gradient-to-t from-black/55 to-transparent" />
-                    </div>
-                  ) : (
-                    <div className="w-full max-w-[520px] h-[340px] rounded-xl bg-muted grid place-items-center text-sm text-muted-foreground">
-                      <div className="flex flex-col items-center gap-2">
-                        <FontAwesomeIcon
-                          className="text-2xl opacity-70"
-                          icon={faImage}
-                        />
-                        <span className="opacity-80">아직 사진이 없어요</span>
+              <Card
+                className={[
+                  "p-4 sm:p-6 space-y-4 transition-all",
+                  "focus-within:ring-2 focus-within:ring-purple-300",
+                  isDragging.current ? "opacity-90" : "",
+                  d.isCover
+                    ? "ring-2 ring-amber-300"
+                    : "hover:ring-1 hover:ring-muted-foreground/20",
+                ].join(" ")}
+              >
+                <div className="flex flex-col xl:flex-row gap-6">
+                  {/* 좌측: 이미지 영역 */}
+                  <div className="relative group/preview w-full">
+                    {/* 대표 배지 */}
+                    {d.isCover && (
+                      <div
+                        className="absolute left-3 top-3 flex items-center gap-2 px-2.5 py-1.5 rounded-full bg-white/92 shadow-sm ring-1 ring-white/70 backdrop-blur-sm"
+                        title="대표 사진"
+                        aria-label="대표 사진"
+                      >
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 ring-1 ring-amber-200 shadow-sm">
+                          <FontAwesomeIcon
+                            icon={faCrown}
+                            className="text-amber-500"
+                          />
+                        </span>
+                        <span className="text-xs font-medium text-amber-700">
+                          대표
+                        </span>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* 파일 선택 */}
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    className="mt-3 cursor-pointer file:cursor-pointer"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0] ?? null;
-                      setDraftFile(d.id, file);
-                    }}
-                  />
-                </div>
+                    {/* 프리뷰 / 플레이스홀더 */}
+                    {d.previewUrl ? (
+                      <div className="relative">
+                        {/* 모바일은 비율 기반, md 이상에서 고정 높이 */}
+                        <img
+                          src={d.previewUrl}
+                          alt={`preview-${idx + 1}`}
+                          className={[
+                            "w-full max-w-full md:max-w-[520px]",
+                            "rounded-xl object-cover",
+                            "aspect-[4/3] md:aspect-auto md:h-[340px]",
+                            "transition-transform duration-150 group-hover/preview:scale-[1.01]",
+                          ].join(" ")}
+                        />
+                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 rounded-b-xl bg-gradient-to-t from-black/55 to-transparent" />
+                      </div>
+                    ) : (
+                      <div className="w-full max-w-full md:max-w-[520px] rounded-xl bg-muted grid place-items-center text-sm text-muted-foreground aspect-[4/3] md:h-[340px]">
+                        <div className="flex flex-col items-center gap-2">
+                          <FontAwesomeIcon
+                            className="text-2xl opacity-70"
+                            icon={faImage}
+                          />
+                          <span className="opacity-80">아직 사진이 없어요</span>
+                        </div>
+                      </div>
+                    )}
 
-                {/* 우측: 캡션/컨트롤 */}
-                <div className="flex-1 grid gap-4 min-w-[360px]">
-                  <div className="grid gap-1">
-                    <Textarea
-                      placeholder="예) 벚꽃잎이 눈처럼 흩날리던 날, 네가 웃던 순간"
-                      value={d.caption_author}
-                      onChange={(e) =>
-                        updateDraft(d.id, { caption_author: e.target.value })
-                      }
-                      rows={4}
-                      className="resize-y"
+                    {/* 파일 선택 */}
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      className="mt-3 cursor-pointer file:cursor-pointer w-full md:w-auto md:max-w-[520px]"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] ?? null;
+                        setDraftFile(d.id, file);
+                      }}
                     />
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant={d.isCover ? "default" : "secondary"}
-                      size="sm"
-                      className="gap-2"
-                      onClick={() => setCover(d.id)}
-                    >
-                      <FontAwesomeIcon icon={faCrown} />
-                      대표 사진으로 지정
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="gap-2 text-destructive hover:text-destructive"
-                      onClick={() => removeDraft(d.id)}
-                    >
-                      <FontAwesomeIcon icon={faTrashCan} />
-                      삭제
-                    </Button>
+                  {/* 우측: 캡션/컨트롤 */}
+                  <div className="flex-1 grid gap-4 min-w-0 w-full md:min-w-[300px] xl:min-w-[360px]">
+                    <div className="grid gap-1">
+                      <Textarea
+                        placeholder="예) 벚꽃잎이 눈처럼 흩날리던 날, 네가 웃던 순간"
+                        value={d.caption_author}
+                        onChange={(e) =>
+                          updateDraft(d.id, { caption_author: e.target.value })
+                        }
+                        rows={4}
+                        className="resize-y"
+                      />
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant={d.isCover ? "default" : "secondary"}
+                        size="sm"
+                        className="gap-2"
+                        onClick={() => setCover(d.id)}
+                      >
+                        <FontAwesomeIcon icon={faCrown} />
+                        대표 사진으로 지정
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-2 text-destructive hover:text-destructive"
+                        onClick={() => removeDraft(d.id)}
+                      >
+                        <FontAwesomeIcon icon={faTrashCan} />
+                        삭제
+                      </Button>
+                    </div>
                   </div>
+                </div>
+              </Card>
+            </DraggableDraft>
+          ))}
+
+          {drafts.length === 0 && (
+            <Card className="p-8 text-sm text-muted-foreground">
+              <div className="flex items-center gap-3">
+                <div className="grid place-items-center w-9 h-9 rounded-full bg-muted">
+                  <FontAwesomeIcon className="opacity-80" icon={faImage} />
+                </div>
+                <div>
+                  사진 카드가 없습니다. 우측 상단 <b>︙</b> 메뉴에서{" "}
+                  <b>사진 카드 추가</b>를 선택하세요.
                 </div>
               </div>
             </Card>
-          </DraggableDraft>
-        ))}
-
-        {drafts.length === 0 && (
-          <Card className="p-8 text-sm text-muted-foreground">
-            <div className="flex items-center gap-3">
-              <div className="grid place-items-center w-9 h-9 rounded-full bg-muted">
-                <FontAwesomeIcon className="opacity-80" icon={faImage} />
-              </div>
-              <div>
-                사진 카드가 없습니다. 우측 상단 <b>︙</b> 메뉴에서{" "}
-                <b>사진 카드 추가</b>를 선택하세요.
-              </div>
-            </div>
-          </Card>
-        )}
-      </div>
-
-      {/* 마지막 요약 */}
-      <Card className="p-6 space-y-3">
-        <div className="flex items-center gap-2 font-medium">
-          추억에 대한 메모를 작성해주세요.
+          )}
         </div>
-        <Textarea
-          placeholder="그날의 감정을 따뜻하게 남겨보세요."
-          value={summary}
-          onChange={(e) => setSummary(e.target.value)}
-          rows={5}
-          className="resize-y bg-muted/40"
-        />
-      </Card>
 
-      {/* 안내 문구 */}
-      <p className="text-xs text-muted-foreground">
-        사진 카드 순서는 드래그에서 변경할 수 있어요.
-      </p>
+        {/* 마지막 요약 */}
+        <Card className="p-6 space-y-3">
+          <div className="flex items-center gap-2 font-medium">
+            추억에 대한 메모를 작성해주세요.
+          </div>
+          <Textarea
+            placeholder="그날의 감정을 따뜻하게 남겨보세요."
+            value={summary}
+            onChange={(e) => setSummary(e.target.value)}
+            rows={5}
+            className="resize-y bg-muted/40"
+          />
+        </Card>
+
+        {/* 안내 문구 */}
+        <p className="text-xs text-muted-foreground">
+          사진 카드 순서는 드래그에서 변경할 수 있어요.
+        </p>
+      </div>
     </div>
   );
 }

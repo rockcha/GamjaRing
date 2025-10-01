@@ -670,7 +670,7 @@ export default function FragmentDetailPage() {
   // ⚠️ 단축키 전면 제거 (요청)
   // useEffect(() => { ... }, [])  // 삭제
 
-  const STICKY_TOP = "top-40 md:top-40";
+  const STICKY_TOP = "top-44 md:top-40";
   const dateText =
     eventDate && toDateFromYMD(eventDate)
       ? toDateFromYMD(eventDate)!.toLocaleDateString()

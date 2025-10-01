@@ -27,10 +27,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 /* Font Awesome */
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faHandHoldingHeart,
-  faHeartPulse,
-} from "@fortawesome/free-solid-svg-icons";
+import { faHeartPulse } from "@fortawesome/free-solid-svg-icons";
 
 /* ───────────────────────── 타입 ───────────────────────── */
 type PartnerMessage = {
@@ -59,7 +56,7 @@ const TitleCluster = memo(function TitleCluster({
           {routeTitle}
         </h1>
       </div>
-      {/* ✅ 모바일에서는 감춰짐 (hidden md:flex) */}
+      {/* ✅ 모바일에서는 감춤 */}
       <div className="min-h-[38px] hidden md:flex items-center">
         <p className="text-[15px] font-medium text-neutral-700 truncate">
           우리의 기록이 자라나는 공간,{" "}
@@ -91,15 +88,27 @@ const RightClusterDesktop = memo(function RightClusterDesktop() {
   );
 });
 
-const RightClusterMobile = memo(function RightClusterMobile() {
+/* ------------------------------ 모바일: 1행(타이틀/로고 + 밸런스/아바타), 2행(DaysTogether) ------------------------------ */
+const MobileRows = memo(function MobileRows({
+  routeTitle,
+}: {
+  routeTitle: string;
+}) {
   return (
-    <div className="md:hidden px-3 pb-2">
-      <div className="flex items-center justify-end gap-2">
-        <CoupleBalanceCard showDelta dense />
-        <div className="-mr-1">
-          <NotificationDropdown />
+    <div className="md:hidden mx-auto w-full max-w-screen-2xl px-3 sm:px-4">
+      {/* 1행: 타이틀(좌) + 밸런스/아바타(우) */}
+      <div className="flex items-center justify-between py-2 gap-3">
+        <div className="min-w-0 flex-1">
+          <TitleCluster routeTitle={routeTitle} />
         </div>
-        <AvatarWidget />
+        <div className="shrink-0 flex items-center gap-2">
+          <CoupleBalanceCard showDelta dense />
+          <AvatarWidget />
+        </div>
+      </div>
+      {/* 2행: DaysTogether 한 줄만 */}
+      <div className="pb-2">
+        <DaysTogetherBadge />
       </div>
     </div>
   );
@@ -231,8 +240,11 @@ export default function AppHeader({
         className
       )}
     >
-      {/* 상단 헤더 */}
-      <div className="mx-auto w-full max-w-screen-2xl px-3 sm:px-4">
+      {/* ✅ 모바일 전용: 1행(타이틀+밸런스/아바타) + 2행(DaysTogether) */}
+      <MobileRows routeTitle={routeTitle} />
+
+      {/* ✅ 데스크톱 전용 상단 그리드 */}
+      <div className="hidden md:block mx-auto w-full max-w-screen-2xl px-3 sm:px-4">
         <div
           className={cn(
             "grid items-stretch gap-3 py-2",
@@ -241,24 +253,19 @@ export default function AppHeader({
           )}
         >
           <TitleCluster routeTitle={routeTitle} />
-          <div className="hidden md:block" />
+          <div />
           <CenterCluster />
           <RightClusterDesktop />
         </div>
       </div>
 
-      {/* 모바일용 서브 행 */}
-      <RightClusterMobile />
-
-      {/* ✅ 하단: 한 줄 프리뷰 바 */}
-      <div className="border-t bg-white/65 backdrop-blur-md supports-[backdrop-filter]:bg-white/55">
+      {/* ✅ 하단 프리뷰 바: 모바일에서는 숨김(요청대로 “이렇게 끝”) */}
+      <div className="hidden md:block border-t bg-white/65 backdrop-blur-md supports-[backdrop-filter]:bg-white/55">
         <div className="mx-auto w-full max-w-screen-2xl py-2 px-3 sm:px-4">
           <div className="flex items-center gap-2">
-            {/* ✅ 오늘의 질문: 모바일에서도 보이도록 변경 (hidden 제거) */}
             <div className="min-w-0 flex-1">
               <TodayQuestionInline />
             </div>
-            {/* 연인 한마디 한줄 */}
             <div className="min-w-0 flex-1">
               <PartnerTodayOneLiner />
             </div>
