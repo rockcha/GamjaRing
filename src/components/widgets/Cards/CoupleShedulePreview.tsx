@@ -23,6 +23,8 @@ import {
 
 import { CalendarDays, ChevronRight, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCalendar } from "@fortawesome/free-solid-svg-icons";
 
 interface Props {
   /** 더 이상 slice 하지 않음. 하위 호환 위해 받기만 함 */
@@ -134,10 +136,10 @@ export default function CoupleSchedulePreview({
     <TooltipProvider delayDuration={200}>
       <Card className={cn("relative overflow-hidden", className)}>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-center gap-2">
-            <Clock className="size-4 text-muted-foreground" aria-hidden />
+          <div className="flex items-center justify-start gap-2">
+            <FontAwesomeIcon icon={faCalendar} className="mr-2 opacity-80" />
             <CardTitle className="text-[#3d2b1f] text-lg">
-              ⏰ 일정 미리보기
+              일정 미리보기
             </CardTitle>
           </div>
         </CardHeader>
