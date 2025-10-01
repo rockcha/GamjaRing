@@ -303,7 +303,7 @@ function AquariumPage() {
 
                     {!editing ? (
                       <button
-                        className="group inline-flex items-center gap-2 rounded-full bg.black/35 bg-black/35 text-white text-xs sm:text-sm px-2.5 sm:px-3 py-0.5 sm:py-1 backdrop-blur-sm"
+                        className="group inline-flex items-center gap-2 rounded-full  bg-black/35 text-white text-xs sm:text-sm px-2.5 sm:px-3 py-0.5 sm:py-1 backdrop-blur-sm"
                         onClick={() => setEditing(true)}
                         title="어항 이름 수정"
                       >

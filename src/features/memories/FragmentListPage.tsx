@@ -42,7 +42,7 @@ export default function FragmentListPage() {
     () => (localStorage.getItem("mem:view") as ViewKey) || "timeline"
   );
 
-  // 헤더 축소(스크롤) - 스타일 변경은 최소화
+  // 헤더 축소(스크롤)
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 14);
@@ -70,7 +70,7 @@ export default function FragmentListPage() {
     };
   }, [couple?.id]);
 
-  // 오래된 날짜순 정렬(과거→현재)
+  // 과거→현재 정렬
   const filtered = useMemo(() => {
     return [...items].sort(
       (a, b) =>
@@ -87,84 +87,94 @@ export default function FragmentListPage() {
   const isTimeline = view === "timeline";
 
   return (
-    <div className="w-full sm:w-2/3 mx-auto max-w-7xl p-4 space-y-6">
-      {/* Sticky Toolbar (크기/여백 유지) */}
+    <>
+      {/* 전역 필름 그레인 */}
       <div
-        data-scrolled={scrolled ? "y" : "n"}
-        className={[
-          "sticky top-40 z-20 transition-all",
-          "backdrop-blur supports-[backdrop-filter]:bg-white/55",
-          "data-[scrolled=y]:shadow-md data-[scrolled=y]:ring-1 data-[scrolled=y]:ring-border",
-          "rounded-2xl",
-        ].join(" ")}
-      >
-        <div className="flex items-center justify-between rounded-2xl bg-white/70 px-3 py-3 sm:px-4">
-          {/* 좌: Switch 토글 (리스트 ↔ 타임라인) */}
-          <div className="flex items-center gap-3">
-            <span
-              className={[
-                "text-[13px] font-semibold",
-                !isTimeline ? "text-foreground" : "text-muted-foreground",
-              ].join(" ")}
-            >
-              리스트
-            </span>
-            <Switch
-              checked={isTimeline}
-              onCheckedChange={(v) => setView(v ? "timeline" : "list")}
-              aria-label="리스트/타임라인 전환"
-            />
-            <span
-              className={[
-                "text-[13px] font-semibold",
-                isTimeline ? "text-foreground" : "text-muted-foreground",
-              ].join(" ")}
-            >
-              타임라인
-            </span>
+        className="pointer-events-none fixed inset-0 z-[1] opacity-[0.035]"
+        style={{
+          backgroundImage:
+            "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22160%22 height=%22160%22 viewBox=%220 0 160 160%22><filter id=%22n%22 x=%220%22 y=%220%22><feTurbulence type=%22fractalNoise%22 baseFrequency=%220.8%22 numOctaves=%222%22 stitchTiles=%22stitch%22/></filter><rect width=%22160%22 height=%22160%22 filter=%22url(%23n)%22 opacity=%220.35%22/></svg>')",
+          backgroundRepeat: "repeat",
+        }}
+        aria-hidden
+      />
+
+      <div className="relative z-[2] w-full sm:w-2/3 mx-auto max-w-7xl p-4 space-y-6">
+        {/* Sticky Toolbar */}
+        <div
+          data-scrolled={scrolled ? "y" : "n"}
+          className={[
+            "sticky top-40 z-20 transition-all",
+            "backdrop-blur supports-[backdrop-filter]:bg-white/55",
+            "data-[scrolled=y]:shadow-md data-[scrolled=y]:ring-1 data-[scrolled=y]:ring-border",
+            "rounded-2xl",
+          ].join(" ")}
+        >
+          <div className="flex items-center justify-between rounded-2xl bg-white/70 px-3 py-3 sm:px-4">
+            <div className="flex items-center gap-3">
+              <span
+                className={[
+                  "text-[13px] font-semibold",
+                  !isTimeline ? "text-foreground" : "text-muted-foreground",
+                ].join(" ")}
+              >
+                리스트
+              </span>
+              <Switch
+                checked={isTimeline}
+                onCheckedChange={(v) => setView(v ? "timeline" : "list")}
+                aria-label="리스트/타임라인 전환"
+              />
+              <span
+                className={[
+                  "text-[13px] font-semibold",
+                  isTimeline ? "text-foreground" : "text-muted-foreground",
+                ].join(" ")}
+              >
+                타임라인
+              </span>
+            </div>
+
+            <Button onClick={() => nav("/memories/new")} className="gap-2">
+              <Plus className="size-4" />
+              추억 조각 추가
+            </Button>
           </div>
-
-          {/* 우: 추가 버튼 (같은 row, 오른쪽 끝) */}
-          <Button onClick={() => nav("/memories/new")} className="gap-2">
-            <Plus className="size-4" />
-            추억 조각 추가
-          </Button>
         </div>
-      </div>
 
-      {/* Content */}
-      {loading ? (
-        <SkeletonTimeline />
-      ) : filtered.length === 0 ? (
-        <EmptyState onCreate={() => nav("/memories/new")} />
-      ) : (
-        <Tabs value={view}>
-          <TabsContent value="timeline" className="m-0">
-            <div className="relative">
-              <TimelineLarge
+        {/* Content */}
+        {loading ? (
+          <SkeletonTimeline />
+        ) : filtered.length === 0 ? (
+          <EmptyState onCreate={() => nav("/memories/new")} />
+        ) : (
+          <Tabs value={view}>
+            <TabsContent value="timeline" className="m-0">
+              <div className="relative">
+                <TimelineLarge
+                  items={filtered}
+                  onOpen={(id) => nav(`/memories/${id}`)}
+                />
+                <MonthNavigator months={months} />
+                <MonthNavigatorMobile months={months} />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="list" className="m-0">
+              <ListView
                 items={filtered}
                 onOpen={(id) => nav(`/memories/${id}`)}
               />
-              {/* 월 네비게이션: 데스크톱 패널 + 모바일 시트 */}
-              <MonthNavigator months={months} />
-              <MonthNavigatorMobile months={months} />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="list" className="m-0">
-            <ListView
-              items={filtered}
-              onOpen={(id) => nav(`/memories/${id}`)}
-            />
-          </TabsContent>
-        </Tabs>
-      )}
-    </div>
+            </TabsContent>
+          </Tabs>
+        )}
+      </div>
+    </>
   );
 }
 
 /* =========================
- * ImageBox — 기존 이미지 카드 (그대로)
+ * ImageBox — 이미지에만 집중 (비네트 + 에지 소프트)
  * =======================*/
 function ImageBox({
   src,
@@ -179,13 +189,18 @@ function ImageBox({
 }) {
   return (
     <div
-      className={`relative w-full ${aspect} bg-muted rounded-t-lg overflow-hidden`}
+      className={`group relative w-full ${aspect} bg-muted rounded-lg overflow-hidden`}
     >
       {src ? (
         <img
           src={src}
           alt={alt ?? ""}
-          className="absolute inset-0 w-full h-full object-contain will-change-transform transition-[filter,transform] duration-300"
+          className={[
+            "absolute inset-0 w-full h-full object-contain",
+            "transition-transform duration-500 will-change-transform",
+            "group-hover:scale-[1.012]",
+            "[mask-image:radial-gradient(120%_120%_at_50%_50%,#000_65%,transparent_100%)]",
+          ].join(" ")}
           loading="lazy"
           decoding="async"
           fetchPriority="low"
@@ -195,9 +210,19 @@ function ImageBox({
         <div className="absolute inset-0" />
       )}
 
-      {/* 하트 오버레이: 좌상단 고정 */}
+      {/* 미세 비네트 */}
       <div
-        className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-background/85 backdrop-blur px-2 py-1 text-[11px] shadow"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(120% 120% at 50% 45%, transparent 55%, rgba(0,0,0,0.06) 100%)",
+        }}
+        aria-hidden
+      />
+
+      {/* 하트 오버레이 */}
+      <div
+        className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-background/75 backdrop-blur px-2 py-1 text-[11px] shadow-sm"
         title={`하트 ${hearts}개`}
         aria-label="하트 수"
       >
@@ -209,7 +234,7 @@ function ImageBox({
 }
 
 /* =========================
- * List View — 기존 그리드 느낌
+ * List View — 이미지 전용 카드
  * =======================*/
 function ListView({
   items,
@@ -236,18 +261,6 @@ function ListView({
             hearts={f.hearts ?? 0}
             aspect="aspect-[4/3]"
           />
-          <div className="border-t border-border/60" />
-          <div className="px-3 pt-2 pb-3">
-            <div className="text-[12px] text-muted-foreground/90 tabular-nums tracking-wide">
-              {formatDate(f.event_date)}
-            </div>
-            <div
-              className="mt-1 text-[15px] font-semibold leading-snug line-clamp-2 tracking-tight"
-              title={f.title ?? ""}
-            >
-              {f.title}
-            </div>
-          </div>
         </Card>
       ))}
     </div>
@@ -255,8 +268,59 @@ function ListView({
 }
 
 /* =========================
- * Timeline Large — 중앙 점선 레일 + 좌/우 교차
- *  - 모바일에도 중앙 레일 보이도록 'hidden md:block' 제거
+ * Rail Caption (Outer) — 카드 반대편 '측면 여백'에 크게 배치
+ * =======================*/
+function RailCaptionOuter({
+  outerSide, // "left" | "right"
+  date,
+  title,
+}: {
+  outerSide: "left" | "right";
+  date: string;
+  title?: string | null;
+}) {
+  const place =
+    outerSide === "left"
+      ? "left-0 pl-3 sm:pl-4 md:pl-6 items-start text-left"
+      : "right-0 pr-3 sm:pr-4 md:pr-6 items-end text-right";
+
+  return (
+    <div
+      className={[
+        "pointer-events-none absolute top-1/2 -translate-y-1/2",
+        "w-[min(46ch,38vw)] md:w-[min(54ch,34vw)]",
+        "flex flex-col gap-1",
+        place,
+      ].join(" ")}
+      style={{ lineHeight: 1.12 }}
+    >
+      {/* 날짜 — 고요한 얇은 톤 */}
+      <div className="text-[15px] md:text-[16px] tracking-[0.08em] tabular-nums text-muted-foreground/90 blur-[0.1px]">
+        🐾 {date}
+      </div>
+
+      {/* 제목 — 크게, 살짝 기울기 + 잉크 스밈 느낌 */}
+      <div
+        className={[
+          "mt-0.5 font-semibold text-foreground/90",
+          "text-[22px] sm:text-[24px] md:text-[28px] lg:text-[30px]",
+          "tracking-[-0.012em] [text-wrap:balance] opacity-95",
+        ].join(" ")}
+        style={{
+          letterSpacing: "-0.012em",
+          transform: "rotate(-0.2deg)",
+          textShadow: "0 0 1px rgba(0,0,0,0.10), 0 1px 1.5px rgba(0,0,0,0.06)",
+        }}
+      >
+        {title}
+      </div>
+    </div>
+  );
+}
+
+/* =========================
+ * Timeline Large — 중앙 레일 + 좌/우 교차
+ * (카드 안 텍스트 제거, 측면 캡션 추가, 핀 제거)
  * =======================*/
 function TimelineLarge({
   items,
@@ -269,83 +333,96 @@ function TimelineLarge({
 
   return (
     <div className="relative">
-      {groups.map(({ ym, rows }) => (
-        <section key={ym} id={ymToId(ym)} className="relative py-10">
-          {/* 중앙 점선 레일 - 모바일에서도 표시 */}
-          <div
-            className="pointer-events-none absolute left-1/2 top-0 h-full -translate-x-1/2 border-l-2 border-dashed border-muted-foreground/40"
-            aria-hidden
-          />
+      {groups.map(({ ym, rows }) => {
+        const monthNum = parseMonthFromYm(ym);
+        const emoji = monthEmoji(monthNum);
+        return (
+          <section key={ym} id={ymToId(ym)} className="relative py-10">
+            {/* 중앙 점선 레일 */}
+            <div
+              className="pointer-events-none absolute left-1/2 top-0 h-full -translate-x-1/2 border-l-2 border-dashed border-muted-foreground/40"
+              aria-hidden
+            />
 
-          {/* 월 헤더칩 (sticky) */}
-          <div className="sticky top-24 z-10 mb-8 text-center">
-            <div className="inline-flex rounded-full bg-gradient-to-r from-amber-50/90 to-white/90 backdrop-blur px-4 py-1.5 text-[12px] tabular-nums font-semibold shadow ring-1 ring-border">
-              {ym}
+            {/* 월 헤더칩 (sticky) — 글로우/블러 강조 */}
+            <div className="sticky top-24 z-10 mb-8 text-center">
+              <div
+                className={[
+                  "inline-flex items-center gap-1 rounded-full",
+                  "bg-gradient-to-r from-amber-50/85 to-white/85",
+                  "px-4 py-1.5 text-[12px] tabular-nums font-semibold",
+                  "shadow ring-1 ring-border backdrop-blur-md",
+                ].join(" ")}
+              >
+                <span className="opacity-95">{emoji}</span>
+                <span className="opacity-95">{ym}</span>
+              </div>
             </div>
-          </div>
 
-          {/* 아래로 진행하는 지그재그 (모바일은 자연스럽게 1열) */}
-          <div className="space-y-12">
-            {rows.map((f, i) => {
-              const left = i % 2 === 0;
-              const mt = left ? 0 : 8; // 오른쪽 카드 오프셋
-              return (
-                <article key={f.id} className="relative">
-                  <div
-                    className={[
-                      "md:w-[calc(50%-2rem)]",
-                      left
-                        ? "md:pr-10 md:ml-0 md:mr-auto"
-                        : "md:pl-10 md:ml-auto md:mr-0",
-                    ].join(" ")}
-                    style={{ marginTop: mt }}
-                  >
-                    <Card
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => onOpen(f.id)}
-                      onKeyDown={(e) => e.key === "Enter" && onOpen(f.id)}
-                      className="group overflow-hidden transition hover:-translate-y-[1px] hover:shadow-lg hover:ring-1 hover:ring-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                      aria-label={`${f.title ?? "무제"} — ${formatDate(
-                        f.event_date
-                      )}`}
+            {/* 지그재그 */}
+            <div className="space-y-12">
+              {rows.map((f, i) => {
+                const isLeftCard = i % 2 === 0;
+                const mt = isLeftCard ? 0 : 8;
+                const dateStr = formatDate(f.event_date);
+
+                // 카드가 왼쪽이면 캡션은 오른쪽 측면, 카드가 오른쪽이면 캡션은 왼쪽 측면
+                const outerSide: "left" | "right" = isLeftCard
+                  ? "right"
+                  : "left";
+
+                return (
+                  <article key={f.id} className="relative">
+                    {/* 카드 */}
+                    <div
+                      className={[
+                        "md:w-[calc(50%-2rem)]",
+                        isLeftCard
+                          ? "md:pr-10 md:ml-0 md:mr-auto"
+                          : "md:pl-10 md:ml-auto md:mr-0",
+                      ].join(" ")}
+                      style={{ marginTop: mt }}
                     >
-                      <ImageBox
-                        src={
-                          f.cover_photo_path
-                            ? publicUrl(f.cover_photo_path)
-                            : undefined
-                        }
-                        alt={f.title}
-                        hearts={f.hearts ?? 0}
-                        aspect="aspect-[16/9]"
-                      />
-                      <div className="border-t border-border/60" />
-                      <div className="px-3 pt-2 pb-3">
-                        <div className="text-[12px] text-muted-foreground/90 tabular-nums tracking-wide">
-                          {formatDate(f.event_date)}
-                        </div>
-                        <div
-                          className="mt-1 text-[16px] md:text-[17px] font-semibold leading-snug line-clamp-2 tracking-tight"
-                          title={f.title ?? ""}
-                        >
-                          {f.title}
-                        </div>
-                      </div>
-                    </Card>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </section>
-      ))}
+                      <Card
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => onOpen(f.id)}
+                        onKeyDown={(e) => e.key === "Enter" && onOpen(f.id)}
+                        className="group overflow-hidden transition hover:-translate-y-[1px] hover:shadow-lg hover:ring-1 hover:ring-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                        aria-label={`${f.title ?? "무제"} — ${dateStr}`}
+                      >
+                        <ImageBox
+                          src={
+                            f.cover_photo_path
+                              ? publicUrl(f.cover_photo_path)
+                              : undefined
+                          }
+                          alt={f.title}
+                          hearts={f.hearts ?? 0}
+                          aspect="aspect-[16/9]"
+                        />
+                      </Card>
+                    </div>
+
+                    {/* 측면 큰 캡션 */}
+                    <RailCaptionOuter
+                      outerSide={outerSide}
+                      date={dateStr}
+                      title={f.title}
+                    />
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }
 
 /* =========================
- * Month Navigator — 데스크톱(오른쪽 중앙 카드 패널)
+ * Month Navigator — 데스크톱
  * =======================*/
 function MonthNavigator({ months }: { months: string[] }) {
   const parsed = useMemo(
@@ -365,7 +442,6 @@ function MonthNavigator({ months }: { months: string[] }) {
 
   const [active, setActive] = useState<string | null>(ids[0] ?? null);
 
-  // 스크롤 스파이
   useEffect(() => {
     const obs = new IntersectionObserver(
       (entries) => {
@@ -383,7 +459,6 @@ function MonthNavigator({ months }: { months: string[] }) {
     return () => obs.disconnect();
   }, [ids]);
 
-  // 키보드 네비
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const onKeyDown = (e: React.KeyboardEvent) => {
     const idx = ids.findIndex((id) => id === active);
@@ -415,6 +490,8 @@ function MonthNavigator({ months }: { months: string[] }) {
           const prev = parsed[idx - 1];
           const yearChanged = !prev || prev.year !== p.year;
           const isActive = active === p.id;
+          const monthNum = Number(p.month);
+          const emoji = monthEmoji(monthNum);
           return (
             <div key={p.id} className="w-full flex flex-col items-center">
               {yearChanged && (
@@ -446,6 +523,7 @@ function MonthNavigator({ months }: { months: string[] }) {
                   side="left"
                   className="px-2 py-1 text-xs font-medium tabular-nums"
                 >
+                  <span className="mr-1">{emoji}</span>
                   {p.ym}
                 </TooltipContent>
               </Tooltip>
@@ -453,7 +531,6 @@ function MonthNavigator({ months }: { months: string[] }) {
           );
         })}
 
-        {/* 현재 달로 */}
         <button
           onClick={() => {
             const last = ids[ids.length - 1];
@@ -493,7 +570,6 @@ function MonthNavigatorMobile({ months }: { months: string[] }) {
 
   if (parsed.length === 0) return null;
 
-  // 연도->월 묶음
   const byYear = parsed.reduce<Record<string, typeof parsed>>((acc, p) => {
     acc[p.year] = acc[p.year] ? [...acc[p.year], p] : [p];
     return acc;
@@ -501,7 +577,6 @@ function MonthNavigatorMobile({ months }: { months: string[] }) {
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      {/* FAB */}
       <SheetTrigger asChild>
         <button
           className="lg:hidden fixed right-4 bottom-5 z-20 rounded-full bg-white/90 backdrop-blur px-4 py-2 text-sm font-semibold shadow-md ring-1 ring-border"
@@ -521,27 +596,31 @@ function MonthNavigatorMobile({ months }: { months: string[] }) {
             .sort()
             .map((y) => (
               <section key={y} className="space-y-2">
-                <div className="text-sm font-semibold text-muted-foreground tabular-nums">
+                <div className="text-lg font-semibold text-muted-foreground tabular-nums">
                   {y}년
                 </div>
                 <div className="grid grid-cols-4 gap-2">
-                  {byYear[y].map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => {
-                        document
-                          .getElementById(p.id)
-                          ?.scrollIntoView({
+                  {byYear[y].map((p) => {
+                    const monthNum = Number(p.month);
+                    const emoji = monthEmoji(monthNum);
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => {
+                          document.getElementById(p.id)?.scrollIntoView({
                             behavior: "smooth",
                             block: "start",
                           });
-                        setOpen(false);
-                      }}
-                      className="rounded-xl px-3 py-2 text-sm ring-1 ring-border bg-background hover:ring-primary/50 active:scale-[0.99] transition"
-                    >
-                      {Number(p.month)}월
-                    </button>
-                  ))}
+                          setOpen(false);
+                        }}
+                        className="rounded-xl px-3 py-2 text-sm ring-1 ring-border bg-background hover:ring-primary/50 active:scale-[0.99] transition"
+                        title={p.ym}
+                      >
+                        <span className="mr-1">{emoji}</span>
+                        {Number(p.month)}월
+                      </button>
+                    );
+                  })}
                 </div>
               </section>
             ))}
@@ -608,6 +687,45 @@ function ymToId(ym: string) {
   return `sec-${y}-${mm}`;
 }
 
+// "2025년 09월" → 9
+function parseMonthFromYm(ym: string) {
+  const m = ym.match(/(\d+)\s*년\s*(\d+)\s*월/);
+  if (!m) return NaN;
+  return Number(m[2]);
+}
+
+// 월 이모지 매핑
+function monthEmoji(m: number) {
+  switch (m) {
+    case 1:
+      return "❄️";
+    case 2:
+      return "💐";
+    case 3:
+      return "🌷";
+    case 4:
+      return "🌸";
+    case 5:
+      return "🧸";
+    case 6:
+      return "🍀";
+    case 7:
+      return "🌻";
+    case 8:
+      return "☔️";
+    case 9:
+      return "🍃";
+    case 10:
+      return "🍂";
+    case 11:
+      return "🍁";
+    case 12:
+      return "🎄";
+    default:
+      return "🗓️";
+  }
+}
+
 /* =========================
  * Empty & Skeleton
  * =======================*/
@@ -629,17 +747,11 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
 function SkeletonTimeline() {
   return (
     <div className="relative">
-      {/* 중앙 레일 힌트 */}
       <div className="pointer-events-none absolute left-1/2 top-0 h-full -translate-x-1/2 border-l-2 border-dashed border-muted-foreground/30" />
-
       <div className="space-y-8">
         {Array.from({ length: 5 }).map((_, i) => (
           <Card key={i} className="overflow-hidden">
-            <div className="w-full aspect-[4/3] animate-pulse bg-muted rounded-t-lg" />
-            <div className="space-y-2 p-3">
-              <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
-              <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
-            </div>
+            <div className="w-full aspect-[4/3] animate-pulse bg-muted rounded-lg" />
           </Card>
         ))}
       </div>

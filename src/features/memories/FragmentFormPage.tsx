@@ -431,7 +431,7 @@ export default function FragmentFormPage() {
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="제목을 입력하세요"
+            placeholder="어떤 추억이었나요?"
             className="bg-transparent outline-none text-xl md:text-2xl font-extrabold tracking-tight min-w-0 w-full truncate"
             aria-label="제목"
           />
