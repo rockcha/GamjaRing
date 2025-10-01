@@ -22,6 +22,8 @@ type Params = {
   fetchCoupleData?: () => any;
 };
 
+type RunOptions = { count?: number };
+
 export function useBulkFishing({
   coupleId,
   userId,
@@ -38,9 +40,12 @@ export function useBulkFishing({
   const [placements, setPlacements] = useState<Placements>({});
   const [open, setOpen] = useState(false);
 
-  const defaultTank = tanks[0]?.tank_no ?? 1;
+  // ✅ 기본 배치 어항: 마지막 어항
+  const defaultTank = useMemo(
+    () => (tanks.length ? tanks[tanks.length - 1].tank_no : 1),
+    [tanks]
+  );
 
-  // 결과 바뀌면 기본 배치 초기화
   useEffect(() => {
     if (!results) {
       setPlacements({});
@@ -51,7 +56,6 @@ export function useBulkFishing({
     setPlacements(next);
   }, [results, defaultTank]);
 
-  // 그룹화 메모
   const grouped = useMemo(() => {
     const g: Record<Rarity, BulkCatch[]> = {
       전설: [],
@@ -68,10 +72,16 @@ export function useBulkFishing({
     [results]
   );
 
-  async function run() {
+  // ✅ 제출 스냅샷 수량을 직접 받도록 수정
+  async function run(opts?: RunOptions) {
     if (!coupleId) return toast.error("커플 정보를 찾을 수 없어요.");
-    if (bulkCount < 1) return toast.error("1개 이상 입력해 주세요.");
-    if (bulkCount > baitCount)
+
+    const want = Number.isFinite(opts?.count as number)
+      ? Number(opts!.count)
+      : bulkCount;
+
+    if (want < 1) return toast.error("1개 이상 입력해 주세요.");
+    if (want > baitCount)
       return toast.warning(
         `보유 미끼가 부족합니다. 최대 ${baitCount}개까지 가능합니다.`
       );
@@ -81,10 +91,10 @@ export function useBulkFishing({
       setResults(null);
       setFailCount(0);
 
-      // 1) 미끼 차감
+      // 1) 미끼 차감 (UI에서 지연 후 호출)
       const { data: cdata, error: cerr } = await supabase.rpc("consume_bait", {
         p_couple_id: coupleId,
-        p_count: bulkCount,
+        p_count: want,
       });
       if (cerr) throw cerr;
 
@@ -93,6 +103,7 @@ export function useBulkFishing({
         error?: string | null;
         bait_count: number | null;
       }>(cdata);
+
       if (!crow?.ok) {
         toast[crow?.error === "not_enough_bait" ? "warning" : "error"](
           crow?.error === "not_enough_bait"
@@ -101,15 +112,16 @@ export function useBulkFishing({
         );
         return;
       }
-      const newCnt = crow.bait_count ?? Math.max(0, baitCount - bulkCount);
+
+      const newCnt = crow.bait_count ?? Math.max(0, baitCount - want);
       setBaitCount(newCnt);
       window.dispatchEvent(
         new CustomEvent("bait-consumed", { detail: { left: newCnt } })
       );
 
-      // 2) 롤 수행
+      // 2) 롤
       const rolls: RollResult[] = await Promise.all(
-        Array.from({ length: bulkCount }).map(() =>
+        Array.from({ length: want }).map(() =>
           rollFishByIngredient("bait" as any)
         )
       );
@@ -124,7 +136,6 @@ export function useBulkFishing({
       if (successIds.length > 0) {
         const uniq = Array.from(new Set(successIds));
 
-        // 기존 수집 여부
         const { data: existedRows, error: existedErr } = await supabase
           .from("couple_aquarium_collection")
           .select("entity_id")
@@ -137,7 +148,6 @@ export function useBulkFishing({
         );
         const newSet = new Set<string>(uniq.filter((id) => !existed.has(id)));
 
-        // 메타 조회
         const { data: rows, error } = await supabase
           .from("aquarium_entities")
           .select("id,name_ko,rarity")
@@ -161,7 +171,7 @@ export function useBulkFishing({
           countMap.set(id, (countMap.get(id) || 0) + 1)
         );
 
-        // 스티커 반영
+        // 스티커 반영 (실패는 경고만)
         try {
           const calls = Array.from(countMap.entries()).map(
             async ([id, qty]) => {
@@ -193,7 +203,6 @@ export function useBulkFishing({
           toast.warning("스티커 인벤토리 반영에 실패했어요.");
         }
 
-        // 결과 카드
         catches = Array.from(countMap.entries())
           .map(([id, n]) => {
             const info = infoMap.get(id)!;
@@ -226,7 +235,7 @@ export function useBulkFishing({
               await Promise.allSettled(
                 rareUnique.map((c) =>
                   sendUserNotification({
-                    // @ts-ignore 단순화
+                    // @ts-ignore
                     senderId: userId,
                     receiverId: partnerId,
                     type: "낚시성공",
@@ -292,7 +301,6 @@ export function useBulkFishing({
   }
 
   return {
-    // state
     open,
     setOpen,
     busy,
@@ -305,8 +313,7 @@ export function useBulkFishing({
     grouped,
     totalCaught,
     defaultTank,
-    // actions
-    run,
+    run, // ✅ 이제 run({ count }) 지원
     savePlacements,
   };
 }

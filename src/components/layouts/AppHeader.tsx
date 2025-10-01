@@ -153,7 +153,7 @@ function PartnerTodayOneLiner() {
       <DialogTrigger asChild>
         <button
           className={cn(
-            "w-full rounded-full border bg-white/70 backdrop-blur px-3 py-2",
+            "w-full rounded-lg border bg-white/70 backdrop-blur px-3 py-2",
             "flex items-center gap-2 hover:bg-white transition"
           )}
           aria-label="연인의 한마디 전체 보기"

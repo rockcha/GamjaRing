@@ -5,22 +5,16 @@ import { cn } from "@/lib/utils";
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { useUser } from "@/contexts/UserContext";
 import BaitHeader from "./BaitHeader";
-import BaitDragTile from "./BaitDragTile";
 import BulkFishingPanel from "./BulkFishingPanel";
 import BulkResultsModal from "./BulkResultsModal";
 import { useBaitAndTanks } from "./useBaitAndTanks";
 import { useBulkFishing } from "./useBulkFishing";
-import { useEffect, useMemo, useRef } from "react"; // ← useRef 추가
+import { useEffect, useMemo, useRef, useState } from "react";
+import WaitFishingDialog from "./WaitFishingDialog";
 
-type Props = {
-  className?: string;
-  dragDisabled?: boolean;
-};
+type Props = { className?: string };
 
-export default function IngredientFishingSection({
-  className,
-  dragDisabled = false,
-}: Props) {
+export default function IngredientFishingSection({ className }: Props) {
   const { couple, fetchCoupleData } = useCoupleContext();
   const { user } = useUser();
   const coupleId = couple?.id ?? null;
@@ -46,7 +40,7 @@ export default function IngredientFishingSection({
     fetchCoupleData,
   });
 
-  /** ✅ 탱크 번호들 */
+  // ----- defaultTank 보정 로직 유지 -----
   const firstTankNo = useMemo(
     () => (tanks.length ? tanks[0].tank_no : 1),
     [tanks]
@@ -55,25 +49,16 @@ export default function IngredientFishingSection({
     () => (tanks.length ? tanks[tanks.length - 1].tank_no : 1),
     [tanks]
   );
-
-  /**
-   * ✅ 초기 일괄 채움 보정: “results가 생겼고, 모든 배치가 첫 어항으로만 채워져 온 경우”
-   * → 단 1회, 전부 마지막 어항으로 치환
-   */
   const didInitForBatchRef = useRef(false);
-
-  // 결과 세트가 바뀌면 초기화 플래그 리셋
   useEffect(() => {
     didInitForBatchRef.current = false;
-  }, [bulk.results]); // results가 새로 생기면 다시 한 번만 검사
-
+  }, [bulk.results]);
   useEffect(() => {
     const results = bulk.results ?? [];
     if (!bulk.open || results.length === 0) return;
     if (didInitForBatchRef.current) return;
 
     const ids = results.map((r) => r.id);
-    // “모든 배치가 1번(첫 어항)”으로 세팅되어 온 상태인지 체크
     const allFirst =
       ids.length > 0 &&
       ids.every((id) => (bulk.placements[id] ?? firstTankNo) === firstTankNo);
@@ -86,7 +71,7 @@ export default function IngredientFishingSection({
         });
         return next;
       });
-      didInitForBatchRef.current = true; // 이후에는 사용자 선택을 덮지 않음
+      didInitForBatchRef.current = true;
     }
   }, [
     bulk.open,
@@ -96,6 +81,33 @@ export default function IngredientFishingSection({
     firstTankNo,
     lastTankNo,
   ]);
+
+  // ====== 5초 대기 → RPC 실행 ======
+  const [waitOpen, setWaitOpen] = useState(false);
+  const [waitPhase, setWaitPhase] = useState<"waiting" | "finishing">(
+    "waiting"
+  );
+  const lockRef = useRef(false);
+
+  async function handleRunWithDelay(countSnapshot: number) {
+    if (lockRef.current) return;
+    if (!baitCount || baitCount <= 0) return;
+
+    lockRef.current = true;
+    setWaitPhase("waiting");
+    setWaitOpen(true);
+
+    // 5초 대기 (GIF/문구 표시)
+    await new Promise((r) => setTimeout(r, 5000));
+
+    setWaitPhase("finishing");
+    try {
+      await bulk.run({ count: countSnapshot }); // ✅ 스냅샷 그대로 사용
+    } finally {
+      setWaitOpen(false);
+      lockRef.current = false;
+    }
+  }
 
   return (
     <section className={cn("flex flex-col gap-3 min-h-0", className)}>
@@ -114,17 +126,33 @@ export default function IngredientFishingSection({
         }}
       />
 
-      <BaitDragTile baitCount={baitCount} dragDisabled={dragDisabled} />
+      {/* 미끼 표시 (미니멀) */}
+      <div
+        className="rounded-2xl border bg-white p-4 grid place-items-center"
+        title="보유 미끼"
+      >
+        <div className="relative w-[96px] h-[96px] rounded-2xl border bg-white shadow-sm grid place-items-center text-[64px] leading-none select-none border-zinc-200">
+          🐟
+        </div>
+        <div className="mt-2 text-xs text-muted-foreground">
+          보유 미끼{" "}
+          <span className="ml-1 font-semibold tabular-nums">
+            × {Math.max(0, baitCount).toLocaleString()}
+          </span>
+        </div>
+      </div>
 
+      {/* 일괄 낚시 패널 (대기 중에도 비활성화) */}
       <BulkFishingPanel
         baitCount={baitCount}
         bulkCount={bulk.bulkCount}
         setBulkCount={bulk.setBulkCount}
-        busy={bulk.busy}
-        onRun={bulk.run}
+        busy={bulk.busy || waitOpen}
+        onRun={handleRunWithDelay} // ✅ count 스냅샷을 받음
         tanksErr={tanksErr}
       />
 
+      {/* 결과 모달 */}
       <BulkResultsModal
         open={bulk.open}
         setOpen={bulk.setOpen}
@@ -134,13 +162,15 @@ export default function IngredientFishingSection({
           bulk.setPlacements(typeof u === "function" ? u : () => u)
         }
         tanks={tanks}
-        /** 모달이 defaultTank를 참조하는 경로에 대비해 마지막 어항 전달 */
         defaultTank={lastTankNo}
         totalCaught={bulk.totalCaught}
         failCount={bulk.failCount}
         busy={bulk.busy}
         onSave={bulk.savePlacements}
       />
+
+      {/* 대기 다이얼로그 */}
+      <WaitFishingDialog open={waitOpen} phase={waitPhase} />
     </section>
   );
 }
