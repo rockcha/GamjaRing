@@ -1,3 +1,4 @@
+// src/features/memories/FragmentListPage.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -103,7 +104,7 @@ export default function FragmentListPage() {
         aria-hidden
       />
 
-      <div className="relative z-[2] w-full sm:w-2/3 mx-auto max-w-7xl p-4 space-y-6">
+      <div className="relative z-[2] w-full sm:w-[85%] lg:w-[78%] mx-auto max-w-7xl p-4 sm:p-5 space-y-6">
         {/* Sticky Toolbar */}
         <div
           data-scrolled={scrolled ? "y" : "n"}
@@ -260,7 +261,7 @@ function FixedRail({
               opacity: 1,
             }}
           >
-            <span className="block leading-none" style={{ fontSize: 16 }}>
+            <span className="block leading-none" style={{ fontSize: 18 }}>
               {emoji}
             </span>
           </div>
@@ -271,33 +272,82 @@ function FixedRail({
 }
 
 /* =========================
- * ImageBox — 액자 프레임
+ * useImageAspect — naturalWidth/Height로 비율 측정
+ * =======================*/
+function useImageAspect(src?: string | null) {
+  const [ratio, setRatio] = useState<number | null>(null); // width / height
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!src) {
+      setRatio(null);
+      setLoaded(false);
+      return;
+    }
+    let cancelled = false;
+    const img = new Image();
+    img.decoding = "async";
+    img.loading = "eager";
+    img.src = src;
+    img.onload = () => {
+      if (cancelled) return;
+      const w = img.naturalWidth || 4;
+      const h = img.naturalHeight || 3;
+      setRatio(w / h);
+      setLoaded(true);
+    };
+    img.onerror = () => {
+      if (cancelled) return;
+      setRatio(4 / 3);
+      setLoaded(true);
+    };
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
+
+  return { ratio, loaded };
+}
+
+/* =========================
+ * ImageBox — 비율 자동(동적 aspect-ratio)
  * =======================*/
 function ImageBox({
   src,
   alt,
   hearts = 0,
-  aspect = "aspect-[4/3]",
+  minHeight = 220, // 로딩/저해상도 가드
+  maxHeight = 720, // 아주 긴 세로 사진 보호
 }: {
   src?: string | null;
   alt?: string | null;
   hearts?: number;
-  aspect?: string;
+  minHeight?: number;
+  maxHeight?: number;
 }) {
+  const { ratio, loaded } = useImageAspect(src ?? undefined);
+  const aspectRatio = ratio ?? 4 / 3; // 초기값(로딩 동안)
+  // 세로 최대치 제한: 화면에 너무 길게 나오지 않도록
+  const clampStyle: React.CSSProperties = {
+    aspectRatio: String(aspectRatio),
+    minHeight,
+    maxHeight,
+  };
+
   return (
-    <div
-      className={`group relative w-full ${aspect} bg-transparent rounded-[22px]`}
-    >
+    <div className="group relative w-full rounded-[24px]">
       {/* 프레임 */}
       <div
         className={[
-          "absolute inset-0",
+          "relative w-full",
           "bg-gradient-to-b from-stone-500/90 to-stone-400/90",
           "dark:from-stone-700/90 dark:to-stone-600/90",
           "ring-1 ring-stone-300/80 dark:ring-stone-500/70",
           "shadow-[0_1px_2px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.5)]",
-          "p-2 md:p-3 transition-transform group-hover:[transform:rotate(-0.2deg)]",
+          "p-2.5 sm:p-3.5",
+          "rounded-[24px]",
         ].join(" ")}
+        style={clampStyle}
       >
         {/* 매트 */}
         <div
@@ -305,25 +355,30 @@ function ImageBox({
             "h-full w-full rounded-[18px]",
             "ring-1 ring-stone-200/80 dark:ring-stone-400/50",
             "shadow-[inset_0_0_0_1px_rgba(255,255,255,0.6)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]",
-            "p-1.5 md:p-2",
+            "p-1.5 sm:p-2",
           ].join(" ")}
         >
           {/* 사진 */}
           <div className="relative h-full w-full rounded-[14px] overflow-hidden bg-neutral-100 dark:bg-neutral-800">
             {src ? (
-              <img
-                src={src}
-                alt={alt ?? ""}
-                className={[
-                  "absolute inset-0 h-full w-full object-contain",
-                  "transition-transform duration-500 will-change-transform",
-                  "group-hover:scale-[1.01]",
-                ].join(" ")}
-                loading="lazy"
-                decoding="async"
-                fetchPriority="low"
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              />
+              <>
+                {!loaded && (
+                  <div className="absolute inset-0 animate-pulse bg-neutral-200/60 dark:bg-neutral-700/40" />
+                )}
+                <img
+                  src={src}
+                  alt={alt ?? ""}
+                  className={[
+                    "absolute inset-0 h-full w-full object-contain",
+                    "transition-transform duration-500 will-change-transform",
+                    "group-hover:scale-[1.015]",
+                  ].join(" ")}
+                  loading="lazy"
+                  decoding="async"
+                  fetchPriority="low"
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                />
+              </>
             ) : (
               <div className="absolute inset-0" />
             )}
@@ -341,9 +396,9 @@ function ImageBox({
         </div>
       </div>
 
-      {/* 하트 오버레이 */}
+      {/* 하트 오버레이 (조금 키움) */}
       <div
-        className="absolute left-6 top-6 inline-flex items-center gap-1 rounded-full bg-background/80 backdrop-blur px-2.5 py-1.5 text-[11px] shadow-sm ring-1 ring-border"
+        className="absolute left-6 top-6 inline-flex items-center gap-1.5 rounded-full bg-background/85 backdrop-blur px-3 py-1.5 text-[12px] shadow-sm ring-1 ring-border"
         title={`하트 ${hearts}개`}
         aria-label="하트 수"
       >
@@ -351,10 +406,10 @@ function ImageBox({
         <span className="tabular-nums">{hearts}</span>
       </div>
 
-      {/* 바닥 그림자 */}
+      {/* 바닥 그림자 강화 */}
       <div
-        className="pointer-events-none absolute inset-x-4 -bottom-1 h-2 rounded-full"
-        style={{ boxShadow: "0 16px 20px -16px rgba(0,0,0,0.18)" }}
+        className="pointer-events-none absolute inset-x-6 -bottom-1.5 h-2 rounded-full"
+        style={{ boxShadow: "0 18px 22px -18px rgba(0,0,0,0.22)" }}
         aria-hidden
       />
     </div>
@@ -372,7 +427,7 @@ function ListView({
   onOpen: (id: string | number) => void;
 }) {
   return (
-    <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(260px,1fr))]">
+    <div className="grid gap-5 [grid-template-columns:repeat(auto-fill,minmax(300px,1fr))]">
       {items.map((f) => (
         <Card
           key={f.id}
@@ -387,7 +442,7 @@ function ListView({
             src={f.cover_photo_path ? publicUrl(f.cover_photo_path) : undefined}
             alt={f.title}
             hearts={f.hearts ?? 0}
-            aspect="aspect-[4/3]"
+            // 동적 비율 적용 (고정 클래스 제거)
           />
         </Card>
       ))}
@@ -450,7 +505,6 @@ function RailCaptionOuter({
 
 /* =========================
  * Timeline Large — 섹션 컴포넌트
- *  - 섹션 앵커에서 start/end 측정 후 FixedRail에 전달
  * =======================*/
 function TimelineLarge({
   items,
@@ -535,7 +589,7 @@ function MonthSection({
     <section
       ref={sectionRef}
       id={ymToId(ym)}
-      className="relative py-10 overflow-hidden"
+      className="relative py-12 overflow-hidden"
     >
       {/* 중앙 레일: 고정 이모지 */}
       <FixedRail
@@ -553,7 +607,7 @@ function MonthSection({
           className={[
             "inline-flex items-center gap-1 rounded-full",
             "bg-gradient-to-r from-amber-50/85 to-white/85",
-            "px-4 py-1.5 text-[12px] tabular-nums font-semibold",
+            "px-5 py-2 text-[12px] tabular-nums font-semibold",
             "shadow ring-1 ring-border backdrop-blur-md",
           ].join(" ")}
         >
@@ -566,10 +620,10 @@ function MonthSection({
       <div ref={startRef} className="h-2" />
 
       {/* 카드들 */}
-      <div className="space-y-12">
+      <div className="space-y-14">
         {rows.map((f, i) => {
           const isLeftCard = i % 2 === 0;
-          const mt = isLeftCard ? 0 : 8;
+          const mt = isLeftCard ? 0 : 10;
           const dateStr = formatDate(f.event_date);
           const outerSide: "left" | "right" = isLeftCard ? "right" : "left";
 
@@ -580,7 +634,7 @@ function MonthSection({
             <article key={f.id} className="relative">
               <div
                 className={[
-                  "md:w-[calc(50%-2rem)]",
+                  "md:w-[calc(50%-1.25rem)]", // 폭 살짝 확대
                   isLeftCard
                     ? "md:pr-10 md:ml-0 md:mr-auto"
                     : "md:pl-10 md:ml-auto md:mr-0",
@@ -603,7 +657,6 @@ function MonthSection({
                     }
                     alt={f.title ?? dateStr}
                     hearts={f.hearts ?? 0}
-                    aspect="aspect-[16/9]"
                   />
                 </Card>
               </div>
@@ -957,7 +1010,7 @@ function SkeletonTimeline() {
       <div className="space-y-8">
         {Array.from({ length: 5 }).map((_, i) => (
           <Card key={i} className="overflow-hidden">
-            <div className="w-full aspect-[4/3] animate-pulse bg-muted rounded-lg" />
+            <div className="w-full min-h-[220px] animate-pulse bg-muted rounded-xl" />
           </Card>
         ))}
       </div>

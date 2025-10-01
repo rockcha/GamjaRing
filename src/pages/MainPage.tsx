@@ -20,6 +20,7 @@ import GloomyRatingsCompletedBoard from "@/components/widgets/Cards/GloomyRating
 import UserMemoEmojiButton from "@/features/memo/UserFloatingMemo";
 import StartEndMemoriesCard from "@/components/widgets/Cards/StartEndMemoriesCard";
 import PartnerOneLinerCard from "@/components/widgets/Cards/PartnerOneLinerCard";
+import StartEndPixelShow from "@/components/widgets/Cards/StartEndPixelShow";
 
 export default function MainPage() {
   const { isCoupled, loading } = useUser(); // ✅ loading 가져오기
@@ -55,13 +56,13 @@ export default function MainPage() {
         <div className="flex flex-col gap-2 min-w-0">
           <CoupleSchedulePreview limit={5} className="w-full h-fit" />
           <PartnerOneLinerCard />
+          <TodayMessageCard />
         </div>
 
         {/* 가운데: 커플 이미지 */}
         <div className="flex flex-col gap-2 min-w-0">
           {/* <CoupleImageCard className="w-full [&_img]:h-[520px]" /> */}
-          <StartEndMemoriesCard />
-          <TodayMessageCard />
+          <StartEndPixelShow />
         </div>
 
         {/* 오른쪽: 질문 + 일정 */}

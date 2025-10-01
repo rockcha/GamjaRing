@@ -83,7 +83,7 @@ export default function StartEndMemoriesCard({
     return (
       <Card
         className={[
-          "relative rounded-3xl p-6", // overflow-hidden 제거
+          "relative rounded-3xl p-6",
           "bg-gradient-to-br from-rose-50/70 via-white/80 to-sky-50/70",
           "dark:from-neutral-900/80 dark:via-neutral-900/70 dark:to-neutral-900/80",
           "ring-1 ring-border backdrop-blur",
@@ -119,7 +119,7 @@ export default function StartEndMemoriesCard({
   return (
     <Card
       className={[
-        "relative rounded-3xl", // overflow-hidden 제거
+        "relative rounded-3xl",
         "bg-gradient-to-br from-rose-50/70 via-white/80 to-sky-50/70",
         "dark:from-neutral-900/80 dark:via-neutral-900/70 dark:to-neutral-900/80",
         "ring-1 ring-border backdrop-blur p-4 sm:p-6",
@@ -147,19 +147,19 @@ export default function StartEndMemoriesCard({
         </Button>
       </div>
 
-      {/* 본문 */}
+      {/* 본문: 단일 컬럼(위: 시작, 아래: 최신) */}
       <div className="mt-5">
         <PerimeterOrbit
           dash="4 8"
-          radius={16}
-          inset={10} // 콘텐츠 안쪽 여백
-          outset={18} // 바깥 확장(오른쪽 카드까지 넉넉히)
-          clipMargin={14} // 하트 클리핑 방지
+          radius={18}
+          inset={12}
+          outset={22}
+          clipMargin={16}
           durationSec={orbitDurationSec}
           runners={runners}
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 items-start">
-            {/* 처음 */}
+          <div className="flex flex-col gap-6 sm:gap-7">
+            {/* 시작(과거) */}
             <MemoryCell
               label="첫 추억"
               date={firstDate}
@@ -172,7 +172,13 @@ export default function StartEndMemoriesCard({
               hearts={first.hearts ?? 0}
               onOpen={() => nav(`/memories/${first.id}`)}
             />
-            {/* 최근 */}
+
+            {/* 구분 화살표 */}
+            <div className="mx-auto select-none text-2xl leading-none opacity-60">
+              ↓
+            </div>
+
+            {/* 최신(현재) */}
             <MemoryCell
               label="최근 추억"
               date={lastDate}
@@ -211,19 +217,16 @@ export default function StartEndMemoriesCard({
 }
 
 /* ===============================
- * PerimeterOrbit v3.1
- * - path 바깥 확장(outset)으로 오른쪽 카드까지 확실히 감쌈
- * - clipMargin으로 하트 클리핑 방지
- * - 하트가 path 정중앙을 정확히 따르도록 중앙정렬 기준
+ * PerimeterOrbit v3.2 (단일 컬럼 최적화)
  * ============================= */
 function PerimeterOrbit({
   children,
   dash = "4 8",
   durationSec = 14,
   radius = 16,
-  inset = 10, // 콘텐츠 안쪽 여백
-  outset = 14, // 콘텐츠 바깥 확장
-  clipMargin = 10, // 외곽 오픈 마진
+  inset = 10,
+  outset = 14,
+  clipMargin = 12,
   runners = 3,
 }: {
   children: React.ReactNode;
@@ -249,30 +252,26 @@ function PerimeterOrbit({
     return () => ro.disconnect();
   }, []);
 
-  // 실제 px 기반 라운드 사각형 path (inset은 안쪽, outset은 바깥 확장)
   const innerPad = Math.max(0, inset - outset);
   const x = Math.max(0, innerPad);
   const y = Math.max(0, innerPad);
   const w = Math.max(0, box.w - innerPad * 2 + outset * 2);
   const h = Math.max(0, box.h - innerPad * 2 + outset * 2);
 
-  const rrPath = useMemo(
+  const rrPath = React.useMemo(
     () => (w > 0 && h > 0 ? roundRectPath(x, y, w, h, radius) : ""),
     [x, y, w, h, radius]
   );
 
   return (
     <div ref={ref} className="relative">
-      {/* 콘텐츠 */}
       <div className="relative z-10">{children}</div>
 
-      {/* 오버레이 */}
       <div
         className="pointer-events-none absolute inset-0 z-[100] overflow-visible"
         style={{ isolation: "isolate" }}
         aria-hidden
       >
-        {/* 외곽 오픈: 하트가 상하좌우로 나가도 안 잘리게 */}
         <div
           className="absolute"
           style={{
@@ -311,7 +310,7 @@ function PerimeterOrbit({
               <path id={pathId} d={rrPath || "M0 0"} />
             </defs>
 
-            {/* 점선 테두리 */}
+            {/* 점선 외곽 */}
             <use
               href={`#${pathId}`}
               fill="none"
@@ -323,7 +322,7 @@ function PerimeterOrbit({
               style={{ vectorEffect: "non-scaling-stroke" }}
             />
 
-            {/* 러너들: 하트가 path 중앙을 정확히 따르게 그룹 이동 */}
+            {/* 하트 러너 */}
             <g filter={`url(#${pathId}-softGlow)`} className="select-none">
               {Array.from({ length: runners }).map((_, i) => {
                 const offset = (i / Math.max(1, runners)) * durationSec;
@@ -333,7 +332,7 @@ function PerimeterOrbit({
                       <animateMotion
                         dur={`${durationSec}s`}
                         repeatCount="indefinite"
-                        rotate="0" // 기울임 제거
+                        rotate="0"
                         keySplines="0.42 0 0.58 1"
                         calcMode="spline"
                         begin={`${-offset}s`}
@@ -341,7 +340,6 @@ function PerimeterOrbit({
                         <mpath href={`#${pathId}`} />
                       </animateMotion>
 
-                      {/* 중앙 정렬: 세로 구간에서도 정확히 점선 중앙 */}
                       <text
                         x={0}
                         y={0}
@@ -350,7 +348,6 @@ function PerimeterOrbit({
                         dominantBaseline="middle"
                       >
                         <tspan>❤️</tspan>
-                        {/* 호흡감(위치에 영향 X) */}
                         <animateTransform
                           attributeName="transform"
                           type="scale"
@@ -390,40 +387,86 @@ function roundRectPath(x: number, y: number, w: number, h: number, r: number) {
   ].join(" ");
 }
 
-/* ===== 액자 사진 ===== */
+/* =========================
+ * useImageAspect — naturalWidth/Height로 비율 측정
+ * =======================*/
+function useImageAspect(src?: string) {
+  const [ratio, setRatio] = useState<number | null>(null); // width / height
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!src) {
+      setRatio(null);
+      setLoaded(false);
+      return;
+    }
+    let cancelled = false;
+    const img = new Image();
+    img.decoding = "async";
+    img.loading = "eager";
+    img.src = src;
+    img.onload = () => {
+      if (cancelled) return;
+      const w = img.naturalWidth || 4;
+      const h = img.naturalHeight || 3;
+      setRatio(w / h);
+      setLoaded(true);
+    };
+    img.onerror = () => {
+      if (cancelled) return;
+      setRatio(4 / 3);
+      setLoaded(true);
+    };
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
+
+  return { ratio, loaded };
+}
+
+/* ===== 액자 사진 (동적 비율) ===== */
 function FramePhoto({
   src,
   alt,
   hearts = 0,
-  aspect = "aspect-[16/9]",
   onClick,
   ariaLabel,
+  minHeight = 240, // 스켈레톤 가드
+  maxHeight = 780, // 아주 긴 세로 사진 방지
 }: {
   src?: string;
   alt?: string | null;
   hearts?: number;
-  aspect?: string;
   onClick?: () => void;
   ariaLabel?: string;
+  minHeight?: number;
+  maxHeight?: number;
 }) {
+  const { ratio, loaded } = useImageAspect(src);
+  const aspectRatio = ratio ?? 4 / 3;
+
+  const clampStyle: React.CSSProperties = {
+    aspectRatio: String(aspectRatio),
+    minHeight,
+    maxHeight,
+  };
+
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={ariaLabel}
-      className="group block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-[22px]"
+      className="group block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-[24px]"
     >
-      <div
-        className={`relative w-full ${aspect} bg-transparent rounded-[22px]`}
-      >
+      <div className="relative w-full rounded-[24px]" style={clampStyle}>
         {/* 프레임 */}
         <div
           className={[
             "absolute inset-0",
             "bg-gradient-to-b from-stone-500/90 to-stone-400/90",
             "ring-1 ring-stone-300/80 shadow-[0_1px_2px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.5)]",
-            "p-2 md:p-3 transition-transform",
-            "rounded-[22px]",
+            "p-3 sm:p-3.5 rounded-[24px]",
           ].join(" ")}
         >
           {/* 매트 */}
@@ -431,29 +474,34 @@ function FramePhoto({
             className={[
               "h-full w-full rounded-[18px]",
               "ring-1 ring-stone-200/80 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.6)]",
-              "p-1.5 md:p-2",
-              "bg-white/90 dark:bg-neutral-900/80",
+              "p-2 sm:p-2.5 bg-white/92 dark:bg-neutral-900/85",
             ].join(" ")}
           >
             {/* 사진 */}
-            <div className="relative h-full w-full rounded-[14px] overflow-hidden bg-neutral-100">
+            <div className="relative h-full w-full rounded-[14px] overflow-hidden bg-neutral-100 dark:bg-neutral-800">
               {src ? (
-                <img
-                  src={src}
-                  alt={alt ?? ""}
-                  className={[
-                    "absolute inset-0 h-full w-full object-contain",
-                    "transition-transform duration-500 will-change-transform",
-                    "group-hover:scale-[1.01]",
-                  ].join(" ")}
-                  loading="lazy"
-                  decoding="async"
-                  fetchPriority="low"
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                />
+                <>
+                  {!loaded && (
+                    <div className="absolute inset-0 animate-pulse bg-neutral-200/60 dark:bg-neutral-700/40" />
+                  )}
+                  <img
+                    src={src}
+                    alt={alt ?? ""}
+                    className={[
+                      "absolute inset-0 h-full w-full object-contain",
+                      "transition-transform duration-500 will-change-transform",
+                      "group-hover:scale-[1.015]",
+                    ].join(" ")}
+                    loading="lazy"
+                    decoding="async"
+                    fetchPriority="low"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 70vw, 60vw"
+                  />
+                </>
               ) : (
                 <div className="absolute inset-0" />
               )}
+
               {/* 비네트 */}
               <div
                 className="pointer-events-none absolute inset-0"
@@ -467,9 +515,9 @@ function FramePhoto({
           </div>
         </div>
 
-        {/* 하트 카운트 */}
+        {/* 하트 카운트 (조금 키움) */}
         <div
-          className="absolute left-6 top-6 inline-flex items-center gap-1 rounded-full bg-background/80 backdrop-blur px-2.5 py-1.5 text-[11px] shadow-sm ring-1 ring-border"
+          className="absolute left-6 top-6 inline-flex items-center gap-1.5 rounded-full bg-background/85 backdrop-blur px-3 py-1.5 text-[12px] shadow-sm ring-1 ring-border"
           title={`하트 ${hearts}개`}
           aria-label="하트 수"
         >
@@ -479,8 +527,8 @@ function FramePhoto({
 
         {/* 바닥 그림자 */}
         <div
-          className="pointer-events-none absolute inset-x-4 -bottom-1 h-2 rounded-full"
-          style={{ boxShadow: "0 16px 20px -16px rgba(0,0,0,0.18)" }}
+          className="pointer-events-none absolute inset-x-6 -bottom-1.5 h-2 rounded-full"
+          style={{ boxShadow: "0 18px 22px -18px rgba(0,0,0,0.22)" }}
           aria-hidden
         />
       </div>
@@ -518,7 +566,6 @@ function MemoryCell({
         src={imgSrc}
         alt={title ?? ""}
         hearts={hearts}
-        aspect="aspect-[16/9]"
         onClick={onOpen}
         ariaLabel={aria}
       />
