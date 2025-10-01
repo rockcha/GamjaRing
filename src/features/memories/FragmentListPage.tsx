@@ -39,7 +39,10 @@ export default function FragmentListPage() {
   const [items, setItems] = useState<Fragment[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewKey>(
-    () => (localStorage.getItem("mem:view") as ViewKey) || "timeline"
+    () =>
+      (typeof window !== "undefined"
+        ? (localStorage.getItem("mem:view") as ViewKey)
+        : null) || "timeline"
   );
 
   // 헤더 축소(스크롤)
@@ -81,7 +84,9 @@ export default function FragmentListPage() {
   const months = useMemo(() => monthsFromItems(filtered), [filtered]);
 
   useEffect(() => {
-    localStorage.setItem("mem:view", view);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("mem:view", view);
+    }
   }, [view]);
 
   const isTimeline = view === "timeline";
@@ -174,50 +179,55 @@ export default function FragmentListPage() {
 }
 
 /* =========================
- * 중앙 🐾 레일 (걷는 느낌 버전)
- * - 좌우 번갈아가며 한 발씩 찍힘
- * - 각 스텝마다 가로 jitter/회전 랜덤
- * - step으로 촘촘도 조절
+ * 중앙 레일 (월별 이모지 고정 + 일정 간격 + 스크롤 규칙적 흔들림 + 순차 등장)
+ * - 각도 랜덤/회전 제거 (항상 0deg)
+ * - sin 기반으로 좌우/상하 살짝 흔들리는 귀여운 모션
+ * - 섹션 경계 침범 최소화(overflow-hidden + clamp + edge easing)
  * =======================*/
-type PawRailWalkingProps = {
-  /** 세로 간격(px). 기본 44. (촘촘: 32~40 권장) */
-  step?: number;
-  /** 좌우 흔들림 최대치(px) */
-  jitterX?: number;
-  /** 회전 최대치(deg) */
-  angleRange?: number;
-  /** 이모지 시퀀스(기본 🐾). 사람발은 ["👣","👣"] */
-  footprints?: string[];
-  /** 좌우 오프셋(px). 기본 22 (중앙선에서 좌/우 거리) */
-  sideOffset?: number;
-  /** 패럴랙스 강도(스크롤 반응). 0~0.4 추천 */
-  parallax?: number;
-  /** 투명도(0~1) */
-  opacity?: number;
+type PawRailProps = {
+  emoji: string; // 사용할 이모지 (월별 고정)
+  step?: number; // 세로 간격(px). 기본 40
+  sideOffset?: number; // 좌우 오프셋(px). 기본 20
+  parallax?: number; // 패럴랙스 강도
+  opacity?: number; // 투명도(0~1)
+  perItemDelayMs?: number;
+  wiggleSpeedX?: number;
+  wiggleSpeedY?: number;
+  wiggleAmpX?: number;
+  wiggleAmpY?: number;
 };
 
-function PawRailWalking({
-  step = 36,
-  jitterX = 7,
-  angleRange = 12,
-  footprints = ["🐾"],
-  sideOffset = 18,
+function PawRail({
+  emoji,
+  step = 40,
+  sideOffset = 20,
   parallax = 0.12,
-  opacity = 0.7,
-}: PawRailWalkingProps) {
+  opacity = 0.85,
+  perItemDelayMs = 50,
+  wiggleSpeedX = 0.02,
+  wiggleSpeedY = 0.018,
+  wiggleAmpX = 2.2,
+  wiggleAmpY = 2.8,
+}: PawRailProps) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [h, setH] = useState(0);
   const [scrollY, setScrollY] = useState(0);
+  const [containerTop, setContainerTop] = useState(0);
 
-  // 섹션 높이 측정 + 스크롤 패럴랙스
   useEffect(() => {
     if (!wrapRef.current) return;
-    const sec = wrapRef.current.parentElement; // section 상대
+    const sec = wrapRef.current.parentElement; // 섹션
     if (!sec) return;
 
-    const ro = new ResizeObserver(() => setH(sec.clientHeight));
+    const measure = () => {
+      setH(sec.clientHeight);
+      const rect = sec.getBoundingClientRect();
+      setContainerTop(rect.top + window.scrollY);
+    };
+    measure();
+
+    const ro = new ResizeObserver(measure);
     ro.observe(sec);
-    setH(sec.clientHeight);
 
     let raf = 0;
     const onScroll = () => {
@@ -225,34 +235,36 @@ function PawRailWalking({
       raf = requestAnimationFrame(() => setScrollY(window.scrollY || 0));
     };
     window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", measure);
 
     return () => {
       ro.disconnect();
       window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", measure);
       cancelAnimationFrame(raf);
     };
   }, []);
 
-  // 필요한 발자국 개수
   const count = Math.max(0, Math.ceil(h / step) + 2);
 
-  // 랜덤값(고정 시드)
-  const seeds = useMemo(() => {
-    const rnd = (i: number) => {
-      const x = Math.sin(i * 9301 + 49297) * 233280;
-      return x - Math.floor(x);
-    };
-    return Array.from({ length: count }).map((_, i) => {
-      const r = rnd(i);
-      const signed = r * 2 - 1; // -1~1
-      return {
-        jitter: Math.round(signed * jitterX),
-        rot: signed * angleRange,
-        emo: footprints[i % footprints.length],
-      };
-    });
-  }, [count, jitterX, angleRange, footprints]);
+  const visibleCount = useMemo(() => {
+    const visibleBottom = Math.max(
+      0,
+      scrollY + window.innerHeight - containerTop
+    );
+    const n = Math.floor(visibleBottom / step) + 2;
+    return Math.max(0, Math.min(count, n));
+  }, [scrollY, containerTop, step, count]);
 
+  // helpers
+  const clamp = (v: number, min: number, max: number) =>
+    Math.min(max, Math.max(min, v));
+  const smoothstep = (edge0: number, edge1: number, x: number) => {
+    const t = clamp((x - edge0) / (edge1 - edge0), 0, 1);
+    return t * t * (3 - 2 * t);
+  };
+
+  // 패럴랙스 기본 오프셋
   const py = (idx: number) => scrollY * parallax * (idx % 2 === 0 ? 1 : -1);
 
   return (
@@ -262,24 +274,54 @@ function PawRailWalking({
       style={{ opacity }}
       aria-hidden
     >
-      {/* 중앙 점선 가이드 — 필요 없으면 제거 */}
+      {/* 중앙 점선 가이드 */}
       <div className="absolute left-1/2 top-0 -translate-x-1/2 h-full border-l border-dashed border-muted-foreground/30" />
+
       {Array.from({ length: count }).map((_, i) => {
-        const y = i * step;
-        const side = i % 2 === 0 ? -1 : 1; // 좌/우 교차
-        const dx = side * sideOffset + seeds[i]?.jitter;
-        const rot = seeds[i]?.rot ?? 0;
-        const emo = seeds[i]?.emo ?? "🐾";
+        const yBase = i * step;
+        const side = i % 2 === 0 ? -1 : 1;
+        const dxBase = side * sideOffset;
+
+        // 규칙적 흔들림
+        const phase = i * 0.65;
+
+        // 가장자리 구간에서 wiggle/패럴럭스 감쇠
+        const edgeZone = 80; // px
+        const topEase = smoothstep(edgeZone, edgeZone * 2, yBase);
+        const botEase = smoothstep(edgeZone, edgeZone * 2, h - yBase);
+        const edgeEase = Math.min(topEase, botEase);
+
+        const wiggleX =
+          Math.sin(scrollY * wiggleSpeedX + phase) * wiggleAmpX * edgeEase;
+        const wiggleY =
+          Math.cos(scrollY * wiggleSpeedY + phase) * wiggleAmpY * edgeEase;
+
+        const parallaxY = py(i) * edgeEase;
+
+        // 최종 Y, 섹션 높이 내로 클램프
+        const rawY = yBase + parallaxY + wiggleY;
+        const clampedY = clamp(rawY, 0, Math.max(0, h - 16)); // 여유 16px
+
+        // 가시 여부 + 순차 지연
+        const isVisible = i < visibleCount;
+        const delay = `${i * perItemDelayMs}ms`;
+
+        const tx = `calc(-50% + ${dxBase + wiggleX}px)`;
+        const ty = `${clampedY}px`;
+
         return (
           <div
             key={i}
             className="absolute top-0 left-1/2 select-none"
             style={{
-              transform: `translate(calc(-50% + ${dx}px), ${
-                y + py(i)
-              }px) rotate(${rot}deg)`,
+              transform: `translate(${tx}, ${ty}) scale(${
+                isVisible ? 1 : 0.86
+              })`,
               filter: "drop-shadow(0 1px 0 rgba(0,0,0,0.06))",
-              willChange: "transform",
+              willChange: "transform, opacity",
+              transition: `opacity 260ms ease, transform 260ms ease`,
+              transitionDelay: delay,
+              opacity: isVisible ? 1 : 0,
             }}
           >
             <span
@@ -287,7 +329,7 @@ function PawRailWalking({
               style={{ fontSize: "16px" }}
               aria-hidden
             >
-              {emo}
+              {emoji}
             </span>
           </div>
         );
@@ -317,22 +359,25 @@ function ImageBox({
       {/* 프레임 */}
       <div
         className={[
-          "absolute inset-0 ",
+          "absolute inset-0",
           "bg-gradient-to-b from-stone-500/90 to-stone-400/90",
-          "ring-1 ring-stone-300/80 shadow-[0_1px_2px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.5)]",
+          "dark:from-stone-700/90 dark:to-stone-600/90",
+          "ring-1 ring-stone-300/80 dark:ring-stone-500/70",
+          "shadow-[0_1px_2px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.5)]",
           "p-2 md:p-3 transition-transform group-hover:[transform:rotate(-0.2deg)]",
         ].join(" ")}
       >
         {/* 매트(여백) */}
         <div
           className={[
-            "h-full w-full rounded-[18px] ",
-            "ring-1 ring-stone-200/80 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.6)]",
+            "h-full w-full rounded-[18px]",
+            "ring-1 ring-stone-200/80 dark:ring-stone-400/50",
+            "shadow-[inset_0_0_0_1px_rgba(255,255,255,0.6)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]",
             "p-1.5 md:p-2",
           ].join(" ")}
         >
           {/* 사진 */}
-          <div className="relative h-full w-full rounded-[14px] overflow-hidden bg-neutral-100">
+          <div className="relative h-full w-full rounded-[14px] overflow-hidden bg-neutral-100 dark:bg-neutral-800">
             {src ? (
               <img
                 src={src}
@@ -425,10 +470,12 @@ function RailCaptionOuter({
   outerSide, // "left" | "right"
   date,
   title,
+  emoji, // 월 이모지
 }: {
   outerSide: "left" | "right";
   date: string;
   title?: string | null;
+  emoji: string;
 }) {
   const place =
     outerSide === "left"
@@ -450,12 +497,12 @@ function RailCaptionOuter({
         {date}
       </div>
 
-      {/* 제목 */}
+      {/* 제목 (월 이모지 추가) */}
       <div
         className={[
           "mt-0.5 font-semibold text-foreground/90",
-          "text-[22px] sm:text-[24px] md:text-[28px] lg:text-[30px]",
-          "tracking-[-0.012em] [text-wrap:balance] opacity-95",
+          "text-[20px] sm:text-[22px] md:text-[26px] lg:text-[28px]",
+          "tracking-[-0.012em] [text-wrap:balance] opacity-95 line-clamp-2",
         ].join(" ")}
         style={{
           letterSpacing: "-0.012em",
@@ -463,7 +510,10 @@ function RailCaptionOuter({
           textShadow: "0 0 1px rgba(0,0,0,0.10), 0 1px 1.5px rgba(0,0,0,0.06)",
         }}
       >
-        📌 {title}
+        <span aria-hidden className="mr-1">
+          {emoji}
+        </span>
+        {title}
       </div>
     </div>
   );
@@ -485,18 +535,26 @@ function TimelineLarge({
     <div className="relative">
       {groups.map(({ ym, rows }) => {
         const monthNum = parseMonthFromYm(ym);
-        const emoji = monthEmoji(monthNum);
+        const sectionEmoji = monthEmoji(monthNum);
         return (
-          <section key={ym} id={ymToId(ym)} className="relative py-10">
-            {/* 중앙 🐾 레일 (랜덤 걷기) */}
-            <PawRailWalking
+          // 섹션 경계 침범 방지
+          <section
+            key={ym}
+            id={ymToId(ym)}
+            className="relative py-10 overflow-hidden"
+          >
+            {/* 중앙 레일: 월별 이모지 고정 + 규칙적 흔들림 */}
+            <PawRail
+              emoji={sectionEmoji}
               step={40}
               sideOffset={20}
-              jitterX={7}
-              angleRange={12}
-              parallax={0.12}
-              footprints={["🎀"]} // 사람발: ["👣","👣"]
+              parallax={0.1}
               opacity={0.9}
+              perItemDelayMs={45}
+              wiggleSpeedX={0.018}
+              wiggleSpeedY={0.016}
+              wiggleAmpX={1.8}
+              wiggleAmpY={2.2}
             />
 
             {/* 월 헤더칩 (sticky) */}
@@ -509,7 +567,7 @@ function TimelineLarge({
                   "shadow ring-1 ring-border backdrop-blur-md",
                 ].join(" ")}
               >
-                <span className="opacity-95">{emoji}</span>
+                <span className="opacity-95">{sectionEmoji}</span>
                 <span className="opacity-95">{ym}</span>
               </div>
             </div>
@@ -523,6 +581,10 @@ function TimelineLarge({
                 const outerSide: "left" | "right" = isLeftCard
                   ? "right"
                   : "left";
+
+                // 카드별 월 이모지 (개별 날짜 기준)
+                const m = new Date(f.event_date).getMonth() + 1;
+                const titleEmoji = monthEmoji(m);
 
                 return (
                   <article key={f.id} className="relative">
@@ -542,7 +604,9 @@ function TimelineLarge({
                         onClick={() => onOpen(f.id)}
                         onKeyDown={(e) => e.key === "Enter" && onOpen(f.id)}
                         className="group overflow-hidden transition hover:-translate-y-[1px] hover:shadow-lg hover:ring-1 hover:ring-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                        aria-label={`${f.title ?? "무제"} — ${dateStr}`}
+                        aria-label={`${titleEmoji} ${
+                          f.title ?? "무제"
+                        } — ${dateStr}`}
                       >
                         <ImageBox
                           src={
@@ -550,18 +614,19 @@ function TimelineLarge({
                               ? publicUrl(f.cover_photo_path)
                               : undefined
                           }
-                          alt={f.title}
+                          alt={f.title ?? dateStr}
                           hearts={f.hearts ?? 0}
                           aspect="aspect-[16/9]"
                         />
                       </Card>
                     </div>
 
-                    {/* 측면 큰 캡션 */}
+                    {/* 측면 큰 캡션 (타이틀 앞 월 이모지) */}
                     <RailCaptionOuter
                       outerSide={outerSide}
                       date={dateStr}
                       title={f.title}
+                      emoji={titleEmoji}
                     />
                   </article>
                 );
@@ -633,7 +698,7 @@ function MonthNavigator({ months }: { months: string[] }) {
     <TooltipProvider delayDuration={150}>
       <div
         ref={wrapperRef}
-        className="hidden lg:flex fixed right-6 top-1/2 -translate-y-1/2 z-20 max-h-[70vh] flex-col items-center gap-2 overflow-y-auto rounded-2xl bg-white/80 px-2 py-3 shadow-md ring-1 ring-border backdrop-blur"
+        className="hidden lg:flex fixed right-6 top-1/2 -translate-y-1/2 z-20 max-h[70vh] flex-col items-center gap-2 overflow-y-auto rounded-2xl bg-white/80 px-2 py-3 shadow-md ring-1 ring-border backdrop-blur"
         tabIndex={0}
         role="navigation"
         aria-label="월 타임라인 내비게이션"
@@ -656,13 +721,14 @@ function MonthNavigator({ months }: { months: string[] }) {
                 <TooltipTrigger asChild>
                   <button
                     aria-label={`${p.ym}로 이동`}
+                    aria-current={isActive ? "date" : undefined}
                     onClick={() =>
                       document
                         .getElementById(p.id)
                         ?.scrollIntoView({ behavior: "smooth", block: "start" })
                     }
                     className={[
-                      "min-w-[52px] rounded-full px-3 py-1 text-xs tabular-nums ring-1 transition",
+                      "min-w[52px] rounded-full px-3 py-1 text-xs tabular-nums ring-1 transition",
                       "hover:ring-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                       isActive
                         ? "bg-primary text-primary-foreground ring-primary"
@@ -744,7 +810,7 @@ function MonthNavigatorMobile({ months }: { months: string[] }) {
           <SheetTitle>월로 빠르게 이동</SheetTitle>
         </SheetHeader>
 
-        <div className="mt-4 space-y-6 overflow-y-auto max-h-[calc(55vh-64px)] pr-1">
+        <div className="mt-4 space-y-6 overflow-y-auto max-h[calc(55vh-64px)] pr-1">
           {Object.keys(byYear)
             .sort()
             .map((y) => (
@@ -847,7 +913,7 @@ function parseMonthFromYm(ym: string) {
   return Number(m[2]);
 }
 
-// 월 이모지 매핑
+// 월 이모지 매핑 (월별 고정)
 function monthEmoji(m: number) {
   switch (m) {
     case 1:
@@ -867,11 +933,11 @@ function monthEmoji(m: number) {
     case 8:
       return "☔️";
     case 9:
-      return "🍃";
+      return "☕";
     case 10:
-      return "🍂";
-    case 11:
       return "🍁";
+    case 11:
+      return "☃️";
     case 12:
       return "🎄";
     default:

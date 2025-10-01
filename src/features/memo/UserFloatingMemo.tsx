@@ -18,23 +18,19 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 
-/* Font Awesome only */
+/* Font Awesome */
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faNoteSticky,
-  faPenToSquare,
-  faEye,
-  faFloppyDisk,
-  faSpinner,
-} from "@fortawesome/free-solid-svg-icons";
+import { faNoteSticky, faSpinner } from "@fortawesome/free-solid-svg-icons";
+import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 
 /* -------------------- Types & Props -------------------- */
 type Mode = "view" | "edit";
 
 type Props = {
-  /** 카드 헤더 왼쪽에 보일 이모지 (예: "📝" or "🥔") */
-  emoji?: string;
+  /** 카드 헤더 왼쪽 아이콘 (FontAwesome) */
+  icon?: IconDefinition;
   /** 외부에서 여백/정렬 조정용 */
   className?: string;
   /** 접근성 및 SR 전용 라벨 */
@@ -93,7 +89,7 @@ function insertPrefixAtCurrentLine(
 
 /* -------------------- Component -------------------- */
 export default function UserMemoEmojiButton({
-  emoji = "📝",
+  icon = faNoteSticky,
   className = "",
   label = "메모장",
 }: Props) {
@@ -148,19 +144,21 @@ export default function UserMemoEmojiButton({
     }
   }, [user?.id]);
 
-  /** 저장: 수동 저장만, 저장 후 보기 모드로 전환 */
+  /** 저장: 스위치로만 저장(편집→꺼짐) */
   const save = useCallback(
     async (next?: string) => {
       if (!user?.id) {
         toast.error("로그인이 필요해요.");
-        return;
+        return false;
       }
       const body = typeof next === "string" ? next : content;
+
+      // 변경 없으면 보기 모드로만 전환
       if (!dirty && next === undefined) {
-        // 변경 없으면 패스
         setMode("view");
-        return;
+        return true;
       }
+
       setSaving(true);
       try {
         const { error } = await supabase
@@ -175,9 +173,11 @@ export default function UserMemoEmojiButton({
         setDirty(false);
         setMode("view");
         toast.success("메모를 저장했어요.");
+        return true;
       } catch (e: any) {
         console.error("save error:", e);
         toast.error(e?.message || "메모 저장에 실패했어요.");
+        return false;
       } finally {
         setSaving(false);
       }
@@ -190,7 +190,7 @@ export default function UserMemoEmojiButton({
     fetchOrEnsure();
   }, [fetchOrEnsure]);
 
-  /** 글머리 버튼 */
+  /** 글머리/이모지 퀵바 */
   const handleBullet = (b: string) => {
     if (!taRef.current) return;
     const { nextValue, nextCursor } = insertPrefixAtCurrentLine(
@@ -207,6 +207,29 @@ export default function UserMemoEmojiButton({
     });
   };
 
+  /** 스위치 전환 로직
+   * checked = true  → 편집모드 시작 (“수정하기”)
+   * checked = false → 저장 실행 후 보기모드 (“저장하기”)
+   */
+  const handleModeSwitch = async (checked: boolean) => {
+    if (saving || loading) return;
+
+    if (checked) {
+      // 보기 → 편집 시작
+      setMode("edit");
+      requestAnimationFrame(() => taRef.current?.focus());
+    } else {
+      // 편집 → 저장 후 보기
+      const ok = await save();
+      if (!ok) {
+        // 저장 실패 시 스위치 다시 켜서 편집 유지
+        setMode("edit");
+      }
+    }
+  };
+
+  const isEditing = mode === "edit";
+
   return (
     <Card
       className={["p-4 sm:p-5 space-y-3", className].join(" ")}
@@ -215,11 +238,9 @@ export default function UserMemoEmojiButton({
       {/* 헤더 */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-xl select-none" aria-hidden>
-            {emoji}
-          </span>
+          <FontAwesomeIcon icon={icon} className="h-5 w-5 " aria-hidden />
           <div className="flex items-center gap-2">
-            <span className="text-base sm:text-lg font-semibold">메모장</span>
+            <span className="text-base sm:text-xl font-bold">메모장</span>
             {loading && (
               <FontAwesomeIcon
                 icon={faSpinner}
@@ -227,7 +248,7 @@ export default function UserMemoEmojiButton({
                 title="불러오는 중"
               />
             )}
-            {!loading && dirty && mode === "edit" && (
+            {!loading && dirty && isEditing && (
               <Badge variant="secondary" className="ml-1">
                 수정됨
               </Badge>
@@ -235,67 +256,37 @@ export default function UserMemoEmojiButton({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {mode === "view" ? (
-            <Button
-              size="sm"
-              variant="secondary"
-              className="gap-2"
-              onClick={() => setMode("edit")}
-              disabled={loading || saving}
-              aria-label="편집하기"
-              title="편집하기"
-            >
-              <FontAwesomeIcon icon={faPenToSquare} className="h-4 w-4" />
-              편집
-            </Button>
-          ) : (
-            <>
-              <Button
-                size="sm"
-                variant="default"
-                className="gap-2"
-                onClick={() => save()}
-                disabled={saving}
-                aria-label="저장"
-                title="저장"
-              >
-                {saving ? (
-                  <FontAwesomeIcon
-                    icon={faSpinner}
-                    className="h-4 w-4 animate-spin"
-                  />
-                ) : (
-                  <FontAwesomeIcon icon={faFloppyDisk} className="h-4 w-4" />
-                )}
-                저장
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="gap-2"
-                onClick={() => {
-                  setMode("view");
-                  fetchOrEnsure(); // 원본 다시 불러와서 편집 취소 느낌
-                }}
-                disabled={saving}
-                aria-label="보기로 전환"
-                title="보기로 전환"
-              >
-                <FontAwesomeIcon icon={faEye} className="h-4 w-4" />
-                보기
-              </Button>
-            </>
-          )}
+        {/* 모드 스위치: 좌측 '수정하기' | 스위치 | 우측 '저장하기' (항상 노출, 아이콘 없음) */}
+        <div className="flex items-center gap-3">
+          <span
+            className={
+              "text-sm sm:text-base " +
+              (isEditing ? "text-muted-foreground" : "font-medium")
+            }
+          >
+            저장하기
+          </span>
+          <Switch
+            checked={isEditing}
+            onCheckedChange={handleModeSwitch}
+            aria-label="수정하기/저장하기 전환"
+            disabled={loading || saving}
+          />
+          <span
+            className={
+              "text-sm sm:text-base " +
+              (isEditing ? "font-medium" : "text-muted-foreground")
+            }
+          >
+            수정하기
+          </span>
         </div>
       </div>
 
-      <Separator />
-
       {/* 본문 */}
-      {mode === "edit" ? (
+      {isEditing ? (
         <>
-          {/* 글머리/이모지 퀵바 */}
+          {/* 글머리 퀵바 */}
           <div className="flex flex-wrap items-center gap-2">
             {bullets.map((b) => (
               <Button
@@ -321,7 +312,7 @@ export default function UserMemoEmojiButton({
             }}
             placeholder="오늘의 생각, 해야 할 일, 링크 등을 자유롭게 적어보세요."
             className="min-h-[260px] resize-y mt-2"
-            disabled={loading}
+            disabled={loading || saving}
           />
         </>
       ) : (
@@ -330,7 +321,7 @@ export default function UserMemoEmojiButton({
             <div className="flex items-center gap-2 text-muted-foreground">
               <FontAwesomeIcon icon={faNoteSticky} className="h-4 w-4" />
               <span>
-                메모가 비어 있어요. 오른쪽 위 ‘편집’으로 작성해보세요.
+                메모가 비어 있어요. 스위치를 켜서 ‘수정하기’로 작성해보세요.
               </span>
             </div>
           ) : (
