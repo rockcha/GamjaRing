@@ -174,7 +174,130 @@ export default function FragmentListPage() {
 }
 
 /* =========================
- * ImageBox — 이미지에만 집중 (비네트 + 에지 소프트)
+ * 중앙 🐾 레일 (걷는 느낌 버전)
+ * - 좌우 번갈아가며 한 발씩 찍힘
+ * - 각 스텝마다 가로 jitter/회전 랜덤
+ * - step으로 촘촘도 조절
+ * =======================*/
+type PawRailWalkingProps = {
+  /** 세로 간격(px). 기본 44. (촘촘: 32~40 권장) */
+  step?: number;
+  /** 좌우 흔들림 최대치(px) */
+  jitterX?: number;
+  /** 회전 최대치(deg) */
+  angleRange?: number;
+  /** 이모지 시퀀스(기본 🐾). 사람발은 ["👣","👣"] */
+  footprints?: string[];
+  /** 좌우 오프셋(px). 기본 22 (중앙선에서 좌/우 거리) */
+  sideOffset?: number;
+  /** 패럴랙스 강도(스크롤 반응). 0~0.4 추천 */
+  parallax?: number;
+  /** 투명도(0~1) */
+  opacity?: number;
+};
+
+function PawRailWalking({
+  step = 36,
+  jitterX = 7,
+  angleRange = 12,
+  footprints = ["🐾"],
+  sideOffset = 18,
+  parallax = 0.12,
+  opacity = 0.7,
+}: PawRailWalkingProps) {
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [h, setH] = useState(0);
+  const [scrollY, setScrollY] = useState(0);
+
+  // 섹션 높이 측정 + 스크롤 패럴랙스
+  useEffect(() => {
+    if (!wrapRef.current) return;
+    const sec = wrapRef.current.parentElement; // section 상대
+    if (!sec) return;
+
+    const ro = new ResizeObserver(() => setH(sec.clientHeight));
+    ro.observe(sec);
+    setH(sec.clientHeight);
+
+    let raf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => setScrollY(window.scrollY || 0));
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  // 필요한 발자국 개수
+  const count = Math.max(0, Math.ceil(h / step) + 2);
+
+  // 랜덤값(고정 시드)
+  const seeds = useMemo(() => {
+    const rnd = (i: number) => {
+      const x = Math.sin(i * 9301 + 49297) * 233280;
+      return x - Math.floor(x);
+    };
+    return Array.from({ length: count }).map((_, i) => {
+      const r = rnd(i);
+      const signed = r * 2 - 1; // -1~1
+      return {
+        jitter: Math.round(signed * jitterX),
+        rot: signed * angleRange,
+        emo: footprints[i % footprints.length],
+      };
+    });
+  }, [count, jitterX, angleRange, footprints]);
+
+  const py = (idx: number) => scrollY * parallax * (idx % 2 === 0 ? 1 : -1);
+
+  return (
+    <div
+      ref={wrapRef}
+      className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 h-full w-16"
+      style={{ opacity }}
+      aria-hidden
+    >
+      {/* 중앙 점선 가이드 — 필요 없으면 제거 */}
+      <div className="absolute left-1/2 top-0 -translate-x-1/2 h-full border-l border-dashed border-muted-foreground/30" />
+      {Array.from({ length: count }).map((_, i) => {
+        const y = i * step;
+        const side = i % 2 === 0 ? -1 : 1; // 좌/우 교차
+        const dx = side * sideOffset + seeds[i]?.jitter;
+        const rot = seeds[i]?.rot ?? 0;
+        const emo = seeds[i]?.emo ?? "🐾";
+        return (
+          <div
+            key={i}
+            className="absolute top-0 left-1/2 select-none"
+            style={{
+              transform: `translate(calc(-50% + ${dx}px), ${
+                y + py(i)
+              }px) rotate(${rot}deg)`,
+              filter: "drop-shadow(0 1px 0 rgba(0,0,0,0.06))",
+              willChange: "transform",
+            }}
+          >
+            <span
+              className="block leading-none"
+              style={{ fontSize: "16px" }}
+              aria-hidden
+            >
+              {emo}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* =========================
+ * ImageBox — 액자 스타일 (프레임 + 매트 + 사진)
  * =======================*/
 function ImageBox({
   src,
@@ -189,46 +312,74 @@ function ImageBox({
 }) {
   return (
     <div
-      className={`group relative w-full ${aspect} bg-muted rounded-lg overflow-hidden`}
+      className={`group relative w-full ${aspect} bg-transparent rounded-[22px]`}
     >
-      {src ? (
-        <img
-          src={src}
-          alt={alt ?? ""}
-          className={[
-            "absolute inset-0 w-full h-full object-contain",
-            "transition-transform duration-500 will-change-transform",
-            "group-hover:scale-[1.012]",
-            "[mask-image:radial-gradient(120%_120%_at_50%_50%,#000_65%,transparent_100%)]",
-          ].join(" ")}
-          loading="lazy"
-          decoding="async"
-          fetchPriority="low"
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-        />
-      ) : (
-        <div className="absolute inset-0" />
-      )}
-
-      {/* 미세 비네트 */}
+      {/* 프레임 */}
       <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(120% 120% at 50% 45%, transparent 55%, rgba(0,0,0,0.06) 100%)",
-        }}
-        aria-hidden
-      />
+        className={[
+          "absolute inset-0 ",
+          "bg-gradient-to-b from-stone-500/90 to-stone-400/90",
+          "ring-1 ring-stone-300/80 shadow-[0_1px_2px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.5)]",
+          "p-2 md:p-3 transition-transform group-hover:[transform:rotate(-0.2deg)]",
+        ].join(" ")}
+      >
+        {/* 매트(여백) */}
+        <div
+          className={[
+            "h-full w-full rounded-[18px] ",
+            "ring-1 ring-stone-200/80 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.6)]",
+            "p-1.5 md:p-2",
+          ].join(" ")}
+        >
+          {/* 사진 */}
+          <div className="relative h-full w-full rounded-[14px] overflow-hidden bg-neutral-100">
+            {src ? (
+              <img
+                src={src}
+                alt={alt ?? ""}
+                className={[
+                  "absolute inset-0 h-full w-full object-contain",
+                  "transition-transform duration-500 will-change-transform",
+                  "group-hover:scale-[1.01]",
+                ].join(" ")}
+                loading="lazy"
+                decoding="async"
+                fetchPriority="low"
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              />
+            ) : (
+              <div className="absolute inset-0" />
+            )}
+
+            {/* 얕은 비네트 */}
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background:
+                  "radial-gradient(120% 120% at 50% 45%, transparent 60%, rgba(0,0,0,0.06) 100%)",
+              }}
+              aria-hidden
+            />
+          </div>
+        </div>
+      </div>
 
       {/* 하트 오버레이 */}
       <div
-        className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-background/75 backdrop-blur px-2 py-1 text-[11px] shadow-sm"
+        className="absolute left-6 top-6 inline-flex items-center gap-1 rounded-full bg-background/80 backdrop-blur px-2.5 py-1.5 text-[11px] shadow-sm ring-1 ring-border"
         title={`하트 ${hearts}개`}
         aria-label="하트 수"
       >
         <span aria-hidden>❤️</span>
         <span className="tabular-nums">{hearts}</span>
       </div>
+
+      {/* 바닥 그림자 */}
+      <div
+        className="pointer-events-none absolute inset-x-4 -bottom-1 h-2 rounded-full"
+        style={{ boxShadow: "0 16px 20px -16px rgba(0,0,0,0.18)" }}
+        aria-hidden
+      />
     </div>
   );
 }
@@ -268,7 +419,7 @@ function ListView({
 }
 
 /* =========================
- * Rail Caption (Outer) — 카드 반대편 '측면 여백'에 크게 배치
+ * Rail Caption (Outer) — 카드 반대편 측면 캡션
  * =======================*/
 function RailCaptionOuter({
   outerSide, // "left" | "right"
@@ -294,12 +445,12 @@ function RailCaptionOuter({
       ].join(" ")}
       style={{ lineHeight: 1.12 }}
     >
-      {/* 날짜 — 고요한 얇은 톤 */}
+      {/* 날짜 */}
       <div className="text-[15px] md:text-[16px] tracking-[0.08em] tabular-nums text-muted-foreground/90 blur-[0.1px]">
-        🐾 {date}
+        {date}
       </div>
 
-      {/* 제목 — 크게, 살짝 기울기 + 잉크 스밈 느낌 */}
+      {/* 제목 */}
       <div
         className={[
           "mt-0.5 font-semibold text-foreground/90",
@@ -312,7 +463,7 @@ function RailCaptionOuter({
           textShadow: "0 0 1px rgba(0,0,0,0.10), 0 1px 1.5px rgba(0,0,0,0.06)",
         }}
       >
-        {title}
+        📌 {title}
       </div>
     </div>
   );
@@ -320,7 +471,6 @@ function RailCaptionOuter({
 
 /* =========================
  * Timeline Large — 중앙 레일 + 좌/우 교차
- * (카드 안 텍스트 제거, 측면 캡션 추가, 핀 제거)
  * =======================*/
 function TimelineLarge({
   items,
@@ -338,13 +488,18 @@ function TimelineLarge({
         const emoji = monthEmoji(monthNum);
         return (
           <section key={ym} id={ymToId(ym)} className="relative py-10">
-            {/* 중앙 점선 레일 */}
-            <div
-              className="pointer-events-none absolute left-1/2 top-0 h-full -translate-x-1/2 border-l-2 border-dashed border-muted-foreground/40"
-              aria-hidden
+            {/* 중앙 🐾 레일 (랜덤 걷기) */}
+            <PawRailWalking
+              step={40}
+              sideOffset={20}
+              jitterX={7}
+              angleRange={12}
+              parallax={0.12}
+              footprints={["🎀"]} // 사람발: ["👣","👣"]
+              opacity={0.9}
             />
 
-            {/* 월 헤더칩 (sticky) — 글로우/블러 강조 */}
+            {/* 월 헤더칩 (sticky) */}
             <div className="sticky top-24 z-10 mb-8 text-center">
               <div
                 className={[
@@ -365,8 +520,6 @@ function TimelineLarge({
                 const isLeftCard = i % 2 === 0;
                 const mt = isLeftCard ? 0 : 8;
                 const dateStr = formatDate(f.event_date);
-
-                // 카드가 왼쪽이면 캡션은 오른쪽 측면, 카드가 오른쪽이면 캡션은 왼쪽 측면
                 const outerSide: "left" | "right" = isLeftCard
                   ? "right"
                   : "left";
@@ -747,7 +900,10 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
 function SkeletonTimeline() {
   return (
     <div className="relative">
-      <div className="pointer-events-none absolute left-1/2 top-0 h-full -translate-x-1/2 border-l-2 border-dashed border-muted-foreground/30" />
+      {/* 로딩 중에도 중앙 레일 느낌 유지 */}
+      <div className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 h-full w-16 opacity-50">
+        <div className="absolute left-1/2 top-0 -translate-x-1/2 h-full border-l border-dashed border-muted-foreground/30" />
+      </div>
       <div className="space-y-8">
         {Array.from({ length: 5 }).map((_, i) => (
           <Card key={i} className="overflow-hidden">

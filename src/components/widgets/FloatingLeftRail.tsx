@@ -78,7 +78,7 @@ export default function FloatingLeftRail() {
           >
             {/* 필요 시 보여줄 항목들 */}
             {/* <PotatoPokeButton /> */}
-            <UserMemoEmojiButton />
+            {/* <UserMemoEmojiButton /> */}
             <TimeCapsuleButton />
             <WeatherCard />
             <DailyFortuneCard />

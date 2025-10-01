@@ -17,6 +17,7 @@ import TodayMessageCard from "@/components/widgets/Cards/TodayMessageCard";
 import GloomyMessageCard from "@/components/widgets/Cards/GloomyMessageCard";
 import GloomyRatingsBoard from "@/components/widgets/Cards/GloomyRatingsBoard";
 import GloomyRatingsCompletedBoard from "@/components/widgets/Cards/GloomyRatingsCompletedBoard";
+import UserMemoEmojiButton from "@/features/memo/UserFloatingMemo";
 
 export default function MainPage() {
   const { isCoupled, loading } = useUser(); // ✅ loading 가져오기
@@ -62,6 +63,7 @@ export default function MainPage() {
         {/* 오른쪽: 질문 + 일정 */}
         <div className="flex flex-col  min-w-0">
           <TodayMessageCard />
+          <UserMemoEmojiButton />
         </div>
       </div>
     </div>
