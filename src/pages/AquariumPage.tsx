@@ -1,7 +1,7 @@
-// src/pages/AquariumPage.tsx (전체 코드)
+// src/pages/AquariumPage.tsx
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import supabase from "@/lib/supabase";
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { toast } from "sonner";
@@ -40,14 +40,14 @@ const TANK_PRICE = 200;
 /** 배경 숨김 폴백 지연(ms) — AquariumBox가 onReady를 못 보낼 경우 대비 */
 const BG_FALLBACK_HIDE_MS = 1200;
 
+type TankRow = { tank_no: number; title: string; theme_id: number | null };
+
 function AquariumPage() {
   const { couple, fetchCoupleData } = useCoupleContext();
   const coupleId = couple?.id ?? null;
 
   /** 커플의 탱크 목록 */
-  const [tanks, setTanks] = useState<
-    Array<{ tank_no: number; title: string; theme_id: number | null }>
-  >([]);
+  const [tanks, setTanks] = useState<TankRow[]>([]);
   /** 현재 선택 index (0-based, 항상 첫 탱크부터) */
   const [idx, setIdx] = useState(0);
 
@@ -65,6 +65,9 @@ function AquariumPage() {
   /** ✅ 어항 로딩 마스크(배경) 표시 상태 */
   const [showBg, setShowBg] = useState(true);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** 🎯 프레임 레퍼런스(Parallax Tilt) */
+  const frameRef = useRef<HTMLDivElement | null>(null);
 
   /** AquariumBox에서 준비 완료 시 호출 (옵션) */
   const handleAquariumReady = () => {
@@ -119,11 +122,7 @@ function AquariumPage() {
       setTanks([]);
       return;
     }
-    const rows = (data ?? []) as Array<{
-      tank_no: number;
-      title: string;
-      theme_id: number | null;
-    }>;
+    const rows = (data ?? []) as TankRow[];
 
     setTanks(rows);
     setIdx(0); // 항상 1번부터
@@ -194,11 +193,8 @@ function AquariumPage() {
 
   /** ✅ 탱크가 바뀌면 배경을 잠깐 다시 보여주고, 폴백 타이머로 자동 숨김 */
   useEffect(() => {
-    // 배경 즉시 표시
     setShowBg(true);
-    // 기존 타이머 정리
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-    // 폴백: AquariumBox가 onReady를 호출하지 않아도 일정 시간 후 자동 숨김
     hideTimerRef.current = setTimeout(() => {
       setShowBg(false);
       hideTimerRef.current = null;
@@ -217,10 +213,33 @@ function AquariumPage() {
   const AQUARIUM_WIDTH_CSS = "min(100%, calc(85vw))";
 
   /** ✅ 프레임(좌표 기준) — overlay와 Box가 같은 좌표계 사용 */
-  const frameStyle = {
-    height: `${AQUARIUM_HEIGHT_VH}vh`,
-    width: AQUARIUM_WIDTH_CSS,
-  } as const;
+  const frameStyle = useMemo(
+    () =>
+      ({
+        height: `${AQUARIUM_HEIGHT_VH}vh`,
+        width: AQUARIUM_WIDTH_CSS,
+      } as const),
+    []
+  );
+
+  /** 🎯 Parallax cursor(아주 약하게) */
+  const onParallaxMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = frameRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = (e.clientX - cx) / rect.width; // -0.5 ~ 0.5
+    const dy = (e.clientY - cy) / rect.height;
+    const rotX = dy * -3; // 상하 반전
+    const rotY = dx * 3;
+    el.style.transform = `perspective(1000px) rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+  };
+  const onParallaxLeave = () => {
+    const el = frameRef.current;
+    if (!el) return;
+    el.style.transform = "perspective(1000px) rotateX(0deg) rotateY(0deg)";
+  };
 
   return (
     <div className="min-h-[calc(100svh-64px)] w-full flex flex-col">
@@ -241,14 +260,29 @@ function AquariumPage() {
             {/* ✅ 프레임 컨테이너: 로딩 PNG + AquariumBox + 모든 오버레이를 같은 기준으로 */}
             {cur ? (
               <div
-                className="relative mx-auto rounded-2xl overflow-hidden will-change-transform transform-gpu"
+                ref={frameRef}
+                onMouseMove={onParallaxMove}
+                onMouseLeave={onParallaxLeave}
+                className="relative mx-auto rounded-2xl overflow-hidden will-change-transform transform-gpu ring-1 ring-white/20 bg-white/5 backdrop-blur-[2px] transition-transform duration-200"
                 style={frameStyle}
               >
+                {/* ✅ Glass/Grain/Caustics/Vignette Overlays (1,2) */}
+                <div className="pointer-events-none absolute inset-0 z-[15]">
+                  {/* Soft vignette */}
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0)_0%,rgba(0,0,0,0.22)_75%)] mix-blend-multiply" />
+                  {/* Highlight sweep */}
+                  <div className="absolute -left-1/3 -top-1/3 w-[160%] h-1/2 -rotate-12 bg-white/10 blur-md animate-shine" />
+                  {/* Film grain (put a small transparent tile at /textures/grain.png) */}
+                  <div className="absolute inset-0 opacity-[0.07] bg-[url('/textures/grain.png')] bg-repeat mix-blend-overlay" />
+                  {/* Caustics (put a soft caustics tile at /textures/caustics.png) */}
+                  <div className="absolute inset-0 opacity-20 mix-blend-soft-light animate-caustics bg-[url('/textures/caustics.png')] bg-[length:140%_140%]" />
+                </div>
+
                 {/* ✅ 로딩용 배경 (같은 프레임 기준) */}
                 <div
                   aria-hidden
                   className={cn(
-                    "absolute inset-0 pointer-events-none transition-opacity duration-500",
+                    "absolute inset-0 z-[5] pointer-events-none transition-opacity duration-500",
                     showBg ? "opacity-100" : "opacity-0"
                   )}
                 >
@@ -265,52 +299,29 @@ function AquariumPage() {
                 </div>
 
                 {/* ✅ 오버레이 UI들 (프레임 기준 절대배치) */}
-                {/* 어항 좌상단: 추가하기 */}
-                <button
-                  onClick={() => setConfirmOpen(true)}
-                  className={cn(
-                    "absolute left-6 top-2 z-20",
-                    "inline-flex items-center gap-1 rounded-full",
-                    "bg-white/90 border px-3 py-1 text-xs sm:text-sm shadow hover:bg-white"
-                  )}
-                  title={`어항 추가 (🪙${TANK_PRICE.toLocaleString("ko-KR")})`}
-                >
-                  <PlusCircle className="w-6 h-6" />
-                  추가하기
-                </button>
 
-                {/* 어항 상단 중앙: 현재 테마 + 제목(편집) */}
+                {/* (6) 상단 중앙: 리본 라벨 + 테마 우표 스티커 */}
                 <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30">
                   <div className="flex items-center gap-2 pointer-events-auto">
+                    {/* stamp */}
                     <span
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded-full",
-                        "bg-white/80 border backdrop-blur px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs text-slate-800 shadow"
-                      )}
+                      className="hidden sm:inline-flex items-center px-2 py-1 text-[11px] rounded-md border bg-white/80 backdrop-blur stamp"
                       title={
                         themeTitle
                           ? `현재 테마: ${themeTitle}`
                           : "현재 테마: 기본"
                       }
                     >
-                      <span aria-hidden className="text-[12px] sm:text-[13px]">
-                        현재 테마 :
-                      </span>
-                      <b className="font-semibold">
-                        {themeTitle || "기본 테마"}
-                      </b>
+                      ✦ {themeTitle || "기본 테마"}
                     </span>
 
                     {!editing ? (
                       <button
-                        className="group inline-flex items-center gap-2 rounded-full  bg-black/35 text-white text-xs sm:text-sm px-2.5 sm:px-3 py-0.5 sm:py-1 backdrop-blur-sm"
+                        className="group ribbon px-4 py-1.5 text-sm font-semibold"
                         onClick={() => setEditing(true)}
                         title="어항 이름 수정"
                       >
-                        <span className="font-semibold tracking-wide line-clamp-1 max-w-[40vw] sm:max-w-none">
-                          {cur?.title || "이름 없는 어항"}
-                        </span>
-                        <Pencil className="w-3.5 h-3.5 opacity-80 group-hover:opacity-100" />
+                        {cur?.title || "이름 없는 어항"}
                       </button>
                     ) : (
                       <div className="inline-flex items-center gap-1 bg-white/90 border rounded-full px-2 py-1 shadow">
@@ -344,14 +355,26 @@ function AquariumPage() {
                   </div>
                 </div>
 
-                {/* 좌/우 화살표 — 프레임 기준 오버레이 */}
+                {/* 좌상단: 추가하기 */}
+                <button
+                  onClick={() => setConfirmOpen(true)}
+                  className={cn(
+                    "absolute left-6 top-2 z-30 inline-flex items-center gap-1 rounded-full",
+                    "bg-white/90 border px-3 py-1 text-xs sm:text-sm shadow hover:bg-white pointer-events-auto"
+                  )}
+                  title={`어항 추가 (🪙${TANK_PRICE.toLocaleString("ko-KR")})`}
+                >
+                  <PlusCircle className="w-6 h-6" />
+                  추가하기
+                </button>
+
+                {/* 좌/우 화살표 */}
                 {tanks.length > 1 && (
                   <>
                     <button
                       className={cn(
-                        "absolute left-0 top-1/2 -translate-y-1/2 z-20",
-                        "pointer-events-auto rounded-full bg-white/80 hover:bg-white",
-                        "border shadow grid place-items-center",
+                        "absolute left-0 top-1/2 -translate-y-1/2 z-30 pointer-events-auto",
+                        "rounded-full bg-white/80 hover:bg-white border shadow grid place-items-center",
                         "h-11 w-11 sm:h-12 sm:w-12"
                       )}
                       onClick={prev}
@@ -362,9 +385,8 @@ function AquariumPage() {
                     </button>
                     <button
                       className={cn(
-                        "absolute right-0 top-1/2 -translate-y-1/2 z-20",
-                        "pointer-events-auto rounded-full bg-white/80 hover:bg-white",
-                        "border shadow grid place-items-center",
+                        "absolute right-0 top-1/2 -translate-y-1/2 z-30 pointer-events-auto",
+                        "rounded-full bg-white/80 hover:bg-white border shadow grid place-items-center",
                         "h-11 w-11 sm:h-12 sm:w-12"
                       )}
                       onClick={next}
@@ -376,9 +398,9 @@ function AquariumPage() {
                   </>
                 )}
 
-                {/* 하단 인디케이터 — 프레임 내부 정렬 */}
+                {/* 하단 인디케이터 */}
                 {tanks.length > 1 && (
-                  <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+                  <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
                     <div className="flex items-center gap-1.5">
                       {tanks.map((t, i) => {
                         const active = i === idx;
@@ -403,7 +425,7 @@ function AquariumPage() {
             ) : (
               // 탱크 목록 자체가 아직 없을 때의 플레이스홀더
               <div
-                className="relative rounded-2xl overflow-hidden mx-auto grid place-items-center"
+                className="relative rounded-2xl overflow-hidden mx-auto grid place-items-center ring-1 ring-white/20 bg-white/5 backdrop-blur-[2px]"
                 style={frameStyle}
               >
                 <div className="px-3 py-1.5 rounded-md bg-white/80 border shadow text-sm">
@@ -413,13 +435,15 @@ function AquariumPage() {
             )}
           </div>
 
-          {/* === 오른쪽: 이름 칩 네비게이터 === */}
+          {/* === 오른쪽: 이름 칩 네비게이터 (7: 감성 스킨 래퍼) === */}
           <div className="hidden lg:block">
-            <TankChipsNavigator
-              tanks={tanks}
-              idx={idx}
-              onSelect={(i) => setIdx(i)}
-            />
+            <div className="tank-chips-skin">
+              <TankChipsNavigator
+                tanks={tanks}
+                idx={idx}
+                onSelect={(i) => setIdx(i)}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -450,6 +474,73 @@ function AquariumPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 🎨 스타일 (1,2,4,6,7) */}
+      <style>{`
+        /* 1) 유리 하이라이트 스윕 */
+        @keyframes shine {
+          0% { transform: translateX(-20%) rotate(-12deg); opacity: 0; }
+          40% { opacity: .28; }
+          100% { transform: translateX(20%) rotate(-12deg); opacity: 0; }
+        }
+        .animate-shine { animation: shine 6s ease-in-out infinite; }
+
+        /* 2) Caustics */
+        @keyframes caustics {
+          0% { background-position: 0% 0%; }
+          50% { background-position: 50% 100%; }
+          100% { background-position: 0% 0%; }
+        }
+        .animate-caustics { animation: caustics 14s ease-in-out infinite; }
+
+        /* 4) Parallax는 JS에서 transform을 갱신 (transition은 컨테이너 클래스에 적용) */
+
+        /* 6) 리본 라벨 & 우표 스탬프 */
+        .ribbon {
+          position: relative;
+          color: #17324a;
+          background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.6));
+          border: 1px solid rgba(23,50,74,.15);
+          border-radius: 9999px;
+          box-shadow: 0 4px 18px rgba(0,0,0,.06), inset 0 1px 0 rgba(255,255,255,.8);
+        }
+        .ribbon::before, .ribbon::after {
+          content: "";
+          position: absolute; top: 50%; transform: translateY(-50%) rotate(45deg);
+          width: 10px; height: 10px; background: #e6eef6; border: 1px solid rgba(23,50,74,.15);
+        }
+        .ribbon::before { left: -6px; }
+        .ribbon::after { right: -6px; }
+        .stamp {
+          box-shadow: inset 0 0 0 1px rgba(0,0,0,.04);
+          clip-path: polygon(6% 0, 94% 0, 100% 6%, 100% 94%, 94% 100%, 6% 100%, 0 94%, 0 6%);
+        }
+
+        /* 7) 우측 네비 칩 감성 스킨 (컴포넌트 내부 구조를 모를 때 대응) */
+        /* data-active나 active 클래스를 우선 탐색 */
+        .tank-chips-skin [data-active="true"],
+        .tank-chips-skin .active {
+          position: relative;
+          background: linear-gradient(180deg, rgba(255,255,255,.7), rgba(255,255,255,.45)) !important;
+          backdrop-filter: blur(6px);
+          border: 1px solid rgba(125, 211, 252, .4) !important; /* sky-300/40 */
+          box-shadow: 0 6px 16px rgba(2, 132, 199, .12);       /* sky-600 shadow */
+        }
+        .tank-chips-skin [data-active="true"]::before,
+        .tank-chips-skin .active::before {
+          content: "";
+          position: absolute; left: -10px; top: 50%; transform: translateY(-50%);
+          height: 8px; width: 8px; border-radius: 9999px;
+          background: rgb(16,185,129); /* emerald-500 */
+          box-shadow: 0 0 10px rgba(16,185,129,.6);
+        }
+        /* hover 물방울 팝 */
+        .tank-chips-skin button:hover,
+        .tank-chips-skin [role="button"]:hover {
+          transform: translateY(-1px) scale(1.01);
+          transition: transform .18s ease;
+        }
+      `}</style>
     </div>
   );
 }

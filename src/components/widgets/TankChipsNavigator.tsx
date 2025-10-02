@@ -58,8 +58,7 @@ export default function TankChipsNavigator({
         aria-label="아쿠아리움 이름 네비게이터"
       >
         <header className="px-1 py-0.5">
-          <h3 className="font-semibold text-sm">아쿠아리움 네비게이터</h3>
-          <p className="text-xs text-muted-foreground">이름으로 바로 이동</p>
+          <h3 className="font-semibold text-sm">네비게이터</h3>
         </header>
 
         <Separator className="my-2" />
