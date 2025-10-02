@@ -25,14 +25,13 @@ type Props = {
   type?: AvatarWidgetType;
   /** 기본 true: 유저 아바타에서 메뉴 사용, 파트너는 항상 비활성 */
   enableMenu?: boolean;
-  /** 상태 점 표시 여부(기본 true) */
-  showStatusDot?: boolean;
 };
 
 const AVATAR_SIZE: Record<AvatarWidgetSize, string> = {
-  sm: "h-10 w-10",
-  md: "h-12 w-12",
-  lg: "h-14 w-14",
+  // 기존보다 한 단계씩 키움
+  sm: "h-12 w-12",
+  md: "h-14 w-14",
+  lg: "h-16 w-16",
 };
 
 const NAME_TEXT: Record<AvatarWidgetSize, string> = {
@@ -50,7 +49,8 @@ function AvatarRing({
   children: React.ReactNode;
   size: AvatarWidgetSize;
 }) {
-  const pad = size === "sm" ? "p-[2px]" : "p-[3px]";
+  // 사이즈 키운 것에 맞춰 살짝 패딩 업
+  const pad = size === "sm" ? "p-[3px]" : size === "md" ? "p-[4px]" : "p-[5px]";
   return (
     <div
       className={cn(
@@ -65,33 +65,6 @@ function AvatarRing({
   );
 }
 
-function StatusDot({
-  type,
-  isLoggedIn,
-  size = "md",
-}: {
-  type: AvatarWidgetType;
-  isLoggedIn: boolean;
-  size: AvatarWidgetSize;
-}) {
-  const base =
-    "absolute rounded-full ring-2 ring-white shadow-[0_0_0_1px_rgba(0,0,0,0.04)]";
-  const dim =
-    size === "sm" ? "h-2.5 w-2.5" : size === "md" ? "h-3 w-3" : "h-3.5 w-3.5";
-  const pos =
-    size === "sm"
-      ? "bottom-0 right-0 translate-x-0.5 translate-y-0.5"
-      : "bottom-0.5 right-0.5";
-  const tone =
-    type === "partner"
-      ? "bg-rose-400"
-      : isLoggedIn
-      ? "bg-emerald-500"
-      : "bg-neutral-300";
-
-  return <span className={cn(base, dim, pos, tone)} aria-hidden />;
-}
-
 /* ───────────────────────── component ───────────────────────── */
 
 export default function AvatarWidget({
@@ -99,7 +72,6 @@ export default function AvatarWidget({
   size = "md",
   type = "user",
   enableMenu = true,
-  showStatusDot = true,
 }: Props) {
   const { user, logout } = useUser();
   const navigate = useNavigate();
@@ -226,10 +198,6 @@ export default function AvatarWidget({
             )}
           </Avatar>
         </AvatarRing>
-
-        {showStatusDot && (
-          <StatusDot type={type} isLoggedIn={isLoggedIn} size={size} />
-        )}
       </div>
 
       <span
