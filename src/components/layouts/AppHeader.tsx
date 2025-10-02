@@ -83,7 +83,7 @@ const CenterCluster = memo(function CenterCluster() {
 const RightClusterDesktop = memo(function RightClusterDesktop() {
   return (
     <div className="hidden md:flex items-center justify-end gap-2">
-      <NotificationDropdown />
+      <NotificationDropdown iconSize={56} />
       <CoupleBalanceCard showDelta dense />
       <AvatarWidget />
     </div>

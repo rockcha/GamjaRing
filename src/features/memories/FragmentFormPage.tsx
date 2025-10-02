@@ -5,17 +5,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
@@ -50,7 +42,7 @@ import {
   faCamera,
   faBackward,
 } from "@fortawesome/free-solid-svg-icons";
-import { CalendarDays, MoreVertical } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 
 type PhotoDraft = {
   id: string;
@@ -111,101 +103,6 @@ function formatKoreanDateStr(ymd: string) {
     month: "2-digit",
     day: "2-digit",
   });
-}
-
-/* ============== 우측 툴바(폼 전용) ============== */
-function FormToolbarRight({
-  dateText,
-  onOpenDate,
-  onSave,
-  saving,
-  canSave,
-  onAddDraft,
-  onGoBack,
-}: {
-  dateText: string;
-  onOpenDate: () => void;
-  onSave: () => void;
-  saving: boolean;
-  canSave: boolean;
-  onAddDraft: () => void;
-  onGoBack: () => void;
-}) {
-  return (
-    <TooltipProvider delayDuration={80}>
-      <div className="flex items-center gap-2">
-        {/* 날짜 버튼 */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={onOpenDate}
-              className="inline-flex items-center gap-2 h-10 px-3 rounded-md bg-secondary text-secondary-foreground hover:opacity-90 transition-colors group max-md:px-2"
-              aria-label="날짜 선택"
-              title={dateText}
-              type="button"
-            >
-              <CalendarDays className="size-4 shrink-0" />
-              <span className="hidden md:inline">{dateText}</span>
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>날짜 선택</TooltipContent>
-        </Tooltip>
-
-        {/* 구분선 */}
-        <Separator orientation="vertical" className="h-6" />
-
-        {/* 저장하기 */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={onSave}
-              disabled={saving || !canSave}
-              className="inline-flex items-center gap-2 h-10 px-3 rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-colors"
-              aria-label="저장하기"
-              type="button"
-            >
-              {saving ? (
-                <>
-                  <FontAwesomeIcon icon={faSpinner} className="size-4" spin />
-                  <span className="hidden sm:inline">저장중…</span>
-                </>
-              ) : (
-                <>
-                  <span className="hidden sm:inline">저장하기</span>
-                  <span className="sm:hidden">저장</span>
-                </>
-              )}
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>새 추억 조각 저장</TooltipContent>
-        </Tooltip>
-
-        {/* 케밥 메뉴 */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-md hover:bg-muted"
-              aria-label="더보기"
-            >
-              <MoreVertical className="size-5" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem onClick={onGoBack}>
-              <FontAwesomeIcon icon={faBackward} className="mr-2" />
-              뒤로가기
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={onAddDraft}>
-              <FontAwesomeIcon icon={faCamera} className="mr-2" />
-              사진 추가
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </TooltipProvider>
-  );
 }
 
 export default function FragmentFormPage() {
@@ -411,49 +308,126 @@ export default function FragmentFormPage() {
 
   const dateText = formatKoreanDateStr(eventDate) || "날짜 선택";
 
-  // sticky offset (너무 크게 잡으면 안 붙는 느낌이 날 수 있음)
+  // sticky offset
   const STICKY_TOP = "top-44 md:top-40";
 
   return (
-    // 🔹 최상단 컨테이너에는 overflow-x를 주지 않음 (sticky 안정화)
     <div className="mx-auto max-w-7xl px-4 md:px-6 py-6 space-y-6">
-      {/* ✅ Sticky 툴바: overflow 컨텍스트 바깥, z-index 상승 */}
+      {/* ✅ Sticky 헤더 : 1행(제목+날짜) / 2행(버튼들) */}
       <div
-        className={`sticky ${STICKY_TOP} z-40 px-3 md:-mx-6 md:px-6 h-14
-        grid grid-cols-[1fr_auto] md:grid-cols-[auto_1fr_auto] items-center gap-3
+        className={`sticky ${STICKY_TOP} z-40 px-3 md:-mx-6 md:px-6
         bg-white/90 md:bg-white/80 supports-[backdrop-filter]:bg-white/70 backdrop-blur
-        rounded-xl border-b shadow-[0_1px_0_rgba(0,0,0,0.03)]`}
+        rounded-xl border shadow-[0_1px_0_rgba(0,0,0,0.03)]`}
       >
-        {/* (옵션) 좌측 여백/자리 - DetailPage와 그리드 라인 맞춤 */}
-        <div className="hidden md:block" />
+        <TooltipProvider delayDuration={80}>
+          {/* Row 1: 제목(좌) + 날짜 버튼(우) */}
+          <div className="h-14 grid grid-cols-[1fr_auto] items-center gap-3">
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="어떤 추억이었나요?"
+              className="bg-transparent outline-none text-xl md:text-2xl font-extrabold tracking-tight min-w-0 w-full truncate"
+              aria-label="제목"
+            />
 
-        {/* 중간: 제목 입력 */}
-        <div className="min-w-0 flex items-center gap-2">
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="어떤 추억이었나요?"
-            className="bg-transparent outline-none text-xl md:text-2xl font-extrabold tracking-tight min-w-0 w-full truncate"
-            aria-label="제목"
-          />
-        </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setTempDate(new Date(eventDate));
+                    setDateOpen(true);
+                  }}
+                  variant="secondary"
+                  className="h-11 rounded-full px-4"
+                  aria-label="날짜 선택"
+                  title={dateText}
+                >
+                  <CalendarDays className="size-4 mr-2" />
+                  <span className="hidden md:inline">{dateText}</span>
+                  <span className="md:hidden">날짜</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>날짜 선택</TooltipContent>
+            </Tooltip>
+          </div>
 
-        {/* 우측: 날짜/저장/메뉴 */}
-        <FormToolbarRight
-          dateText={dateText}
-          onOpenDate={() => {
-            setTempDate(new Date(eventDate));
-            setDateOpen(true);
-          }}
-          onSave={handleCreate}
-          saving={busy}
-          canSave={canSubmit}
-          onAddDraft={addDraft}
-          onGoBack={() => history.back()}
-        />
+          <Separator />
+
+          {/* Row 2: 버튼 3개 (좌: 뒤로가기 / 중: 사진 추가 / 우: 저장) */}
+          <div className="h-16 grid grid-cols-3 items-center gap-3">
+            {/* 뒤로가기 */}
+            <div className="justify-self-start">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    onClick={() => history.back()}
+                    variant="ghost"
+                    className="h-11 rounded-full px-5 bg-white/80 hover:bg-white shadow-sm ring-1 ring-black/5"
+                    aria-label="뒤로가기"
+                  >
+                    <FontAwesomeIcon icon={faBackward} className="mr-2" />
+                    <span className="hidden sm:inline">뒤로가기</span>
+                    <span className="sm:hidden">뒤로</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>이전 페이지로</TooltipContent>
+              </Tooltip>
+            </div>
+
+            {/* 사진 추가 */}
+            <div className="justify-self-center">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    onClick={addDraft}
+                    variant="secondary"
+                    className="h-11 rounded-full px-6 shadow-sm"
+                    aria-label="사진 추가"
+                  >
+                    <FontAwesomeIcon icon={faCamera} className="mr-2" />
+                    <span className="font-medium">사진 추가</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>새 사진 카드 추가</TooltipContent>
+              </Tooltip>
+            </div>
+
+            {/* 저장 */}
+            <div className="justify-self-end">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={handleCreate}
+                    disabled={busy || !canSubmit}
+                    className="h-11 rounded-full px-6 shadow-sm"
+                    aria-label="저장하기"
+                    type="button"
+                  >
+                    {busy ? (
+                      <>
+                        <FontAwesomeIcon
+                          icon={faSpinner}
+                          className="mr-2"
+                          spin
+                        />
+                        저장중…
+                      </>
+                    ) : (
+                      <>저장하기</>
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>새 추억 조각 저장</TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
+        </TooltipProvider>
       </div>
 
-      {/* 🔹 본문 래퍼에만 가로 오버플로 차단 */}
+      {/* 본문 */}
       <div className="overflow-x-hidden space-y-8">
         {/* 날짜 선택 Dialog */}
         <Dialog open={dateOpen} onOpenChange={setDateOpen}>
@@ -547,7 +521,6 @@ export default function FragmentFormPage() {
                     {/* 프리뷰 / 플레이스홀더 */}
                     {d.previewUrl ? (
                       <div className="relative">
-                        {/* 모바일은 비율 기반, md 이상에서 고정 높이 */}
                         <img
                           src={d.previewUrl}
                           alt={`preview-${idx + 1}`}
@@ -631,8 +604,7 @@ export default function FragmentFormPage() {
                   <FontAwesomeIcon className="opacity-80" icon={faImage} />
                 </div>
                 <div>
-                  사진 카드가 없습니다. 우측 상단 <b>︙</b> 메뉴에서{" "}
-                  <b>사진 카드 추가</b>를 선택하세요.
+                  사진 카드가 없습니다. 상단 <b>사진 추가</b> 버튼을 눌러보세요.
                 </div>
               </div>
             </Card>
