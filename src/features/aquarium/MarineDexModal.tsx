@@ -26,10 +26,9 @@ import {
   TooltipContent,
 } from "@/components/ui/tooltip";
 
-/* ▼▼ Font Awesome 추가 ▼▼ */
+/* Font Awesome */
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBook } from "@fortawesome/free-solid-svg-icons";
-/* ▲▲ Font Awesome 추가 ▲▲ */
 
 /* ─ Types ─ */
 type FishRarity = "일반" | "희귀" | "에픽" | "전설";
@@ -47,10 +46,10 @@ type DbEntity = {
 
 /* ─ Helpers ─ */
 const RARITY_CAPTURE: Record<FishRarity, number> = {
-  일반: 0.33,
-  희귀: 0.12,
-  에픽: 0.035,
-  전설: 0.005,
+  일반: 0.26,
+  희귀: 0.075,
+  에픽: 0.013,
+  전설: 0.0002,
 };
 
 function rarityDir(r: FishRarity) {
@@ -85,7 +84,6 @@ export default function MarineDexModal() {
 
   const [rarity, setRarity] = useState<RarityFilter>("전체");
   const [rows, setRows] = useState<DbEntity[]>([]);
-  // 포획 횟수 맵 (1 이상이면 포획)
   const [caughtCountMap, setCaughtCountMap] = useState<Map<string, number>>(
     new Map()
   );
@@ -217,7 +215,6 @@ export default function MarineDexModal() {
         onClick={() => setOpen(true)}
         className="transition-transform duration-150 hover:scale-[1.02] active:scale-100"
       >
-        {/* ▼▼ GIF 제거, Font Awesome 아이콘 사용 ▼▼ */}
         <FontAwesomeIcon icon={faBook} className="mr-2 h-4 w-4" />
         나의 도감
       </Button>
@@ -233,14 +230,14 @@ export default function MarineDexModal() {
                   모든 어종을 한눈에 보고, 등급별로 탐색해 보세요.
                 </p>
               </div>
-              {/* 상단 X 버튼 제거 (요청사항) */}
+              {/* 상단 X 버튼 제거 */}
             </div>
           </DialogHeader>
 
           <Separator className="mt-3" />
 
           <div className="px-5 pt-3 pb-4">
-            {/* Filters (shadcn ToggleGroup) */}
+            {/* Filters */}
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <ToggleGroup
                 type="single"
@@ -274,108 +271,109 @@ export default function MarineDexModal() {
             </div>
 
             {/* List */}
-            <ScrollArea className="h-[64vh] rounded-lg border">
-              <div className="p-3 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-                {list.map((f) => {
-                  const imgSrc = buildImageSrc(f.id, f.rarity);
-                  const [y1, y2] = parseInt4Range(f.swim_y);
-                  const caughtCount = caughtCountMap.get(f.id) ?? 0;
-                  const isCaught = caughtCount > 0;
+            <TooltipProvider delayDuration={120}>
+              <ScrollArea className="h-[64vh] rounded-lg border">
+                <div className="p-3 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+                  {list.map((f) => {
+                    const imgSrc = buildImageSrc(f.id, f.rarity);
+                    const [_y1, _y2] = parseInt4Range(f.swim_y);
+                    const caughtCount = caughtCountMap.get(f.id) ?? 0;
+                    const isCaught = caughtCount > 0;
 
-                  const imgDimCls = isCaught
-                    ? ""
-                    : "grayscale brightness-50 contrast-150 opacity-25";
-                  const shortText =
-                    f.description && f.description.length > 44
-                      ? f.description.slice(0, 44) + "…"
-                      : f.description ?? "";
+                    const imgDimCls = isCaught
+                      ? ""
+                      : "grayscale brightness-50 contrast-150 opacity-25";
 
-                  return (
-                    <Card
-                      key={f.id}
-                      className={`overflow-hidden border-2 ${rarityCardBg(
-                        f.rarity
-                      )}`}
-                    >
-                      <div className="relative">
-                        <AspectRatio ratio={1}>
-                          <img
-                            src={imgSrc}
-                            alt={f.name_ko ?? f.id}
-                            className={`absolute inset-0 h-full w-full object-contain ${imgDimCls}`}
-                            draggable={false}
-                            loading="lazy"
-                            onError={(ev) => {
-                              (ev.currentTarget as HTMLImageElement).onerror =
-                                null;
-                              (ev.currentTarget as HTMLImageElement).src =
-                                "/aquarium/placeholder.png";
-                            }}
-                            title={`수영 높이: ${y1}~${y2}%`}
-                          />
-                        </AspectRatio>
+                    const CardBody = (
+                      <Card
+                        key={f.id}
+                        className={`overflow-hidden border-2 ${rarityCardBg(
+                          f.rarity
+                        )}`}
+                      >
+                        <div className="relative">
+                          <AspectRatio ratio={1}>
+                            <img
+                              src={imgSrc}
+                              alt={f.name_ko ?? f.id}
+                              className={`absolute inset-0 h-full w-full object-contain ${imgDimCls}`}
+                              draggable={false}
+                              loading="lazy"
+                              // 기본 브라우저 title 툴팁 제거
+                              onError={(ev) => {
+                                (ev.currentTarget as HTMLImageElement).onerror =
+                                  null;
+                                (ev.currentTarget as HTMLImageElement).src =
+                                  "/aquarium/placeholder.png";
+                              }}
+                            />
+                          </AspectRatio>
 
-                        {/* 좌상단 희귀도 배지 */}
-                        <div className="absolute left-2 top-2">
-                          <Badge
-                            className={`rounded-full text-[11px] font-semibold ${rarityBadgeCls(
-                              f.rarity
-                            )}`}
-                          >
-                            {f.rarity}
-                          </Badge>
-                        </div>
-                      </div>
+                          {/* 좌상단 희귀도 배지 */}
+                          <div className="absolute left-2 top-2">
+                            <Badge
+                              className={`rounded-full text-[11px] font-semibold ${rarityBadgeCls(
+                                f.rarity
+                              )}`}
+                            >
+                              {f.rarity}
+                            </Badge>
+                          </div>
 
-                      <CardContent className="p-3">
-                        <div className="flex items-center gap-2">
-                          <Badge
-                            variant="secondary"
-                            className="bg-white text-zinc-900 border px-2.5 py-1 text-[11px]"
-                          >
-                            {f.name_ko ?? f.id}
-                          </Badge>
-                        </div>
-
-                        {/* 가격 */}
-                        <div className="mt-1 flex items-center gap-1 text-[11px] text-zinc-700">
-                          <span role="img" aria-label="gold">
-                            🪙
-                          </span>
-                          <span className="font-semibold">{fmt(f.price)}</span>
-                        </div>
-
-                        {/* 설명 (툴팁으로 전체 보기) */}
-                        {f.description && (
-                          <TooltipProvider delayDuration={150}>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <button
-                                  type="button"
-                                  className="mt-2 flex items-center gap-1 text-xs text-zinc-700 hover:text-zinc-900"
-                                >
-                                  <span className="line-clamp-2 text-left">
-                                    {shortText || "설명 보기"}
-                                  </span>
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent
-                                side="top"
-                                align="start"
-                                sideOffset={8}
-                                className="max-w-80 whitespace-pre-wrap break-words leading-relaxed text-[12px]"
+                          {/* 우상단 가격(골드) 고정 */}
+                          <div className="absolute right-2 top-2">
+                            <Badge
+                              variant="secondary"
+                              className="rounded-full px-2.5 py-1 text-[11px] bg-white/85 backdrop-blur border border-white/60 shadow-sm"
+                              title="가격"
+                            >
+                              <span
+                                role="img"
+                                aria-label="gold"
+                                className="mr-1"
                               >
-                                {f.description}
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            </ScrollArea>
+                                🪙
+                              </span>
+                              <span className="tabular-nums">
+                                {fmt(f.price)}
+                              </span>
+                            </Badge>
+                          </div>
+                        </div>
+
+                        <CardContent className="p-3">
+                          {/* 이름: 하단 중앙 정렬 */}
+                          <div className="flex items-center justify-center">
+                            <span className="text-sm font-medium tracking-wide text-zinc-900">
+                              {f.name_ko ?? f.id}
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+
+                    // 설명이 있으면 카드 전체를 TooltipTrigger로 감싸기
+                    return f.description ? (
+                      <Tooltip key={f.id}>
+                        <TooltipTrigger asChild>
+                          <div className="cursor-help">{CardBody}</div>
+                        </TooltipTrigger>
+                        <TooltipContent
+                          side="top"
+                          align="center"
+                          sideOffset={10}
+                          className="max-w-80 whitespace-pre-wrap break-words leading-relaxed text-[12px]"
+                        >
+                          {f.description}
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      CardBody
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            </TooltipProvider>
 
             {/* 하단 안내(좌) + 포획 통계(우) */}
             <div className="mt-3 text-[11px] text-muted-foreground flex items-center justify-between gap-2">

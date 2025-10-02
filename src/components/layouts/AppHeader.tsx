@@ -47,10 +47,10 @@ const TitleCluster = memo(function TitleCluster({
 }) {
   return (
     <div className="pl-2 flex flex-col md:grid md:grid-rows-[auto_auto]">
-      <div className="flex items-center">
+      <div className="flex items-center text-3xl">
         <FontAwesomeIcon
           icon={faHeartPulse}
-          className="h-6 w-6 mr-2 shrink-0 text-amber-600"
+          className=" mr-2 shrink-0 text-amber-600"
         />
         <h1 className="truncate text-2xl font-extrabold tracking-tight">
           {routeTitle}
@@ -58,9 +58,11 @@ const TitleCluster = memo(function TitleCluster({
       </div>
       {/* ✅ 모바일에서는 감춤 */}
       <div className="min-h-[38px] hidden md:flex items-center">
-        <p className="text-[15px] font-medium text-neutral-700 truncate ">
+        <p className="text-[12px] font-medium text-neutral-700 truncate ">
           우리의 기록이 자라나는 공간,{" "}
-          <span className="font-semibold text-amber-600">감자링</span>
+          <span className="font-semibold text-[15px] text-amber-600">
+            감자링
+          </span>
         </p>
       </div>
     </div>
@@ -72,7 +74,7 @@ const CenterCluster = memo(function CenterCluster() {
     <div className="relative self-center order-last md:order-none">
       <div className="flex items-center gap-3 md:justify-center overflow-x-visible">
         <DaysTogetherBadge />
-        <div className="md:hidden h-px w-3 shrink-0 border-b border-dashed border-slate-200/70" />
+        <div className="md:hidden h-px w-3 shrink-0 border-b-4 border-dashed border-slate-200/70" />
       </div>
     </div>
   );
@@ -234,7 +236,7 @@ export default function AppHeader({
   return (
     <header
       className={cn(
-        "sticky top-0 z-40 border-b bg-white/65 backdrop-blur-md supports-[backdrop-filter]:bg-white/55",
+        "sticky top-0 z-40 border-b-4 border-dashed border-amber-300 bg-white/65 backdrop-blur-md supports-[backdrop-filter]:bg-white/55",
         "pt-[env(safe-area-inset-top)]",
         "overflow-x-hidden",
         className
@@ -260,7 +262,7 @@ export default function AppHeader({
       </div>
 
       {/* ✅ 하단 프리뷰 바: 모바일에서는 숨김(요청대로 “이렇게 끝”) */}
-      <div className="hidden md:block border-t bg-white/65 backdrop-blur-md supports-[backdrop-filter]:bg-white/55">
+      <div className="hidden md:block border-t-4 border-dashed border-amber-300  bg-white/65 backdrop-blur-md supports-[backdrop-filter]:bg-white/55">
         <div className="mx-auto w-full max-w-screen-2xl py-2 px-3 sm:px-4">
           <div className="flex items-center gap-2">
             <div className="min-w-0 flex-1">
