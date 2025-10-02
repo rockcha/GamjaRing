@@ -45,7 +45,7 @@ export default function MainPage() {
   return (
     <div className="w-full">
       <div
-        className="
+        className="mt-2
           grid gap-2 items-start
           grid-cols-1
           md:[grid-template-columns:minmax(220px,1fr)_minmax(0,0.9fr)]

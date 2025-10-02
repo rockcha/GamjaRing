@@ -13,12 +13,11 @@ import {
   Drawer,
   DrawerContent,
   DrawerHeader,
-  DrawerDescription,
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch"; // ✅ Switch로 전환 (Tabs 삭제)
+import { Switch } from "@/components/ui/switch";
 
 /* ========= Font Awesome 아이콘을 Lucide 타입처럼 래핑 ========= */
 import { type LucideIcon } from "lucide-react";
@@ -185,7 +184,6 @@ const LS_LAST_ICON_ID = "quickmenu_last_icon_id";
 function ModeBanner({ isWorld }: { isWorld: boolean }) {
   return (
     <div className="relative mt-1 w-full overflow-hidden rounded-2xl">
-      {/* 모바일에서 패턴 농도 살짝 낮춤 */}
       <div
         aria-hidden
         className={cn(
@@ -276,8 +274,7 @@ function BigNavTile({
       <span
         className={cn(
           "text-[13px] sm:text-[15px] font-semibold tracking-tight text-center",
-          "min-w-0 break-keep",
-          "leading-[1.15]",
+          "min-w-0 break-keep leading-[1.15]",
           toneClasses.label
         )}
       >
@@ -307,7 +304,7 @@ export default function QuickMenu() {
     } catch {}
   }, []);
 
-  // FAB에 표시할 아이콘 컴포넌트 결정
+  // FAB 아이콘
   const FabIcon = useMemo<LucideIcon>(() => {
     if (lastIconId && NAV_DEFS[lastIconId]) {
       return NAV_DEFS[lastIconId].icon;
@@ -378,7 +375,7 @@ export default function QuickMenu() {
           "transition-transform"
         )}
       >
-        {/* 배경 패턴 */}
+        {/* 몽글 배경 보케 */}
         <div
           aria-hidden
           className={cn(
@@ -393,34 +390,71 @@ export default function QuickMenu() {
           <DrawerTitle className="text-[18px] font-extrabold sm:text-xl">
             빠른 메뉴
           </DrawerTitle>
-          {/* <DrawerDescription /> 필요시 사용 */}
         </DrawerHeader>
 
-        {/* ✅ 모드 전환: Switch로 대체 (Tabs 제거) */}
+        {/* ✅ 모드 전환: 커스텀 캡슐 + 확장 Switch (크기/터치영역/접근성 개선) */}
         <div className="px-1 sm:px-2">
-          <div className="flex items-center justify-center gap-3 rounded-2xl  px-3 py-2">
-            <span
+          <div
+            role="group"
+            aria-label="우리의 일상 / 감자링 월드 전환"
+            className={cn(
+              "mx-auto mt-1 flex w-full max-w-xs items-center justify-between gap-3",
+              "rounded-2xl bg-white/70 p-2 ring-1 ring-black/5 shadow-sm"
+            )}
+          >
+            {/* 왼쪽 라벨 전체 클릭 가능 */}
+            <button
+              type="button"
+              onClick={() => setIsWorld(false)}
               className={cn(
-                "text-[13px] sm:text-[15px] font-semibold",
-                !isWorld ? "text-emerald-700" : "text-muted-foreground"
+                "flex-1 select-none rounded-xl px-2 py-1.5 text-center text-[13px] sm:text-[15px] font-semibold transition-colors",
+                !isWorld
+                  ? "text-emerald-700 bg-emerald-50"
+                  : "text-muted-foreground hover:bg-muted/30"
               )}
+              aria-pressed={!isWorld}
             >
               우리의 일상
-            </span>
+            </button>
+
+            {/* 중간 큰 스위치 (확대 + 썸 이동거리 재정의 + 키보드 접근성 유지) */}
             <Switch
               checked={isWorld}
               onCheckedChange={(v) => setIsWorld(v)}
               aria-label="우리의 일상/감자링 월드 전환"
-            />
-            <span
               className={cn(
-                "text-[13px] sm:text-[15px] font-semibold",
-                isWorld ? "text-violet-700" : "text-muted-foreground"
+                // 크기 확장
+                "h-8 w-14",
+                // 트랙 색상
+                "data-[state=unchecked]:bg-emerald-200/80 data-[state=checked]:bg-indigo-300/80",
+                "transition-colors",
+                // 썸(thumb) 크기/위치 재정의
+                "[&>span]:h-6 [&>span]:w-6 [&>span]:translate-x-1 data-[state=checked]:[&>span]:translate-x-7",
+                // 테두리/그림자
+                "ring-1 ring-inset ring-black/5 shadow-sm"
               )}
+            />
+
+            {/* 오른쪽 라벨 전체 클릭 가능 */}
+            <button
+              type="button"
+              onClick={() => setIsWorld(true)}
+              className={cn(
+                "flex-1 select-none rounded-xl px-2 py-1.5 text-center text-[13px] sm:text-[15px] font-semibold transition-colors",
+                isWorld
+                  ? "text-violet-700 bg-violet-50"
+                  : "text-muted-foreground hover:bg-muted/30"
+              )}
+              aria-pressed={isWorld}
             >
               감자링 월드
-            </span>
+            </button>
           </div>
+
+          {/* 보조 설명 (터치 힌트) */}
+          <p className="mx-auto mt-1.5 max-w-xs text-center text-[11px] text-muted-foreground">
+            라벨을 눌러도 전환돼요 · 스위치는 크게 키워 터치가 쉬워졌어요
+          </p>
         </div>
 
         {/* 모드 배너 */}

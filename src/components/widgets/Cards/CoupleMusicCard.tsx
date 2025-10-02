@@ -4,7 +4,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import supabase from "@/lib/supabase";
 import { useUser } from "@/contexts/UserContext";
-
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 
 // shadcn/ui
@@ -28,9 +27,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
 // icons
-import { PencilLine, Check, X, Music4 } from "lucide-react";
+import { PencilLine, Check, X, Play, Pause } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faMusic } from "@fortawesome/free-solid-svg-icons";
 
+/* =========================
+ * Utilities
+ * =======================*/
 // --- YT 글로벌 타입(간단 선언) ---
 declare global {
   interface Window {
@@ -76,9 +79,94 @@ async function ensureYouTubeApi() {
   });
 }
 
+/* =========================
+ * Soft UI Atoms
+ * =======================*/
+function SoftStatusBadge({ active }: { active: boolean }) {
+  return (
+    <span
+      className={[
+        "ml-2 inline-flex items-center gap-1.5 rounded-full pl-1.5 pr-2 py-1 text-[11px] font-medium",
+        active
+          ? "bg-emerald-100/80 text-emerald-800 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.25)]"
+          : "bg-rose-100/80 text-rose-800 shadow-[inset_0_0_0_1px_rgba(244,63,94,0.25)]",
+      ].join(" ")}
+      aria-live="polite"
+    >
+      <span className="relative inline-grid place-items-center h-3.5 w-3.5">
+        <span
+          className={[
+            "absolute inset-0 rounded-full border-2 border-t-transparent",
+            active
+              ? "border-emerald-400/60 motion-safe:animate-[spin_1.2s_linear_infinite]"
+              : "border-rose-300/70",
+          ].join(" ")}
+        />
+        <span
+          className={[
+            "h-1.5 w-1.5 rounded-full shadow-sm",
+            active ? "bg-emerald-500" : "bg-rose-500",
+          ].join(" ")}
+        />
+      </span>
+      {active ? "재생중" : "일시정지"}
+    </span>
+  );
+}
+
+function SoftPlayOverlay({
+  isAudible,
+  label,
+}: {
+  isAudible: boolean;
+  label: string;
+}) {
+  return (
+    <>
+      {/* 소프트 글로우 링 */}
+      <div
+        className={[
+          "pointer-events-none absolute inset-0",
+          "bg-gradient-to-b from-white/10 via-white/0 to-black/20",
+          "mix-blend-soft-light",
+        ].join(" ")}
+      />
+      {/* 중앙 플레이 버튼 */}
+      <div className="absolute inset-0 grid place-items-center">
+        <div
+          className={[
+            "relative size-16 rounded-full backdrop-blur-md",
+            "bg-white/55 shadow-[0_8px_30px_rgba(0,0,0,0.12)]",
+            "ring-1 ring-black/5",
+          ].join(" ")}
+        >
+          {/* 맥박 애니메이션 (재생 전 강조) */}
+          <span
+            className={[
+              "absolute inset-0 rounded-full",
+              "motion-safe:animate-[ping_1.6s_ease-in-out_infinite]",
+              isAudible ? "hidden" : "bg-white/50",
+            ].join(" ")}
+          />
+          <div className="absolute inset-0 grid place-items-center">
+            {isAudible ? (
+              <Pause className="h-6 w-6 text-neutral-700 opacity-90" />
+            ) : (
+              <Play className="h-6 w-6 translate-x-[1px] text-neutral-700 opacity-90" />
+            )}
+          </div>
+        </div>
+      </div>
+      <span className="sr-only">{label}</span>
+    </>
+  );
+}
+
+/* =========================
+ * Main Component
+ * =======================*/
 export default function CoupleMusicCard() {
   const { user } = useUser();
-
   const coupleId = user?.couple_id ?? null;
 
   const [loading, setLoading] = useState(true);
@@ -150,8 +238,8 @@ export default function CoupleMusicCard() {
           await sendUserNotification({
             senderId: user.id,
             receiverId: user.partner_id,
-            type: "음악등록", //
-            senderNickname: user.nickname, //
+            type: "음악등록",
+            senderNickname: user.nickname,
           });
         }
       } catch {
@@ -240,63 +328,70 @@ export default function CoupleMusicCard() {
     };
   }, [playerOpen, videoId]);
 
-  // ── 상태 배지 (isAudible 기준) ──
-  const StatusBadge = ({ active }: { active: boolean }) => (
-    <span
+  return (
+    <Card
       className={[
-        "ml-2 inline-flex items-center gap-1.5 rounded-full pl-1.5 pr-2 py-1 text-[11px] font-medium ",
-        active
-          ? "bg-emerald-100 text-emerald-800"
-          : "bg-rose-100 text-rose-800",
+        "relative overflow-hidden",
+        "rounded-3xl border-0",
+        "bg-gradient-to-br from-[#FFF7FB] via-[#F7FAFF] to-[#F9FFF6]",
+        "shadow-[0_12px_40px_-12px_rgba(0,0,0,0.20)]",
       ].join(" ")}
     >
-      <span className="relative inline-grid place-items-center h-3.5 w-3.5">
-        <span
-          className={[
-            "absolute inset-0 rounded-full border-2 border-t-transparent",
-            active
-              ? "border-emerald-400/60 animate-[spin_1.2s_linear_infinite]"
-              : "border-rose-300/70",
-          ].join(" ")}
-        />
-        <span
-          className={[
-            "h-1.5 w-1.5 rounded-full",
-            active ? "bg-emerald-500" : "bg-rose-500",
-          ].join(" ")}
-        />
-      </span>
-      {active ? "재생중" : "일시정지"}
-    </span>
-  );
+      {/* 몽글 배경 버블 */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-10 -left-10 size-40 rounded-[2rem] bg-pink-200/40 blur-2xl motion-safe:animate-[float_6s_ease-in-out_infinite]"
+        style={{ animationDelay: "0.2s" }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -bottom-14 -right-8 size-44 rounded-[2rem] bg-emerald-200/40 blur-2xl motion-safe:animate-[float_7.5s_ease-in-out_infinite]"
+        style={{ animationDelay: "0.6s" }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute top-6 right-10 size-24 rounded-[1.5rem] bg-indigo-200/40 blur-xl motion-safe:animate-[float_8s_ease-in-out_infinite]"
+        style={{ animationDelay: "1s" }}
+      />
 
-  return (
-    <Card className="bg-white">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-[#3d2b1f]">
-            🎧 우리의 음악
-            <StatusBadge active={isAudible} />
+          <CardTitle className="flex items-center text-[#3d2b1f] text-[20px] font-semibold drop-shadow-[0_1px_0_rgba(255,255,255,0.6)]">
+            <span className="relative mr-2 grid place-items-center">
+              <span className="absolute -inset-1 rounded-full bg-white/60 blur-md" />
+              <FontAwesomeIcon
+                icon={faMusic}
+                className="relative z-10 opacity-90 text-[#3d2b1f]"
+              />
+            </span>
+            우리의 음악
+            <SoftStatusBadge active={isAudible} />
           </CardTitle>
+
           <Button
             size="sm"
             variant="outline"
             onClick={onOpen}
-            className="gap-1 hover:cursor-pointer"
+            className="gap-1 hover:cursor-pointer rounded-full bg-white/60 backdrop-blur border-white/60 shadow-sm"
           >
             <PencilLine className="h-4 w-4" />
+            수정
           </Button>
         </div>
       </CardHeader>
 
-      <CardContent className="pt-2">
+      <CardContent className="pt-3">
         {loading ? (
           <div className="flex flex-col items-center">
             <div className="w-full max-w-5xl md:max-w-6xl">
               <div className="relative">
-                <div className="relative aspect-video overflow-hidden rounded-3xl ">
-                  {/* 프레임 전체 */}
+                {/* 말랑 프레임 */}
+                <div className="relative aspect-video overflow-hidden rounded-3xl ring-1 ring-black/5 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.25)]">
                   <Skeleton className="absolute inset-0 rounded-3xl" />
+                </div>
+                {/* 하단 말풍선 배경 */}
+                <div className="mt-3 text-xs text-neutral-500/90 text-center">
+                  로딩중이에요… 감자를 살짝 조물조물 중 🥔
                 </div>
               </div>
             </div>
@@ -307,8 +402,11 @@ export default function CoupleMusicCard() {
               <div className="relative">
                 <div
                   className={[
-                    "relative aspect-video overflow-hidden rounded-3xl    shadow-2xl transition-shadow",
-                    isAudible ? " shadow-emerald-200/50" : "",
+                    "relative aspect-video overflow-hidden rounded-[1.75rem]",
+                    "ring-1 ring-black/5",
+                    "shadow-[0_18px_60px_-16px_rgba(0,0,0,0.35)]",
+                    isAudible ? "outline outline-2 outline-emerald-200/70" : "",
+                    "transition-all duration-500",
                   ].join(" ")}
                 >
                   {playerOpen ? (
@@ -316,7 +414,7 @@ export default function CoupleMusicCard() {
                   ) : (
                     <button
                       onClick={() => setPlayerOpen(true)}
-                      className="relative w-full h-full transition-transform duration-300 hover:scale-[1.02]"
+                      className="relative w-full h-full transition-transform duration-300 hover:scale-[1.015] focus-visible:scale-[1.015] outline-none"
                       title="재생"
                       aria-label="재생"
                       type="button"
@@ -329,15 +427,37 @@ export default function CoupleMusicCard() {
                           loading="lazy"
                         />
                       )}
-                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-black/10 to-transparent" />
+                      {/* 소프트 그라데이션 베일 */}
+                      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.25)_0%,rgba(0,0,0,0.25)_100%)] mix-blend-soft-light" />
+                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 via-black/10 to-transparent" />
+                      <SoftPlayOverlay isAudible={false} label="재생" />
                     </button>
                   )}
+                </div>
+
+                {/* 아랫쪽 캡션 바 */}
+                <div
+                  className={[
+                    "mt-3 mx-auto w-max max-w-full",
+                    "rounded-full px-3 py-1.5 text-[12px]",
+                    "bg-white/70 backdrop-blur border border-white/60",
+                    "shadow-[0_6px_20px_-8px_rgba(0,0,0,0.25)]",
+                  ].join(" ")}
+                >
+                  {url
+                    ? "커플 대표 음악이 준비됐어요 ♫"
+                    : "아직 등록된 음악이 없어요"}
                 </div>
               </div>
             </div>
           </div>
         ) : (
-          <div className="rounded-xl border p-4 text-sm text-muted-foreground text-center">
+          <div
+            className={[
+              "rounded-2xl border border-white/70 p-5 text-sm text-neutral-600 text-center",
+              "bg-white/60 backdrop-blur shadow-[0_10px_30px_-12px_rgba(0,0,0,0.25)]",
+            ].join(" ")}
+          >
             등록된 YouTube 링크가 없어요.{" "}
             <span className="font-medium">‘수정’</span> 버튼을 눌러
             설정해보세요.
@@ -404,7 +524,7 @@ export default function CoupleMusicCard() {
             <Button
               variant="outline"
               onClick={() => setOpen(false)}
-              className="gap-1 hover:cursor-pointer"
+              className="gap-1 hover:cursor-pointer rounded-full"
               disabled={saving}
             >
               <X className="h-4 w-4" />
@@ -412,7 +532,7 @@ export default function CoupleMusicCard() {
             </Button>
             <Button
               onClick={onSave}
-              className="gap-1 hover:cursor-pointer"
+              className="gap-1 hover:cursor-pointer rounded-full"
               disabled={saving}
             >
               <Check className="h-4 w-4" />
@@ -424,3 +544,18 @@ export default function CoupleMusicCard() {
     </Card>
   );
 }
+
+/* =========================
+ * CSS keyframes (Tailwind layer)
+ * - 프로젝트 전역 css(예: globals.css)에 추가해두면 더 깔끔.
+ * - 컴포넌트 단독 사용도 가능하게 여기 주석으로 첨부.
+ * =======================*/
+/*
+@layer utilities {
+  @keyframes float {
+    0%   { transform: translateY(0px) translateX(0px); }
+    50%  { transform: translateY(-8px) translateX(3px); }
+    100% { transform: translateY(0px) translateX(0px); }
+  }
+}
+*/

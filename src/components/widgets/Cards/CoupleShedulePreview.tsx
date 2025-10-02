@@ -21,7 +21,7 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip";
 
-import { CalendarDays, ChevronRight, Clock } from "lucide-react";
+import { CalendarDays, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCalendar } from "@fortawesome/free-solid-svg-icons";
@@ -34,11 +34,11 @@ interface Props {
   maxHeight?: number | string;
 }
 
-/** 타입별 뱃지 색상 (shadcn Badge에 className으로 입힘) */
+/** 타입별 뱃지 색상 (shadcn Badge에 className으로 입힘) - 파스텔 톤으로 조정 */
 const TYPE_BADGE: Record<ScheduleType, string> = {
-  데이트: "bg-pink-100 text-rose-900",
-  기념일: "bg-amber-100 text-amber-900",
-  "기타 일정": "bg-blue-100 text-blue-900",
+  데이트: "bg-pink-50 text-rose-700 ring-rose-200",
+  기념일: "bg-amber-50 text-amber-700 ring-amber-200",
+  "기타 일정": "bg-sky-50 text-sky-700 ring-sky-200",
 };
 
 // KST 기준 YYYY-MM-DD
@@ -75,6 +75,23 @@ function prettyKST(dateStr: string, tz = "Asia/Seoul") {
     day: "numeric",
     weekday: "short",
   }).format(dt);
+}
+
+/** 몽글 칩 (D-Day) */
+function DChip({ label }: { label: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-2.5 py-1",
+        "text-[11px] font-bold text-rose-700",
+        "bg-rose-50 ring-1 ring-inset ring-rose-200",
+        "shadow-[0_1px_0_rgba(0,0,0,0.03)]",
+        "animate-[jelly_500ms_ease-in-out]"
+      )}
+    >
+      {label}
+    </span>
+  );
 }
 
 export default function CoupleSchedulePreview({
@@ -134,17 +151,31 @@ export default function CoupleSchedulePreview({
 
   return (
     <TooltipProvider delayDuration={200}>
-      <Card className={cn("relative overflow-hidden", className)}>
+      <Card
+        className={cn(
+          "relative overflow-hidden rounded-2xl border-0",
+          // 파스텔 그라데이션 + 소프트 글로우
+          "bg-gradient-to-br from-rose-50 via-amber-50 to-sky-50",
+          "shadow-[0_10px_30px_-12px_rgba(0,0,0,0.15)] ",
+          className
+        )}
+      >
+        {/* 아주 옅은 패턴/빛 번짐 오버레이 */}
+        <div className="pointer-events-none absolute -top-20 -right-16 h-64 w-64 rounded-full bg-white/40 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 -left-10 h-56 w-56 rounded-full bg-white/30 blur-3xl" />
+
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-start gap-2 text-xl">
-            <FontAwesomeIcon icon={faCalendar} className="mr-2 opacity-80" />
-            <CardTitle className="text-[#3d2b1f] text-xl">
-              일정 미리보기
-            </CardTitle>
+          <div className="relative">
+            {/* 리본 캡슐 느낌 배경 */}
+            <div className="absolute inset-0 -z-10 mx-[-8px] rounded-xl bg-white/40 backdrop-blur-sm" />
+            <div className="flex items-center gap-2 px-1 py-1.5 text-xl ">
+              <FontAwesomeIcon className="opacity-70" icon={faCalendar} />
+              <CardTitle className="text-[#3d2b1f] tracking-tight">
+                일정 미리보기
+              </CardTitle>
+            </div>
           </div>
         </CardHeader>
-
-        <Separator />
 
         <CardContent>
           {/* 로딩 상태 */}
@@ -162,19 +193,19 @@ export default function CoupleSchedulePreview({
 
           {/* 비어있음 */}
           {!loading && items.length === 0 && (
-            <div className="mt-3 rounded-lg border bg-muted/30 p-4">
+            <div className="mt-3 rounded-2xl bg-white/70  p-4">
               <div className="flex items-center gap-3">
-                <CalendarDays className="size-5 text-muted-foreground" />
+                <CalendarDays className="size-6 text-rose-400" />
                 <div className="text-sm text-[#6b533b]">
                   예정된 일정이 없어요. 달력에서 일정을 추가해보세요! ✨
                 </div>
               </div>
-              <Separator className="my-3" />
+
               <Link
                 to="/scheduler"
                 className={cn(
-                  "group inline-flex items-center gap-1.5 text-sm font-medium",
-                  "text-primary hover:underline"
+                  "group inline-flex items-center gap-1.5 text-sm font-semibold",
+                  "text-rose-600 hover:text-rose-700"
                 )}
                 aria-label="스케줄러로 이동"
               >
@@ -188,15 +219,20 @@ export default function CoupleSchedulePreview({
           {!loading && items.length > 0 && (
             <ScrollArea
               style={{ maxHeight: listMaxHeight }}
-              className="mt-2 pr-1"
+              className="relative mt-2 pr-1"
             >
+              {/* 위/아래 페이드 마스크 */}
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-4 bg-gradient-to-b from-white/70 to-transparent" />
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-white/70 to-transparent" />
+
               <ul className="w-full">
                 {items.map((it, idx) => {
                   const d = dday(it.schedule_date);
                   const dLabel =
                     d === 0 ? "D-Day" : d > 0 ? `D-${d}` : `D+${Math.abs(d)}`;
                   const badgeClass =
-                    TYPE_BADGE[it.type] ?? "bg-neutral-100 text-neutral-800";
+                    TYPE_BADGE[it.type] ??
+                    "bg-neutral-100 text-neutral-800 ring-neutral-200";
                   const pretty = prettyKST(it.schedule_date);
 
                   return (
@@ -206,38 +242,40 @@ export default function CoupleSchedulePreview({
                           <Link
                             to="/scheduler"
                             className={cn(
-                              "flex w-full items-center justify-start gap-4 rounded-xl px-1 py-1.5",
-                              "hover:bg-muted/50 transition-colors"
+                              "flex w-full items-center justify-start gap-4 rounded-xl px-2.5 py-2",
+                              // 젤리 캡슐 스타일
+                              "shadow-sm backdrop-blur-[2px] ",
+                              "hover:bg-white/80 hover:shadow-[0_6px_20px_-10px_rgba(0,0,0,0.25)]",
+                              "transition-all duration-200 hover:-translate-y-[1px] hover:scale-[1.01]"
                             )}
                             aria-label={`${it.schedule_date} ${it.title}로 이동`}
                           >
-                            {/* D-day */}
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                "shrink-0 border-0 px-2.5 py-1 text-xs font-semibold",
-                                "ring-1 ring-inset ring-black/5 shadow-sm",
-                                badgeClass
-                              )}
-                            >
-                              {dLabel}
-                            </Badge>
+                            {/* D-day 칩 */}
+                            <DChip label={dLabel} />
 
-                            {/* 날짜 • 타입 */}
-                            <div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
-                              <span className="hidden sm:inline">{pretty}</span>
-                              <span className="sm:hidden">
+                            {/* 날짜 • 타입 (스티커 감성) */}
+                            <div className="flex shrink-0 items-center gap-2 text-xs text-[#7b6146]">
+                              <span className="hidden sm:inline rounded-md bg-white/60 ring-1 ring-black/5 px-2 py-0.5">
+                                {pretty}
+                              </span>
+                              <span className="sm:hidden rounded-md bg-white/60 ring-1 ring-black/5 px-2 py-0.5">
                                 {it.schedule_date}
                               </span>
                               <span aria-hidden>•</span>
-                              <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] leading-none">
+                              <span
+                                className={cn(
+                                  "rounded-md px-1.5 py-0.5 text-[11px] leading-none",
+                                  "ring-1 ring-inset",
+                                  badgeClass
+                                )}
+                              >
                                 {it.type}
                               </span>
                             </div>
 
                             {/* 제목 */}
                             <div className="min-w-0 flex-1">
-                              <p className="truncate text-[15px] font-semibold text-[#3d2b1f]">
+                              <p className="truncate text-[15px] font-semibold text-[#3d2b1f] leading-[1.15]">
                                 {it.title}
                               </p>
                             </div>
@@ -248,6 +286,7 @@ export default function CoupleSchedulePreview({
                             />
                           </Link>
                         </TooltipTrigger>
+
                         <TooltipContent side="top" align="start">
                           <div className="text-xs">
                             <div className="font-medium">{it.title}</div>
@@ -257,8 +296,6 @@ export default function CoupleSchedulePreview({
                           </div>
                         </TooltipContent>
                       </Tooltip>
-
-                      {idx < items.length - 1 && <Separator className="mt-2" />}
                     </li>
                   );
                 })}
@@ -266,6 +303,15 @@ export default function CoupleSchedulePreview({
             </ScrollArea>
           )}
         </CardContent>
+
+        {/* jelly keyframes (컴포넌트 스코프) */}
+        <style>{`
+          @keyframes jelly {
+            0%, 100% { transform: scale(1); }
+            30% { transform: scale(1.06, 0.94); }
+            60% { transform: scale(0.97, 1.03); }
+          }
+        `}</style>
       </Card>
     </TooltipProvider>
   );

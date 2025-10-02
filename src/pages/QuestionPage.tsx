@@ -204,7 +204,7 @@ export default function QuestionPage() {
     };
   }, [emojiOpen]);
 
-  // 저장(버튼 클릭 시만) — ✅ 성공 시 toast “저장했습니다/수정했습니다”
+  // 저장(버튼 클릭 시만)
   const persistAnswer = useCallback(
     async (content: string, isEdit = false) => {
       if (!user) return false;
@@ -308,13 +308,38 @@ export default function QuestionPage() {
   };
 
   return (
-    <main className="mx-auto w-full max-w-screen-lg px-4 md:px-6 ">
-      <Card className="relative mx-auto bg-[#FAF7F2] border shadow-sm max-w-3xl">
+    <main className="mx-auto w-full max-w-screen-lg px-4 md:px-6">
+      {/* 편지지 느낌의 컨테이너 */}
+      <Card
+        className={cn(
+          "relative mx-auto max-w-3xl border-0 rounded-3xl",
+          "bg-[rgba(250,247,242,0.98)]",
+          "ring-1 ring-amber-200/40",
+          "shadow-[0_20px_60px_-20px_rgba(120,85,40,0.25)]",
+          // 종이 결(점조) 텍스처
+          "before:absolute before:inset-0 before:rounded-3xl",
+          "before:bg-[radial-gradient(rgba(0,0,0,0.045)_1px,transparent_1px)] before:bg-[length:12px_12px] before:opacity-25"
+        )}
+      >
+        {/* 와시테이프 (마스킹테이프) */}
+        <div className="pointer-events-none absolute -top-3 left-10 rotate-[-4deg] h-6 w-24 bg-sky-200/70 rounded-[4px] shadow-sm" />
+        <div className="pointer-events-none absolute -top-2 right-12 rotate-[6deg] h-6 w-20 bg-pink-200/60 rounded-[4px] shadow-sm" />
+
+        {/* 바인더 펀칭홀 */}
+        <div className="pointer-events-none absolute left-3 top-20 flex flex-col gap-6 opacity-60">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-3 w-3 rounded-full bg-white shadow-inner ring-1 ring-amber-300/50"
+            />
+          ))}
+        </div>
+
         {loading ? (
           <>
             {/* 헤더 영역 스켈레톤(높이 안정화) */}
-            <CardHeader className="items-center">
-              <Skeleton className="h-5 w-72 rounded-md" />
+            <CardHeader className="items-center pt-10">
+              <Skeleton className="h-6 w-80 rounded-md" />
             </CardHeader>
 
             <CardContent className="space-y-5">
@@ -328,7 +353,7 @@ export default function QuestionPage() {
 
                 <div className="flex items-center justify-center">
                   {/* 이모지 버튼 자리 */}
-                  <Skeleton className="h-9 w-[130px] rounded-md mr-2" />
+                  <Skeleton className="h-10 w-[150px] rounded-full mr-2" />
                   {/* 파트너 아바타/텍스트 자리 */}
                   <div className="hidden sm:flex items-center gap-2 ml-3">
                     <Skeleton className="h-8 w-8 rounded-full" />
@@ -339,36 +364,50 @@ export default function QuestionPage() {
 
               {/* 답변 textarea 자리 */}
               <div className="mx-auto w-full md:w-[80%] lg:w-[70%]">
-                <Skeleton className="h-[220px] md:h-[260px] w-full rounded-xl" />
+                <Skeleton className="h-[220px] md:h-[260px] w-full rounded-2xl" />
               </div>
             </CardContent>
 
             {/* 하단 버튼/상태 라인 */}
-            <CardFooter className="flex flex-col items-center gap-2">
-              <Skeleton className="h-10 w-[140px] rounded-md" />
+            <CardFooter className="flex flex-col items-center gap-2 pb-8">
+              <Skeleton className="h-10 w-[150px] rounded-full" />
             </CardFooter>
           </>
         ) : (
           <>
-            <CardHeader className="items-center pt-6">
-              <div className="flex items-center gap-2 text-[12px] text-amber-700/80">
-                <span className="inline-block px-2 py-0.5 rounded-full bg-amber-100/70 border">
-                  📌{" "}
+            {/* 레터헤드 + 날짜 배지 */}
+            <CardHeader className="items-center pt-10">
+              <div
+                className={cn(
+                  "inline-flex items-center gap-2 px-3 py-1.5 rounded-full",
+                  "bg-white/70 ring-1 ring-amber-200/60 text-amber-800 text-xs"
+                )}
+              >
+                ✉️ <span className="font-medium">Dear us</span>
+                <span className="text-amber-600/60">·</span>
+                <span className="px-2 py-0.5 rounded-full bg-amber-50 ring-1 ring-amber-200/60">
                   {new Intl.DateTimeFormat("ko-KR", {
                     dateStyle: "long",
                     timeZone: "Asia/Seoul",
                   }).format(new Date())}
                 </span>
               </div>
+
+              {/* 저장됨 도장(성공 시) */}
+              {saveStatus === "saved" && (
+                <div className="pointer-events-none absolute right-8 top-8 origin-[80%_20%] rotate-[-8deg] text-emerald-600/85 font-semibold tracking-widest ring-2 ring-emerald-600/30 px-3 py-1 rounded-lg">
+                  SAVED
+                </div>
+              )}
             </CardHeader>
 
-            <CardContent className="space-y-5">
+            <CardContent className="space-y-6">
               {/* 질문 본문 */}
               <p className="text-lg md:text-xl text-[#5b3d1d] whitespace-pre-line text-center leading-relaxed">
                 {question ? `"${question}"` : "표시할 질문이 없습니다."}
               </p>
 
-              <Separator />
+              <Separator className="bg-amber-200/50" />
 
               {/* 안내줄 + 파트너 위젯 */}
               <div className="mx-auto w-full md:w-[80%] lg:w-[70%]">
@@ -380,15 +419,15 @@ export default function QuestionPage() {
                       type="button"
                       variant="outline"
                       className={cn(
-                        "rounded-full px-3 py-1.5 bg-white text-amber-900",
-                        "shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] active:scale-95",
+                        "rounded-full px-4 py-2 bg-white/90 text-amber-900 border border-amber-200/80",
+                        "shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] hover:shadow-md active:scale-95",
                         canEdit
                           ? "cursor-pointer"
                           : "pointer-events-none opacity-60"
                       )}
                       onClick={() => canEdit && setEmojiOpen((o) => !o)}
                     >
-                      <span className="mr-1">😊</span> 이모지 추가
+                      <span className="mr-1">🖋️</span> 이모지 스탬프
                     </Button>
 
                     {emojiOpen && (
@@ -396,9 +435,9 @@ export default function QuestionPage() {
                         ref={emojiMenuRef}
                         role="grid"
                         aria-label="이모지 선택"
-                        className="absolute z-50 mt-2 w-[300px] rounded-2xl border bg-white/95 backdrop-blur-sm p-3 shadow-lg"
+                        className="absolute z-50 mt-2 w-[300px] rounded-3xl border border-amber-200/70 bg-white/95 backdrop-blur-sm p-3 shadow-lg"
                       >
-                        <div className="grid grid-cols-6 gap-1.5">
+                        <div className="grid grid-cols-6 gap-2">
                           {EMOJIS_5x6.map((e) => (
                             <button
                               key={e}
@@ -407,7 +446,7 @@ export default function QuestionPage() {
                                 insertAtCursor(e);
                                 setEmojiOpen(false);
                               }}
-                              className="h-9 rounded-xl border text-[20px] hover:bg-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
+                              className="h-9 w-9 flex items-center justify-center rounded-full border border-amber-200/60 bg-white hover:bg-amber-50 active:scale-95 shadow-sm text-[18px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
                               aria-label={`${e} 삽입`}
                               tabIndex={0}
                             >
@@ -419,11 +458,11 @@ export default function QuestionPage() {
                     )}
                   </div>
 
-                  {/* 버튼 오른쪽: 파트너 아바타 + 말풍선 */}
+                  {/* 버튼 오른쪽: 파트너 아바타 + 리본 뱃지 */}
                   <div className="hidden sm:flex items-center gap-2 ml-3">
                     <AvatarWidget type="partner" size="sm" />
-                    <span className="text-[11px] px-2 py-1 rounded-full bg-amber-100/80 border border-amber-200 text-amber-900">
-                      잘 써조!
+                    <span className="text-[11px] px-2 py-1 rounded-full bg-pink-50 border border-pink-200 text-pink-700 shadow-[0_1px_0_rgba(255,255,255,0.9)_inset]">
+                      잘 써조! 💌
                     </span>
                   </div>
                 </div>
@@ -433,7 +472,7 @@ export default function QuestionPage() {
               {submitted && !editing ? (
                 // ✅ 제출 완료 & 편집 중 아님: 보기 전용 카드
                 <div className="mx-auto w-full md:w-[80%] lg:w-[70%]">
-                  <div className="rounded-xl border bg-amber-50/70 ring-1 ring-amber-200 p-4 md:p-5">
+                  <div className="rounded-2xl border border-amber-200/70 bg-amber-50/70 p-4 md:p-5 ring-1 ring-amber-200/50 shadow-inner">
                     <div className="mb-2 flex items-center gap-2 text-xs font-medium text-amber-800">
                       <CheckCircle2 className="h-4 w-4" />
                       제출 완료 — 아래 내용은 읽기 전용입니다
@@ -445,17 +484,18 @@ export default function QuestionPage() {
                 </div>
               ) : (
                 // ✍️ 신규 작성 중이거나, '수정하기' 눌러 편집 모드일 때: 입력 가능
-                <div className="mx-auto w-full md:w-[80%] lg:w-[70%] space-y-2 text-center">
+                <div className="mx-auto w-full md:w-[80%] lg:w-[70%] space-y-2 text-center relative">
                   <Textarea
                     ref={textareaRef}
                     value={answer}
                     onChange={(e) => setAnswer(e.target.value)}
                     readOnly={saveStatus === "saving"}
                     className={cn(
-                      "mx-auto min-h-[220px] md:min-h-[260px] resize-none rounded-xl",
-                      "bg-[linear-gradient(transparent_29px,rgba(0,0,0,0.04)_30px)] bg-[length:100%_30px] bg-blue-50/40",
-                      "border border-amber-200/70 focus-visible:ring-2 focus-visible:ring-amber-300",
-                      "px-4 py-3 text-[15px] md:text-[16px] leading-[30px]"
+                      "mx-auto min-h-[220px] md:min-h-[260px] resize-none rounded-2xl",
+                      "bg-[linear-gradient(transparent_29px,rgba(0,0,0,0.035)_30px)] bg-[length:100%_30px]",
+                      "border-0 ring-1 ring-neutral-200  focus-visible:ring-neutral-400",
+                      "px-4 py-3 text-[15px] md:text-[16px] leading-[30px] text-neutral-800",
+                      "shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]"
                     )}
                     placeholder={
                       submitted
@@ -471,11 +511,15 @@ export default function QuestionPage() {
             </CardContent>
 
             {/* 단일 버튼 + 상태 피드백 라인 */}
-            <CardFooter className="sticky bottom-0 bg-gradient-to-t from-[#FAF7F2] to-transparent pt-6 pb-5 flex flex-col items-center gap-2">
+            <CardFooter className="sticky bottom-0 bg-gradient-to-t from-[rgba(250,247,242,0.98)] to-transparent pt-6 pb-7 flex flex-col items-center gap-2">
               <Button
                 onClick={onPrimaryClick}
                 disabled={saveStatus === "saving"}
-                className="min-w-[140px] rounded-lg bg-neutral-600 hover:bg-amber-600 text-white shadow-md active:scale-95"
+                className={cn(
+                  "min-w-[150px] rounded-full text-neutral-600",
+                  "bg-rose-200 hover:bg-rose-300",
+                  "shadow-[inset_0_-2px_0_rgba(0,0,0,0.12),0_10px_24px_-10px_rgba(244,114,182,0.6)] active:scale-95"
+                )}
               >
                 {saveStatus === "saving" ? (
                   <>
@@ -483,12 +527,12 @@ export default function QuestionPage() {
                   </>
                 ) : submitted ? (
                   editing ? (
-                    <> 저장하기</>
+                    <>🔖 저장하기</>
                   ) : (
-                    <> 수정하기</>
+                    <>✍️ 수정하기</>
                   )
                 ) : (
-                  <> 저장하기</>
+                  <>🔖 저장하기</>
                 )}
               </Button>
 

@@ -158,7 +158,7 @@ export default function TodayMessageCard({ maxLen = 140 }: Props) {
         <div className="flex items-center justify-between">
           <CardTitle className="text-xl font-semibold tracking-tight">
             <FontAwesomeIcon icon={faMessage} className="mr-2 opacity-80" />
-            오늘의 메시지
+            나의 한마디
           </CardTitle>
         </div>
       </CardHeader>

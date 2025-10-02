@@ -211,22 +211,10 @@ export default function StartEndPixelShow({
       <header className="relative z-10 mb-3 grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_auto] px-1">
         {/* 제목 블록 (날짜 앞 + 손글씨 타이틀 크게) */}
         <div className="flex flex-wrap items-baseline gap-2">
-          {/* 날짜 칩: 은은하게 */}
-          <span
-            className={cn(
-              "rounded-full px-2 py-0.5 text-[11px] sm:text-xs",
-              "bg-white/60 ring-1 ring-border text-muted-foreground/80",
-              "backdrop-blur-sm"
-            )}
-            aria-label="기억 날짜"
-          >
-            {cur.date}
-          </span>
-
           {/* 손글씨 제목: 잘 보이게 크게 */}
           <h2
             className={cn(
-              "font-hand text-[18px] sm:text-[20px] md:text-[22px] lg:text-[24px]",
+              "font-hand font-extrabold text-[18px] sm:text-[20px] md:text-[22px] lg:text-[24px]",
               "tracking-[-0.01em] leading-tight",
               // 살짝 그라데이션 잉크 + 드롭섀도우로 가독성
               "bg-gradient-to-br from-neutral-800 to-neutral-700 dark:from-neutral-200 dark:to-neutral-50",
@@ -236,6 +224,17 @@ export default function StartEndPixelShow({
           >
             {headlineLabel}
           </h2>
+          {/* 날짜 칩: 은은하게 */}
+          <span
+            className={cn(
+              "rounded-full px-2 py-0.5 text-[11px] sm:text-xs",
+              " text-muted-foreground/80",
+              "backdrop-blur-sm"
+            )}
+            aria-label="기억 날짜"
+          >
+            {cur.date}
+          </span>
         </div>
 
         {/* 진행바: 데스크탑 우측 정렬, 모바일에선 아래로 내려옴 */}
@@ -269,7 +268,7 @@ export default function StartEndPixelShow({
           {cur.title}
         </div>
         <Button variant="outline" onClick={() => nav("/memories")}>
-          기억 조각 추가하러가기
+          기억 추가하기
         </Button>
       </footer>
 

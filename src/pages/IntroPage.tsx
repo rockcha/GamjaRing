@@ -25,7 +25,6 @@ function getPhaseTheme(phase: Phase) {
   switch (phase) {
     case "morning":
       return {
-        /** CSS 변수 */
         vars: {
           "--ink": "#6b4e2d",
           "--ink-strong": "#563f25",
@@ -34,7 +33,6 @@ function getPhaseTheme(phase: Phase) {
           "--frame": "rgba(255,255,255,0.92)",
           "--track": "#e9d9c5",
         } as React.CSSProperties,
-        /** 배경 */
         bgClass: "bg-[linear-gradient(160deg,#f9f3ea,#f2e6d3,#e9d9c5)]",
       };
     case "noon":
@@ -77,17 +75,33 @@ function getPhaseTheme(phase: Phase) {
   }
 }
 
-function phaseLabel(phase: Phase) {
-  switch (phase) {
-    case "morning":
-      return "지금은 아침입니다!";
-    case "noon":
-      return "지금은 낮입니다!";
-    case "evening":
-      return "지금은 저녁입니다!";
-    case "night":
-      return "지금은 밤입니다!";
-  }
+/** ===== 몽글 맞춤 멘트 ===== */
+const PHASE_QUOTES: Record<Phase, string[]> = {
+  morning: [
+    "잘 잤나요? 🌤️ 오늘도 우리 이야기 천천히 이어가요.",
+    "포근한 아침이에요. 눈 비비며 작은 행복부터 적어볼까요?",
+    "햇살이 살짝 미소 짓는 시간, 마음도 살며시 열어볼까요?",
+  ],
+  noon: [
+    "점심 사이, 잠깐의 숨 고르기. 오늘의 장면을 기록해요.",
+    "햇빛이 반짝이는 낮! 방금 스친 생각도 편지에 담아둘까요?",
+    "바쁜 한가운데에서도, 우리 기록은 몽글몽글 자라요.",
+  ],
+  evening: [
+    "노을빛이 스며드는 저녁, 오늘의 마음을 살포시 풀어봐요.",
+    "하루의 가장 따뜻한 빛이 머무는 시간, 천천히 적어볼까요?",
+    "고단했던 마음을 내려놓고, 부드러운 글씨로 하루를 감싸요.",
+  ],
+  night: [
+    "잘 쉬었나요? 별빛 아래에서 속삭이듯 기록해요.",
+    "밤공기처럼 차분하게, 오늘의 감정을 눕혀볼까요?",
+    "고요한 밤, 우리 이야기 위에 이불을 덮듯 천천히요.",
+  ],
+};
+
+function pickPhaseMessage(phase: Phase) {
+  const arr = PHASE_QUOTES[phase];
+  return arr[(Math.random() * arr.length) | 0];
 }
 
 /** ===== Progress & Potato utils ===== */
@@ -95,48 +109,39 @@ const LOADING_MS = 3500;
 const FINISH_BREATH_MS = 260; // ‘한 호흡 더’
 
 function potatoColor(progress: number) {
-  // 25% → 연노랑, 50% → 금색, 75% → 노릇갈색, 100% → 바삭갈색
-  if (progress >= 100) return "#7a4e1f"; // 바삭갈색
-  if (progress >= 75) return "#9a662a"; // 노릇갈색
-  if (progress >= 50) return "#c9903d"; // 금색
-  if (progress >= 25) return "#e9d07a"; // 연노랑
-  return "#f3eab4"; // 아주 연한 반죽색
+  if (progress >= 100) return "#7a4e1f";
+  if (progress >= 75) return "#9a662a";
+  if (progress >= 50) return "#c9903d";
+  if (progress >= 25) return "#e9d07a";
+  return "#f3eab4";
 }
 
-/** 작은 감자 ‘오벌’ 아이콘 (색상/미세 펄스 + 광택 스윕) */
+/** 작은 감자 오벌 아이콘 */
 function PotatoIcon({ progress }: { progress: number }) {
   const bg = potatoColor(progress);
-  const faster = progress >= 75; // 75%↑ 살짝 빠르게
+  const faster = progress >= 75;
   return (
     <span
       aria-hidden
-      className="inline-block align-[-0.12em] mr-1 h-[0.9em] w-[1.1em] rounded-[999px] relative
-                 ring-1 ring-black/5 shadow-[inset_0_-1px_0_rgba(0,0,0,0.1)]"
+      className="inline-block align-[-0.12em] mr-1 h-[0.9em] w-[1.1em] rounded-[999px] relative ring-1 ring-black/5 shadow-[inset_0_-1px_0_rgba(0,0,0,0.1)]"
       style={{
         backgroundColor: bg,
         animation: `${
-          faster
-            ? "potatoPulse 1.3s ease-in-out infinite"
-            : "potatoPulse 1.6s ease-in-out infinite"
-        }`,
+          faster ? "potatoPulse 1.3s" : "potatoPulse 1.6s"
+        } ease-in-out infinite`,
       }}
       title="감자 진행 아이콘"
     >
-      {/* 살짝 점(감자 눈) */}
       <span
         className="absolute left-[22%] top-[35%] h-[0.12em] w-[0.12em] rounded-full bg-black/20"
         style={{ boxShadow: "0.32em 0.06em 0 0 rgba(0,0,0,0.16)" }}
       />
-      {/* 광택 스윕 */}
       <span
-        className="absolute inset-y-[30%] left-0 w-[35%] skew-x-[12deg] rounded
-                   bg-white/35 blur-[1px] pointer-events-none"
+        className="absolute inset-y-[30%] left-0 w-[35%] skew-x-[12deg] rounded bg-white/35 blur-[1px] pointer-events-none"
         style={{
           animation: `${
-            faster
-              ? "shineSweep 2.1s ease-in-out infinite"
-              : "shineSweep 2.6s ease-in-out infinite"
-          }`,
+            faster ? "shineSweep 2.1s" : "shineSweep 2.6s"
+          } ease-in-out infinite`,
         }}
       />
     </span>
@@ -149,6 +154,7 @@ export default function IntroPage() {
   /** ---- Phase & assets ---- */
   const phase = useMemo(() => getPhase(), []);
   const theme = useMemo(() => getPhaseTheme(phase), [phase]);
+  const phaseMessage = useMemo(() => pickPhaseMessage(phase), [phase]);
 
   const bgSrc = useMemo(() => {
     switch (phase) {
@@ -163,7 +169,6 @@ export default function IntroPage() {
     }
   }, [phase]);
 
-  // 첫 프레임 깔끔하게: 이미지 프리로드
   useEffect(() => {
     const img = new Image();
     img.src = bgSrc;
@@ -171,7 +176,7 @@ export default function IntroPage() {
 
   /** ---- Loading & route ---- */
   const [progress, setProgress] = useState(0);
-  const [finishing, setFinishing] = useState(false); // 마감 연출 트리거
+  const [finishing, setFinishing] = useState(false);
   const routedRef = useRef(false);
 
   useEffect(() => {
@@ -185,7 +190,6 @@ export default function IntroPage() {
 
       if (pct >= 100 && !routedRef.current) {
         routedRef.current = true;
-        // ‘한 호흡 더’ — 상단 라이트 스윕 후 라우팅
         setFinishing(true);
         setTimeout(async () => {
           const { data } = await supabase.auth.getSession();
@@ -235,35 +239,20 @@ export default function IntroPage() {
       className={[
         "relative min-h-screen w-full overflow-hidden flex items-center justify-center px-4",
         theme.bgClass,
-        // 상단/하단 세이프 에어리어 보정
         "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
-        // 상단 라이트 오라
         "before:absolute before:inset-0 before:content-[''] before:bg-[radial-gradient(900px_600px_at_50%_-10%,rgba(255,255,255,0.35),transparent_70%)]",
       ].join(" ")}
     >
-      {/* 전역 키프레임: 감자 펄스/광택 스윕 & 상단 스윕 */}
+      {/* 키프레임 */}
       <style>{`
-        @keyframes potatoPulse {
-          0%, 100% { transform: translateZ(0) scale(1); }
-          50% { transform: translateZ(0) scale(1.05); }
-        }
-        @keyframes shineSweep {
-          0% { opacity: 0; transform: translateX(-120%); }
-          20% { opacity: .5; }
-          100% { opacity: 0; transform: translateX(120%); }
-        }
-        @keyframes pulseMini {
-          0%,100% { transform: scale(1); opacity: .9 }
-          50%     { transform: scale(1.06); opacity: 1 }
-        }
-        @keyframes topSweep {
-          0%   { transform: translateY(-100%); opacity: 0 }
-          40%  { opacity: .6 }
-          100% { transform: translateY(0%); opacity: 0 }
-        }
+        @keyframes potatoPulse { 0%,100% { transform: scale(1) } 50% { transform: scale(1.05) } }
+        @keyframes shineSweep { 0% { opacity: 0; transform: translateX(-120%) } 20% { opacity:.5 } 100% { opacity: 0; transform: translateX(120%) } }
+        @keyframes pulseMini { 0%,100% { transform: scale(1); opacity: .9 } 50% { transform: scale(1.06); opacity: 1 } }
+        @keyframes topSweep { 0% { transform: translateY(-100%); opacity: 0 } 40% { opacity: .6 } 100% { transform: translateY(0%); opacity: 0 } }
+        @keyframes blobFloat { 0% { transform: translate3d(0,0,0) } 50% { transform: translate3d(6px,-6px,0) } 100% { transform: translate3d(0,0,0) } }
       `}</style>
 
-      {/* 그레인 (밤에는 진하게, 낮에는 살짝) */}
+      {/* 그레인 */}
       <div
         aria-hidden
         className={`pointer-events-none absolute inset-0 mix-blend-multiply ${
@@ -275,7 +264,7 @@ export default function IntroPage() {
         }}
       />
 
-      {/* 마감 연출: 상단 라이트 스윕 */}
+      {/* 마감 연출 */}
       {finishing && (
         <div
           aria-hidden
@@ -298,39 +287,45 @@ export default function IntroPage() {
         }}
         className="relative z-10 grid w-full max-w-5xl gap-10 md:grid-cols-2 items-center pt-8 pb-12"
       >
-        {/* ── (좌) 액자 + 시간대 멘트 ── */}
+        {/* ── (좌) 몽글 액자 + 맞춤 멘트 ── */}
         <div className="flex flex-col items-center gap-3 md:items-start">
+          {/* ✅ 더 몽글한 액자 */}
           <figure
             className={[
-              "relative w-[82%] max-w-sm aspect-[4/5] rounded-[28px]",
-              "bg-[linear-gradient(145deg,rgba(255,255,255,0.95),rgba(255,255,255,0.6))]",
-              "shadow-[0_18px_50px_rgba(184,128,68,0.18)]",
-              "ring-1 ring-white/70",
+              "relative w-[82%] max-w-sm aspect-[4/5]",
+              "rounded-[36px] p-[14px]",
+              "bg-white/60 backdrop-blur-xl",
+              "ring-1 ring-white/70 shadow-[0_18px_60px_rgba(184,128,68,0.18)]",
             ].join(" ")}
           >
-            {/* 프레임 내부 여백 살짝 축소 (꽉찬 느낌) */}
-            <div className="absolute inset-[10px] rounded-2xl bg-[#8b5e34] ring-1 ring-black/5 overflow-hidden">
+            {/* 구름/젤리 보더 */}
+            <div className="absolute -z-10 inset-0 rounded-[40px] bg-[radial-gradient(120%_100%_at_0%_0%,rgba(255,255,255,0.85),transparent_60%)]" />
+            {/* 말랑 블롭 하이라이트 */}
+            <div className="pointer-events-none absolute -top-6 -left-6 h-24 w-24 rounded-[32px] bg-white/50 blur-2xl animate-[blobFloat_9s_ease-in-out_infinite]" />
+            <div className="pointer-events-none absolute -bottom-8 -right-8 h-28 w-28 rounded-[36px] bg-[#ffe9d0]/60 blur-2xl animate-[blobFloat_12s_ease-in-out_infinite]" />
+
+            {/* 내부 캔버스 (사진) */}
+            <div className="relative h-full w-full rounded-[28px] overflow-hidden ring-1 ring-black/5">
               <div
-                className="absolute inset-[7px] rounded-xl bg-center bg-cover"
+                className="absolute inset-0 bg-center bg-cover"
                 style={{ backgroundImage: `url(${bgSrc})` }}
               />
-              {/* 광택/반사 레이어 살짝 약화 */}
-              <div className="absolute inset-[7px] rounded-xl pointer-events-none">
-                <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-white/25 to-transparent mix-blend-screen" />
-                <div className="absolute -top-6 -left-10 w-56 h-56 rotate-12 bg-white/20 blur-2xl" />
+              {/* 유리광택 */}
+              <div className="pointer-events-none absolute inset-0">
+                <div className="absolute inset-0 bg-gradient-to-br from-white/25 to-transparent mix-blend-screen" />
+                <div className="absolute -top-8 -left-12 w-64 h-64 rotate-12 bg-white/25 blur-2xl" />
               </div>
             </div>
           </figure>
 
-          {/* 시간대 멘트 */}
-          <figcaption className="font-round text-sm md:text-base font-medium text-[var(--ink)]">
-            {phaseLabel(phase)}
+          {/* 맞춤 멘트 */}
+          <figcaption className="font-round text-sm md:text-base font-medium text-[var(--ink)] text-center md:text-left">
+            {phaseMessage}
           </figcaption>
         </div>
 
         {/* ── (우) 타이틀 + 헤드라인 + 로딩바 ── */}
         <div className="flex flex-col items-center md:items-start text-[var(--ink)]">
-          {/* 상단: HeartPulse + 감자링 */}
           <div className="flex items-center gap-2 text-[var(--ink)] drop-shadow-[0_0_8px_rgba(216,165,110,0.35)]">
             <FontAwesomeIcon
               icon={faHeartPulse}
@@ -341,40 +336,33 @@ export default function IntroPage() {
             <span className="font-semibold">감자링</span>
           </div>
 
-          {/* 헤드라인: MorphingText (클램프 폰트 + 그라데이션 키워드) */}
           <div className="mt-6 min-h-[3.75rem] md:min-h-[5rem] lg:min-h-[6rem] flex items-center w-full">
             <MorphingText
               texts={["우리의 기록들이", "자라나는 공간 ", "감자링"]}
-              className={`${HEADLINE_TXT} !leading-[0.9] text-[var(--ink-strong)] font-gowun`}
-              // MorphingText가 옵션을 지원한다면 전달 (지원 안 해도 무해)
+              className={`${HEADLINE_TXT} !leading-[0.9] text-[var(--ink-strong)] font-hand`}
               reducedMotion={!!prefersReducedMotion}
-              renderWord={(word: string) => {
-                // 마지막 키워드만 그라데이션 텍스트
-                if (word.trim() === "감자링") {
-                  return (
-                    <span className="bg-gradient-to-br from-[var(--accentA)] to-[var(--accentB)] bg-clip-text text-transparent drop-shadow-sm">
-                      {word}
-                    </span>
-                  );
-                }
-                return word;
-              }}
+              renderWord={(word: string) =>
+                word.trim() === "감자링" ? (
+                  <span className="bg-gradient-to-br from-[var(--accentA)] to-[var(--accentB)] bg-clip-text text-transparent drop-shadow-sm">
+                    {word}
+                  </span>
+                ) : (
+                  word
+                )
+              }
             />
           </div>
 
-          {/* 로딩바 + 퍼센트(감자 아이콘 포함) */}
+          {/* 로딩바 + 퍼센트 */}
           <div className="mt-6 w-full max-w-xl">
             <div className="mb-1 flex items-center justify-between text-sm text-[color:var(--ink)]/90">
               <span className="font-medium">{loadingMessage}</span>
-
-              {/* 감자 아이콘 + 탭룰러 숫자 */}
               <span className="tabular-nums flex items-center">
                 <PotatoIcon progress={progress} />
                 {progress}%
               </span>
             </div>
 
-            {/* 접근성 배려: role=progressbar */}
             <div
               role="progressbar"
               aria-valuenow={progress}
@@ -383,7 +371,6 @@ export default function IntroPage() {
               className="h-2 w-full overflow-hidden rounded-full"
               style={{ backgroundColor: "var(--track)" }}
             >
-              {/* 채우기 레이어 + 하이라이트 링 */}
               <div
                 className="h-full rounded-full relative transition-[width] duration-[120ms] ease-out"
                 style={{ width: `${progress}%` }}
@@ -393,7 +380,6 @@ export default function IntroPage() {
               </div>
             </div>
 
-            {/* 선택: 바로 시작 (시각적 위계 낮게) */}
             <button
               className="mt-6 text-sm underline decoration-dotted opacity-70 hover:opacity-100 focus:outline-none"
               onClick={async () => {
@@ -407,7 +393,7 @@ export default function IntroPage() {
         </div>
       </motion.section>
 
-      {/* 비네트: 중앙 집중감, 낮엔 약하게/밤엔 약간 진하게 */}
+      {/* 비네트 */}
       <div
         aria-hidden
         className={`pointer-events-none absolute inset-0 ${
@@ -417,7 +403,6 @@ export default function IntroPage() {
         }`}
       />
 
-      {/* SR 텍스트: 진행률 포함 */}
       <p role="status" aria-live="polite" className="sr-only">
         로딩 중… {progress}%
       </p>
