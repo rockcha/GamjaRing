@@ -335,7 +335,7 @@ export default function DaysTogetherBadge() {
   return (
     <div className={"w-full px-4 py-3 mt-2"}>
       {/* 헤더 */}
-      <div className="flex items-center justify-center gap-3">
+      <div className="flex items-center justify-center gap-5">
         <div className="flex items-center gap-2 text-[#5b3d1d] min-w-0">
           <span className="text-[18px] sm:text-[28px] font-extrabold truncate">
             {myNickname}
@@ -374,7 +374,7 @@ export default function DaysTogetherBadge() {
               multiline={false}
               isView={false}
             >
-              <p className="text-[16px] sm:text-[20px] font-semibold text-[#5b3d1d]">
+              <p className="text-[16px] sm:text-[20px] font-semibold text-[#5b3d1d] font-hand">
                 함께한지
                 <span className="mx-1 font-extrabold text-[22px] sm:text-[28px] text-[#b75e20] align-baseline">
                   {daysTogether ?? "?"}

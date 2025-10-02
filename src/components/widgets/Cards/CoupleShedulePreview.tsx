@@ -136,9 +136,9 @@ export default function CoupleSchedulePreview({
     <TooltipProvider delayDuration={200}>
       <Card className={cn("relative overflow-hidden", className)}>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-start gap-2">
+          <div className="flex items-center justify-start gap-2 text-xl">
             <FontAwesomeIcon icon={faCalendar} className="mr-2 opacity-80" />
-            <CardTitle className="text-[#3d2b1f] text-lg">
+            <CardTitle className="text-[#3d2b1f] text-xl">
               일정 미리보기
             </CardTitle>
           </div>

@@ -192,6 +192,9 @@ export default function StartEndPixelShow({
 
   const cur = slides[idx];
 
+  /** ----- 헤더 텍스트 구성 ----- */
+  const headlineLabel = idx === 0 ? "우리의 첫 기억" : "우리의 최근 기억";
+
   return (
     <Card
       className={cn(
@@ -204,22 +207,44 @@ export default function StartEndPixelShow({
     >
       {showParticles && <SoftParticles />}
 
-      {/* 헤더: 라벨 + 날짜 + 진행바 */}
-      <header className="relative z-10 mb-3 flex items-center justify-between px-1">
-        <div className="flex items-center gap-2">
-          <span className="rounded-full bg-white/70 px-2 py-0.5 text-xs ring-1 ring-border backdrop-blur">
-            {idx === 0 ? "우리의 첫 기억" : "우리의 최근 기억"}
-          </span>
-          <span className="text-sm font-medium text-muted-foreground">
+      {/* 헤더: 날짜(은은 칩) + 손글씨 제목(크게) / 진행바는 우측 */}
+      <header className="relative z-10 mb-3 grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_auto] px-1">
+        {/* 제목 블록 (날짜 앞 + 손글씨 타이틀 크게) */}
+        <div className="flex flex-wrap items-baseline gap-2">
+          {/* 날짜 칩: 은은하게 */}
+          <span
+            className={cn(
+              "rounded-full px-2 py-0.5 text-[11px] sm:text-xs",
+              "bg-white/60 ring-1 ring-border text-muted-foreground/80",
+              "backdrop-blur-sm"
+            )}
+            aria-label="기억 날짜"
+          >
             {cur.date}
           </span>
+
+          {/* 손글씨 제목: 잘 보이게 크게 */}
+          <h2
+            className={cn(
+              "font-hand text-[18px] sm:text-[20px] md:text-[22px] lg:text-[24px]",
+              "tracking-[-0.01em] leading-tight",
+              // 살짝 그라데이션 잉크 + 드롭섀도우로 가독성
+              "bg-gradient-to-br from-neutral-800 to-neutral-700 dark:from-neutral-200 dark:to-neutral-50",
+              "bg-clip-text text-transparent",
+              "drop-shadow-[0_1px_0_rgba(255,255,255,0.65)] dark:drop-shadow-[0_1px_0_rgba(0,0,0,0.45)]"
+            )}
+          >
+            {headlineLabel}
+          </h2>
         </div>
 
-        <div className="relative h-1 w-32 overflow-hidden rounded-full bg-muted">
+        {/* 진행바: 데스크탑 우측 정렬, 모바일에선 아래로 내려옴 */}
+        <div className="relative h-1 w-40 sm:w-48 overflow-hidden rounded-full bg-muted justify-self-start sm:justify-self-end">
           <div
             ref={progressRef}
             className="h-full w-0 bg-primary"
             style={{ animationFillMode: "forwards" }}
+            aria-hidden
           />
         </div>
       </header>

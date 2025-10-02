@@ -237,8 +237,8 @@ export default function UserMemoEmojiButton({
     >
       {/* 헤더 */}
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <FontAwesomeIcon icon={icon} className="h-5 w-5 " aria-hidden />
+        <div className="flex items-center gap-2 text-xl text-neutral-900">
+          <FontAwesomeIcon icon={icon} aria-hidden />
           <div className="flex items-center gap-2">
             <span className="text-base sm:text-xl font-bold">메모장</span>
             {loading && (

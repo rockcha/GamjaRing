@@ -485,8 +485,8 @@ function RailCaptionOuter({
       <div
         className={[
           "mt-0.5 font-semibold text-foreground/90",
-          "text-[20px] sm:text-[22px] md:text-[26px] lg:text-[28px]",
-          "tracking-[-0.012em] [text-wrap:balance] opacity-95 line-clamp-2",
+          "text-[28px] sm:text-[30px] md:text-[34px] lg:text-[36px]",
+          "tracking-[-0.012em] [text-wrap:balance] opacity-95 line-clamp-2 font-hand",
         ].join(" ")}
         style={{
           letterSpacing: "-0.012em",
@@ -494,7 +494,7 @@ function RailCaptionOuter({
           textShadow: "0 0 1px rgba(0,0,0,0.10), 0 1px 1.5px rgba(0,0,0,0.06)",
         }}
       >
-        <span aria-hidden className="mr-1">
+        <span aria-hidden className="mr-1 ">
           {emoji}
         </span>
         {title}

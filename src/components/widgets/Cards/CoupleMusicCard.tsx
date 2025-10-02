@@ -29,6 +29,7 @@ import { toast } from "sonner";
 
 // icons
 import { PencilLine, Check, X, Music4 } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 // --- YT 글로벌 타입(간단 선언) ---
 declare global {

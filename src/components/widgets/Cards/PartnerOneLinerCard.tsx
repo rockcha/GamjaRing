@@ -97,17 +97,15 @@ export default function PartnerOneLinerCard({
       aria-label={`${nickname}의 한마디 카드`}
     >
       {/* 헤더: 중앙 정렬 타이틀/이모지 (미니멀) */}
-      <div className="w-full flex items-center justify-center gap-2 mb-3">
-        <FontAwesomeIcon
-          icon={icon}
-          className="h-4 w-4 text-amber-600"
-          aria-hidden
-        />
+      <div className="w-full flex items-center justify-start gap-3 mb-3 text-xl">
+        <FontAwesomeIcon icon={icon} aria-hidden />
         <h3
-          className="text-sm sm:text-[15px] font-bold tracking-tight text-neutral-900"
+          className="text-base sm:text-[20px] font-bold tracking-tight "
           title={`${nickname} 의 한마디`}
         >
-          {nickname} <span className="font-semibold">의 한마디</span>
+          <span className="text-amber-800"> {nickname} </span>
+
+          <span className="text-neutral-800 font-semibold">의 한마디</span>
         </h3>
         <Badge
           variant="outline"
@@ -140,13 +138,13 @@ export default function PartnerOneLinerCard({
             <p
               className={cn(
                 "text-center",
-                "text-[17px] sm:text-[18px] leading-relaxed text-neutral-800 whitespace-pre-wrap",
+                "text-[19px] sm:text-[20px] leading-relaxed text-neutral-800 whitespace-pre-wrap",
                 "break-words",
-                "line-clamp-[var(--clamp)]"
+                "line-clamp-[var(--clamp)] font-hand"
               )}
               style={{ ["--clamp" as any]: String(maxLines) }}
             >
-              {content}
+              "{content}"
             </p>
           )}
         </div>

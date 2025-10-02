@@ -58,7 +58,7 @@ const TitleCluster = memo(function TitleCluster({
       </div>
       {/* ✅ 모바일에서는 감춤 */}
       <div className="min-h-[38px] hidden md:flex items-center">
-        <p className="text-[15px] font-medium text-neutral-700 truncate">
+        <p className="text-[15px] font-medium text-neutral-700 truncate ">
           우리의 기록이 자라나는 공간,{" "}
           <span className="font-semibold text-amber-600">감자링</span>
         </p>
