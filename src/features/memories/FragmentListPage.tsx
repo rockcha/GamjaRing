@@ -1,7 +1,8 @@
 // src/features/memories/FragmentListPage.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -38,7 +39,7 @@ function seededRandom(seed: string) {
     return Math.abs((x >>> 0) / 0xffffffff);
   };
 }
-function seededTiltDeg(seed: string, max = 2.2) {
+function seededTiltDeg(seed: string, max = 2.6) {
   const rnd = seededRandom(seed)();
   const sign = rnd > 0.5 ? 1 : -1;
   // 0.4° ~ max°
@@ -384,20 +385,112 @@ function ListViewMasonry({
 }
 
 /* =========================
- * ✅ 메모 패드 (코르크 스타일)
+ * ❤️ 하트 버스트 (클릭시에만, 은은하게/살짝 큼)
+ * =======================*/
+function useInjectHeartStyles() {
+  useEffect(() => {
+    const id = "mem-heart-anim-style-v2";
+    if (document.getElementById(id)) return;
+    const style = document.createElement("style");
+    style.id = id;
+    style.textContent = `
+@keyframes mem-heart-rise {
+  0%   { transform: translateY(0) scale(0.85); opacity: 0; filter: blur(0.5px); }
+  25%  { transform: translateY(-10px) scale(1.1); opacity: 1; filter: blur(0); }
+  100% { transform: translateY(-80px) scale(1.05); opacity: 0; filter: blur(0.6px); }
+}
+.mem-heart-v2 {
+  position: absolute;
+  font-size: 22px;
+  line-height: 1;
+  will-change: transform, opacity, filter;
+  animation: mem-heart-rise 900ms ease-out forwards;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.04);
+}
+.mem-heart-center {
+  position: absolute;
+  font-size: 28px;
+  line-height: 1;
+  left: 50%;
+  transform: translateX(-50%) translateY(-6px) scale(0.8);
+  opacity: 0;
+  animation: mem-heart-center-pop 700ms ease-out forwards;
+}
+@keyframes mem-heart-center-pop {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(-6px) scale(0.7); }
+  40%  { opacity: 1; transform: translateX(-50%) translateY(-10px) scale(1.1); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-14px) scale(1.0); }
+}
+`;
+    document.head.appendChild(style);
+  }, []);
+}
+
+function HeartBurst({ trigger }: { trigger: number }) {
+  useInjectHeartStyles();
+  const [parts, setParts] = useState<
+    { left: number; delay: number; emoji: string }[]
+  >([]);
+
+  useEffect(() => {
+    // 클릭시에만 발동
+    if (trigger <= 0) return;
+    const emojis = ["💗", "💕", "❤️"]; // 은은한 톤
+    const arr = Array.from({ length: 5 }).map(() => ({
+      left: Math.round(-28 + Math.random() * 56), // -28px ~ 28px
+      delay: Math.random() * 120, // ms
+      emoji: emojis[Math.floor(Math.random() * emojis.length)],
+    }));
+    setParts(arr);
+    const t = setTimeout(() => setParts([]), 1000);
+    return () => clearTimeout(t);
+  }, [trigger]);
+
+  if (trigger <= 0) return null;
+
+  return (
+    <div className="pointer-events-none absolute left-1/2 bottom-6 -translate-x-1/2">
+      {/* 중앙 큰 하트 */}
+      <span className="mem-heart-center" aria-hidden>
+        💖
+      </span>
+      {/* 주변 하트 */}
+      {parts.map((p, i) => (
+        <span
+          key={`${trigger}-${i}`}
+          className="mem-heart-v2"
+          style={{ left: `${p.left}px`, animationDelay: `${p.delay}ms` }}
+          aria-hidden
+        >
+          {p.emoji}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/* =========================
+ * ✅ 메모 패드 (코르크 스타일) + 하트 버튼(크게)
  * =======================*/
 function MemoPad({
   fragment,
   outerSide,
   onSaved,
+  onHeartsChange,
 }: {
-  fragment: Fragment & { memo?: string | null };
+  fragment: Fragment & { memo?: string | null; hearts?: number | null };
   outerSide: "left" | "right";
   onSaved?: (memo: string) => void;
+  onHeartsChange?: (id: Fragment["id"], hearts: number) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState(fragment.memo ?? "");
   const [saving, setSaving] = useState(false);
+
+  // 하트 로컬 상태
+  const [hearts, setHearts] = useState<number>(fragment.hearts ?? 0);
+  const [hearting, setHearting] = useState(false);
+  const [burstKey, setBurstKey] = useState(0); // 0에서 시작 → 첫 렌더 이펙트 X
 
   const placeClass =
     outerSide === "left"
@@ -409,6 +502,21 @@ function MemoPad({
   // 코르크 노트 느낌의 배경
   const notePaper =
     "linear-gradient(180deg, rgba(255,252,246,0.96), rgba(253,248,238,0.96))";
+
+  // 하트 업
+  const handleHeartUp = async () => {
+    if (hearting) return;
+    setHearting(true);
+    try {
+      const next = hearts + 1;
+      await updateFragment(fragment.id, { hearts: next });
+      setHearts(next);
+      onHeartsChange?.(fragment.id, next);
+      setBurstKey((k) => k + 1); // 클릭 때만 이펙트
+    } finally {
+      setHearting(false);
+    }
+  };
 
   return (
     <div
@@ -428,6 +536,9 @@ function MemoPad({
         )}
         style={{ background: notePaper }}
       >
+        {/* 하트 버스트 */}
+        <HeartBurst trigger={burstKey} />
+
         {/* 상단 테이프 */}
         <MaskingTape
           variant="beige"
@@ -475,7 +586,12 @@ function MemoPad({
                 "font-hand"
               )}
             />
-            <div className={cn("mt-2 flex gap-2", placeClass)}>
+            <div
+              className={cn(
+                "mt-2 flex items-center gap-2 flex-wrap",
+                placeClass
+              )}
+            >
               <Button
                 size="sm"
                 className="rounded-full"
@@ -502,6 +618,23 @@ function MemoPad({
               >
                 취소
               </Button>
+
+              {/* ❤️ 큰 하트 버튼 */}
+              <Button
+                size="lg"
+                variant="outline"
+                className="rounded-full h-10 px-4 text-base gap-2"
+                onClick={handleHeartUp}
+                disabled={hearting}
+                title="하트 올리기"
+              >
+                <span className="text-xl" aria-hidden>
+                  ❤️
+                </span>
+                <span className="font-semibold">하트</span>
+
+                <span className="ml-1 text-stone-500">({hearts})</span>
+              </Button>
             </div>
           </>
         ) : (
@@ -514,7 +647,12 @@ function MemoPad({
             >
               {val || "아직 메모가 없어요. ‘메모 수정’으로 기록해볼까요?"}
             </div>
-            <div className={cn("mt-2 flex gap-2", placeClass)}>
+            <div
+              className={cn(
+                "mt-2 flex items-center gap-2 flex-wrap",
+                placeClass
+              )}
+            >
               <Button
                 size="sm"
                 variant="outline"
@@ -522,6 +660,23 @@ function MemoPad({
                 onClick={() => setEditing(true)}
               >
                 메모 수정
+              </Button>
+
+              {/* ❤️ 큰 하트 버튼 */}
+              <Button
+                size="lg"
+                variant="secondary"
+                className="rounded-full h-10 px-4 text-base gap-2 bg-rose-50 text-rose-600 hover:bg-rose-100 shadow-sm"
+                onClick={handleHeartUp}
+                disabled={hearting}
+                title="하트 누르기"
+              >
+                <span className="text-xl" aria-hidden>
+                  ❤️
+                </span>
+                <span className="font-semibold">하트</span>
+
+                <span className="ml-1 text-stone-500">({hearts})</span>
               </Button>
             </div>
           </>
@@ -538,10 +693,12 @@ function TimelineLarge({
   items,
   onOpen,
   onSaveMemo,
+  onHeartsChange,
 }: {
   items: Fragment[];
   onOpen: (id: string | number) => void;
   onSaveMemo: (id: Fragment["id"], memo: string) => void;
+  onHeartsChange: (id: Fragment["id"], hearts: number) => void;
 }) {
   const groups = useMemo(() => groupByYearMonth(items), [items]);
   return (
@@ -551,9 +708,15 @@ function TimelineLarge({
           <MonthSection
             key={ym}
             ym={ym}
-            rows={rows as (Fragment & { memo?: string | null })[]}
+            rows={
+              rows as (Fragment & {
+                memo?: string | null;
+                hearts?: number | null;
+              })[]
+            }
             onOpen={onOpen}
             onSaveMemo={onSaveMemo}
+            onHeartsChange={onHeartsChange}
           />
         );
       })}
@@ -566,11 +729,13 @@ function MonthSection({
   rows,
   onOpen,
   onSaveMemo,
+  onHeartsChange,
 }: {
   ym: string;
-  rows: (Fragment & { memo?: string | null })[];
+  rows: (Fragment & { memo?: string | null; hearts?: number | null })[];
   onOpen: (id: string | number) => void;
   onSaveMemo: (id: Fragment["id"], memo: string) => void;
+  onHeartsChange: (id: Fragment["id"], hearts: number) => void;
 }) {
   const monthNum = parseMonthFromYm(ym);
   const theme = monthTheme(monthNum);
@@ -647,6 +812,7 @@ function MonthSection({
                 fragment={f}
                 outerSide={outerSide}
                 onSaved={(memo) => onSaveMemo(f.id, memo)}
+                onHeartsChange={onHeartsChange}
               />
             </article>
           );
@@ -657,9 +823,9 @@ function MonthSection({
 }
 
 /* =========================
- * 월 내비게이터 (그대로)
+ * 월 내비게이터 "패널"(UI만) — viewport 고정은 포털에서 담당
  * =======================*/
-function MonthNavigator({ months }: { months: string[] }) {
+function MonthNavigatorPanel({ months }: { months: string[] }) {
   const parsed = useMemo(
     () =>
       months.map((ym) => {
@@ -674,7 +840,6 @@ function MonthNavigator({ months }: { months: string[] }) {
     [months]
   );
   const ids = parsed.map((p) => p.id);
-
   const [active, setActive] = useState<string | null>(ids[0] ?? null);
 
   useEffect(() => {
@@ -713,7 +878,10 @@ function MonthNavigator({ months }: { months: string[] }) {
   return (
     <TooltipProvider delayDuration={150}>
       <div
-        className="hidden lg:flex fixed right-6 top-1/2 -translate-y-1/2 z-20 max-h[70vh] flex-col items-center gap-2 overflow-y-auto rounded-2xl bg-white/80 px-2 py-3 shadow-md ring-1 ring-border backdrop-blur"
+        className={cn(
+          // 포털 래퍼가 fixed를 담당 → 여기서는 일반 컨테이너
+          "flex flex-col items-center gap-2 max-h-[70vh] overflow-y-auto"
+        )}
         tabIndex={0}
         role="navigation"
         aria-label="월 타임라인 내비게이션"
@@ -740,13 +908,13 @@ function MonthNavigator({ months }: { months: string[] }) {
                         .getElementById(p.id)
                         ?.scrollIntoView({ behavior: "smooth", block: "start" })
                     }
-                    className={[
-                      "min-w[52px] rounded-full px-3 py-1 text-xs tabular-nums ring-1 transition",
+                    className={cn(
+                      "min-w-[52px] rounded-full px-3 py-1 text-xs tabular-nums ring-1 transition",
                       "hover:ring-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                       isActive
                         ? "bg-rose-100 text-rose-700 ring-rose-200"
-                        : "bg-background text-muted-foreground ring-border",
-                    ].join(" ")}
+                        : "bg-background text-muted-foreground ring-border"
+                    )}
                   >
                     {Number(p.month)}월
                   </button>
@@ -775,6 +943,30 @@ function MonthNavigator({ months }: { months: string[] }) {
         </button>
       </div>
     </TooltipProvider>
+  );
+}
+
+/* =========================
+ * 월 내비게이터 "포털" — 화면 기준 우측 중앙에 고정
+ * =======================*/
+function MonthNavigatorFixedPortal({
+  months,
+  show,
+}: {
+  months: string[];
+  show: boolean;
+}) {
+  if (typeof document === "undefined" || !show) return null;
+  return createPortal(
+    <div
+      className="hidden lg:flex fixed right-6 top-1/2 -translate-y-1/2 z-50
+                 rounded-2xl bg-white/85 px-2 py-3 shadow-md ring-1 ring-border backdrop-blur pointer-events-auto"
+      role="navigation"
+      aria-label="월 타임라인 내비게이션"
+    >
+      <MonthNavigatorPanel months={months} />
+    </div>,
+    document.body
   );
 }
 
@@ -1036,7 +1228,7 @@ export default function FragmentListPage() {
               <span
                 className={[
                   "text-[13px] font-semibold",
-                  !isTimeline ? "text-foreground" : "text-muted-foreground",
+                  isTimeline ? "text-muted-foreground" : "text-foreground",
                 ].join(" ")}
               >
                 리스트
@@ -1083,8 +1275,13 @@ export default function FragmentListPage() {
                       prev.map((it) => (it.id === id ? { ...it, memo } : it))
                     );
                   }}
+                  onHeartsChange={(id, hearts) =>
+                    setItems((prev) =>
+                      prev.map((it) => (it.id === id ? { ...it, hearts } : it))
+                    )
+                  }
                 />
-                <MonthNavigator months={months} />
+                {/* 월 네비는 포털로 렌더됨 */}
               </div>
             </TabsContent>
 
@@ -1097,6 +1294,12 @@ export default function FragmentListPage() {
           </Tabs>
         )}
       </div>
+
+      {/* 화면 기준 우측 중앙 고정 네비게이터 (포털) */}
+      <MonthNavigatorFixedPortal
+        months={months}
+        show={isTimeline && !loading && months.length > 0}
+      />
     </>
   );
 }
