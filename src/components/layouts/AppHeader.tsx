@@ -98,17 +98,20 @@ const MobileRows = memo(function MobileRows({
 }) {
   return (
     <div className="md:hidden mx-auto w-full max-w-screen-2xl px-3 sm:px-4">
-      {/* 1행: 타이틀(좌) + 밸런스/아바타(우) */}
+      {/* 1행: 타이틀(좌) + 알림/밸런스/아바타(우) */}
       <div className="flex items-center justify-between py-2 gap-3">
         <div className="min-w-0 flex-1">
           <TitleCluster routeTitle={routeTitle} />
         </div>
         <div className="shrink-0 flex items-center gap-2">
+          {/* 👇 모바일용 알림 드롭다운 추가 */}
+          <NotificationDropdown iconSize={40} />
           <CoupleBalanceCard showDelta dense />
           <AvatarWidget />
         </div>
       </div>
-      {/* 2행: DaysTogether 한 줄만 */}
+
+      {/* 2행: DaysTogether 한 줄 */}
       <div className="pb-2">
         <DaysTogetherBadge />
       </div>
