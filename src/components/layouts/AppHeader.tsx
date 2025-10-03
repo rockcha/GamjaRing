@@ -208,9 +208,6 @@ function SelfTodayOneLiner() {
       </DialogTrigger>
 
       <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>나의 한마디</DialogTitle>
-        </DialogHeader>
         <TodayMessageCard maxLen={140} />
       </DialogContent>
     </Dialog>
