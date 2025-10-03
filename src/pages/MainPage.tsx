@@ -55,8 +55,7 @@ export default function MainPage() {
         {/* 왼쪽 */}
         <div className="flex flex-col gap-2 min-w-0">
           <CoupleSchedulePreview limit={5} className="w-full h-fit" />
-          <PartnerOneLinerCard />
-          <TodayMessageCard />
+          <CoupleMusicCard />
         </div>
 
         {/* 가운데: 커플 이미지 */}
@@ -67,8 +66,7 @@ export default function MainPage() {
 
         {/* 오른쪽: 질문 + 일정 */}
         <div className="flex flex-col gap-2 min-w-0">
-          <CoupleMusicCard />
-
+          <PartnerOneLinerCard />
           <UserMemoEmojiButton />
         </div>
       </div>

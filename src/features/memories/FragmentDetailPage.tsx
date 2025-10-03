@@ -9,13 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
-import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -56,20 +49,10 @@ import {
   faCamera,
   faTrash,
   faCrown,
-  faFloppyDisk,
   faSpinner,
   faBackward,
-  faBackwardStep,
 } from "@fortawesome/free-solid-svg-icons";
-import {
-  MoreVertical,
-  CalendarDays,
-  List as ListIcon,
-  Trash2,
-  SkipBack,
-  StepBack,
-  SendToBack,
-} from "lucide-react";
+import { CalendarDays, Trash2 } from "lucide-react";
 
 /* ============== 유틸 ============== */
 function arrayMove<T>(arr: T[], from: number, to: number) {
@@ -126,108 +109,6 @@ function DraggableRow({
     >
       {children}
     </div>
-  );
-}
-
-/* ============== 우측 툴바 컴포넌트 ============== */
-function ToolbarRight({
-  dateText,
-  onOpenDate,
-  onSave,
-  saving,
-  onPickFile,
-  onGoList,
-  onDeleteFragment,
-}: {
-  dateText: string;
-  onOpenDate: () => void;
-  onSave: () => void;
-  saving: boolean;
-  onPickFile: () => void;
-  onGoList: () => void;
-  onDeleteFragment: () => void;
-}) {
-  return (
-    <TooltipProvider delayDuration={80}>
-      <div className="flex items-center gap-2">
-        {/* 날짜: secondary, md미만 아이콘-only */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={onOpenDate}
-              className="inline-flex items-center gap-2 h-10 px-3 rounded-md bg-secondary text-secondary-foreground hover:opacity-90 transition-colors group max-md:px-2"
-              aria-label="날짜 선택"
-              title={dateText}
-            >
-              <CalendarDays className="size-4 shrink-0" />
-              <span className="hidden md:inline">{dateText}</span>
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>날짜 선택</TooltipContent>
-        </Tooltip>
-
-        {/* 구분선으로 Primary와 보조를 나눔 */}
-        <Separator orientation="vertical" className="h-6" />
-
-        {/* Primary: 저장하기 */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={onSave}
-              disabled={saving}
-              className="inline-flex items-center gap-2 h-10 px-3 rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-colors"
-              aria-label="저장하기"
-            >
-              {saving ? (
-                <>
-                  <FontAwesomeIcon icon={faSpinner} className="size-4" spin />
-                  <span className="hidden sm:inline">저장중…</span>
-                </>
-              ) : (
-                <>
-                  <FontAwesomeIcon icon={faFloppyDisk} className="size-4" />
-                  <span className="hidden sm:inline">저장하기</span>
-                </>
-              )}
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>변경 사항 저장</TooltipContent>
-        </Tooltip>
-
-        {/* 기타/위험 작업: kebab */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              className="inline-flex h-10 w-10 items-center justify-center rounded-md hover:bg-muted"
-              aria-label="더보기"
-            >
-              <MoreVertical className="size-5" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            {/* ✅ 사진 추가: 삭제 위쪽에 배치 */}
-            <DropdownMenuItem onClick={onGoList}>
-              <FontAwesomeIcon icon={faBackwardStep} className="mr-2" />
-              뒤로가기
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={onPickFile}>
-              <FontAwesomeIcon icon={faCamera} className="mr-2" />
-              사진 추가
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={onDeleteFragment}
-              className="text-destructive focus:text-destructive"
-            >
-              <Trash2 className="mr-2 size-4" />
-              삭제하기
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </TooltipProvider>
   );
 }
 
@@ -595,14 +476,11 @@ export default function FragmentDetailPage() {
       [created.id]: { author: "", partner: "" },
     }));
 
-    // 새 카드 추가 → 아직 저장 전 상태지만 DB엔 생성됨(이미지/카드 생성 자체는 즉시)
-    // 순서/캡션/제목/요약 등은 Save에서 한번에 반영
     toast.success("사진 카드가 추가되었어요");
   }
 
   async function setCover(path: string) {
     if (!frag) return;
-    // 대표 사진은 즉시 반영 (요청에 제한 없었음)
     const updated = await updateFragment(frag.id, { cover_photo_path: path });
     setFrag(updated);
     toast.success("대표 사진을 변경했어요");
@@ -666,9 +544,6 @@ export default function FragmentDetailPage() {
       toast.error("삭제 중 오류가 발생했어요. 다시 시도해 주세요.");
     }
   }
-
-  // ⚠️ 단축키 전면 제거 (요청)
-  // useEffect(() => { ... }, [])  // 삭제
 
   const STICKY_TOP = "top-44 md:top-40";
   const dateText =
@@ -754,75 +629,145 @@ export default function FragmentDetailPage() {
     <div className="mx-auto max-w-[1400px] p-6 space-y-8">
       {frag && (
         <>
-          {/* ✅ Sticky 툴바 (저장 버튼 추가 / 사진추가 이동) */}
+          {/* ✅ Sticky 헤더 : 1행(제목+날짜) / 2행(버튼들) */}
           <div
-            className={`sticky ${STICKY_TOP} z-30 -mx-6 px-6 h-14 grid grid-cols-[auto_1fr_auto] items-center gap-3
-            bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/65 rounded-xl
-            border-b shadow-[0_1px_0_rgba(0,0,0,0.03)]`}
+            className={`sticky ${STICKY_TOP} z-40 px-3 md:-mx-6 md:px-6
+            bg-white/90 md:bg-white/80 supports-[backdrop-filter]:bg-white/70 backdrop-blur
+            rounded-xl border shadow-[0_1px_0_rgba(0,0,0,0.03)]`}
           >
-            {/* 좌: 하트/카운트 */}
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-10 w-10 rounded-full text-xl"
-                  onClick={addHeart}
-                  aria-label="좋아요"
-                  title={`좋아요 ${frag.hearts}`}
-                >
-                  <span className="pointer-events-none select-none">❤️</span>
-                </Button>
-                {boom && (
-                  <span className="pointer-events-none absolute inset-0 grid place-items-center">
-                    <span className="animate-heart-burst text-2xl">❤️</span>
-                  </span>
-                )}
-              </div>
-              <div className="relative">
-                <span className="text-base md:text-lg text-slate-700 tabular-nums">
-                  {frag.hearts}
-                </span>
-                {plusOne && (
-                  <span className="absolute -right-6 -top-2 text-red-500 text-sm animate-plus-one">
-                    +1
-                  </span>
-                )}
-              </div>
-            </div>
+            <TooltipProvider delayDuration={80}>
+              {/* Row 1: 제목(좌) + 날짜 버튼(우) */}
+              <div className="h-14 grid grid-cols-[1fr_auto] items-center gap-3">
+                <div className="min-w-0 flex items-center gap-2">
+                  <input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="제목"
+                    className="bg-transparent outline-none text-xl md:text-2xl font-extrabold tracking-tight min-w-0 w-full truncate"
+                    aria-label="제목"
+                  />
+                  {!saving && dirty && (
+                    <span className="text-[11px] text-amber-600 whitespace-nowrap">
+                      변경 사항 있음
+                    </span>
+                  )}
+                  {saving && (
+                    <span className="text-xs text-slate-400 flex items-center gap-1 whitespace-nowrap">
+                      <FontAwesomeIcon icon={faSpinner} spin /> 저장중…
+                    </span>
+                  )}
+                </div>
 
-            {/* 중: 제목 (자동저장 제거) */}
-            <div className="min-w-0 flex items-center gap-2 ml-6 ">
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="제목"
-                className="bg-transparent outline-none text-xl md:text-2xl font-extrabold tracking-tight min-w-0 w-full truncate"
-                aria-label="제목"
-              />
-              {/* Dirty 표시(선택) */}
-              {dirty && !saving && (
-                <span className="text-[11px] text-amber-600 whitespace-nowrap">
-                  변경 사항 있음
-                </span>
-              )}
-              {saving && (
-                <span className="text-xs text-slate-400 flex items-center gap-1 whitespace-nowrap">
-                  <FontAwesomeIcon icon={faSpinner} spin /> 저장중…
-                </span>
-              )}
-            </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      onClick={() => setDateOpen(true)}
+                      variant="secondary"
+                      className="h-11 rounded-full px-4"
+                      aria-label="날짜 선택"
+                      title={dateText}
+                    >
+                      <CalendarDays className="size-4 mr-2" />
+                      <span className="hidden md:inline">{dateText}</span>
+                      <span className="md:hidden">날짜</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>날짜 선택</TooltipContent>
+                </Tooltip>
+              </div>
 
-            {/* 우: 정리된 액션 (저장/달력/메뉴) */}
-            <ToolbarRight
-              dateText={dateText}
-              onOpenDate={() => setDateOpen(true)}
-              onSave={handleSaveAll}
-              saving={saving}
-              onPickFile={() => fileRef.current?.click()}
-              onGoList={() => nav("/memories")}
-              onDeleteFragment={() => setConfirmOpen({ type: "fragment" })}
-            />
+              <Separator />
+
+              {/* Row 2: 좌→우 (뒤로가기 / 사진 추가 / 저장 / 삭제) */}
+              <div className="h-16 grid grid-cols-4 items-center gap-3">
+                {/* 뒤로가기 */}
+                <div className="justify-self-start">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        onClick={() => nav("/memories")}
+                        variant="ghost"
+                        className="h-11 rounded-full px-5 bg-white/80 hover:bg-white shadow-sm ring-1 ring-black/5"
+                        aria-label="뒤로가기"
+                      >
+                        <FontAwesomeIcon icon={faBackward} className="mr-2" />
+                        <span className="hidden sm:inline">뒤로가기</span>
+                        <span className="sm:hidden">뒤로</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>목록으로</TooltipContent>
+                  </Tooltip>
+                </div>
+
+                {/* 사진 추가 */}
+                <div className="justify-self-center">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        onClick={() => fileRef.current?.click()}
+                        variant="secondary"
+                        className="h-11 rounded-full px-6 shadow-sm"
+                        aria-label="사진 추가"
+                      >
+                        <FontAwesomeIcon icon={faCamera} className="mr-2" />
+                        <span className="font-medium">사진 추가</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>새 사진 카드 추가</TooltipContent>
+                  </Tooltip>
+                </div>
+                {/* 삭제(맨 오른쪽) */}
+                <div className="justify-self-end">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        className="h-11 rounded-full px-5 "
+                        onClick={() => setConfirmOpen({ type: "fragment" })}
+                        aria-label="삭제하기"
+                      >
+                        <Trash2 className="mr-2 size-4" />
+                        <span className="hidden sm:inline">삭제하기</span>
+                        <span className="sm:hidden">삭제</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>이 추억 조각 삭제</TooltipContent>
+                  </Tooltip>
+                </div>
+                {/* 저장 */}
+                <div className="justify-self-end">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={handleSaveAll}
+                        disabled={saving}
+                        className="h-11 rounded-full px-6 shadow-sm"
+                        aria-label="저장하기"
+                        type="button"
+                      >
+                        {saving ? (
+                          <>
+                            <FontAwesomeIcon
+                              icon={faSpinner}
+                              className="mr-2"
+                              spin
+                            />
+                            저장중…
+                          </>
+                        ) : (
+                          <>저장하기</>
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>변경 사항 저장</TooltipContent>
+                  </Tooltip>
+                </div>
+              </div>
+            </TooltipProvider>
           </div>
 
           {/* 메타줄 (2차 정보) */}
@@ -897,7 +842,7 @@ export default function FragmentDetailPage() {
         })}
       </div>
 
-      {/* 추억 정리글 (자동저장 제거) */}
+      {/* 추억 정리글 */}
       <Card className="p-6 space-y-3">
         <div className="font-medium">메모하기</div>
         <Textarea

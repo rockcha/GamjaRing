@@ -95,7 +95,7 @@ export default function PageLayout({
   }, [routeTitle]);
 
   return (
-    <div className="min-h-[100svh] max-w-screen-2xl mx-auto bg-gradient-to-b from-[#FAF5EB] via-[#EFE5D7] to-[#E6D5C3] text-[#3d2b1f]">
+    <div className="min-h-[100svh] max-w-screen-2xl mx-auto bg-gradient-to-b from-[#FAF5EB] via-[#EFE5D7] to-[#E6D5C3] text-[#3d2b1f] ">
       {/* 고정 헤더 */}
       <AppHeader routeTitle={routeTitle} />
       <FloatingLeftRail />

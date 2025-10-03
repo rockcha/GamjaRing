@@ -198,7 +198,7 @@ export default function StartEndPixelShow({
   return (
     <Card
       className={cn(
-        "relative overflow-hidden rounded-3xl ring-1 ring-border",
+        "relative overflow-hidden rounded-3xl border-none shadow-lg",
         "bg-gradient-to-br from-rose-50/70 via-white/85 to-sky-50/70",
         "dark:from-neutral-900/80 dark:via-neutral-900/70 dark:to-neutral-900/85",
         "p-3 sm:p-5",

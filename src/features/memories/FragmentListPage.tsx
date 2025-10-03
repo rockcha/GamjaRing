@@ -13,26 +13,16 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { listFragments } from "./api";
+import { listFragments, updateFragment } from "./api";
 import type { Fragment } from "./types";
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { publicUrl } from "./storage";
-import { Plus, MoreHorizontal } from "lucide-react";
+import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /** ---- Views ---- */
 type ViewKey = "timeline" | "list";
 
-/* =========================
- * Page
- * =======================*/
 export default function FragmentListPage() {
   const nav = useNavigate();
   const { couple } = useCoupleContext();
@@ -46,7 +36,6 @@ export default function FragmentListPage() {
         : null) || "timeline"
   );
 
-  // 헤더 축소(스크롤)
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 14);
@@ -55,7 +44,6 @@ export default function FragmentListPage() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // 초기 로드
   useEffect(() => {
     let alive = true;
     async function run() {
@@ -74,7 +62,6 @@ export default function FragmentListPage() {
     };
   }, [couple?.id]);
 
-  // 과거→현재 정렬
   const filtered = useMemo(() => {
     return [...items].sort(
       (a, b) =>
@@ -94,9 +81,17 @@ export default function FragmentListPage() {
 
   return (
     <>
-      {/* 전역 필름 그레인 */}
+      {/* 배경 질감 */}
       <div
-        className="pointer-events-none fixed inset-0 z-[1] opacity-[0.035]"
+        className="pointer-events-none fixed inset-0 z-[1]"
+        style={{
+          background:
+            "radial-gradient(1400px 800px at 30% 10%, rgba(245,232,206,0.85), transparent 60%), radial-gradient(1200px 900px at 70% 30%, rgba(248,242,230,0.85), transparent 60%)",
+        }}
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none fixed inset-0 z-[1] opacity-[0.07]"
         style={{
           backgroundImage:
             "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22160%22 height=%22160%22 viewBox=%220 0 160 160%22><filter id=%22n%22 x=%220%22 y=%220%22><feTurbulence type=%22fractalNoise%22 baseFrequency=%220.8%22 numOctaves=%222%22 stitchTiles=%22stitch%22/></filter><rect width=%22160%22 height=%22160%22 filter=%22url(%23n)%22 opacity=%220.35%22/></svg>')",
@@ -105,11 +100,11 @@ export default function FragmentListPage() {
         aria-hidden
       />
 
-      {/* 종이 질감 래퍼 + 말랑 그림자 (아이디어 #1) */}
+      {/* 종이 래퍼 */}
       <div
         className={cn(
-          "relative z-[2] w-full sm:w-[85%] lg:w-[78%] mx-auto max-w-7xl p-4 sm:p-5 space-y-6",
-          "rounded-3xl bg-[rgba(250,247,242,0.98)] ring-1 ring-amber-200/40",
+          "relative z-[2] w-full sm:w-[88%] lg:w-[82%] mx-auto max-w-7xl p-4 sm:p-6 space-y-6",
+          "rounded-3xl bg-[rgba(250,247,242,0.95)] ring-1 ring-amber-200/40",
           "shadow-[0_24px_60px_-24px_rgba(120,85,40,0.35)]",
           "before:absolute before:inset-0 before:rounded-3xl before:opacity-25",
           "before:bg-[radial-gradient(rgba(0,0,0,0.045)_1px,transparent_1px)] before:bg-[length:12px_12px]"
@@ -172,14 +167,18 @@ export default function FragmentListPage() {
                 <TimelineLarge
                   items={filtered}
                   onOpen={(id) => nav(`/memories/${id}`)}
+                  onSaveMemo={(id, memo) => {
+                    setItems((prev) =>
+                      prev.map((it) => (it.id === id ? { ...it, memo } : it))
+                    );
+                  }}
                 />
                 <MonthNavigator months={months} />
-                <MonthNavigatorMobile months={months} />
               </div>
             </TabsContent>
 
             <TabsContent value="list" className="m-0">
-              <ListView
+              <ListViewMasonry
                 items={filtered}
                 onOpen={(id) => nav(`/memories/${id}`)}
               />
@@ -191,104 +190,141 @@ export default function FragmentListPage() {
   );
 }
 
-/* =========================
- * 중앙 레일 — 앵커-앵커 구간 고정 이모지
- * (아이디어 #3: 스티치 느낌/간격 조정)
- * =======================*/
-type FixedRailProps = {
-  emoji: string;
-  step?: number; // 세로 간격(px)
-  sideOffset?: number; // 좌우 번갈아 오프셋(px)
-  opacity?: number;
-  startPx?: number; // 섹션 기준 시작 Y
-  endPx?: number; // 섹션 기준 끝 Y
-};
+/* -------------------------------
+   ✅ 메모 패드 (기본 읽기모드)
+-------------------------------- */
+function MemoPad({
+  fragment,
+  outerSide,
+  onSaved,
+}: {
+  fragment: Fragment & { memo?: string | null };
+  outerSide: "left" | "right";
+  onSaved?: (memo: string) => void;
+}) {
+  // 기본값: 읽기모드
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(fragment.memo ?? "");
+  const [saving, setSaving] = useState(false);
 
-function FixedRail({
-  emoji,
-  step = 44,
-  sideOffset = 18,
-  opacity = 0.95,
-  startPx = 0,
-  endPx,
-}: FixedRailProps) {
-  const wrapRef = useRef<HTMLDivElement | null>(null);
-  const [h, setH] = useState(0);
+  const placeClass =
+    outerSide === "left"
+      ? "left-0 pl-0 md:pl-4 justify-start text-left"
+      : "right-0 pr-0 md:pr-4 justify-end text-right";
 
-  // 섹션 높이 측정(리사이즈/콘텐츠 로드 반영)
-  useEffect(() => {
-    if (!wrapRef.current) return;
-    const sec = wrapRef.current.parentElement;
-    if (!sec) return;
-
-    const measure = () => setH(sec.clientHeight);
-    measure();
-
-    const ro = new ResizeObserver(measure);
-    ro.observe(sec);
-
-    // 이미지 로딩 후 변경 대응
-    const imgs = Array.from(sec.querySelectorAll("img"));
-    imgs.forEach((img) =>
-      img.addEventListener("load", measure, { once: true })
-    );
-
-    window.addEventListener("resize", measure);
-    window.addEventListener("load", measure);
-
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", measure);
-      window.removeEventListener("load", measure);
-    };
-  }, []);
-
-  const limitStart = Math.max(0, Math.min(h, startPx));
-  const limitEnd = Math.max(limitStart, Math.min(h, endPx ?? h));
-  const usableHeight = Math.max(0, limitEnd - limitStart);
-  const count = Math.max(0, Math.floor(usableHeight / step) + 1);
+  const dateStr = formatDate(fragment.event_date);
 
   return (
     <div
-      ref={wrapRef}
-      className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 h-full w-16"
-      style={{ opacity }}
-      aria-hidden
+      className={cn(
+        "absolute top-1/2 -translate-y-1/2 w-[min(58ch,42vw)] md:w-[min(64ch,40vw)]",
+        "flex flex-col gap-3 "
+      )}
+      style={{
+        ...(outerSide === "left" ? { left: 0 } : { right: 0 }),
+      }}
     >
-      {/* 중앙 스티치 가이드 */}
-      <div className="absolute left-1/2 top-0 -translate-x-1/2 h-full border-l border-dashed border-amber-300/40" />
-
-      {/* 고정 배치된 이모지 (스탬프 톤) */}
-      {Array.from({ length: count }).map((_, i) => {
-        const y = limitStart + i * step;
-        const side = i % 2 === 0 ? -1 : 1; // 좌우 교차
-        const tx = `calc(-50% + ${side * sideOffset}px)`;
-        return (
-          <div
-            key={i}
-            className="absolute left-1/2 select-none"
-            style={{
-              top: `${y}px`,
-              transform: `translateX(${tx})`,
-              opacity: 1,
-              filter: "drop-shadow(0 1px 0 rgba(0,0,0,0.05))",
-            }}
-          >
-            <span className="block leading-none" style={{ fontSize: 20 }}>
-              {emoji}
-            </span>
+      <div
+        className={cn(
+          "relative rounded-2xl p-5 md:p-6",
+          "bg-[rgba(255,252,246,0.96)] ring-1 ring-amber-200/40",
+          "shadow-[0_8px_28px_-16px_rgba(120,85,40,0.28)]"
+        )}
+      >
+        {/* 날짜 & 제목 — 강한 구분 */}
+        <div className={cn("mb-3", placeClass)}>
+          <div className="text-[13px] md:text-[14px] tabular-nums text-stone-500 tracking-[0.03em]">
+            {dateStr}
           </div>
-        );
-      })}
+          <div
+            className={cn(
+              "mt-1 font-extrabold text-stone-900 font-hand",
+              "text-[26px] sm:text-[28px] md:text-[32px] leading-tight"
+            )}
+            style={{ textShadow: "0 0 1px rgba(0,0,0,0.06)" }}
+          >
+            {fragment.title || "제목 없음"}
+          </div>
+
+          {/* 감성 구분선 */}
+          <div className="mt-2 h-[10px] w-full bg-[radial-gradient(closest-side,rgba(120,85,40,0.25),transparent_70%)] opacity-35 rounded-full" />
+        </div>
+
+        {/* 메모 본문 */}
+        {editing ? (
+          <>
+            <textarea
+              value={val}
+              onChange={(e) => setVal(e.target.value)}
+              placeholder="그날의 감정, 소소한 메모를 남겨보자…"
+              className={cn(
+                "w-full min-h-[160px] md:min-h-[190px] resize-y rounded-xl border",
+                "bg-white/90 focus:bg-white focus:outline-none",
+                "p-3 text-[14.5px] md:text-[16px] leading-relaxed",
+                "font-hand"
+              )}
+            />
+            <div className={cn("mt-2 flex gap-2", placeClass)}>
+              <Button
+                size="sm"
+                className="rounded-full"
+                onClick={async () => {
+                  setSaving(true);
+                  try {
+                    await updateFragment(fragment.id, { memo: val });
+                    onSaved?.(val);
+                    setEditing(false);
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                disabled={saving}
+              >
+                {saving ? "저장 중…" : "메모 저장"}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="rounded-full"
+                onClick={() => setEditing(false)}
+                disabled={saving}
+              >
+                취소
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div
+              className={cn(
+                "whitespace-pre-wrap text-[14.5px] md:text-[16px] leading-relaxed",
+                "text-stone-800/95 font-hand"
+              )}
+            >
+              {val || "아직 메모가 없어요. ‘메모 수정’으로 기록해볼까요?"}
+            </div>
+            <div className={cn("mt-2 flex gap-2", placeClass)}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-full"
+                onClick={() => setEditing(true)}
+              >
+                메모 수정
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
 /* =========================
- * useImageAspect — naturalWidth/Height로 비율 측정
+ * 비율 측정 훅
  * =======================*/
 function useImageAspect(src?: string | null) {
-  const [ratio, setRatio] = useState<number | null>(null); // width / height
+  const [ratio, setRatio] = useState<number | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -323,27 +359,37 @@ function useImageAspect(src?: string | null) {
 }
 
 /* =========================
- * ImageBox — 폴라로이드/스탬프 디테일 (아이디어 #4,5)
- * - 와시테이프
- * - 폴라로이드 하단 캡션
- * - 포토 넘버링 스티커
+ * PolaroidFrame
  * =======================*/
+function PolaroidFrame({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className={cn(
+        "relative w-full bg-[linear-gradient(180deg,#3a3a3a_0%,#2f2f2f_55%,#252525_100%)] rounded-[14px] p-2 ",
+        "ring-1 ring-stone-200/40 shadow-[0_6px_20px_-12px_rgba(0,0,0,0.22)]"
+      )}
+    >
+      <div className="relative rounded-[10px] overflow-hidden bg-neutral-200">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function ImageBox({
   src,
   alt,
+  minHeight = 180,
+  maxHeight = 640,
+  onOpen,
   hearts = 0,
-  minHeight = 220,
-  maxHeight = 720,
-  caption,
-  indexSticker, // # 01, # 02...
 }: {
   src?: string | null;
   alt?: string | null;
-  hearts?: number;
   minHeight?: number;
   maxHeight?: number;
-  caption?: string;
-  indexSticker?: number | null;
+  onOpen: () => void;
+  hearts?: number;
 }) {
   const { ratio, loaded } = useImageAspect(src ?? undefined);
   const aspectRatio = ratio ?? 4 / 3;
@@ -354,109 +400,64 @@ function ImageBox({
   };
 
   return (
-    <div className="group relative w-full rounded-[24px]">
-      {/* 와시테이프 (아이디어 #4a) */}
-      <div className="pointer-events-none absolute -top-2 left-6 rotate-[-4deg] h-5 w-20 bg-amber-200/70 rounded-[4px] shadow-sm" />
-      <div className="pointer-events-none absolute -top-1 right-8 rotate-[6deg] h-5 w-16 bg-pink-200/60 rounded-[4px] shadow-sm" />
-
-      {/* 포토 넘버링 스티커 (아이디어 #4c) */}
-      {typeof indexSticker === "number" && (
-        <div className="absolute -left-2 -top-2 rounded-full bg-rose-100 text-rose-700 ring-1 ring-rose-200 text-[10px] px-2 py-0.5 shadow-sm">
-          #{String(indexSticker + 1).padStart(2, "0")}
-        </div>
-      )}
-
-      {/* 프레임 + 매트 + 사진 */}
-      <div
-        className={[
-          "relative w-full",
-          "bg-gradient-to-b from-stone-500/90 to-stone-400/90",
-          "dark:from-stone-700/90 dark:to-stone-600/90",
-          "ring-1 ring-stone-300/80 dark:ring-stone-500/70",
-          "shadow-[0_1px_2px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.5)]",
-          "p-2.5 sm:p-3.5",
-          "rounded-[24px]",
-        ].join(" ")}
-        style={clampStyle}
-      >
-        <div
-          className={[
-            "h-full w-full rounded-[18px]",
-            "ring-1 ring-stone-200/80 dark:ring-stone-400/50",
-            "shadow-[inset_0_0_0_1px_rgba(255,255,255,0.6)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]",
-            "p-1.5 sm:p-2",
-          ].join(" ")}
+    <div className="scale-[0.82] origin-top">
+      <PolaroidFrame>
+        {/* ✅ button이 최상위 클릭 레이어가 되도록 */}
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-label={alt ?? "사진 보기"}
+          className={cn(
+            "group relative block w-full h-full rounded-[10px]",
+            "p-0 m-0 border-0 overflow-hidden",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+            "leading-none align-top"
+          )}
+          style={clampStyle}
         >
-          <div className="relative h-full w-full rounded-[14px] overflow-hidden bg-neutral-100 dark:bg-neutral-800">
-            {src ? (
-              <>
-                {!loaded && (
-                  <div className="absolute inset-0 animate-pulse bg-neutral-200/60 dark:bg-neutral-700/40" />
+          {/* 이미지 (포인터 이벤트 차단) */}
+          {src ? (
+            <>
+              {!loaded && (
+                <div className="absolute inset-0 animate-pulse bg-neutral-200/60 dark:bg-neutral-700/40 pointer-events-none" />
+              )}
+              <img
+                src={src}
+                alt={alt ?? ""}
+                className={cn(
+                  "absolute inset-0 h-full w-full object-contain pointer-events-none",
+                  "transition-transform duration-500 will-change-transform",
+                  "group-hover:scale-[1.015]"
                 )}
-                <img
-                  src={src}
-                  alt={alt ?? ""}
-                  className={[
-                    "absolute inset-0 h-full w-full object-contain",
-                    "transition-transform duration-500 will-change-transform",
-                    "group-hover:scale-[1.015]",
-                  ].join(" ")}
-                  loading="lazy"
-                  decoding="async"
-                  fetchPriority="low"
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                />
-              </>
-            ) : (
-              <div className="absolute inset-0" />
-            )}
+                loading="lazy"
+                decoding="async"
+                fetchPriority="low"
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              />
+            </>
+          ) : (
+            <div className="absolute inset-0 pointer-events-none" />
+          )}
 
-            {/* 얕은 비네트 */}
-            <div
-              className="pointer-events-none absolute inset-0"
-              style={{
-                background:
-                  "radial-gradient(120% 120% at 50% 45%, transparent 60%, rgba(0,0,0,0.06) 100%)",
-              }}
-              aria-hidden
-            />
-
-            {/* 폴라로이드 하단 캡션 (아이디어 #4b) */}
-            {caption && (
-              <div className="absolute bottom-0 left-0 right-0 h-8 bg-white/85 backdrop-blur ring-1 ring-amber-100/60 rounded-b-[14px] flex items-center justify-center">
-                <span className="text-[11px] text-amber-900/70 truncate px-3">
-                  {caption}
-                </span>
-              </div>
-            )}
+          {/* ❤️ 하트 배지 (버튼 내부, 클릭 방해 X) */}
+          <div
+            className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-full bg-background/85 backdrop-blur px-2.5 py-1 text-[12px] shadow-sm ring-1 ring-border pointer-events-none"
+            title={`하트 ${hearts}개`}
+            aria-label="하트 수"
+          >
+            <span aria-hidden>❤️</span>
+            <span className="tabular-nums">{hearts}</span>
           </div>
-        </div>
-      </div>
-
-      {/* 하트 오버레이 (조금 키움, 아이디어 #5) */}
-      <div
-        className="absolute left-6 top-6 inline-flex items-center gap-1.5 rounded-full bg-background/85 backdrop-blur px-3 py-1.5 text-[12px] shadow-sm ring-1 ring-border"
-        title={`하트 ${hearts}개`}
-        aria-label="하트 수"
-      >
-        <span aria-hidden>❤️</span>
-        <span className="tabular-nums">{hearts}</span>
-      </div>
-
-      {/* 바닥 그림자 강화 */}
-      <div
-        className="pointer-events-none absolute inset-x-6 -bottom-1.5 h-2 rounded-full"
-        style={{ boxShadow: "0 18px 22px -18px rgba(0,0,0,0.22)" }}
-        aria-hidden
-      />
+        </button>
+      </PolaroidFrame>
     </div>
   );
 }
 
 /* =========================
- * List View — 이미지 전용 카드
+ * 📚 리스트 (Masonry)
  * =======================*/
-function ListView({
+function ListViewMasonry({
   items,
   onOpen,
 }: {
@@ -464,108 +465,48 @@ function ListView({
   onOpen: (id: string | number) => void;
 }) {
   return (
-    <div className="grid gap-5 [grid-template-columns:repeat(auto-fill,minmax(300px,1fr))]">
-      {items.map((f, idx) => (
-        <Card
-          key={f.id}
-          role="button"
-          tabIndex={0}
-          onClick={() => onOpen(f.id)}
-          onKeyDown={(e) => e.key === "Enter" && onOpen(f.id)}
-          className="group overflow-hidden transition hover:-translate-y-[1px] hover:shadow-lg hover:ring-1 hover:ring-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-3xl"
-          aria-label={`${f.title ?? "무제"} — ${formatDate(f.event_date)}`}
-        >
-          <ImageBox
-            src={f.cover_photo_path ? publicUrl(f.cover_photo_path) : undefined}
-            alt={f.title}
-            hearts={f.hearts ?? 0}
-            caption={f.title ?? formatDate(f.event_date)}
-            indexSticker={idx}
-          />
-        </Card>
-      ))}
+    <div className="columns-1 sm:columns-2 lg:columns-3 gap-5 [column-fill:balance] ">
+      {items.map((f) => {
+        return (
+          <div key={f.id} className="mb-5 break-inside-avoid">
+            <ImageBox
+              src={
+                f.cover_photo_path ? publicUrl(f.cover_photo_path) : undefined
+              }
+              alt={f.title ?? ""}
+              onOpen={() => onOpen(f.id)}
+              hearts={f.hearts ?? 0}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 /* =========================
- * Rail Caption (Outer) — 손글씨 톤 (아이디어 #5)
- * =======================*/
-function RailCaptionOuter({
-  outerSide, // "left" | "right"
-  date,
-  title,
-  emoji,
-}: {
-  outerSide: "left" | "right";
-  date: string;
-  title?: string | null;
-  emoji: string;
-}) {
-  const place =
-    outerSide === "left"
-      ? "left-0 pl-3 sm:pl-4 md:pl-6 items-start text-left"
-      : "right-0 pr-3 sm:pr-4 md:pr-6 items-end text-right";
-
-  return (
-    <div
-      className={[
-        "pointer-events-none absolute top-1/2 -translate-y-1/2",
-        "w-[min(46ch,38vw)] md:w-[min(54ch,34vw)]",
-        "flex flex-col gap-1",
-        place,
-      ].join(" ")}
-      style={{ lineHeight: 1.12 }}
-    >
-      <div className="text-[15px] md:text-[16px] tracking-[0.08em] tabular-nums text-muted-foreground/90 blur-[0.1px]">
-        {date}
-      </div>
-      <div
-        className={[
-          "mt-0.5 font-semibold text-foreground/90",
-          "text-[28px] sm:text-[30px] md:text-[34px] lg:text-[36px]",
-          "tracking-[-0.012em] [text-wrap:balance] opacity-95 line-clamp-2 font-hand",
-        ].join(" ")}
-        style={{
-          letterSpacing: "-0.012em",
-          transform: "rotate(-0.2deg)",
-          textShadow: "0 0 1px rgba(0,0,0,0.10), 0 1px 1.5px rgba(0,0,0,0.06)",
-        }}
-      >
-        <span aria-hidden className="mr-1 ">
-          {emoji}
-        </span>
-        {title}
-      </div>
-    </div>
-  );
-}
-
-/* =========================
- * Timeline Large — 섹션 컴포넌트
- * (아이디어 #2, #8, #9, #10 반영)
+ * 🗓 타임라인: 가로 배너 + 이모지 1개 포함 멘트
  * =======================*/
 function TimelineLarge({
   items,
   onOpen,
+  onSaveMemo,
 }: {
   items: Fragment[];
   onOpen: (id: string | number) => void;
+  onSaveMemo: (id: Fragment["id"], memo: string) => void;
 }) {
   const groups = useMemo(() => groupByYearMonth(items), [items]);
-
   return (
     <div className="relative">
       {groups.map(({ ym, rows }) => {
-        const monthNum = parseMonthFromYm(ym);
-        const sectionEmoji = monthEmoji(monthNum);
         return (
           <MonthSection
             key={ym}
             ym={ym}
-            emoji={sectionEmoji}
             rows={rows}
             onOpen={onOpen}
+            onSaveMemo={onSaveMemo}
           />
         );
       })}
@@ -575,103 +516,59 @@ function TimelineLarge({
 
 function MonthSection({
   ym,
-  emoji,
   rows,
   onOpen,
+  onSaveMemo,
 }: {
   ym: string;
-  emoji: string;
-  rows: Fragment[];
+  rows: (Fragment & { memo?: string | null })[];
   onOpen: (id: string | number) => void;
+  onSaveMemo: (id: Fragment["id"], memo: string) => void;
 }) {
   const sectionRef = useRef<HTMLElement | null>(null);
-  const startRef = useRef<HTMLDivElement | null>(null);
-  const endRef = useRef<HTMLDivElement | null>(null);
-  const [bounds, setBounds] = useState<{ startPx: number; endPx: number }>({
-    startPx: 0,
-    endPx: 0,
-  });
-
-  // 월별 테마 (아이디어 #9)
   const monthNum = parseMonthFromYm(ym);
   const theme = monthTheme(monthNum);
-
-  // 섹션 내부에서 start/end 앵커의 오프셋 측정(섹션 기준)
-  useEffect(() => {
-    const measure = () => {
-      const sec = sectionRef.current;
-      if (!sec) return;
-      const secTop = sec.getBoundingClientRect().top + window.scrollY;
-      const s = startRef.current?.getBoundingClientRect().top ?? 0;
-      const e = endRef.current?.getBoundingClientRect().top ?? 0;
-      const sPx = Math.max(0, s + window.scrollY - secTop);
-      const ePx = Math.max(sPx, e + window.scrollY - secTop);
-      setBounds({ startPx: sPx, endPx: ePx });
-    };
-    measure();
-
-    const ro = new ResizeObserver(measure);
-    if (sectionRef.current) ro.observe(sectionRef.current);
-
-    window.addEventListener("resize", measure);
-    window.addEventListener("load", measure);
-
-    const imgs = Array.from(sectionRef.current?.querySelectorAll("img") ?? []);
-    imgs.forEach((img) =>
-      img.addEventListener("load", measure, { once: true })
-    );
-
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", measure);
-      window.removeEventListener("load", measure);
-    };
-  }, []);
+  const emoji = monthEmoji(monthNum);
 
   return (
     <section
       ref={sectionRef}
       id={ymToId(ym)}
-      className={cn("relative py-12 overflow-hidden", theme.sectionBg ?? "")}
+      className={cn("relative py-12", theme.sectionBg ?? "")}
     >
-      {/* 중앙 레일: 고정 이모지 (아이디어 #3) */}
-      <FixedRail
-        emoji={emoji}
-        step={44}
-        sideOffset={18}
-        opacity={0.95}
-        startPx={bounds.startPx}
-        endPx={bounds.endPx}
-      />
-
-      {/* 월 헤더칩 (아이디어 #2) */}
-      <div className="sticky top-24 z-10 mb-8 text-center">
+      {/* 월 가로 배너 */}
+      <div className="mx-auto mb-8 w-[min(1100px,96%)]">
         <div
           className={cn(
-            "inline-flex items-center gap-1 rounded-full px-5 py-2 text-[12px] tabular-nums font-semibold",
-            "backdrop-blur-md shadow-[0_10px_24px_-16px_rgba(120,85,40,0.35)] ring-1",
-            theme.chipBg ?? "bg-white/85",
-            theme.chipRing ?? "ring-amber-200/60",
-            theme.chipText ?? "text-amber-900/90"
+            "relative rounded-2xl px-6 py-5",
+            "bg-white/92 ring-1 ring-amber-200/50",
+            "shadow-[0_18px_36px_-22px_rgba(120,85,40,0.28)]"
           )}
         >
-          <span className="opacity-95">{emoji}</span>
-          <span className="opacity-95">{ym}</span>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <div className="text-[20px] md:text-[24px] font-extrabold font-hand text-stone-900">
+                {monthNum}월
+              </div>
+              <div className="text-[12.5px] md:text-[13.5px] tabular-nums text-stone-500">
+                {ym}
+              </div>
+            </div>
+            <div className="text-[13.5px] md:text-[15px] text-stone-800/95 font-hand">
+              <span className="mr-1" aria-hidden>
+                {emoji}
+              </span>
+              {monthMessage(monthNum)}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ⭐ 월 칩 아래부터 이모지 시작 */}
-      <div ref={startRef} className="h-2" />
-
-      {/* 카드들 */}
+      {/* 카드 + 메모 (양옆 배치) */}
       <div className="space-y-14">
         {rows.map((f, i) => {
           const isLeftCard = i % 2 === 0;
-          const mt = isLeftCard ? 0 : 10;
-          const dateStr = formatDate(f.event_date);
           const outerSide: "left" | "right" = isLeftCard ? "right" : "left";
-          const m = new Date(f.event_date).getMonth() + 1;
-          const titleEmoji = monthEmoji(m);
 
           return (
             <article key={f.id} className="relative">
@@ -682,60 +579,34 @@ function MonthSection({
                     ? "md:pr-10 md:ml-0 md:mr-auto"
                     : "md:pl-10 md:ml-auto md:mr-0"
                 )}
-                style={{ marginTop: mt }}
               >
-                <Card
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => onOpen(f.id)}
-                  onKeyDown={(e) => e.key === "Enter" && onOpen(f.id)}
-                  className={cn(
-                    "group overflow-hidden transition rounded-3xl",
-                    "hover:-translate-y-[1px] hover:shadow-lg hover:ring-1 hover:ring-primary/30",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                  )}
-                  aria-label={`${titleEmoji} ${f.title ?? "무제"} — ${dateStr}`}
-                >
-                  <ImageBox
-                    src={
-                      f.cover_photo_path
-                        ? publicUrl(f.cover_photo_path)
-                        : undefined
-                    }
-                    alt={f.title ?? dateStr}
-                    hearts={f.hearts ?? 0}
-                    caption={f.title ?? dateStr}
-                    indexSticker={i}
-                  />
-                </Card>
+                <ImageBox
+                  src={
+                    f.cover_photo_path
+                      ? publicUrl(f.cover_photo_path)
+                      : undefined
+                  }
+                  alt={f.title ?? ""}
+                  onOpen={() => onOpen(f.id)}
+                  hearts={f.hearts ?? 0}
+                />
               </div>
 
-              <RailCaptionOuter
+              <MemoPad
+                fragment={f}
                 outerSide={outerSide}
-                date={dateStr}
-                title={f.title}
-                emoji={titleEmoji}
+                onSaved={(memo) => onSaveMemo(f.id, memo)}
               />
             </article>
           );
         })}
       </div>
-
-      {/* ⭐ 다음 달 섹션 시작 직전까지 이모지 */}
-      <div ref={endRef} className="h-6" />
-
-      {/* 월 경계 스캘럽 라인 (아이디어 #8) */}
-      <div
-        className="mx-auto my-10 h-6 w-[min(680px,92%)] opacity-[0.12]
-        bg-[radial-gradient(circle_at_12px_-6px,rgba(0,0,0,0.12)_12px,transparent_13px)]
-        [background-size:24px_24px] [mask-image:linear-gradient(black,transparent_30%)]"
-      />
     </section>
   );
 }
 
 /* =========================
- * Month Navigator — 데스크톱
+ * 월 내비게이터
  * =======================*/
 function MonthNavigator({ months }: { months: string[] }) {
   const parsed = useMemo(
@@ -801,8 +672,6 @@ function MonthNavigator({ months }: { months: string[] }) {
           const prev = parsed[idx - 1];
           const yearChanged = !prev || prev.year !== p.year;
           const isActive = active === p.id;
-          const monthNum = Number(p.month);
-          const emoji = monthEmoji(monthNum);
           return (
             <div key={p.id} className="w-full flex flex-col items-center">
               {yearChanged && (
@@ -835,7 +704,6 @@ function MonthNavigator({ months }: { months: string[] }) {
                   side="left"
                   className="px-2 py-1 text-xs font-medium tabular-nums"
                 >
-                  <span className="mr-1">{emoji}</span>
                   {p.ym}
                 </TooltipContent>
               </Tooltip>
@@ -856,106 +724,6 @@ function MonthNavigator({ months }: { months: string[] }) {
         </button>
       </div>
     </TooltipProvider>
-  );
-}
-
-/* =========================
- * Month Navigator (Mobile)
- * =======================*/
-function MonthNavigatorMobile({ months }: { months: string[] }) {
-  const parsed = useMemo(
-    () =>
-      months.map((ym) => {
-        const m = ym.match(/(\d+)\s*년\s*(\d+)\s*월/);
-        return {
-          ym,
-          year: m ? m[1] : "",
-          month: m ? m[2].padStart(2, "0") : ym,
-          id: ymToId(ym),
-        };
-      }),
-    [months]
-  );
-  const ids = parsed.map((p) => p.id);
-
-  const [open, setOpen] = useState(false);
-
-  if (parsed.length === 0) return null;
-
-  const byYear = parsed.reduce<Record<string, typeof parsed>>((acc, p) => {
-    acc[p.year] = acc[p.year] ? [...acc[p.year], p] : [p];
-    return acc;
-  }, {});
-
-  return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <button
-          className="lg:hidden fixed right-4 bottom-5 z-20 rounded-full bg-white/90 backdrop-blur px-4 py-2 text-sm font-semibold shadow-md ring-1 ring-border"
-          aria-label="월 이동 열기"
-        >
-          월 이동
-        </button>
-      </SheetTrigger>
-
-      <SheetContent side="bottom" className="h-[55vh] p-4">
-        <SheetHeader>
-          <SheetTitle>월로 빠르게 이동</SheetTitle>
-        </SheetHeader>
-
-        <div className="mt-4 space-y-6 overflow-y-auto max-h[calc(55vh-64px)] pr-1">
-          {Object.keys(byYear)
-            .sort()
-            .map((y) => (
-              <section key={y} className="space-y-2">
-                <div className="text-lg font-semibold text-muted-foreground tabular-nums">
-                  {y}년
-                </div>
-                <div className="grid grid-cols-4 gap-2">
-                  {byYear[y].map((p) => {
-                    const monthNum = Number(p.month);
-                    const emoji = monthEmoji(monthNum);
-                    return (
-                      <button
-                        key={p.id}
-                        onClick={() => {
-                          document.getElementById(p.id)?.scrollIntoView({
-                            behavior: "smooth",
-                            block: "start",
-                          });
-                          setOpen(false);
-                        }}
-                        className="rounded-xl px-3 py-2 text-sm ring-1 ring-border bg-background hover:ring-primary/50 active:scale-[0.99] transition"
-                        title={p.ym}
-                      >
-                        <span className="mr-1">{emoji}</span>
-                        {Number(p.month)}월
-                      </button>
-                    );
-                  })}
-                </div>
-              </section>
-            ))}
-        </div>
-
-        <div className="mt-4 flex justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              const last = ids[ids.length - 1];
-              document
-                .getElementById(last)
-                ?.scrollIntoView({ behavior: "smooth", block: "start" });
-              setOpen(false);
-            }}
-            className="rounded-full"
-          >
-            현재 달
-          </Button>
-        </div>
-      </SheetContent>
-    </Sheet>
   );
 }
 
@@ -991,7 +759,6 @@ function monthsFromItems(items: Fragment[]) {
   return groupByYearMonth(items).map((g) => g.ym);
 }
 
-// "2025년 09월" → "sec-2025-09"
 function ymToId(ym: string) {
   const m = ym.match(/(\d+)\s*년\s*(\d+)\s*월/);
   if (!m) return `sec-${ym.replace(/\s+/g, "-")}`;
@@ -1000,14 +767,51 @@ function ymToId(ym: string) {
   return `sec-${y}-${mm}`;
 }
 
-// "2025년 09월" → 9
 function parseMonthFromYm(ym: string) {
   const m = ym.match(/(\d+)\s*년\s*(\d+)\s*월/);
   if (!m) return NaN;
   return Number(m[2]);
 }
 
-// 월 이모지 매핑 (월별 고정)
+/** 월별 보조 배경 */
+function monthTheme(m: number) {
+  switch (m) {
+    case 3:
+      return {
+        sectionBg:
+          "bg-[radial-gradient(200px_140px_at_20%_30%,rgba(255,182,193,0.08),transparent_65%)]",
+      };
+    case 5:
+      return {
+        sectionBg:
+          "bg-[radial-gradient(220px_140px_at_80%_30%,rgba(255,214,150,0.08),transparent_65%)]",
+      };
+    case 7:
+      return {
+        sectionBg:
+          "bg-[radial-gradient(220px_140px_at_20%_70%,rgba(255,230,120,0.08),transparent_65%)]",
+      };
+    case 9:
+      return {
+        sectionBg:
+          "bg-[radial-gradient(200px_140px_at_75%_35%,rgba(120,85,40,0.08),transparent_65%)]",
+      };
+    case 10:
+      return {
+        sectionBg:
+          "bg-[radial-gradient(220px_160px_at_30%_60%,rgba(255,160,80,0.09),transparent_70%)]",
+      };
+    case 12:
+      return {
+        sectionBg:
+          "bg-[radial-gradient(220px_140px_at_70%_65%,rgba(80,180,140,0.08),transparent_65%)]",
+      };
+    default:
+      return { sectionBg: "" };
+  }
+}
+
+/** 월별 이모지(1개 고정) */
 function monthEmoji(m: number) {
   switch (m) {
     case 1:
@@ -1021,17 +825,17 @@ function monthEmoji(m: number) {
     case 5:
       return "🧸";
     case 6:
-      return "🍀";
+      return "☔️";
     case 7:
       return "🌻";
     case 8:
-      return "☔️";
+      return "🏖️";
     case 9:
       return "☕";
     case 10:
       return "🍁";
     case 11:
-      return "☃️";
+      return "🌬️";
     case 12:
       return "🎄";
     default:
@@ -1039,71 +843,31 @@ function monthEmoji(m: number) {
   }
 }
 
-// 월별 테마 컬러 (아이디어 #9)
-function monthTheme(m: number) {
-  switch (m) {
-    case 3: // 봄꽃
-      return {
-        chipBg: "bg-rose-50/85",
-        chipRing: "ring-rose-200/60",
-        chipText: "text-rose-800/90",
-        sectionBg: "",
-      };
-    case 5: // 귀여운 인형톤
-      return {
-        chipBg: "bg-amber-50/85",
-        chipRing: "ring-amber-200/60",
-        chipText: "text-amber-900/90",
-        sectionBg: "",
-      };
-    case 7: // 여름 해바라기
-      return {
-        chipBg: "bg-yellow-50/85",
-        chipRing: "ring-yellow-200/60",
-        chipText: "text-yellow-900/90",
-        sectionBg: "",
-      };
-    case 9: // 커피톤 가을 초입
-      return {
-        chipBg: "bg-amber-50/85",
-        chipRing: "ring-amber-300/60",
-        chipText: "text-amber-900/90",
-        sectionBg: "",
-      };
-    case 10: // 단풍
-      return {
-        chipBg: "bg-orange-50/85",
-        chipRing: "ring-orange-200/60",
-        chipText: "text-orange-900/90",
-        sectionBg: "",
-      };
-    case 12: // 겨울초록
-      return {
-        chipBg: "bg-emerald-50/85",
-        chipRing: "ring-emerald-200/60",
-        chipText: "text-emerald-900/90",
-        sectionBg: "",
-      };
-    default:
-      return {
-        chipBg: "bg-white/85",
-        chipRing: "ring-amber-200/60",
-        chipText: "text-amber-900/90",
-        sectionBg: "",
-      };
-  }
+/** 월별 멘트 (이모지는 배너에서 앞에 1개만 붙임) */
+function monthMessage(m: number) {
+  const map: Record<number, string> = {
+    1: "새해의 첫 페이지, 우리 이야기도 새로 또렷해져요.",
+    2: "잔잔한 바람처럼, 둘의 마음도 포근하게.",
+    3: "꽃 피는 계절, 우리 기억도 톡톡 싹이 나요.",
+    4: "햇살이 스며드는 오후, 함께라 더 맑은 하루.",
+    5: "초록이 짙어질수록 마음도 무르익는 달.",
+    6: "빗소리 사이사이, 둘만의 속삭임이 퍼져요.",
+    7: "한여름 햇살만큼 선명한 웃음이 가득.",
+    8: "느릿한 오후, 우리 리듬에 맞춰 쉬어가기.",
+    9: "따뜻한 한 잔처럼, 오늘도 다정한 마음.",
+    10: "바스락거리는 낙엽처럼, 단단해진 우리.",
+    11: "차가운 공기 속, 더 가까워지는 거리.",
+    12: "차분한 겨울밤, 너와라면 늘 포근해.",
+  };
+  return map[m] ?? "오늘의 우리를 담아두는 시간.";
 }
 
 /* =========================
- * Empty & Skeleton (아이디어 #7)
+ * 빈/로딩 상태
  * =======================*/
 function EmptyState({ onCreate }: { onCreate: () => void }) {
   return (
     <Card className="mx-auto max-w-xl p-8 text-center rounded-3xl bg-[rgba(250,247,242,0.98)] ring-1 ring-amber-200/40 relative overflow-hidden">
-      {/* 와시테이프 살짝 */}
-      <div className="pointer-events-none absolute -top-2 left-8 rotate-[-5deg] h-5 w-24 bg-amber-200/70 rounded-[4px] shadow-sm" />
-      <div className="pointer-events-none absolute -top-1 right-8 rotate-[6deg] h-5 w-20 bg-pink-200/60 rounded-[4px] shadow-sm" />
-
       <div className="mx-auto mb-3 size-14 rounded-full bg-muted" />
       <h2 className="text-lg font-semibold text-amber-900/90">
         아직 등록된 추억 조각이 없어요
@@ -1120,21 +884,15 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
 
 function SkeletonTimeline() {
   return (
-    <div className="relative">
-      {/* 로딩 중에도 중앙 레일 느낌 유지 */}
-      <div className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 h-full w-16 opacity-50">
-        <div className="absolute left-1/2 top-0 -translate-x-1/2 h-full border-l border-dashed border-amber-300/30" />
-      </div>
-      <div className="space-y-8">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Card
-            key={i}
-            className="overflow-hidden rounded-3xl bg-[rgba(250,247,242,0.9)] ring-1 ring-amber-200/40"
-          >
-            <div className="w-full min-h-[220px] animate-pulse rounded-2xl bg-gradient-to-br from-neutral-200/60 to-neutral-100/60" />
-          </Card>
-        ))}
-      </div>
+    <div className="space-y-8">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Card
+          key={i}
+          className="overflow-hidden rounded-3xl bg-[rgba(250,247,242,0.9)] ring-1 ring-amber-200/40"
+        >
+          <div className="w-full min-h={[180] as unknown as number} animate-pulse rounded-2xl bg-gradient-to-br from-neutral-200/60 to-neutral-100/60" />
+        </Card>
+      ))}
     </div>
   );
 }

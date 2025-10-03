@@ -27,6 +27,9 @@ import AvatarWidget from "@/components/widgets/AvatarWidget";
 // icons
 import { Loader2, CheckCircle2 } from "lucide-react";
 
+// animation
+import { motion } from "framer-motion";
+
 const EMOJIS_5x6 = [
   "😀",
   "😁",
@@ -62,6 +65,30 @@ const EMOJIS_5x6 = [
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
+// 우하단 랜덤 멘트 20개
+const PARTNER_MENTIONS: { emoji: string; text: string }[] = [
+  { emoji: "💌", text: "정성껏 써줘, 자기야!" },
+  { emoji: "🌸", text: "너의 말들이 늘 봄 같아." },
+  { emoji: "☕", text: "한 잔의 커피처럼 천천히 적어줘." },
+  { emoji: "🌙", text: "오늘의 마음을 달빛처럼 살포시." },
+  { emoji: "✨", text: "작은 말도 반짝여, 너라서." },
+  { emoji: "🫶", text: "네 진심 그대로면 충분해." },
+  { emoji: "🎧", text: "좋아하는 노래 틀고 천천히 써볼까?" },
+  { emoji: "🍀", text: "네 글은 내 행운이야." },
+  { emoji: "📸", text: "오늘을 글로 찍어줘." },
+  { emoji: "🌿", text: "숨 한번 고르고, 마음부터." },
+  { emoji: "🕊️", text: "가볍게, 솔직하게. 괜찮아." },
+  { emoji: "🌈", text: "네가 쓰면 평범도 예뻐져." },
+  { emoji: "🧸", text: "포근하게 담아줘, 너다운 말로." },
+  { emoji: "💫", text: "짧아도 좋아, 네 마음이면." },
+  { emoji: "🔖", text: "오늘의 순간을 책갈피처럼." },
+  { emoji: "🌤️", text: "살짝 미소 지어지는 글, 기대해." },
+  { emoji: "🫖", text: "따뜻하게 우린 말들." },
+  { emoji: "📮", text: "미래의 우리에게 보내는 편지처럼." },
+  { emoji: "🧁", text: "한 숟갈 달콤함도 곁들여줘." },
+  { emoji: "💘", text: "사랑 한 줄, 너 한 줄." },
+];
+
 // 표시용 질문 ID 계산: 완료면 이전 질문, 아니면 오늘 질문
 const getDisplayId = (currentId: number | null, completed: boolean) => {
   if (currentId == null) return null;
@@ -96,6 +123,12 @@ export default function QuestionPage() {
   const [emojiOpen, setEmojiOpen] = useState(false);
   const emojiBtnRef = useRef<HTMLButtonElement | null>(null);
   const emojiMenuRef = useRef<HTMLDivElement | null>(null);
+
+  // 우하단 랜덤 멘트 (앱 진입 시 1회 선택)
+  const randomMent = useMemo(() => {
+    const i = Math.floor(Math.random() * PARTNER_MENTIONS.length);
+    return PARTNER_MENTIONS[i];
+  }, []);
 
   // 타이머 정리
   useEffect(() => {
@@ -345,7 +378,7 @@ export default function QuestionPage() {
             <CardContent className="space-y-5">
               <Separator />
 
-              {/* 이모지 버튼 + 파트너 위젯 라인 */}
+              {/* 이모지 버튼 + (파트너 위젯 제거됨) */}
               <div className="mx-auto w-full md:w-[80%] lg:w-[70%]">
                 <div className="mb-2 text-center">
                   <Skeleton className="h-4 w-72 mx-auto rounded-md" />
@@ -354,16 +387,11 @@ export default function QuestionPage() {
                 <div className="flex items-center justify-center">
                   {/* 이모지 버튼 자리 */}
                   <Skeleton className="h-10 w-[150px] rounded-full mr-2" />
-                  {/* 파트너 아바타/텍스트 자리 */}
-                  <div className="hidden sm:flex items-center gap-2 ml-3">
-                    <Skeleton className="h-8 w-8 rounded-full" />
-                    <Skeleton className="h-3 w-12 rounded-md" />
-                  </div>
                 </div>
               </div>
 
               {/* 답변 textarea 자리 */}
-              <div className="mx-auto w-full md:w-[80%] lg:w-[70%]">
+              <div className="mx-auto w-full md:w-[90%] lg:w-[70%]">
                 <Skeleton className="h-[220px] md:h-[260px] w-full rounded-2xl" />
               </div>
             </CardContent>
@@ -403,13 +431,13 @@ export default function QuestionPage() {
 
             <CardContent className="space-y-6">
               {/* 질문 본문 */}
-              <p className="text-lg md:text-xl text-[#5b3d1d] whitespace-pre-line text-center leading-relaxed">
+              <p className="text-lg md:text-xl text-[#5b3d1d] whitespace-pre-line text-center leading-relaxed italic tracking-wide">
                 {question ? `"${question}"` : "표시할 질문이 없습니다."}
               </p>
 
               <Separator className="bg-amber-200/50" />
 
-              {/* 안내줄 + 파트너 위젯 */}
+              {/* 안내줄 (파트너 위젯 라인은 제거) */}
               <div className="mx-auto w-full md:w-[80%] lg:w-[70%]">
                 <div className="flex items-center justify-center">
                   {/* 버튼 + 드롭다운을 위한 상대 컨테이너 */}
@@ -417,17 +445,15 @@ export default function QuestionPage() {
                     <Button
                       ref={emojiBtnRef}
                       type="button"
-                      variant="outline"
+                      variant="default"
                       className={cn(
-                        "rounded-full px-4 py-2 bg-white/90 text-amber-900 border border-amber-200/80",
-                        "shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] hover:shadow-md active:scale-95",
                         canEdit
                           ? "cursor-pointer"
                           : "pointer-events-none opacity-60"
                       )}
                       onClick={() => canEdit && setEmojiOpen((o) => !o)}
                     >
-                      <span className="mr-1">🖋️</span> 이모지 스탬프
+                      이모지 추가하기
                     </Button>
 
                     {emojiOpen && (
@@ -435,7 +461,7 @@ export default function QuestionPage() {
                         ref={emojiMenuRef}
                         role="grid"
                         aria-label="이모지 선택"
-                        className="absolute z-50 mt-2 w-[300px] rounded-3xl border border-amber-200/70 bg-white/95 backdrop-blur-sm p-3 shadow-lg"
+                        className="absolute z-50 mt-2 w-[300px]  rounded-lg bg-white/95 backdrop-blur-sm p-2 shadow-lg"
                       >
                         <div className="grid grid-cols-6 gap-2">
                           {EMOJIS_5x6.map((e) => (
@@ -446,7 +472,7 @@ export default function QuestionPage() {
                                 insertAtCursor(e);
                                 setEmojiOpen(false);
                               }}
-                              className="h-9 w-9 flex items-center justify-center rounded-full border border-amber-200/60 bg-white hover:bg-amber-50 active:scale-95 shadow-sm text-[18px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
+                              className="h-9 w-9 flex items-center justify-center rounded-lg border-2  bg-white hover:bg-amber-200 active:scale-95 shadow-sm text-[18px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
                               aria-label={`${e} 삽입`}
                               tabIndex={0}
                             >
@@ -456,14 +482,6 @@ export default function QuestionPage() {
                         </div>
                       </div>
                     )}
-                  </div>
-
-                  {/* 버튼 오른쪽: 파트너 아바타 + 리본 뱃지 */}
-                  <div className="hidden sm:flex items-center gap-2 ml-3">
-                    <AvatarWidget type="partner" size="sm" />
-                    <span className="text-[11px] px-2 py-1 rounded-full bg-pink-50 border border-pink-200 text-pink-700 shadow-[0_1px_0_rgba(255,255,255,0.9)_inset]">
-                      잘 써조! 💌
-                    </span>
                   </div>
                 </div>
               </div>
@@ -484,7 +502,7 @@ export default function QuestionPage() {
                 </div>
               ) : (
                 // ✍️ 신규 작성 중이거나, '수정하기' 눌러 편집 모드일 때: 입력 가능
-                <div className="mx-auto w-full md:w-[80%] lg:w-[70%] space-y-2 text-center relative">
+                <div className="mx-auto w-full md:w-[90%] lg:w-[80%] space-y-2 text-center relative">
                   <Textarea
                     ref={textareaRef}
                     value={answer}
@@ -537,7 +555,7 @@ export default function QuestionPage() {
               </Button>
 
               {/* 하단 상태 라벨 */}
-              <div className="min-h-[22px] text-[12px] text-amber-900/70">
+              <div className="min-h-[22px] text-[12px]">
                 {editing && saveStatus !== "saving" && (
                   <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
                     수정 중…
@@ -556,6 +574,39 @@ export default function QuestionPage() {
           </>
         )}
       </Card>
+
+      {/* ✅ 우하단: 파트너 아바타 + 랜덤 멘트 (고정 영역) */}
+      <motion.aside
+        initial={{ opacity: 0, y: 12, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{
+          type: "spring",
+          stiffness: 260,
+          damping: 20,
+          delay: 0.05,
+        }}
+        className={cn(
+          "pointer-events-none fixed right-5 bottom-5 sm:right-8 sm:bottom-8 z-40",
+          "max-w-[78vw] sm:max-w-xs"
+        )}
+        aria-live="polite"
+      >
+        <div
+          className={cn(
+            "pointer-events-auto flex items-center gap-3 sm:gap-4",
+            "rounded-3xl bg-white/90 backdrop-blur-md",
+            "ring-1 ring-pink-200/60 shadow-[0_10px_30px_-12px_rgba(255,0,90,0.25)]",
+            "p-3 sm:p-4"
+          )}
+        >
+          <AvatarWidget type="partner" size="md" />
+          <div className="min-w-0">
+            <div className="text-[13px] sm:text-[14px] leading-relaxed text-neutral-800 mt-0.5">
+              {randomMent?.text} {randomMent?.emoji}
+            </div>
+          </div>
+        </div>
+      </motion.aside>
     </main>
   );
 }

@@ -153,7 +153,7 @@ export default function CoupleSchedulePreview({
     <TooltipProvider delayDuration={200}>
       <Card
         className={cn(
-          "relative overflow-hidden rounded-2xl border-0",
+          "relative overflow-hidden rounded-2xl border-none shadow-lg",
           // 파스텔 그라데이션 + 소프트 글로우
           "bg-gradient-to-br from-rose-50 via-amber-50 to-sky-50",
           "shadow-[0_10px_30px_-12px_rgba(0,0,0,0.15)] ",

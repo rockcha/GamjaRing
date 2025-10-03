@@ -316,7 +316,7 @@ export default function UserMemoEmojiButton({
           />
         </>
       ) : (
-        <div className="min-h-[200px] rounded-md border p-3">
+        <div className="min-h-[200px] rounded-md border-none shadow-lg p-3">
           {content.trim().length === 0 ? (
             <div className="flex items-center gap-2 text-muted-foreground">
               <FontAwesomeIcon icon={faNoteSticky} className="h-4 w-4" />

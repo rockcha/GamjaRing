@@ -88,7 +88,7 @@ export default function PartnerOneLinerCard({
     <Card
       className={cn(
         "relative overflow-hidden",
-        "bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-neutral-200/80 shadow-sm",
+        "bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-none shadow-lg",
         // 아바타가 좌하단에 겹치므로 여유 패딩 확보
         "px-5 sm:px-7 pt-5 pb-20", // 하단 여백 크게
         className
