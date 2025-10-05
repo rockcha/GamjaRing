@@ -4,13 +4,13 @@
 import { cn } from "@/lib/utils";
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { useUser } from "@/contexts/UserContext";
-import BaitHeader from "./BaitHeader";
-import BulkFishingPanel from "./BulkFishingPanel";
 import BulkResultsModal from "./BulkResultsModal";
 import { useBaitAndTanks } from "./useBaitAndTanks";
 import { useBulkFishing } from "./useBulkFishing";
 import { useEffect, useMemo, useRef, useState } from "react";
 import WaitFishingDialog from "./WaitFishingDialog";
+import { Button } from "@/components/ui/button";
+import { Fish } from "lucide-react";
 
 type Props = { className?: string };
 
@@ -97,7 +97,7 @@ export default function IngredientFishingSection({ className }: Props) {
     setWaitPhase("waiting");
     setWaitOpen(true);
 
-    // 5초 대기 (GIF/문구 표시)
+    // 5초 대기 (애니/문구)
     await new Promise((r) => setTimeout(r, 5000));
 
     setWaitPhase("finishing");
@@ -109,50 +109,50 @@ export default function IngredientFishingSection({ className }: Props) {
     }
   }
 
-  return (
-    <section className={cn("flex flex-col gap-3 min-h-0", className)}>
-      <BaitHeader
-        loading={loading}
-        baitCount={baitCount}
-        unitPrice={unitPrice}
-        coupleId={coupleId}
-        onBuy={async (count) => {
-          if (!coupleId) return null;
-          const row = await buyBait(coupleId, count);
-          const left = row?.bait_count ?? 0;
-          setBaitCount(left);
-          await reload();
-          return row;
-        }}
-      />
+  // 미니 위젯 모드: 퀵-낚시만
+  const canFish = !!baitCount && baitCount > 0 && !bulk.busy && !waitOpen;
+  const quickCount = Math.min(bulk.bulkCount || 10, baitCount || 0);
 
-      {/* 미끼 표시 (미니멀) */}
-      <div
-        className="rounded-2xl border bg-white p-4 grid place-items-center"
-        title="보유 미끼"
-      >
-        <div className="relative w-[96px] h-[96px] rounded-2xl border bg-white shadow-sm grid place-items-center text-[64px] leading-none select-none border-zinc-200">
-          🐟
+  return (
+    <section
+      className={cn(
+        "w-[220px] rounded-2xl border bg-white/90 backdrop-blur-md p-3",
+        "grid grid-cols-[64px_1fr] gap-3 items-center",
+        className
+      )}
+      title="미끼통"
+    >
+      {/* 아이콘 + 잔량 */}
+      <div className="relative w-16 h-16 rounded-xl border bg-white grid place-items-center text-[40px] leading-none select-none">
+        🐟
+      </div>
+
+      <div className="min-w-0">
+        <div className="text-xs text-muted-foreground">보유 미끼</div>
+        <div className="mt-0.5 text-base font-semibold tabular-nums truncate">
+          × {Math.max(0, baitCount).toLocaleString()}
         </div>
-        <div className="mt-2 text-xs text-muted-foreground">
-          보유 미끼{" "}
-          <span className="ml-1 font-semibold tabular-nums">
-            × {Math.max(0, baitCount).toLocaleString()}
-          </span>
+
+        <div className="mt-2 flex items-center gap-2">
+          {/* 퀵-낚시 */}
+          <Button
+            size="sm"
+            className="h-8 px-3 bg-emerald-600 text-white disabled:opacity-60"
+            disabled={!canFish || quickCount <= 0}
+            onClick={() => handleRunWithDelay(quickCount)}
+            title={
+              quickCount > 0
+                ? `일괄 낚시 시작 (×${quickCount})`
+                : "미끼가 필요해요"
+            }
+          >
+            <Fish className="h-4 w-4 mr-1" />
+            낚시
+          </Button>
         </div>
       </div>
 
-      {/* 일괄 낚시 패널 (대기 중에도 비활성화) */}
-      <BulkFishingPanel
-        baitCount={baitCount}
-        bulkCount={bulk.bulkCount}
-        setBulkCount={bulk.setBulkCount}
-        busy={bulk.busy || waitOpen}
-        onRun={handleRunWithDelay} // ✅ count 스냅샷을 받음
-        tanksErr={tanksErr}
-      />
-
-      {/* 결과 모달 */}
+      {/* 결과 모달 (기존 유지) */}
       <BulkResultsModal
         open={bulk.open}
         setOpen={bulk.setOpen}
