@@ -161,7 +161,7 @@ function PhotoRow({
           />
           {isCover && (
             <div
-              className="absolute left-3 top-3 flex items-center gap-2 px-2.5 py-1.5 rounded-full bg-white/92 shadow-sm ring-1  bg-white ring-white/70 backdrop-blur-sm"
+              className="absolute left-3 top-3 flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/92 shadow-sm ring-1  bg-white ring-white/70 backdrop-blur-sm"
               title="대표 사진"
               aria-label="대표 사진"
             >
@@ -626,14 +626,16 @@ export default function FragmentDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-[1400px] p-6 space-y-8">
+    <div className="mx-auto w-full max-w-[960px] px-4 sm:px-6 md:px-8 py-6 space-y-8">
       {frag && (
         <>
           {/* ✅ Sticky 헤더 : 1행(제목+날짜) / 2행(버튼들) */}
           <div
-            className={`sticky ${STICKY_TOP} z-40 px-3 md:-mx-6 md:px-6
-            bg-white/90 md:bg-white/80 supports-[backdrop-filter]:bg-white/70 backdrop-blur
-            rounded-xl border shadow-[0_1px_0_rgba(0,0,0,0.03)]`}
+            className={`sticky ${STICKY_TOP} z-40
+  mx-auto w-full max-w-[720px]    /* 💡 헤더 자체 폭도 제한 */
+  px-3 sm:px-4 md:px-5            /* 💡 모바일 패딩 축소 */
+  bg-white/90 md:bg-white/80 supports-[backdrop-filter]:bg-white/70 backdrop-blur
+  rounded-2xl border shadow-[0_1px_0_rgba(0,0,0,0.03)]`}
           >
             <TooltipProvider delayDuration={80}>
               {/* Row 1: 제목(좌) + 날짜 버튼(우) */}
@@ -689,12 +691,10 @@ export default function FragmentDetailPage() {
                         type="button"
                         onClick={() => nav("/memories")}
                         variant="ghost"
-                        className="h-11 rounded-full px-5 bg-white/80 hover:bg-white shadow-sm ring-1 ring-black/5"
+                        className="h-11 rounded-lg px-5 bg-white/80 hover:bg-white shadow-sm ring-1 ring-black/5"
                         aria-label="뒤로가기"
                       >
-                        <FontAwesomeIcon icon={faBackward} className="mr-2" />
-                        <span className="hidden sm:inline">뒤로가기</span>
-                        <span className="sm:hidden">뒤로</span>
+                        <FontAwesomeIcon icon={faBackward} />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>목록으로</TooltipContent>
@@ -709,11 +709,10 @@ export default function FragmentDetailPage() {
                         type="button"
                         onClick={() => fileRef.current?.click()}
                         variant="secondary"
-                        className="h-11 rounded-full px-6 shadow-sm"
+                        className="h-11 rounded-lg px-6 shadow-sm"
                         aria-label="사진 추가"
                       >
-                        <FontAwesomeIcon icon={faCamera} className="mr-2" />
-                        <span className="font-medium">사진 추가</span>
+                        <FontAwesomeIcon icon={faCamera} />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>새 사진 카드 추가</TooltipContent>
@@ -726,13 +725,11 @@ export default function FragmentDetailPage() {
                       <Button
                         type="button"
                         variant="destructive"
-                        className="h-11 rounded-full px-5 "
+                        className="h-11 rounded-lg px-5 "
                         onClick={() => setConfirmOpen({ type: "fragment" })}
                         aria-label="삭제하기"
                       >
-                        <Trash2 className="mr-2 size-4" />
-                        <span className="hidden sm:inline">삭제하기</span>
-                        <span className="sm:hidden">삭제</span>
+                        <Trash2 className=" size-4" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>이 추억 조각 삭제</TooltipContent>
@@ -745,7 +742,7 @@ export default function FragmentDetailPage() {
                       <Button
                         onClick={handleSaveAll}
                         disabled={saving}
-                        className="h-11 rounded-full px-6 shadow-sm"
+                        className="h-11 rounded-lg px-6 shadow-sm"
                         aria-label="저장하기"
                         type="button"
                       >
@@ -759,7 +756,7 @@ export default function FragmentDetailPage() {
                             저장중…
                           </>
                         ) : (
-                          <>저장하기</>
+                          <>저장</>
                         )}
                       </Button>
                     </TooltipTrigger>
@@ -843,7 +840,7 @@ export default function FragmentDetailPage() {
       </div>
 
       {/* 추억 정리글 */}
-      <Card className="p-6 space-y-3">
+      <Card className="p-4 sm:p-5 md:p-6">
         <div className="font-medium">메모하기</div>
         <Textarea
           value={summary}

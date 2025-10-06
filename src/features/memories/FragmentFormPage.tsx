@@ -364,12 +364,10 @@ export default function FragmentFormPage() {
                     type="button"
                     onClick={() => history.back()}
                     variant="ghost"
-                    className="h-11 rounded-full px-5 bg-white/80 hover:bg-white shadow-sm ring-1 ring-black/5"
+                    className="h-11 rounded-lg px-5 bg-white/80 hover:bg-white shadow-sm ring-1 ring-black/5"
                     aria-label="뒤로가기"
                   >
-                    <FontAwesomeIcon icon={faBackward} className="mr-2" />
-                    <span className="hidden sm:inline">뒤로가기</span>
-                    <span className="sm:hidden">뒤로</span>
+                    <FontAwesomeIcon icon={faBackward} />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>이전 페이지로</TooltipContent>
@@ -384,11 +382,10 @@ export default function FragmentFormPage() {
                     type="button"
                     onClick={addDraft}
                     variant="secondary"
-                    className="h-11 rounded-full px-6 shadow-sm"
+                    className="h-11 rounded-lg px-6 shadow-sm"
                     aria-label="사진 추가"
                   >
-                    <FontAwesomeIcon icon={faCamera} className="mr-2" />
-                    <span className="font-medium">사진 추가</span>
+                    <FontAwesomeIcon icon={faCamera} />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>새 사진 카드 추가</TooltipContent>
@@ -402,8 +399,8 @@ export default function FragmentFormPage() {
                   <Button
                     onClick={handleCreate}
                     disabled={busy || !canSubmit}
-                    className="h-11 rounded-full px-6 shadow-sm"
-                    aria-label="저장하기"
+                    className="h-11 rounded-lg px-6 shadow-sm"
+                    aria-label="저장"
                     type="button"
                   >
                     {busy ? (
@@ -416,7 +413,7 @@ export default function FragmentFormPage() {
                         저장중…
                       </>
                     ) : (
-                      <>저장하기</>
+                      <>저장</>
                     )}
                   </Button>
                 </TooltipTrigger>
@@ -502,7 +499,7 @@ export default function FragmentFormPage() {
                     {/* 대표 배지 */}
                     {d.isCover && (
                       <div
-                        className="absolute left-3 top-3 flex items-center gap-2 px-2.5 py-1.5 rounded-full bg-white/92 shadow-sm ring-1 ring-white/70 backdrop-blur-sm"
+                        className="absolute left-3 top-3 flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/92 shadow-sm ring-1 ring-white/70 backdrop-blur-sm"
                         title="대표 사진"
                         aria-label="대표 사진"
                       >
@@ -579,12 +576,12 @@ export default function FragmentFormPage() {
                         onClick={() => setCover(d.id)}
                       >
                         <FontAwesomeIcon icon={faCrown} />
-                        대표 사진으로 지정
+                        대표 사진으로
                       </Button>
                       <Button
-                        variant="ghost"
+                        variant="destructive"
                         size="sm"
-                        className="gap-2 text-destructive hover:text-destructive"
+                        className="gap-2 "
                         onClick={() => removeDraft(d.id)}
                       >
                         <FontAwesomeIcon icon={faTrashCan} />

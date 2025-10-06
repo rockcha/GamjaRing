@@ -83,37 +83,31 @@ const CenterCluster = memo(function CenterCluster() {
 const RightClusterDesktop = memo(function RightClusterDesktop() {
   return (
     <div className="hidden md:flex items-center justify-end gap-2">
-      <NotificationDropdown iconSize={56} />
       <CoupleBalanceCard showDelta dense />
       <AvatarWidget />
     </div>
   );
 });
 
-/* ------------------------------ 모바일: 1행(타이틀/로고 + 밸런스/아바타), 2행(DaysTogether) ------------------------------ */
-const MobileRows = memo(function MobileRows({
-  routeTitle,
-}: {
-  routeTitle: string;
-}) {
+/* ------------------------------ 모바일 프리뷰 바(질문 + 오늘 한마디) ------------------------------ */
+const MobilePreviewBar = memo(function MobilePreviewBar() {
   return (
-    <div className="md:hidden mx-auto w-full max-w-screen-2xl px-3 sm:px-4">
-      {/* 1행: 타이틀(좌) + 알림/밸런스/아바타(우) */}
-      <div className="flex items-center justify-between py-2 gap-3">
-        <div className="min-w-0 flex-1">
-          <TitleCluster routeTitle={routeTitle} />
+    <div className="md:hidden mx-auto w-full max-w-screen-2xl px-3 sm:px-4 pb-2">
+      <div
+        className={cn(
+          "flex flex-col gap-2 rounded-xl",
+          "bg-white/70 backdrop-blur ring-1 ring-neutral-200/70 shadow-sm",
+          "p-2"
+        )}
+      >
+        {/* 질문 */}
+        <div className="min-w-0 px-1 py-1 rounded-lg bg-white/80 ring-1 ring-white/60 shadow-sm">
+          <TodayQuestionInline />
         </div>
-        <div className="shrink-0 flex items-center gap-2">
-          {/* 👇 모바일용 알림 드롭다운 추가 */}
-          <NotificationDropdown iconSize={40} />
-          <CoupleBalanceCard showDelta dense />
-          <AvatarWidget />
+        {/* 오늘 한마디 */}
+        <div className="min-w-0">
+          <SelfTodayOneLiner />
         </div>
-      </div>
-
-      {/* 2행: DaysTogether 한 줄 */}
-      <div className="pb-2">
-        <DaysTogetherBadge />
       </div>
     </div>
   );
@@ -166,7 +160,7 @@ function SelfTodayOneLiner() {
         },
         (payload) => {
           if (payload.new) setMsg(payload.new as UserMessage);
-          else if (payload.eventType === "DELETE") setMsg(null);
+          else if ((payload as any).eventType === "DELETE") setMsg(null);
         }
       )
       .subscribe();
@@ -185,7 +179,7 @@ function SelfTodayOneLiner() {
           className={cn(
             "w-full rounded-xl border border-neutral-200/60 bg-white/70 backdrop-blur px-3 py-2",
             "ring-1 ring-white/60 shadow-sm hover:shadow transition",
-            "hover:bg-white"
+            "hover:bg-white flex items-center"
           )}
           aria-label="내 한마디 작성/수정"
           title="내 한마디 작성/수정"
@@ -217,6 +211,38 @@ function SelfTodayOneLiner() {
   );
 }
 
+/* ------------------------------ 모바일: 1행(타이틀/밸런스/아바타), 2행(DaysTogether), 3행(프리뷰 바) ------------------------------ */
+const MobileRows = memo(function MobileRows({
+  routeTitle,
+}: {
+  routeTitle: string;
+}) {
+  return (
+    <>
+      <div className="md:hidden mx-auto w-full max-w-screen-2xl px-3 sm:px-4">
+        {/* 1행: 타이틀(좌) + 밸런스/아바타(우) */}
+        <div className="flex items-center justify-between py-2 gap-3">
+          <div className="min-w-0 flex-1">
+            <TitleCluster routeTitle={routeTitle} />
+          </div>
+          <div className="shrink-0 flex items-center gap-2">
+            <CoupleBalanceCard showDelta dense />
+            <AvatarWidget />
+          </div>
+        </div>
+
+        {/* 2행: DaysTogether */}
+        <div className="pb-2">
+          <DaysTogetherBadge />
+        </div>
+      </div>
+
+      {/* 3행: 모바일 프리뷰 바(질문 + 오늘 한마디) */}
+      <MobilePreviewBar />
+    </>
+  );
+});
+
 /* ------------------------------ 헤더 컴포넌트 ------------------------------ */
 export default function AppHeader({
   routeTitle,
@@ -231,7 +257,6 @@ export default function AppHeader({
   return (
     <header
       className={cn(
-        // ✅ 두꺼운 실선 대신: 투명 배경 + 얇은 그라디언트 헤어라인 + 은은한 링 + 둥근 모서리
         "sticky top-0 z-40 bg-white/55 backdrop-blur-md supports-[backdrop-filter]:bg-white/45",
         "pt-[env(safe-area-inset-top)]",
         "overflow-x-hidden",
@@ -264,9 +289,8 @@ export default function AppHeader({
         </div>
       </div>
 
-      {/* ✅ 하단 프리뷰 바: 실선 → 부드러운 헤어라인 + 섬세한 분리감 */}
+      {/* ✅ 데스크톱 프리뷰 바 */}
       <div className="hidden md:block relative">
-        {/* Top separator of preview bar */}
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px " />
         <div className="mx-auto w-full max-w-screen-2xl py-2 px-3 sm:px-4">
           <div
@@ -279,15 +303,13 @@ export default function AppHeader({
             <div className="min-w-0 flex-1 px-2 py-1">
               <TodayQuestionInline />
             </div>
-            {/* vertical hairline */}
             <div className="h-6 w-px bg-gradient-to-b from-transparent via-neutral-300/60 to-transparent" />
             <div className="min-w-0 flex-1 px-2 py-1">
               <SelfTodayOneLiner />
             </div>
           </div>
         </div>
-        {/* Bottom hairline of preview bar */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-neutral-300/50 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-neutral-300/60 to-transparent" />
       </div>
 
       {/* Bottom hairline of header */}

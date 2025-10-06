@@ -56,6 +56,7 @@ export default function BrowseProducersButton({
   const [loading, setLoading] = useState(false);
 
   const [ownedCount, setOwnedCount] = useState<Record<string, number>>({});
+  const [buyingId, setBuyingId] = useState<string | null>(null);
 
   const loadOwned = async () => {
     if (!coupleId) return;
@@ -76,8 +77,6 @@ export default function BrowseProducersButton({
     setOpen(v);
     if (v) loadOwned();
   };
-
-  const [buyingId, setBuyingId] = useState<string | null>(null);
 
   const handleBuy = async (prod: Producer) => {
     if (!coupleId) {
@@ -105,7 +104,7 @@ export default function BrowseProducersButton({
             senderId: user.id,
             receiverId: user.partner_id,
             type: "생산시설구매",
-            itemName: prod.name, // 예) ‘강화 온실’을 구매했습니다 🏭
+            itemName: prod.name,
           });
         }
       } catch (e) {
@@ -132,30 +131,44 @@ export default function BrowseProducersButton({
         onClick={() => handleOpen(true)}
         className={cn("gap-2", className)}
       >
-        🛒 생산시설 둘러보기
+        🛒 생산시설 상점
       </Button>
 
       <Dialog open={open} onOpenChange={handleOpen}>
-        <DialogContent className="sm:max-w-3xl p-0 overflow-hidden">
-          <div className="flex flex-col min-h-[420px] max-h-[80vh]">
-            {/* 제목 + 골드 우측 정렬 */}
-            <DialogHeader className="px-4 pt-4 pb-2 shrink-0">
+        <DialogContent
+          className={cn(
+            "p-0 overflow-hidden", // 테두리/라운드 유지
+            // ▶ 폭: 모바일 거의 풀사이즈, 데스크탑 중형
+            "w-[calc(100vw-1.5rem)] sm:w-auto sm:max-w-4xl",
+            // ▶ 높이: 고정 X, 최대 높이만 지정하여 중앙 정렬/스크롤 보장
+            "max-h-[90dvh] md:max-h-[85vh]"
+          )}
+        >
+          {/* 3분할 레이아웃: 헤더/본문(스크롤)/푸터 */}
+          <div className="grid grid-rows-[auto_minmax(0,1fr)_auto] max-h-[90dvh] md:max-h-[85vh]">
+            {/* 헤더: sticky 아니어도 상관없지만, 상단 고정 원하면 sticky 유지 가능 */}
+            <DialogHeader className="px-4 pt-4 pb-2 border-b bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60">
               <div className="flex items-center justify-between gap-3">
-                <DialogTitle>생산수단 목록</DialogTitle>
-                <GoldDisplay className="mr-8" />
+                <DialogTitle className="text-base sm:text-lg">
+                  생산수단 목록
+                </DialogTitle>
+                <GoldDisplay className="mr-1 sm:mr-2" />
               </div>
             </DialogHeader>
 
-            {/* 본문 */}
-            <div className="flex-1 overflow-y-auto px-4 pb-4">
+            {/* 본문: 오직 여기만 스크롤 */}
+            <div className="overflow-y-auto px-3 sm:px-4 py-3">
               {loading ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <Skeleton key={i} className="h-40 rounded-xl" />
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <Skeleton
+                      key={i}
+                      className="h-40 sm:h-44 lg:h-48 rounded-xl"
+                    />
                   ))}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
                   {PRODUCERS.map((p) => {
                     const have = ownedCount[p.name] ?? 0;
                     const canAfford =
@@ -164,40 +177,44 @@ export default function BrowseProducersButton({
 
                     return (
                       <div
+                        key={p.id}
                         className={cn(
-                          "relative rounded-xl border bg-[#FAF7F2] p-3",
-                          "shadow-sm" // hover shadow 제거로 안정감
+                          "relative rounded-xl border bg-[#FAF7F2] p-2 sm:p-3 shadow-sm",
+                          "transition-all hover:shadow-[0_10px_28px_-18px_rgba(0,0,0,0.25)]"
                         )}
                       >
-                        {/* 상단: 이름 + 보유수 */}
                         <div className="flex items-start justify-between gap-2">
-                          <div className="font-semibold text-neutral-800 truncate">
+                          <div className="font-semibold text-neutral-800 truncate text-sm sm:text-base">
                             {p.name}
                           </div>
                           {have > 0 && (
-                            <span className="shrink-0 rounded-md bg-white/80 px-2 py-1 text-xs border">
+                            <span className="shrink-0 rounded-md bg-white/80 px-1.5 py-0.5 text-[10px] sm:text-xs border">
                               보유 {have}
                             </span>
                           )}
                         </div>
 
-                        {/* 이미지 + 좌상단 이모지 배지 */}
                         <div className="mt-2 relative">
-                          <img
-                            src={p.image}
-                            alt={p.name}
-                            className="w-full h-auto rounded-lg object-contain"
-                            draggable={false}
-                            loading="lazy"
-                          />
+                          <div className="w-full rounded-lg overflow-hidden border bg-white">
+                            <div className="aspect-[4/3] w-full">
+                              <img
+                                src={p.image}
+                                alt={p.name}
+                                className="h-full w-full object-contain"
+                                draggable={false}
+                                loading="lazy"
+                              />
+                            </div>
+                          </div>
+
                           {emoji.length > 0 && (
                             <span
                               className="
-                                absolute top-0 left-0
-                                inline-flex items-center gap-1 rounded-full
-                                border bg-white/90 backdrop-blur px-2 py-1
-                                text-sm shadow-sm
-                              "
+                          absolute top-1 left-1 sm:top-1.5 sm:left-1.5
+                          inline-flex items-center gap-1 rounded-full
+                          border bg-white/90 backdrop-blur px-1.5 sm:px-2 py-0.5
+                          text-xs sm:text-sm shadow-sm
+                        "
                               title="생산 가능 재료"
                             >
                               {emoji.join(" ")}
@@ -205,30 +222,28 @@ export default function BrowseProducersButton({
                           )}
                         </div>
 
-                        {/* 메타: 아이콘+값 뱃지들 */}
-                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                          <span className="inline-flex items-center gap-1 rounded-full border bg-neutral-50 px-2 py-1">
-                            <Coins className="h-3.5 w-3.5 text-amber-500" />
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs">
+                          <span className="inline-flex items-center gap-1 rounded-full border bg-neutral-50 px-1.5 sm:px-2 py-0.5">
+                            <Coins className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-500" />
                             {p.price.toLocaleString()}
                           </span>
-                          <span className="inline-flex items-center gap-1 rounded-full border bg-neutral-50 px-2 py-1">
-                            <Clock className="h-3.5 w-3.5 text-sky-600" />
+                          <span className="inline-flex items-center gap-1 rounded-full border bg-neutral-50 px-1.5 sm:px-2 py-0.5">
+                            <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-sky-600" />
                             {formatHours(p.timeSec)}
                           </span>
                         </div>
 
-                        {/* 액션: 오른쪽 버튼만 */}
-                        <div className="mt-3 flex justify-end">
+                        <div className="mt-2 sm:mt-3 flex justify-end">
                           <Button
                             size="sm"
-                            className="h-8 px-3"
+                            className="h-8 px-2.5 sm:px-3"
                             disabled={buyingId === p.id || !canAfford}
                             onClick={() => handleBuy(p)}
                           >
                             {buyingId === p.id
                               ? "구매 중…"
                               : canAfford
-                              ? "내 농장에 추가"
+                              ? "구매하기"
                               : "골드 부족"}
                           </Button>
                         </div>
@@ -239,10 +254,13 @@ export default function BrowseProducersButton({
               )}
             </div>
 
-            <DialogFooter className="px-4 pb-4 shrink-0">
-              <Button variant="outline" onClick={() => handleOpen(false)}>
-                닫기
-              </Button>
+            {/* 푸터 */}
+            <DialogFooter className="px-3 sm:px-4 py-2 sm:py-3 border-t bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+              <div className="w-full flex items-center justify-end">
+                <Button variant="outline" onClick={() => handleOpen(false)}>
+                  닫기
+                </Button>
+              </div>
             </DialogFooter>
           </div>
         </DialogContent>

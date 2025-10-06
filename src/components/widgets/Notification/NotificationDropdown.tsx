@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useUser } from "@/contexts/UserContext";
 import { useNotifications } from "./useNotifications";
 import { useRelativeTime } from "./useRelativeTime";
@@ -20,19 +21,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipProvider,
-  TooltipTrigger,
-  TooltipContent,
-} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 export default function NotificationDropdown({
   onUnreadChange,
   className,
   caption = "알림",
-  /** ✅ 추가: 아이콘 크기(px). 기본 48 */
+  /** 트리거 아이콘 크기(px). 기본 48 */
   iconSize = 48,
 }: {
   onUnreadChange?: (count: number) => void;
@@ -48,7 +43,6 @@ export default function NotificationDropdown({
   const { loading, notifications } = useNotifications(uid);
   const { format } = useRelativeTime();
 
-  // 커플 연결 시 '커플요청(요청)' 숨김
   const visibleItems = useMemo(() => {
     if (!notifications) return [];
     if (!isCoupled) return notifications;
@@ -81,7 +75,6 @@ export default function NotificationDropdown({
   );
   const hasUnreadBadge = computedUnreadCount > 0;
 
-  // 열릴 때 읽음 처리(낙관적)
   const handleOpenChange = async (v: boolean) => {
     setOpen(v);
     if (v && uid) {
@@ -97,170 +90,159 @@ export default function NotificationDropdown({
     }
   };
 
-  // ✅ 아이콘 자원: /bell.png 로 사용 (+@2x, @3x 있으면 더 선명)
+  // 아이콘 리소스
   const iconSrc = "/bell.png";
   const [imgLoaded, setImgLoaded] = useState(false);
 
-  // ✅ 파생 크기 계산 (배지 오프셋/로딩/헤더 아이콘에 공통 적용)
-  const wrapperSize = iconSize; // 버튼 안 원형 래퍼
-  const imageSize = Math.round(iconSize * 0.9); // 래퍼보다 살짝 작게
-  const dotSize = Math.max(10, Math.round(iconSize * 0.2));
-  const badgeOffset = Math.max(4, Math.round(iconSize * 0.1));
-  const badgeBottomOffset = Math.max(6, Math.round(iconSize * 0.12));
+  // 파생 크기
+  const wrapperSize = Math.max(40, iconSize); // 원형 내부 이미지 크기 기준
+  const imageSize = Math.round(wrapperSize * 0.9);
+  const dotSize = Math.max(10, Math.round(wrapperSize * 0.22));
+  const badgeOffset = Math.max(4, Math.round(wrapperSize * 0.12));
   const headerIconSize = Math.round(iconSize * 0.42);
+
+  // 포털 렌더 안전 가드 (SSR 하이드레이션 대비)
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   return (
     <>
-      {/* 알림 버튼 */}
-      <TooltipProvider delayDuration={120}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => handleOpenChange(true)}
-              aria-label="알림 열기"
-              className={cn(
-                "p-0 h-auto inline-flex flex-col items-center gap-1",
-                "group rounded-md transition-all duration-200 ease-out",
-                "hover:-translate-y-0.5 hover:bg-neutral-50/60",
-                "active:translate-y-0",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300/60 focus-visible:ring-offset-2",
-                className
-              )}
-            >
-              {/* 아이콘 래퍼: 배지/파동/글로우용 relative */}
-              <span
-                className="relative inline-grid place-items-center"
-                style={{ width: wrapperSize, height: wrapperSize }}
-              >
-                {/* 🌊 퍼지는 파동 (새 알림 있을 때만) + 부드러운 글로우 */}
-                {hasUnreadBadge && (
-                  <>
-                    <span
-                      className="
-                        pointer-events-none absolute inset-0 rounded-full
-                        bg-rose-400/25 blur-[0.5px] transform-gpu
-                        motion-safe:animate-[notifWave_1.6s_ease-out_infinite]
-                        motion-reduce:animate-none
+      {/* ===== 좌하단 고정 원형 버튼(FAB) 트리거 — 뷰포트 기준 고정 ===== */}
+      {mounted &&
+        typeof window !== "undefined" &&
+        createPortal(
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => handleOpenChange(true)}
+            aria-label={caption}
+            className={cn(
+              // ✅ 전역(뷰포트) 고정
+              "fixed z-[9999] left-4 bottom-4",
+              // iOS 안전영역 고려
+
+              "rounded-full p-0 shadow-lg hover:shadow-xl transition-shadow",
+              "ring-1 ring-black/5 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70",
+              // 크기 (원형)
+              "grid place-items-center",
+              className
+            )}
+            style={{
+              width: wrapperSize + 20, // 이미지보다 약간 크게
+              height: wrapperSize + 20,
+            }}
+          >
+            <span className="relative inline-grid place-items-center">
+              {/* 파동/글로우: 새 알림 있을 때만 */}
+              {hasUnreadBadge && (
+                <>
+                  <span
+                    className="
+                      pointer-events-none absolute inset-0 rounded-full
+                      bg-rose-400/25 blur-[0.5px] transform-gpu
+                      motion-safe:animate-[notifWave_1.6s_ease-out_infinite]
                       "
-                      aria-hidden
-                    />
-                    <span
-                      className="pointer-events-none absolute inset-0 rounded-full ring-2 ring-rose-300/60"
-                      aria-hidden
-                    />
-                    {/* 소프트 글로우 */}
-                    <span className="pointer-events-none absolute inset-0 rounded-full bg-rose-300/20 blur-md" />
-                  </>
-                )}
-
-                {/* PNG 아이콘 */}
-                <img
-                  src={iconSrc}
-                  srcSet="/bell.png 1x, /bell@2x.png 2x, /bell@3x.png 3x"
-                  alt="알림"
-                  className={cn(
-                    "object-contain transition-transform duration-200",
-                    "group-hover:scale-110 group-active:scale-95",
-                    hasUnreadBadge ? "animate-soft-bounce" : ""
-                  )}
-                  style={{ width: imageSize, height: imageSize }}
-                  draggable={false}
-                  loading="lazy"
-                  onLoad={() => setImgLoaded(true)}
-                />
-                {!imgLoaded && (
-                  <Skeleton
-                    className="rounded-md absolute inset-0"
-                    style={{ width: wrapperSize, height: wrapperSize }}
+                    aria-hidden
                   />
-                )}
+                  <span
+                    className="pointer-events-none absolute inset-0 rounded-full ring-2 ring-rose-300/60"
+                    aria-hidden
+                  />
+                  <span className="pointer-events-none absolute inset-0 rounded-full bg-rose-300/20 blur-md" />
+                </>
+              )}
 
-                {/* 우상단 배지(점 + 숫자 배지) */}
-                {hasUnreadBadge && (
-                  <>
-                    {/* 작은 점 + ping */}
-                    <span
-                      className="pointer-events-none absolute rounded-full bg-rose-500/60 animate-ping"
-                      style={{
-                        top: -badgeOffset,
-                        right: -badgeOffset,
-                        width: dotSize,
-                        height: dotSize,
-                      }}
-                    />
-                    <span
-                      className="pointer-events-none absolute rounded-full bg-rose-500 shadow-[0_0_0_1px_rgba(255,255,255,0.9)]"
-                      style={{
-                        top: -badgeOffset,
-                        right: -badgeOffset,
-                        width: dotSize,
-                        height: dotSize,
-                      }}
-                    />
-                    {/* 숫자 배지 (가독용) */}
-                    <Badge
-                      variant="destructive"
-                      className="pointer-events-none absolute px-1 py-0 h-4 min-w-[1.2rem] text-[10px] leading-4 rounded-full"
-                      style={{
-                        right: -badgeOffset,
-                        bottom: -badgeBottomOffset,
-                      }}
-                    >
-                      {computedUnreadCount > 99 ? "99+" : computedUnreadCount}
-                    </Badge>
-                  </>
+              {/* 아이콘 */}
+              <img
+                src={iconSrc}
+                srcSet="/bell.png 1x, /bell@2x.png 2x, /bell@3x.png 3x"
+                alt={caption}
+                className={cn(
+                  "object-contain transition-transform duration-200",
+                  "hover:scale-110 active:scale-95",
+                  hasUnreadBadge ? "animate-soft-bounce" : ""
                 )}
-              </span>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="text-xs">
-            {hasUnreadBadge
-              ? `새 알림 ${computedUnreadCount}개`
-              : "새 알림 없음"}
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+                style={{ width: imageSize, height: imageSize }}
+                draggable={false}
+                loading="lazy"
+                onLoad={() => setImgLoaded(true)}
+              />
+              {!imgLoaded && (
+                <Skeleton
+                  className="rounded-full absolute"
+                  style={{ width: imageSize, height: imageSize }}
+                />
+              )}
 
-      {/* Dialog로 알림 표시 — 몽글몽글 감성 강화 */}
+              {/* 배지 (우상단) */}
+              {hasUnreadBadge && (
+                <>
+                  <span
+                    className="pointer-events-none absolute rounded-full bg-rose-500/60 animate-ping"
+                    style={{
+                      top: -badgeOffset,
+                      right: -badgeOffset,
+                      width: dotSize,
+                      height: dotSize,
+                    }}
+                  />
+                  <span
+                    className="pointer-events-none absolute rounded-full bg-rose-500 shadow-[0_0_0_1px_rgba(255,255,255,0.9)]"
+                    style={{
+                      top: -badgeOffset,
+                      right: -badgeOffset,
+                      width: dotSize,
+                      height: dotSize,
+                    }}
+                  />
+                  <Badge
+                    variant="destructive"
+                    className="pointer-events-none absolute px-1 py-0 h-4 min-w-[1.2rem] text-[10px] leading-4 rounded-full"
+                    style={{
+                      right: -badgeOffset,
+                      bottom: -Math.max(6, Math.round(wrapperSize * 0.14)),
+                    }}
+                  >
+                    {computedUnreadCount > 99 ? "99+" : computedUnreadCount}
+                  </Badge>
+                </>
+              )}
+            </span>
+          </Button>,
+          document.body
+        )}
+
+      {/* ===== Dialog: 폰/데탑 모두 예쁜 비율 ===== */}
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent
           className={cn(
-            "sm:max-w-md p-0 overflow-hidden border-0",
-            // 부드러운 유리모피(Glassmorphism)
-            "rounded-3xl ",
-            "backdrop-blur-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.25)]",
-            // 은은한 내부 그림자 & 테두리
-            "ring-1 ring-black/5"
+            // 공통
+            "p-0 border-0 overflow-hidden ring-1 ring-black/5 backdrop-blur-xl",
+            "rounded-3xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.25)]",
+            "max-h-[85svh] sm:max-h-[80vh]",
+
+            // 데스크톱(>=sm): 기본 중앙 모달 스타일 유지
+            "sm:fixed sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-auto sm:max-w-md",
+
+            // 모바일(<sm): 바텀시트 — ★ 기본값들 ‘완전’ 리셋!
+            "fixed inset-x-0 bottom-0 top-auto", // top 초기화
+            "left-0 right-0", // left/right 명시
+            "translate-x-0 translate-y-0", // translate 초기화
+            "rounded-t-3xl rounded-b-none",
+            "w-full",
+            "pb-[max(env(safe-area-inset-bottom),12px)]"
           )}
         >
-          {/* 몽글 배경 버블 */}
+          {/* 배경 버블(은은) */}
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute -top-12 -left-10 w-40 h-40 rounded-full bg-pink-200/30 blur-2xl animate-float-slow" />
             <div className="absolute -bottom-12 -right-8 w-44 h-44 rounded-full bg-amber-200/40 blur-2xl animate-float-slower" />
           </div>
 
-          <div className="relative flex flex-col min-h-[360px] max-h-[70vh]">
+          <div className="relative flex flex-col min-h=[360px] max-h-[inherit]">
             <DialogHeader className="px-5 pt-5 pb-3 shrink-0">
-              <DialogTitle
-                className={cn(
-                  "flex items-center gap-2 text-lg",
-                  "font-semibold tracking-tight"
-                )}
-              >
-                <span className="relative inline-flex items-center justify-center">
-                  <img
-                    src={iconSrc}
-                    alt="bell"
-                    className="object-contain"
-                    style={{ width: headerIconSize, height: headerIconSize }}
-                    draggable={false}
-                  />
-                  {/* 타이틀 옆 미세 글로우 */}
-                  <span className="pointer-events-none absolute inset-0 rounded-full bg-amber-200/40 blur-sm" />
-                </span>
-                알림
+              <DialogTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+                {caption}
                 {hasUnreadBadge && (
                   <Badge variant="secondary" className="text-[10px]">
                     {computedUnreadCount > 99 ? "99+" : computedUnreadCount}
@@ -271,7 +253,7 @@ export default function NotificationDropdown({
 
             <Separator className="opacity-60" />
 
-            <div className="flex-1">
+            <div className="flex-1 min-h-0">
               {loading ? (
                 <div className="px-5 py-4">
                   <div className="space-y-2">
@@ -286,7 +268,11 @@ export default function NotificationDropdown({
                   새로운 알림이 없어요. 🫧
                 </div>
               ) : (
-                <ScrollArea className="h-[50vh] px-1 py-2">
+                // 내부 스크롤 높이 (폰/데탑 모두 안정)
+                <ScrollArea
+                  className="px-1 py-2"
+                  style={{ maxHeight: "60svh" }}
+                >
                   <div className="pr-3">
                     <NotificationList
                       items={visibleItems}
@@ -303,11 +289,7 @@ export default function NotificationDropdown({
               <Button
                 variant="outline"
                 onClick={() => handleOpenChange(false)}
-                className={cn(
-                  "rounded-full px-5",
-                  "shadow-sm hover:shadow",
-                  "transition-all"
-                )}
+                className="rounded-lg px-5 shadow-sm hover:shadow transition-all"
               >
                 닫기
               </Button>
@@ -316,7 +298,7 @@ export default function NotificationDropdown({
         </DialogContent>
       </Dialog>
 
-      {/* 파동/몽글 애니메이션 키프레임 */}
+      {/* 애니메이션 키프레임 */}
       <style jsx>{`
         @keyframes notifWave {
           0% {
