@@ -211,9 +211,8 @@ export default function CoupleBalanceCard({
     );
 
   const chipCls = cn(
-    "relative inline-grid place-items-center rounded-full",
-    dense ? "h-7 w-7 text-[15px]" : "h-8 w-8 text-[17px]",
-    "bg-white/80 shadow-sm ring-1 ring-black/5"
+    "relative inline-grid place-items-center ",
+    dense ? "h-7 w-7 text-[15px]" : "h-8 w-8 text-[17px]"
   );
 
   const numCls = cn(

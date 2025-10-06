@@ -662,67 +662,22 @@ export default function CoupleSchedulerPage() {
                     </DialogTitle>
                     <div className="mt-1 flex flex-wrap items-center gap-1.5">
                       <Badge
-                        variant="outline"
-                        className="rounded-full px-2 py-0.5 text-[11px] tabular-nums"
+                        variant="secondary"
+                        className=" px-2 py-0.5 text-[11px] tabular-nums"
                       >
                         {selected.schedule_date}
                       </Badge>
                       <Badge
-                        variant="outline"
+                        variant="secondary"
                         className={cn(
-                          "rounded-full px-2 py-0.5 text-[11px]",
-                          TYPE_TONES[selected.type]?.text,
-                          "border-muted-foreground/30"
+                          " px-2 py-0.5 text-[11px]",
+                          TYPE_TONES[selected.type]?.text
                         )}
                       >
                         {selected.type}
                       </Badge>
                     </div>
                   </div>
-                </div>
-
-                {/* 우측 상단 액션(오버레이) */}
-                <div className="absolute right-3 bottom-3 flex gap-1">
-                  {!editMode ? (
-                    <>
-                      <Button
-                        variant="default"
-                        size="icon"
-                        title="수정"
-                        onClick={() => setEditMode(true)}
-                        className="rounded-lg min-h-9 min-w-9"
-                      >
-                        <PencilLine className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        title="삭제"
-                        onClick={handleDelete}
-                        className="rounded-lg min-h-9 min-w-9"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button
-                        size="sm"
-                        onClick={handleSaveEdit}
-                        className="rounded-lg h-9 px-4"
-                      >
-                        저장
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setEditMode(false)}
-                        className="rounded-lg h-9 px-4"
-                      >
-                        취소
-                      </Button>
-                    </>
-                  )}
                 </div>
               </div>
 
@@ -773,6 +728,49 @@ export default function CoupleSchedulerPage() {
                       className="leading-6"
                     />
                   </div>
+                )}
+              </div>
+
+              <div className=" flex justify-end p-2 gap-1">
+                {!editMode ? (
+                  <>
+                    <Button
+                      variant="default"
+                      size="icon"
+                      title="수정"
+                      onClick={() => setEditMode(true)}
+                      className="rounded-lg min-h-9 min-w-9"
+                    >
+                      <PencilLine className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      title="삭제"
+                      onClick={handleDelete}
+                      className="rounded-lg min-h-9 min-w-9"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      size="sm"
+                      onClick={handleSaveEdit}
+                      className="rounded-lg h-9 px-4"
+                    >
+                      저장
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setEditMode(false)}
+                      className="rounded-lg h-9 px-4"
+                    >
+                      취소
+                    </Button>
+                  </>
                 )}
               </div>
             </div>

@@ -96,11 +96,11 @@ export default function ProducerGroupCard({
       {/* 데스크탑 전용: 재료 가로 나열 (이모지 전부) */}
       {group.meta?.produces && group.meta.produces.length > 0 && (
         <div className="mt-1.5 hidden md:block">
-          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+          <div className="flex items-center  scrollbar-none border rounded-lg px-1">
             {group.meta.produces.map((t) => (
               <span
                 key={`${group.title}-${t}`}
-                className="inline-flex shrink-0 items-center rounded-full border bg-white/90 px-2 py-0.5 text-sm"
+                className="inline-flex shrink-0 items-center  bg-white/90 px-1 py-0.5 text-sm"
                 title={t}
               >
                 {INGREDIENT_EMOJI[t as IngredientTitle] ?? "❓"}
