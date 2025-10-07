@@ -97,6 +97,28 @@ const getDisplayId = (currentId: number | null, completed: boolean) => {
   return prev >= 0 ? prev : null;
 };
 
+// ───────────────── 도장 컴포넌트 ─────────────────
+function CornerStamp({ submitted }: { submitted: boolean }) {
+  const label = submitted ? "작성 완료" : "미작성";
+  const style = submitted
+    ? "text-emerald-700/90 ring-emerald-600/30"
+    : "text-rose-700/90 ring-rose-600/30";
+  return (
+    <div
+      aria-label={`상태: ${label}`}
+      className={cn(
+        "pointer-events-none absolute right-6 top-6",
+        "origin-[80%_20%] rotate-[-8deg]",
+        "font-semibold tracking-widest",
+        "px-3 py-1 rounded-lg ring-2 bg-white/80 backdrop-blur",
+        style
+      )}
+    >
+      {label}
+    </div>
+  );
+}
+
 export default function QuestionPage() {
   const { user } = useUser();
   const { completeTask } = useCompleteTask();
@@ -105,7 +127,7 @@ export default function QuestionPage() {
   const [questionId, setQuestionId] = useState<number | null>(null); // "오늘" 기준 id
   const [displayQuestionId, setDisplayQuestionId] = useState<number | null>(
     null
-  ); // ✅ 화면/저장 대상 고정 ID
+  ); // 화면/저장 대상 고정 ID
   const [answer, setAnswer] = useState<string>("");
   const [submitted, setSubmitted] = useState<boolean>(false); // 오늘 제출 여부
   const [loading, setLoading] = useState(true);
@@ -345,7 +367,7 @@ export default function QuestionPage() {
       {/* 편지지 느낌의 컨테이너 */}
       <Card
         className={cn(
-          "relative mx-auto max-w-3xl border-0 rounded-3xl",
+          "relative mx-auto max-w-3xl border-0 rounded-xl",
           "bg-[rgba(250,247,242,0.98)]",
           "ring-1 ring-amber-200/40",
           "shadow-[0_20px_60px_-20px_rgba(120,85,40,0.25)]",
@@ -408,12 +430,12 @@ export default function QuestionPage() {
               <div
                 className={cn(
                   "inline-flex items-center gap-2 px-3 py-1.5 rounded-full",
-                  "bg-white/70 ring-1 ring-amber-200/60 text-amber-800 text-xs"
+                  " text-amber-800 text-xs"
                 )}
               >
                 ✉️ <span className="font-medium">Dear us</span>
                 <span className="text-amber-600/60">·</span>
-                <span className="px-2 py-0.5 rounded-full bg-amber-50 ring-1 ring-amber-200/60">
+                <span className="px-2 py-0.5 rounded-full ">
                   {new Intl.DateTimeFormat("ko-KR", {
                     dateStyle: "long",
                     timeZone: "Asia/Seoul",
@@ -421,12 +443,8 @@ export default function QuestionPage() {
                 </span>
               </div>
 
-              {/* 저장됨 도장(성공 시) */}
-              {saveStatus === "saved" && (
-                <div className="pointer-events-none absolute right-8 top-8 origin-[80%_20%] rotate-[-8deg] text-emerald-600/85 font-semibold tracking-widest ring-2 ring-emerald-600/30 px-3 py-1 rounded-lg">
-                  SAVED
-                </div>
-              )}
+              {/* ✅ 도장: 작성 완료 / 미작성 */}
+              <CornerStamp submitted={submitted} />
             </CardHeader>
 
             <CardContent className="space-y-6">
@@ -488,13 +506,9 @@ export default function QuestionPage() {
 
               {/* 내 답변 */}
               {submitted && !editing ? (
-                // ✅ 제출 완료 & 편집 중 아님: 보기 전용 카드
+                // ✅ 제출 완료 & 편집 중 아님: 보기 전용 카드 (안내문 삭제)
                 <div className="mx-auto w-full md:w-[80%] lg:w-[70%]">
                   <div className="rounded-2xl border border-amber-200/70 bg-amber-50/70 p-4 md:p-5 ring-1 ring-amber-200/50 shadow-inner">
-                    <div className="mb-2 flex items-center gap-2 text-xs font-medium text-amber-800">
-                      <CheckCircle2 className="h-4 w-4" />
-                      제출 완료 — 아래 내용은 읽기 전용입니다
-                    </div>
                     <div className="whitespace-pre-wrap break-words text-[15px] md:text-base leading-relaxed text-neutral-800">
                       {answer || "작성 내용이 없습니다."}
                     </div>
@@ -509,7 +523,7 @@ export default function QuestionPage() {
                     onChange={(e) => setAnswer(e.target.value)}
                     readOnly={saveStatus === "saving"}
                     className={cn(
-                      "mx-auto min-h-[220px] md:min-h-[260px] resize-none rounded-2xl",
+                      "mx-auto min-h-[220px] md:min_h-[260px] resize-none rounded-2xl",
                       "bg-[linear-gradient(transparent_29px,rgba(0,0,0,0.035)_30px)] bg-[length:100%_30px]",
                       "border-0 ring-1 ring-neutral-200  focus-visible:ring-neutral-400",
                       "px-4 py-3 text-[15px] md:text-[16px] leading-[30px] text-neutral-800",
@@ -534,7 +548,7 @@ export default function QuestionPage() {
                 onClick={onPrimaryClick}
                 disabled={saveStatus === "saving"}
                 className={cn(
-                  "min-w-[150px] rounded-full text-neutral-600",
+                  "min-w-[150px] rounded-lg text-neutral-600",
                   "bg-rose-200 hover:bg-rose-300",
                   "shadow-[inset_0_-2px_0_rgba(0,0,0,0.12),0_10px_24px_-10px_rgba(244,114,182,0.6)] active:scale-95"
                 )}
@@ -545,31 +559,14 @@ export default function QuestionPage() {
                   </>
                 ) : submitted ? (
                   editing ? (
-                    <>🔖 저장하기</>
+                    <>저장하기</>
                   ) : (
-                    <>✍️ 수정하기</>
+                    <> 수정하기</>
                   )
                 ) : (
-                  <>🔖 저장하기</>
+                  <>저장하기</>
                 )}
               </Button>
-
-              {/* 하단 상태 라벨 */}
-              <div className="min-h-[22px] text-[12px]">
-                {editing && saveStatus !== "saving" && (
-                  <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                    수정 중…
-                  </span>
-                )}
-                {saveStatus === "saved" && (
-                  <span className="text-emerald-600">저장됨</span>
-                )}
-                {saveStatus === "error" && (
-                  <span className="text-red-600">
-                    저장 실패 — 잠시 후 재시도
-                  </span>
-                )}
-              </div>
             </CardFooter>
           </>
         )}
