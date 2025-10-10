@@ -4,16 +4,15 @@
 /**
  * FishingPage
  * - 배경이 전체를 채움
- * - 중앙 고정 카드: "일괄 낚시 설정" (Dialog → Card로 전환)
- * - 우하단: 미니 재료통 위젯(퀵-낚시)
+ * - 시간대별 배경: /fishing/{morning|noon|evening|night}.png
+ * - 중앙 고정 카드: "일괄 낚시 설정" (Dialog → Card)
+ * - 우하단: 미니 재료통 위젯(퀵-낚시) (현재 파일에서는 레이아웃 자리만, 위젯은 별도)
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import supabase from "@/lib/supabase";
 import MarineDexModal from "@/features/aquarium/MarineDexModal";
 import NewSpeciesBanner from "@/components/widgets/Cards/NewSpeciesBanner";
-import IngredientFishingSection from "@/features/fishing/IngredientFishingSection";
 
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { useUser } from "@/contexts/UserContext";
@@ -25,58 +24,70 @@ import { useBaitAndTanks } from "@/features/fishing/useBaitAndTanks";
 import { useBulkFishing } from "@/features/fishing/useBulkFishing";
 import { Card } from "@/components/ui/card";
 
-export default function FishingPage() {
-  const [themeTitle, setThemeTitle] = useState<string>("바다");
-  const nextSrc = useMemo(
-    () => `/aquarium/themes/${encodeURIComponent(themeTitle)}.png`,
-    [themeTitle]
-  );
+/* ───────────────── 시간대 판별 ─────────────────
+   - morning: 05:00 ~ 11:59
+   - noon:    12:00 ~ 17:59
+   - evening: 18:00 ~ 20:30
+   - night:   그 외
+------------------------------------------------ */
+function getTimeSegment(
+  d: Date = new Date()
+): "morning" | "noon" | "evening" | "night" {
+  const m = d.getHours() * 60 + d.getMinutes(); // minutes since midnight
 
-  const FADE_MS = 2500;
-  const [currentSrc, setCurrentSrc] = useState<string>(nextSrc);
+  const MORNING_START = 5 * 60; // 05:00 => 300
+  const MORNING_END = 11 * 60 + 59; // 11:59 => 719
+  const NOON_START = 12 * 60; // 12:00 => 720
+  const NOON_END = 17 * 60 + 59; // 17:59 => 1079
+  const EVENING_START = 18 * 60; // 18:00 => 1080
+  const EVENING_END = 20 * 60 + 30; // 20:30 => 1230
+
+  if (m >= MORNING_START && m <= MORNING_END) return "morning";
+  if (m >= NOON_START && m <= NOON_END) return "noon";
+  if (m >= EVENING_START && m <= EVENING_END) return "evening";
+  return "night";
+}
+
+export default function FishingPage() {
+  /* ───────── 배경 이미지 (시간대별) ───────── */
+  const [segment, setSegment] = useState<
+    "morning" | "noon" | "evening" | "night"
+  >(getTimeSegment());
+
+  // 분 단위로 시간대 감지 → 변경 시 크로스페이드
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const next = getTimeSegment();
+      setSegment((prev) => (prev === next ? prev : next));
+    }, 30_000); // 30초마다 체크 (분 경계 ±지연 대비)
+    return () => window.clearInterval(id);
+  }, []);
+
+  const src = useMemo(() => `/fishing/${segment}.png`, [segment]);
+
+  // 크로스페이드 상태
+  const FADE_MS = 2000;
+  const [currentSrc, setCurrentSrc] = useState<string>(src);
   const [prevSrc, setPrevSrc] = useState<string | null>(null);
   const [curLoaded, setCurLoaded] = useState(false);
 
+  // segment(src) 변경 시 페이드 준비
   useEffect(() => {
+    if (src === currentSrc) return;
     setPrevSrc(currentSrc || null);
-    setCurrentSrc(nextSrc);
+    setCurrentSrc(src);
     setCurLoaded(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nextSrc]);
+  }, [src]);
 
+  // 새 이미지가 로딩되면 이전 레이어 제거 타이머
   useEffect(() => {
     if (!curLoaded || !prevSrc) return;
     const t = window.setTimeout(() => setPrevSrc(null), FADE_MS);
     return () => window.clearTimeout(t);
   }, [curLoaded, prevSrc]);
 
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const { data, error } = await supabase
-          .from("aquarium_themes")
-          .select("title");
-        if (error) throw error;
-        const titles = (data ?? [])
-          .map((r: any) => r?.title)
-          .filter((t: any) => typeof t === "string" && t.length > 0);
-        if (!alive) return;
-        setThemeTitle(
-          titles.length
-            ? titles[Math.floor(Math.random() * titles.length)]
-            : "바다"
-        );
-      } catch {
-        if (alive) setThemeTitle("바다");
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  /* ───────── 중앙 고정 카드용 상태/로직 (Dialog → Card) ───────── */
+  /* ───────── 중앙 고정 카드용 상태/로직 ───────── */
   const { couple, fetchCoupleData } = useCoupleContext();
   const { user } = useUser();
   const coupleId = couple?.id ?? null;
@@ -102,7 +113,6 @@ export default function FishingPage() {
     fetchCoupleData,
   });
 
-  // defaultTank 보정
   const lastTankNo = useMemo(
     () => (tanks.length ? tanks[tanks.length - 1].tank_no : 1),
     [tanks]
@@ -140,7 +150,7 @@ export default function FishingPage() {
         "relative w-full h-[calc(100vh-64px)] max-h-[100svh] overflow-hidden"
       )}
     >
-      {/* 배경: 플레이스홀더 → 이전 테마 → 현재 테마 */}
+      {/* 배경: 플레이스홀더 → 이전 → 현재 */}
       <img
         src="/aquarium/fishing-placeholder.png"
         alt="fishing placeholder background"
@@ -150,7 +160,7 @@ export default function FishingPage() {
       {prevSrc && (
         <img
           src={prevSrc}
-          alt="previous theme background"
+          alt="previous time-based background"
           className={cn(
             "absolute inset-0 w-full h-full object-cover transition-opacity",
             curLoaded ? "opacity-0" : "opacity-100"
@@ -162,7 +172,7 @@ export default function FishingPage() {
       <img
         key={currentSrc}
         src={currentSrc}
-        alt={`theme background: ${themeTitle}`}
+        alt={`fishing background: ${segment}`}
         className={cn(
           "absolute inset-0 w-full h-full object-cover transition-opacity",
           curLoaded ? "opacity-100" : "opacity-0"
@@ -185,20 +195,17 @@ export default function FishingPage() {
       {/* 비네트 */}
       <div className="pointer-events-none absolute inset-0 [background:radial-gradient(60%_60%_at_50%_40%,rgba(0,0,0,0)_0%,rgba(0,0,0,.25)_100%)] md:[background:radial-gradient(55%_65%_at_50%_35%,rgba(0,0,0,0)_0%,rgba(0,0,0,.18)_100%)]" />
 
-      {/* ✅ 중앙 고정 카드 (Dialog 대체) */}
+      {/* ✅ 중앙 고정 카드 */}
       <div
         className={cn(
-          "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-30",
-          "w-[min(92vw,560px)]"
+          "fixed left-1/2 top-[80%] -translate-x-1/2 -translate-y-1/2 z-30",
+          "w-[76vw] max-w-[400px]",
+          "sm:w-[72vw] sm:max-w-[460px]",
+          "md:w-[62vw] md:max-w-[520px]",
+          "lg:w-[46vw] lg:max-w-[560px]"
         )}
       >
-        <Card className="rounded-3xl border bg-white/90 backdrop-blur-md shadow-[0_24px_80px_-24px_rgba(0,0,0,0.45)] p-4 md:p-6">
-          <div className="mb-3 md:mb-4">
-            <h2 className="text-xs md:text-sm text-muted-foreground mt-1">
-              미끼 구매 · 일괄 낚시 실행 · 탱크 배정
-            </h2>
-          </div>
-
+        <Card className="rounded-3xl border bg-white/90 backdrop-blur-md shadow-[0_24px_80px_-24px_rgba(0,0,0,0.45)] p-3 md:p-5">
           <div className="space-y-4">
             {/* 상단: 미끼 잔량/구매 */}
             <BaitHeader
@@ -230,8 +237,7 @@ export default function FishingPage() {
           </div>
         </Card>
       </div>
-
-      {/* 결과 모달 (중앙 카드에서 실행한 결과) */}
+      {/* 결과 모달 */}
       <BulkResultsModal
         open={bulk.open}
         setOpen={bulk.setOpen}

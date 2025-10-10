@@ -155,7 +155,6 @@ export default function NotificationDropdown({
               {/* 아이콘 */}
               <img
                 src={iconSrc}
-                srcSet="/bell.png 1x, /bell@2x.png 2x, /bell@3x.png 3x"
                 alt={caption}
                 className={cn(
                   "object-contain transition-transform duration-200",

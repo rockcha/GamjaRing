@@ -68,7 +68,6 @@ export default function BulkFishingPanel({
 
   return (
     <>
-      <Separator className="my-1" />
       <Card className="p-4 bg-slate-50">
         <form
           onSubmit={(e) => {
@@ -78,7 +77,7 @@ export default function BulkFishingPanel({
           className="flex items-end justify-between gap-3"
         >
           {/* 좌측: 인풋 */}
-          <div className="w-[220px]">
+          <div className="w-[120px]">
             <label className="text-xs text-muted-foreground">사용 개수</label>
             <input
               ref={inputRef}
@@ -119,10 +118,9 @@ export default function BulkFishingPanel({
           <Button
             type="submit"
             disabled={busy || !hasBait || isBlank || isInvalid}
-            className="h-9 min-w-[140px]"
             title="Enter로도 시작할 수 있어요"
           >
-            {busy ? "진행 중…" : "일괄 낚시 시작"}
+            {busy ? "진행 중…" : "낚시 시작"}
           </Button>
         </form>
 
