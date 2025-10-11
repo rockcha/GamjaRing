@@ -327,9 +327,6 @@ export default function Inventory(props: InventoryProps) {
               const show3Chips =
                 requiredMap && typeof requiredMap[row.title] === "number";
 
-              // 키 힌트(1~9)
-              const keyHint = i < 9 ? String(i + 1) : null;
-
               return (
                 <Tooltip key={row.title}>
                   <TooltipTrigger asChild>
@@ -370,13 +367,6 @@ export default function Inventory(props: InventoryProps) {
                         className="pointer-events-none absolute inset-x-0 -top-10 h-16 bg-gradient-to-b from-zinc-200/45 to-transparent"
                         aria-hidden
                       />
-
-                      {/* 키 힌트 */}
-                      {keyHint && (
-                        <span className="absolute top-1 left-1 inline-flex items-center justify-center h-5 min-w-5 px-1 rounded bg-amber-100/80 border border-amber-200 text-[10px] text-amber-900/90">
-                          {keyHint}
-                        </span>
-                      )}
 
                       {/* 부족 레드 바 */}
                       {row.lack > 0 && (
