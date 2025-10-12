@@ -27,7 +27,7 @@ import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { XCircle, Trophy, UtensilsCrossed } from "lucide-react";
 
-const FAIL_PROB = 0.9;
+const FAIL_PROB = 0.15;
 
 /* ────────────────────────────────────────────────────────────────────────────
    ResultTicketSheet: 결과 다이얼로그의 미니멀 "티켓 시트" 버전
