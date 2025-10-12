@@ -32,6 +32,7 @@ import GloomyPage from "./pages/GloomyPage";
 import FragmentListPage from "./features/memories/FragmentListPage";
 import FragmentFormPage from "./features/memories/FragmentFormPage";
 import FragmentDetailPage from "./features/memories/FragmentDetailPage";
+import CookingPage from "./features/cooking/CookingPage";
 
 export default function App() {
   return (
@@ -58,7 +59,10 @@ export default function App() {
               <Route path="scheduler" element={<CoupleSchedulerPage />} />
               <Route path="timeCapsule" element={<PartnerTimeCapsulesPage />} />
               <Route path="questions" element={<QuestionPage />} />
-              <Route path="kitchen" element={<KitchenPage />} />
+
+              {/* <Route path="kitchen" element={<KitchenPage />} /> */}
+              <Route path="kitchen" element={<CookingPage />} />
+
               <Route path="aquarium" element={<AquariumPage />} />
               <Route path="potatoField" element={<PotatoFieldPage />} />
               <Route path="fishing" element={<FishingPage />} />

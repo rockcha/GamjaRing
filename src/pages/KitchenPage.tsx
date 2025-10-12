@@ -42,6 +42,7 @@ import CookingDoneEffects from "@/features/kitchen/CookingDoneEffects";
 
 // ⬇️ 추가
 import supabase from "@/lib/supabase";
+import DexInventoryButton from "@/features/cooking/DexInventoryButton";
 
 /* ────────────────────────────────────────────────────────────────────────────
    타입
@@ -344,6 +345,7 @@ export default function KitchenPage() {
   ───────────────────────────────────────────────────────────────────────── */
   return (
     <div className="relative">
+      <DexInventoryButton />
       {/* 배경 톤(종이결 + 라디얼 그라데이션) */}
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,247,231,.7),transparent_60%)]" />

@@ -17,13 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  ChevronLeft,
-  ChevronRight,
-  MoreHorizontal,
-  Loader2,
-  CheckCircle2,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, CheckCircle2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -43,15 +37,30 @@ type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 const ITEMS_PER_PAGE = 5;
 
-/** 페이지 버튼 목록 생성
- * - 총 페이지 > 5 이면: [1, 2, '...', total-1, total]
- * - 그 외: [1..total]
+/** 미니멀 페이지 버튼: [1, (…,) current, (…,) last]
+ * - current가 1 또는 last와 인접하면 해당 쪽 점3 생략
+ * - 항상 한 줄 유지(렌더에서 whitespace-nowrap 적용)
  */
-function getPageItems(totalPages: number): Array<number | "..."> {
-  if (totalPages <= 5) {
-    return Array.from({ length: totalPages }, (_, i) => i + 1);
-  }
-  return [1, 2, "...", totalPages - 1, totalPages];
+function getMinimalPageItems(
+  totalPages: number,
+  currentPage: number
+): Array<number | "..."> {
+  if (totalPages <= 1) return [1];
+  const first = 1;
+  const last = totalPages;
+
+  const leftDots = currentPage > first + 1;
+  const rightDots = currentPage < last - 1;
+
+  const items: Array<number | "..."> = [first];
+
+  if (leftDots) items.push("...");
+  if (currentPage !== first && currentPage !== last) items.push(currentPage);
+  if (rightDots) items.push("...");
+
+  if (last !== first) items.push(last);
+
+  return items;
 }
 
 export default function MyAnswersCard() {
@@ -76,13 +85,8 @@ export default function MyAnswersCard() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const saveTimerRef = useRef<number | null>(null);
 
-  // ✅ 이모지 id <-> 문자 매핑
+  // ✅ 이모지 id -> 문자 맵 (뷰용)
   const [emojiMap, setEmojiMap] = useState<Record<number, string>>({});
-  const [emojiList, setEmojiList] = useState<
-    Array<{ id: number; char: string }>
-  >([]);
-  const [selectedEmojiId, setSelectedEmojiId] = useState<number | null>(null);
-  const [emojiOpen, setEmojiOpen] = useState(false);
 
   // ─────────────────────────────────────────────────────────────
   // 데이터 로드
@@ -102,7 +106,7 @@ export default function MyAnswersCard() {
         return;
       }
 
-      // 이모지 목록 미리 전부 가져오기(선택 가능해야 하므로)
+      // 이모지 목록(뷰용 맵)
       const { data: emojiRows, error: emojiErr } = await supabase
         .from("emoji_type")
         .select("id, char")
@@ -112,10 +116,8 @@ export default function MyAnswersCard() {
         const map: Record<number, string> = {};
         for (const row of emojiRows) map[row.id] = row.char;
         setEmojiMap(map);
-        setEmojiList(emojiRows);
       } else {
         setEmojiMap({});
-        setEmojiList([]);
       }
 
       const enriched = await Promise.all(
@@ -161,7 +163,11 @@ export default function MyAnswersCard() {
     return { isToday, formattedDate };
   };
 
-  const pageItems = useMemo(() => getPageItems(totalPages), [totalPages]);
+  // ✅ 미니멀 페이지 아이템 (항상 한 줄)
+  const pageItems = useMemo(
+    () => getMinimalPageItems(totalPages, currentPage),
+    [totalPages, currentPage]
+  );
 
   // ─────────────────────────────────────────────────────────────
   // 팝업 열기
@@ -170,15 +176,13 @@ export default function MyAnswersCard() {
     setPopupTitle(item.questionText);
     setPopupContentRO(item.content);
     setEditContent(item.content);
-    setSelectedEmojiId(item.emoji_type_id ?? null);
     setEditing(false);
-    setEmojiOpen(false);
     setPopupOpen(true);
   };
 
-  // 저장 (참고 카드와 동일한 upsert 방식)
+  // 저장 (upsert)
   const persistAnswer = useCallback(
-    async (content: string, emojiId: number | null) => {
+    async (content: string) => {
       if (!user?.id) return false;
       if (activeQid == null) return false;
 
@@ -190,7 +194,6 @@ export default function MyAnswersCard() {
               user_id: user.id,
               question_id: activeQid,
               content,
-              emoji_type_id: emojiId,
             },
           ],
           { onConflict: "user_id,question_id" }
@@ -214,7 +217,6 @@ export default function MyAnswersCard() {
               ? {
                   ...a,
                   content,
-                  emoji_type_id: emojiId,
                 }
               : a
           )
@@ -326,40 +328,41 @@ export default function MyAnswersCard() {
             Prev
           </Button>
 
-          {/* 가운데: 모바일은 간단 표기, 데스크톱은 번호/… */}
-          <div className="order-last w-full flex justify-center sm:order-none sm:w-auto">
-            {/* 데스크톱: 번호 + … */}
-            <div className="hidden sm:flex items-center gap-1 px-1">
-              {pageItems.map((p, idx) =>
-                p === "..." ? (
-                  <span
-                    key={`dots-${idx}`}
-                    className="inline-flex h-8 min-w-8 items-center justify-center text-muted-foreground px-2"
-                    aria-hidden
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </span>
-                ) : (
-                  <Button
-                    key={p}
-                    size="sm"
-                    variant={currentPage === p ? "secondary" : "outline"}
-                    onClick={() => setCurrentPage(p)}
-                    className={cn(
-                      "h-8 px-3 shrink-0",
-                      currentPage === p ? "font-bold" : ""
-                    )}
-                  >
-                    {p}
-                  </Button>
-                )
-              )}
-            </div>
-
-            {/* 모바일: 컴팩트 표기 */}
-            <div className="sm:hidden text-xs text-muted-foreground">
-              {currentPage} / {totalPages}
-            </div>
+          {/* 가운데: 항상 한 줄(개행 금지) + 미니멀 */}
+          <div className="order-last w-full sm:order-none sm:w-auto">
+            <nav
+              aria-label="페이지 네비게이션"
+              className="flex items-center justify-center sm:justify-start"
+            >
+              <div className="inline-flex items-center gap-1 whitespace-nowrap">
+                {pageItems.map((p, idx) =>
+                  p === "..." ? (
+                    <span
+                      key={`dots-${idx}`}
+                      className="inline-flex h-8 min-w-8 items-center justify-center text-muted-foreground px-2 select-none"
+                      aria-hidden
+                    >
+                      …
+                    </span>
+                  ) : (
+                    <Button
+                      key={p}
+                      size="sm"
+                      variant={currentPage === p ? "secondary" : "outline"}
+                      onClick={() => typeof p === "number" && setCurrentPage(p)}
+                      disabled={currentPage === p}
+                      className={`h-8 px-3 ${
+                        currentPage === p ? "font-bold" : ""
+                      }`}
+                      aria-current={currentPage === p ? "page" : undefined}
+                      aria-label={`페이지 ${p}`}
+                    >
+                      {p}
+                    </Button>
+                  )
+                )}
+              </div>
+            </nav>
           </div>
 
           {/* Next */}
@@ -383,7 +386,6 @@ export default function MyAnswersCard() {
           setPopupOpen(o);
           if (!o) {
             setEditing(false);
-            setEmojiOpen(false);
             setSaveStatus("idle");
           }
         }}
@@ -409,21 +411,19 @@ export default function MyAnswersCard() {
 
           {/* 본문 */}
           {editing ? (
-            <>
-              <Textarea
-                ref={textareaRef}
-                value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                readOnly={saveStatus === "saving"}
-                className={cn(
-                  "min-h-[220px] md:min-h-[260px] resize-none rounded-xl",
-                  "bg-[linear-gradient(transparent_29px,rgba(0,0,0,0.04)_30px)] bg-[length:100%_30px] bg-blue-50/40",
-                  "border border-amber-200/70 focus-visible:ring-2 focus-visible:ring-amber-100",
-                  "px-4 py-3 text-[15px] md:text-[16px] leading-[30px]"
-                )}
-                placeholder="이곳에 내용을 입력하세요…"
-              />
-            </>
+            <Textarea
+              ref={textareaRef}
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              readOnly={saveStatus === "saving"}
+              className={cn(
+                "min-h-[220px] md:min-h-[260px] resize-none rounded-xl",
+                "bg-[linear-gradient(transparent_29px,rgba(0,0,0,0.04)_30px)] bg-[length:100%_30px] bg-blue-50/40",
+                "border border-amber-200/70 focus-visible:ring-2 focus-visible:ring-amber-100",
+                "px-4 py-3 text-[15px] md:text-[16px] leading-[30px]"
+              )}
+              placeholder="이곳에 내용을 입력하세요…"
+            />
           ) : (
             <div className="ml-1 mt-2 max-h-[70vh] overflow-auto whitespace-pre-wrap text-sm leading-6 text-foreground/80">
               {popupContentRO}
@@ -452,7 +452,7 @@ export default function MyAnswersCard() {
                   onClick={async () => {
                     const trimmed = editContent.trim();
                     if (!trimmed) return;
-                    const ok = await persistAnswer(trimmed, selectedEmojiId);
+                    const ok = await persistAnswer(trimmed);
                     if (!ok) return;
                     setEditing(false);
                   }}

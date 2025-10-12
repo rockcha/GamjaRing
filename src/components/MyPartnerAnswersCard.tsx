@@ -15,8 +15,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react";
-import { Separator } from "./ui/separator";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 
@@ -24,7 +24,7 @@ interface AnswerItem {
   question_id: number;
   content: string;
   created_at: string;
-  emoji_type_id: number | null; // ✅ 추가
+  emoji_type_id: number | null;
 }
 interface AnswerWithQuestion extends AnswerItem {
   questionText: string;
@@ -34,15 +34,30 @@ type EmojiRow = { id: number; char: string };
 
 const ITEMS_PER_PAGE = 5;
 
-/** 페이지 버튼 목록 생성
- * - 총 페이지 > 5 이면: [1, 2, '...', total-1, total]
- * - 그 외: [1..total]
+/** 미니멀 페이지 버튼: [1, (…,) current, (…,) last]
+ * - current가 1 또는 last와 인접하면 해당 쪽 점3 생략
+ * - 항상 한 줄 유지(렌더에서 whitespace-nowrap 적용)
  */
-function getPageItems(totalPages: number): Array<number | "..."> {
-  if (totalPages <= 5) {
-    return Array.from({ length: totalPages }, (_, i) => i + 1);
-  }
-  return [1, 2, "...", totalPages - 1, totalPages];
+function getMinimalPageItems(
+  totalPages: number,
+  currentPage: number
+): Array<number | "..."> {
+  if (totalPages <= 1) return [1];
+  const first = 1;
+  const last = totalPages;
+
+  const leftDots = currentPage > first + 1;
+  const rightDots = currentPage < last - 1;
+
+  const items: Array<number | "..."> = [first];
+
+  if (leftDots) items.push("...");
+  if (currentPage !== first && currentPage !== last) items.push(currentPage);
+  if (rightDots) items.push("...");
+
+  if (last !== first) items.push(last);
+
+  return items;
 }
 
 export default function MyPartnerAnswersCard() {
@@ -182,11 +197,14 @@ export default function MyPartnerAnswersCard() {
     return { isToday, formattedDate };
   };
 
-  const pageItems = useMemo(() => getPageItems(totalPages), [totalPages]);
+  // ✅ 미니멀 페이지 아이템 (항상 한 줄)
+  const pageItems = useMemo(
+    () => getMinimalPageItems(totalPages, currentPage),
+    [totalPages, currentPage]
+  );
 
   const refreshSingleEmoji = useCallback(
     async (emojiId: number) => {
-      // 저장 직후 바로 맵에 없을 수 있으니 단건 보강
       if (emojiMap[emojiId]) return;
       const { data, error } = await supabase
         .from("emoji_type")
@@ -200,7 +218,7 @@ export default function MyPartnerAnswersCard() {
     [emojiMap]
   );
 
-  // 로딩 스켈레톤 (높이만 ↑)
+  // 로딩 스켈레톤
   if (loading) {
     return (
       <Card className="h-[540px] flex flex-col">
@@ -223,7 +241,7 @@ export default function MyPartnerAnswersCard() {
   return (
     <>
       <div className="h-[540px] flex flex-col">
-        <CardContent className="flex-1 overflow-y-auto space-y-2 ">
+        <CardContent className="flex-1 overflow-y-auto space-y-2">
           {currentAnswers.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               아직 파트너의 답변이 없습니다.
@@ -256,9 +274,7 @@ export default function MyPartnerAnswersCard() {
                         {emojiChar}
                       </div>
                     ) : (
-                      <div className="h-8 w-8 grid place-items-center rounded-full bg-white border shadow">
-                        <span className="text-[10px] text-muted-foreground"></span>
-                      </div>
+                      <div className="h-8 w-8 grid place-items-center rounded-full bg-white border shadow" />
                     )}
                   </div>
 
@@ -294,39 +310,41 @@ export default function MyPartnerAnswersCard() {
             Prev
           </Button>
 
-          {/* 가운데: 모바일은 간단 표기, 데스크톱은 번호/… */}
-          <div className="order-last w-full flex justify-center sm:order-none sm:w-auto">
-            {/* 데스크톱: 번호 + … */}
-            <div className="hidden sm:flex items-center gap-1 px-1">
-              {pageItems.map((p, idx) =>
-                p === "..." ? (
-                  <span
-                    key={`dots-${idx}`}
-                    className="inline-flex h-8 min-w-8 items-center justify-center text-muted-foreground px-2"
-                    aria-hidden
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </span>
-                ) : (
-                  <Button
-                    key={p}
-                    size="sm"
-                    variant={currentPage === p ? "secondary" : "outline"}
-                    onClick={() => setCurrentPage(p)}
-                    className={`h-8 px-3 shrink-0 ${
-                      currentPage === p ? "font-bold" : ""
-                    }`}
-                  >
-                    {p}
-                  </Button>
-                )
-              )}
-            </div>
-
-            {/* 모바일: 컴팩트 표기 */}
-            <div className="sm:hidden text-xs text-muted-foreground">
-              {currentPage} / {totalPages}
-            </div>
+          {/* 가운데: 항상 한 줄(개행 금지) */}
+          <div className="order-last w-full sm:order-none sm:w-auto">
+            <nav
+              aria-label="페이지 네비게이션"
+              className="flex items-center justify-center sm:justify-start"
+            >
+              <div className="inline-flex items-center gap-1 whitespace-nowrap">
+                {pageItems.map((p, idx) =>
+                  p === "..." ? (
+                    <span
+                      key={`dots-${idx}`}
+                      className="inline-flex h-8 min-w-8 items-center justify-center text-muted-foreground px-2 select-none"
+                      aria-hidden
+                    >
+                      …
+                    </span>
+                  ) : (
+                    <Button
+                      key={p}
+                      size="sm"
+                      variant={currentPage === p ? "secondary" : "outline"}
+                      onClick={() => typeof p === "number" && setCurrentPage(p)}
+                      disabled={currentPage === p}
+                      className={`h-8 px-3 ${
+                        currentPage === p ? "font-bold" : ""
+                      }`}
+                      aria-current={currentPage === p ? "page" : undefined}
+                      aria-label={`페이지 ${p}`}
+                    >
+                      {p}
+                    </Button>
+                  )
+                )}
+              </div>
+            </nav>
           </div>
 
           {/* Next */}
@@ -355,10 +373,10 @@ export default function MyPartnerAnswersCard() {
         }}
       >
         <DialogOverlay className="bg-black/10 backdrop-blur-[2px]" />
-        <DialogContent className=" sm:max-w-2xl max-w-[92vw]">
+        <DialogContent className="sm:max-w-2xl max-w-[92vw]">
           <DialogHeader>
             <div className="flex justify-center">
-              <DialogTitle className="text-base font-semibold leading-6">
+              <DialogTitle className="text-base font-semibold leading-6 text-center">
                 {popupTitle}
               </DialogTitle>
             </div>
