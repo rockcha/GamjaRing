@@ -54,6 +54,14 @@ function saveHistory(paths: string[]) {
   } catch {}
 }
 
+function getScrollY() {
+  return (
+    window.scrollY ||
+    (document.documentElement && document.documentElement.scrollTop) ||
+    0
+  );
+}
+
 /* ---------------------------------------------
    컴포넌트
 ---------------------------------------------- */
@@ -87,13 +95,14 @@ export default function HomeFabButton({
   const hoverTimerRef = useRef<number | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
 
-  /* --------- 스크롤 시 '위로가기 모드' 전환 --------- */
-  const [scrollTopMode, setScrollTopMode] = useState(false);
+  /* --------- 스크롤 상태 추적 --------- */
+  const [scrollTopMode, setScrollTopMode] = useState(false); // 아이콘 전환용(임계치 기반)
+  const [atTop, setAtTop] = useState(true); // 실제 최상단 여부(정확한 클릭 규칙용)
   useEffect(() => {
-    if (!autoHideOnScroll) return;
     const onScroll = () => {
-      const y = window.scrollY || document.documentElement.scrollTop || 0;
-      setScrollTopMode(y > SCROLL_TOP_MODE_THRESHOLD);
+      const y = getScrollY();
+      setAtTop(y <= 0);
+      if (autoHideOnScroll) setScrollTopMode(y > SCROLL_TOP_MODE_THRESHOLD);
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -101,6 +110,7 @@ export default function HomeFabButton({
   }, [autoHideOnScroll]);
 
   /* --------- 클릭/호버/롱프레스 동작 --------- */
+  // Popover의 "메인 이동/상단" 버튼은 기존 의미 유지
   const goHomeOrTop = React.useCallback(() => {
     if (pathname === "/main") {
       try {
@@ -111,13 +121,39 @@ export default function HomeFabButton({
     nav("/main");
   }, [nav, pathname]);
 
+  // ✅ 메인 FAB의 클릭 규칙(요청사항)
+  // - 메인페이지:
+  //    · 이미 상단이면 아무 것도 하지 않음
+  //    · 상단이 아니면 메인 상단으로 스크롤
+  // - 다른 페이지:
+  //    · 상단이 아니면 현재 페이지 상단으로 스크롤
+  //    · 이미 상단이면 메인으로 이동
   const onButtonClick = () => {
-    // 클릭은 항상 홈/상단
-    goHomeOrTop();
+    const y = getScrollY();
+    const isTop = y <= 0;
+
+    if (pathname === "/main") {
+      if (!isTop) {
+        try {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        } catch {}
+      }
+      return; // 상단이면 아무 동작 없음
+    }
+
+    // 다른 페이지인 경우
+    if (!isTop) {
+      try {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } catch {}
+      return;
+    }
+
+    // 다른 페이지 + 이미 상단 → 메인으로 이동
+    nav("/main");
   };
 
   const onButtonPointerDown = () => {
-    // 터치 롱프레스 시 팝오버 열기
     if (longPressTimerRef.current) {
       window.clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
@@ -166,8 +202,11 @@ export default function HomeFabButton({
   }[position];
 
   /* --------- 접근성 --------- */
-  const ariaLabel =
-    pathname === "/main" ? "메인 상단으로 이동" : "메인으로 이동";
+  const ariaLabel = atTop
+    ? pathname === "/main"
+      ? "메인(이미 상단)"
+      : "메인으로 이동"
+    : "현재 페이지 상단으로 이동";
 
   return (
     <div

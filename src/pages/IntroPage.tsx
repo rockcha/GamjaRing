@@ -30,10 +30,14 @@ function getPhaseTheme(phase: Phase) {
           "--ink-strong": "#563f25",
           "--accentA": "#d2a56f",
           "--accentB": "#b88044",
-          "--frame": "rgba(255,255,255,0.92)",
-          "--track": "#e9d9c5",
+          "--frame": "rgba(255,255,255,0.94)",
+          "--track": "#e3d2bd",
         } as React.CSSProperties,
         bgClass: "bg-[linear-gradient(160deg,#f9f3ea,#f2e6d3,#e9d9c5)]",
+        frameRing: "ring-white",
+        grainOpacity: "opacity-[0.04]",
+        vignette:
+          "bg-[radial-gradient(75%_55%_at_50%_42%,transparent,rgba(0,0,0,0.08))]",
       };
     case "noon":
       return {
@@ -42,10 +46,14 @@ function getPhaseTheme(phase: Phase) {
           "--ink-strong": "#563f25",
           "--accentA": "#d2a56f",
           "--accentB": "#b88044",
-          "--frame": "rgba(255,255,255,0.9)",
-          "--track": "#e9d9c5",
+          "--frame": "rgba(255,255,255,0.92)",
+          "--track": "#e1cfb7",
         } as React.CSSProperties,
         bgClass: "bg-[linear-gradient(160deg,#f6efe4,#eedec8,#e4cfb2)]",
+        frameRing: "ring-white",
+        grainOpacity: "opacity-[0.035]",
+        vignette:
+          "bg-[radial-gradient(75%_55%_at_50%_42%,transparent,rgba(0,0,0,0.08))]",
       };
     case "evening":
       return {
@@ -54,10 +62,14 @@ function getPhaseTheme(phase: Phase) {
           "--ink-strong": "#4e3821",
           "--accentA": "#c99a6b",
           "--accentB": "#a87443",
-          "--frame": "rgba(255,255,255,0.88)",
-          "--track": "#e6d6c2",
+          "--frame": "rgba(255,255,255,0.90)",
+          "--track": "#e0ceb7",
         } as React.CSSProperties,
         bgClass: "bg-[linear-gradient(160deg,#f1e7db,#e5d3c0,#d8c0a8)]",
+        frameRing: "ring-white",
+        grainOpacity: "opacity-[0.035]",
+        vignette:
+          "bg-[radial-gradient(75%_55%_at_50%_42%,transparent,rgba(0,0,0,0.09))]",
       };
     case "night":
     default:
@@ -67,10 +79,14 @@ function getPhaseTheme(phase: Phase) {
           "--ink-strong": "#46331e",
           "--accentA": "#b88c5b",
           "--accentB": "#8f6336",
-          "--frame": "rgba(255,255,255,0.86)",
-          "--track": "#ddccb7",
+          "--frame": "rgba(255,255,255,0.88)",
+          "--track": "#d9c7af",
         } as React.CSSProperties,
         bgClass: "bg-[linear-gradient(160deg,#efe9df,#e3d6c6,#d6c4ad)]",
+        frameRing: "ring-black/10",
+        grainOpacity: "opacity-[0.05]",
+        vignette:
+          "bg-[radial-gradient(75%_55%_at_50%_42%,transparent,rgba(0,0,0,0.10))]",
       };
   }
 }
@@ -119,19 +135,28 @@ function potatoColor(progress: number) {
 /** 작은 감자 오벌 아이콘 */
 function PotatoIcon({ progress }: { progress: number }) {
   const bg = potatoColor(progress);
+  const prefersReduced =
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
   const faster = progress >= 75;
+  const baseAnim = prefersReduced
+    ? "none"
+    : `${
+        faster ? "potatoPulse 1.2s" : "potatoPulse 1.6s"
+      } ease-in-out infinite`;
+  const bigBreath =
+    prefersReduced || progress < 95
+      ? "none"
+      : "potatoPulse 0.9s ease-in-out infinite";
+
   return (
     <span
       aria-hidden
       className="inline-block align-[-0.12em] mr-1 h-[0.9em] w-[1.1em] rounded-[999px] relative ring-1 ring-black/5 shadow-[inset_0_-1px_0_rgba(0,0,0,0.1)]"
-      style={{
-        backgroundColor: bg,
-        animation: `${
-          faster ? "potatoPulse 1.3s" : "potatoPulse 1.6s"
-        } ease-in-out infinite`,
-      }}
+      style={{ backgroundColor: bg, animation: baseAnim }}
       title="감자 진행 아이콘"
     >
+      {/* 눈/하이라이트 */}
       <span
         className="absolute left-[22%] top-[35%] h-[0.12em] w-[0.12em] rounded-full bg-black/20"
         style={{ boxShadow: "0.32em 0.06em 0 0 rgba(0,0,0,0.16)" }}
@@ -139,12 +164,54 @@ function PotatoIcon({ progress }: { progress: number }) {
       <span
         className="absolute inset-y-[30%] left-0 w-[35%] skew-x-[12deg] rounded bg-white/35 blur-[1px] pointer-events-none"
         style={{
-          animation: `${
-            faster ? "shineSweep 2.1s" : "shineSweep 2.6s"
-          } ease-in-out infinite`,
+          animation: prefersReduced
+            ? "none"
+            : "shineSweep 2.2s ease-in-out infinite",
         }}
       />
+      {/* 95% 이상 ‘큰 숨’ */}
+      <span
+        className="absolute inset-0"
+        style={{ animation: bigBreath, transformOrigin: "50% 50%" }}
+      />
     </span>
+  );
+}
+
+/** ===== Skip CTA ===== */
+function SkipButton({
+  onClick,
+  disabled,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={[
+        "group relative inline-flex items-center justify-center",
+        "h-12 sm:h-14 px-5 sm:px-6 rounded-xl",
+        "bg-[color:var(--ink)] text-white",
+        "hover:brightness-110 active:translate-y-[1px]",
+        "shadow-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-black/10",
+        "disabled:opacity-50 disabled:cursor-not-allowed",
+      ].join(" ")}
+      aria-label="바로 시작하기(건너뛰기)"
+      title="바로 시작하기 (S)"
+    >
+      <span className="text-sm sm:text-base font-semibold">
+        바로 시작하기 <span className="opacity-80">(건너뛰기)</span>
+      </span>
+      <kbd
+        className="ml-2 rounded-md border border-white/30 bg-white/10 px-1.5 text-[11px] tracking-wide"
+        aria-hidden
+      >
+        S
+      </kbd>
+    </button>
   );
 }
 
@@ -172,6 +239,7 @@ export default function IntroPage() {
   useEffect(() => {
     const img = new Image();
     img.src = bgSrc;
+    // (선택) img.decode?.();
   }, [bgSrc]);
 
   /** ---- Loading & route ---- */
@@ -182,7 +250,6 @@ export default function IntroPage() {
   useEffect(() => {
     let raf = 0;
     const start = performance.now();
-
     const tick = async (now: number) => {
       const elapsed = now - start;
       const pct = Math.min(100, Math.round((elapsed / LOADING_MS) * 100));
@@ -202,6 +269,20 @@ export default function IntroPage() {
 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
+  }, [navigate]);
+
+  /** ---- Skip 단축키(S) ---- */
+  useEffect(() => {
+    const onKey = async (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== "s") return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      e.preventDefault();
+      const { data } = await supabase.auth.getSession();
+      navigate(data.session ? "/main" : "/login", { replace: true });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [navigate]);
 
   /** ---- Loading message ---- */
@@ -255,9 +336,7 @@ export default function IntroPage() {
       {/* 그레인 */}
       <div
         aria-hidden
-        className={`pointer-events-none absolute inset-0 mix-blend-multiply ${
-          phase === "night" ? "opacity-[0.06]" : "opacity-[0.04]"
-        }`}
+        className={`pointer-events-none absolute inset-0 mix-blend-multiply ${theme.grainOpacity}`}
         style={{
           backgroundImage: "url(/images/grain.png)",
           backgroundSize: 280,
@@ -285,24 +364,28 @@ export default function IntroPage() {
           duration: prefersReducedMotion ? 0 : 0.7,
           ease: "easeOut",
         }}
-        className="relative z-10 grid w-full max-w-5xl gap-10 md:grid-cols-2 items-center pt-8 pb-12"
+        className="relative z-10 grid w-full max-w-5xl gap-8 md:gap-10 md:grid-cols-2 items-center pt-8 pb-16"
       >
         {/* ── (좌) 몽글 액자 + 맞춤 멘트 ── */}
         <div className="flex flex-col items-center gap-3 md:items-start">
-          {/* ✅ 더 몽글한 액자 */}
+          {/* 액자 */}
           <figure
             className={[
               "relative w-[82%] max-w-sm aspect-[4/5]",
               "rounded-[36px] p-[14px]",
-              "bg-white/60 backdrop-blur-xl",
-              "ring-1 ring-white/70 shadow-[0_18px_60px_rgba(184,128,68,0.18)]",
+              "bg-[var(--frame)] backdrop-blur-xl",
+              `${theme.frameRing} ring-1 shadow-[0_18px_60px_rgba(184,128,68,0.18)]`,
             ].join(" ")}
           >
             {/* 구름/젤리 보더 */}
             <div className="absolute -z-10 inset-0 rounded-[40px] bg-[radial-gradient(120%_100%_at_0%_0%,rgba(255,255,255,0.85),transparent_60%)]" />
             {/* 말랑 블롭 하이라이트 */}
-            <div className="pointer-events-none absolute -top-6 -left-6 h-24 w-24 rounded-[32px] bg-white/50 blur-2xl animate-[blobFloat_9s_ease-in-out_infinite]" />
-            <div className="pointer-events-none absolute -bottom-8 -right-8 h-28 w-28 rounded-[36px] bg-[#ffe9d0]/60 blur-2xl animate-[blobFloat_12s_ease-in-out_infinite]" />
+            {!prefersReducedMotion && (
+              <>
+                <div className="pointer-events-none absolute -top-6 -left-6 h-24 w-24 rounded-[32px] bg-white/50 blur-2xl animate-[blobFloat_9s_ease-in-out_infinite]" />
+                <div className="pointer-events-none absolute -bottom-8 -right-8 h-28 w-28 rounded-[36px] bg-[#ffe9d0]/60 blur-2xl animate-[blobFloat_12s_ease-in-out_infinite]" />
+              </>
+            )}
 
             {/* 내부 캔버스 (사진) */}
             <div className="relative h-full w-full rounded-[28px] overflow-hidden ring-1 ring-black/5">
@@ -330,7 +413,11 @@ export default function IntroPage() {
             <FontAwesomeIcon
               icon={faHeartPulse}
               className="h-5 w-5"
-              style={{ animation: "pulseMini 1.8s ease-in-out infinite" }}
+              style={{
+                animation: prefersReducedMotion
+                  ? "none"
+                  : "pulseMini 1.8s ease-in-out infinite",
+              }}
               aria-hidden
             />
             <span className="font-semibold">감자링</span>
@@ -353,7 +440,7 @@ export default function IntroPage() {
             />
           </div>
 
-          {/* 로딩바 + 퍼센트 */}
+          {/* 로딩바 + 퍼센트 + Skip CTA */}
           <div className="mt-6 w-full max-w-xl">
             <div className="mb-1 flex items-center justify-between text-sm text-[color:var(--ink)]/90">
               <span className="font-medium">{loadingMessage}</span>
@@ -372,35 +459,54 @@ export default function IntroPage() {
               style={{ backgroundColor: "var(--track)" }}
             >
               <div
-                className="h-full rounded-full relative transition-[width] duration-[120ms] ease-out"
+                className="h-full rounded-full relative transition-[width] duration-\[180ms\] ease-out"
                 style={{ width: `${progress}%` }}
               >
                 <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[var(--accentA)] to-[var(--accentB)]" />
                 <div className="absolute inset-0 rounded-full ring-1 ring-white/25" />
+                <div
+                  className="absolute inset-x-0 top-0 h-px rounded-t-full opacity-70"
+                  style={{
+                    background:
+                      "linear-gradient(to right, rgba(255,255,255,.5), rgba(255,255,255,.15))",
+                  }}
+                />
               </div>
             </div>
 
-            <button
-              className="mt-6 text-sm underline decoration-dotted opacity-70 hover:opacity-100 focus:outline-none"
-              onClick={async () => {
-                const { data } = await supabase.auth.getSession();
-                navigate(data.session ? "/main" : "/login", { replace: true });
-              }}
-            >
-              바로 시작하기
-            </button>
+            <div className="mt-2 text-[12px] text-[color:var(--ink)]/70">
+              잠시 후 자동으로 넘어갑니다. 필요하면 지금 바로 시작할 수 있어요.
+            </div>
+
+            {/* 데스크톱/태블릿: 인라인 CTA */}
+            <div className="mt-4 hidden sm:block">
+              <SkipButton
+                onClick={async () => {
+                  const { data } = await supabase.auth.getSession();
+                  navigate(data.session ? "/main" : "/login", {
+                    replace: true,
+                  });
+                }}
+              />
+            </div>
           </div>
         </div>
       </motion.section>
 
+      {/* 모바일 하단 고정 CTA */}
+      <div className="sm:hidden fixed inset-x-0 bottom-[env(safe-area-inset-bottom)] z-20 px-4 pb-3">
+        <SkipButton
+          onClick={async () => {
+            const { data } = await supabase.auth.getSession();
+            navigate(data.session ? "/main" : "/login", { replace: true });
+          }}
+        />
+      </div>
+
       {/* 비네트 */}
       <div
         aria-hidden
-        className={`pointer-events-none absolute inset-0 ${
-          phase === "night"
-            ? "bg-[radial-gradient(75%_55%_at_50%_42%,transparent,rgba(0,0,0,0.10))]"
-            : "bg-[radial-gradient(75%_55%_at_50%_42%,transparent,rgba(0,0,0,0.08))]"
-        }`}
+        className={`pointer-events-none absolute inset-0 ${theme.vignette}`}
       />
 
       <p role="status" aria-live="polite" className="sr-only">
