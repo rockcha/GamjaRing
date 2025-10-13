@@ -54,8 +54,11 @@ export default function MainPage() {
 
         {/* 가운데: 커플 이미지 */}
         <div className="flex flex-col gap-2 min-w-0">
-          {/* <CoupleImageCard className="w-full [&_img]:h-[520px]" /> */}
-          <StartEndPixelShow />
+          <StartEndPixelShow
+            respectReducedMotion={false}
+            holdDuration={8000}
+            idleGap={400}
+          />
         </div>
 
         {/* 오른쪽: 질문 + 일정 */}

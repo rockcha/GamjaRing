@@ -1,3 +1,4 @@
+// src/features/cooking/PotArea.tsx
 "use client";
 
 import * as React from "react";
@@ -13,10 +14,15 @@ import { onPotEvent } from "@/features/cooking/potEventBus";
 import { Button } from "@/components/ui/button";
 import DonutDistribution from "./DonutDistribution";
 
+/* ──────────────────────────────────────────────────────────────
+   타입 & 고정값
+────────────────────────────────────────────────────────────── */
 type PotCounts = Record<IngredientTitle, number>;
+type CookResult = { success: boolean; name: string; emoji: string } | null;
 
 const REQUIRED_COUNT_MARK = 10;
 
+/* 요리 액션(예시) */
 const COOK_ACTIONS = [
   { key: "oil", label: "식용유 넣기", gif: "/cooking/oil.gif" },
   { key: "parsley", label: "파슬리 넣기", gif: "/cooking/parsley.gif" },
@@ -30,8 +36,9 @@ const COOK_ACTIONS = [
   { key: "simmer", label: "푹 찌기", gif: "/cooking/simmer.gif" },
 ];
 
-type CookResult = { success: boolean; name: string; emoji: string } | null;
-
+/* ──────────────────────────────────────────────────────────────
+   메인
+────────────────────────────────────────────────────────────── */
 export default function PotArea({
   total,
   canCook,
@@ -47,59 +54,58 @@ export default function PotArea({
   onCook?: () => void;
   onReset?: () => void;
 }) {
-  // 중앙 GIF (액션/idle/요리중)
+  /* 중앙 GIF (액션/idle/요리중) */
   const [centerGif, setCenterGif] = useState<{
     src: string;
     key: number;
   } | null>(null);
 
-  // 제어 상태
+  /* 제어 상태 */
   const [isActing, setIsActing] = useState(false);
   const [hasActed, setHasActed] = useState(false);
   const [isCooking, setIsCooking] = useState(false);
-
   const [cookResult, setCookResult] = useState<CookResult>(null);
 
-  // 타이머 refs
+  /* 타이머 refs */
   const fxTimeoutRef = useRef<number | null>(null);
   const resultTimeoutRef = useRef<number | null>(null);
   const cookTimeoutRef = useRef<number | null>(null);
 
-  // 진행바 10개 달성 이펙트 트리거
+  /* 10개 달성 감지 → 키 증가(이펙트 트리거) */
   const prevTotalRef = useRef<number>(total);
   const [milestonePulseKey, setMilestonePulseKey] = useState<number>(0);
+  const [justHit10, setJustHit10] = useState(false); // 10개 달성 배지 잠깐 노출
 
   useEffect(() => {
     const prev = prevTotalRef.current;
     if (prev < REQUIRED_COUNT_MARK && total >= REQUIRED_COUNT_MARK) {
       setMilestonePulseKey((k) => k + 1);
+      setJustHit10(true);
+      window.setTimeout(() => setJustHit10(false), 1400);
     }
     prevTotalRef.current = total;
   }, [total]);
 
-  // 새로 추가된 개수만 하이라이트하기 위한 계산
+  /* 새로 추가된 개수만 하이라이트 */
   const prevCountsRef = useRef<PotCounts | null>(null);
   const [highlightCountMap, setHighlightCountMap] = useState<
     Record<IngredientTitle, number>
   >({});
-
   useEffect(() => {
     const prev = prevCountsRef.current;
     const nextMap: Record<IngredientTitle, number> = {};
     if (prev) {
       for (const ing of INGREDIENTS) {
         const t = ing.title as IngredientTitle;
-        const prevQty = prev[t] ?? 0;
-        const nowQty = counts[t] ?? 0;
-        const delta = nowQty - prevQty;
-        if (delta > 0) nextMap[t] = delta; // 이번에 늘어난 개수만 표시
+        const delta = (counts[t] ?? 0) - (prev[t] ?? 0);
+        if (delta > 0) nextMap[t] = delta;
       }
     }
     setHighlightCountMap(nextMap);
     prevCountsRef.current = { ...counts };
   }, [counts]);
 
-  // 결과/이벤트 버스 수신
+  /* 결과 수신 */
   useEffect(() => {
     const off = onPotEvent((ev) => {
       if (ev.type === "cookResult") {
@@ -119,7 +125,7 @@ export default function PotArea({
         if (resultTimeoutRef.current) clearTimeout(resultTimeoutRef.current);
         resultTimeoutRef.current = window.setTimeout(
           () => setCookResult(null),
-          1800
+          1200
         );
       }
     });
@@ -132,20 +138,19 @@ export default function PotArea({
     };
   }, []);
 
-  /** title → color 매핑 */
+  /* title → color */
   const colorMap = useMemo(() => {
     const m = {} as Record<IngredientTitle, string>;
     for (const ing of INGREDIENTS) m[ing.title] = ing.color ?? "#ddd";
     return m;
   }, []);
 
-  // 버튼 렌더링용 리스트(타이틀별 묶음)
   const titlesInOrder = useMemo(
     () => Object.keys(counts) as IngredientTitle[],
     [counts]
   );
 
-  // 액션 클릭 → 중앙 GIF 2초
+  /* 액션: 1.2s */
   const handleAction = (gifSrc: string) => {
     if (total < REQUIRED_COUNT_MARK || isActing || isCooking) return;
     setIsActing(true);
@@ -156,22 +161,30 @@ export default function PotArea({
     fxTimeoutRef.current = window.setTimeout(() => {
       setCenterGif(null);
       setIsActing(false);
-    }, 2000);
+    }, 1200);
   };
 
-  // 요리 완성
+  /* 요리 완성 */
   const handleCookFinish = () => {
-    if (!canCook || !hasActed || isActing || isCooking) return;
+    // 조건: 재료 10개 이상 + 액션 1회 이상
+    if (
+      !(total >= REQUIRED_COUNT_MARK && hasActed) ||
+      isActing ||
+      isCooking ||
+      !canCook
+    )
+      return;
     setIsCooking(true);
     onCook?.();
 
     if (cookTimeoutRef.current) clearTimeout(cookTimeoutRef.current);
     cookTimeoutRef.current = window.setTimeout(() => {
-      setIsCooking(false); // 페일세이프
+      setIsCooking(false);
       cookTimeoutRef.current = null;
-    }, 6000);
+    }, 4000);
   };
 
+  /* 초기화 */
   const handleResetAll = () => {
     if (isActing || isCooking) return;
     onReset?.();
@@ -191,18 +204,24 @@ export default function PotArea({
   };
 
   const interactionLocked = isActing || isCooking;
+  const hasEnough = total >= REQUIRED_COUNT_MARK;
 
   return (
     <div
       className={cn(
-        "relative rounded-2xl border bg-white p-5",
-        "transition-colors"
+        "relative rounded-2xl border bg-white p-5 shadow-sm",
+        "border-neutral-200 transition-colors"
       )}
       aria-label="요리 냄비 영역"
     >
-      {/* 상단 진행바 */}
-      <div className="sticky -top-5 z-10 bg-white/90 pb-3">
-        <div className="rounded-xl bg-amber-50 p-3 ring-1 ring-amber-200/60">
+      {/* 상단 요구조건 체크리스트 + 진행바 */}
+      <div className="space-y-3">
+        <RequirementChecklist
+          hasEnough={hasEnough}
+          needed={Math.max(0, REQUIRED_COUNT_MARK - total)}
+          hasActed={hasActed}
+        />
+        <div className="rounded-xl bg-white p-3 ring-1 ring-neutral-200">
           <PotProgressBar
             total={total}
             min={COOK_TARGET_MIN}
@@ -213,6 +232,24 @@ export default function PotArea({
         </div>
       </div>
 
+      {/* 10개 달성 즉시 배지 + 미세 콘페티 */}
+      <AnimatePresence>
+        {justHit10 && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.24 }}
+            className="mt-3 grid place-items-center"
+          >
+            <div className="rounded-full bg-emerald-600/90 text-white px-3 py-1 text-xs shadow-sm">
+              재료 10개 달성! 요리 액션을 1회 수행하면 완성할 수 있어요.
+            </div>
+            <ConfettiMini centerYOffset={-6} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* 도넛(좌) + 현재 재료(우) + 결과 이펙트 */}
       <div className="mt-4">
         <div className="mx-auto flex w-full max-w-4xl flex-col items-center justify-center gap-6 md:flex-row md:items-start">
@@ -220,17 +257,17 @@ export default function PotArea({
             <DonutDistribution
               counts={counts}
               total={total}
-              size={240}
-              stroke={22}
-              centerGif={centerGif} // 액션 중이면 액션 GIF, 아니면 idle GIF
+              size={260}
+              stroke={20}
+              centerGif={centerGif}
               idleGifSrc="/cooking/default.gif"
             />
             <CookResultOverlay result={cookResult} />
           </div>
 
-          {/* 현재 넣은 재료 (새로 추가된 개수만 빛남) */}
+          {/* 현재 넣은 재료 */}
           <div className="w-full max-w-[320px] md:w-[320px]">
-            <div className="mb-2 text-center md:text-left text-sm font-medium text-amber-900">
+            <div className="mb-2 text-center md:text-left text-sm font-medium text-neutral-700">
               넣은 재료
             </div>
 
@@ -239,9 +276,7 @@ export default function PotArea({
                 const qty = counts[title] ?? 0;
                 if (!qty) return null;
 
-                // 이번 렌더에서 새로 추가된 개수
                 const hlN = highlightCountMap[title] ?? 0;
-                // 각 타이틀 그룹을 0..qty-1 로 렌더 → 마지막 hlN 개만 하이라이트
                 return Array.from({ length: qty }).map((_, idx) => {
                   const isHighlighted = idx >= qty - hlN;
                   const key = `${title}-${idx}-${isHighlighted ? "hl" : "n"}`;
@@ -257,34 +292,18 @@ export default function PotArea({
                         onRemoveOne?.(title);
                       }}
                       disabled={interactionLocked}
-                      initial={
-                        isHighlighted
-                          ? {
-                              scale: 0.88,
-                              boxShadow: "0 0 0 rgba(16,185,129,0)",
-                            }
-                          : false
-                      }
+                      initial={isHighlighted ? { scale: 0.96 } : false}
                       animate={
-                        isHighlighted
-                          ? {
-                              scale: [0.88, 1.08, 1.0],
-                              boxShadow: [
-                                "0 0 0 rgba(16,185,129,0)",
-                                "0 0 24px rgba(16,185,129,0.28)",
-                                "0 0 0 rgba(16,185,129,0)",
-                              ],
-                            }
-                          : {}
+                        isHighlighted ? { scale: [0.96, 1.02, 1.0] } : {}
                       }
-                      transition={{ duration: isHighlighted ? 0.55 : 0.2 }}
+                      transition={{ duration: 0.18, ease: "easeOut" }}
                       className={cn(
                         "relative grid h-10 w-10 place-items-center rounded-xl",
-                        "border border-amber-200 bg-white text-xl",
+                        "border border-neutral-200 bg-white text-xl",
                         "transition",
                         interactionLocked
                           ? "opacity-60 cursor-not-allowed"
-                          : "hover:bg-amber-50 active:scale-[0.98]"
+                          : "hover:bg-neutral-50 active:scale-[0.98]"
                       )}
                       title={
                         interactionLocked
@@ -294,7 +313,7 @@ export default function PotArea({
                       aria-label={`${title} 1개 제거`}
                     >
                       <span
-                        className="pointer-events-none absolute right-1 top-1 h-2.5 w-2.5 rounded-full ring-2 ring-white"
+                        className="pointer-events-none absolute right-1 top-1 h-2 w-2 rounded-full ring-1 ring-white/80 opacity-90"
                         style={{ backgroundColor: colorMap[title] ?? "#ddd" }}
                         aria-hidden
                       />
@@ -307,26 +326,26 @@ export default function PotArea({
           </div>
         </div>
 
-        {/* 도넛 아래: 요리 액션 */}
-        <div className="mx-auto mt-5 w-full max-w-3xl">
-          <div className="mb-2 text-center text-sm font-medium text-amber-900">
-            요리 액션
+        {/* 액션 영역 */}
+        <div className="mx-auto mt-6 w-full max-w-3xl">
+          <div className="mb-2 text-center text-sm font-medium text-neutral-700">
+            요리 액션 (최소 1회 필요)
           </div>
           <div className="flex flex-wrap justify-center gap-2">
             {COOK_ACTIONS.map((a) => (
               <Button
                 key={a.key}
                 size="sm"
-                variant="secondary"
+                variant="outline"
                 onClick={() => handleAction(a.gif)}
-                disabled={total < REQUIRED_COUNT_MARK || interactionLocked}
+                disabled={!hasEnough || interactionLocked}
                 className={cn(
                   "rounded-full",
-                  (total < REQUIRED_COUNT_MARK || interactionLocked) &&
+                  (!hasEnough || interactionLocked) &&
                     "opacity-70 cursor-not-allowed"
                 )}
                 title={
-                  total < REQUIRED_COUNT_MARK
+                  !hasEnough
                     ? "재료를 10개 이상 넣으면 사용할 수 있어요."
                     : interactionLocked
                     ? "진행 중입니다."
@@ -338,7 +357,7 @@ export default function PotArea({
             ))}
           </div>
 
-          {/* 액션 아래: 비우기 / 요리 완성 */}
+          {/* 하단 액션 버튼 */}
           <div className="mt-4 flex items-center justify-center gap-2">
             <Button
               size="sm"
@@ -346,69 +365,145 @@ export default function PotArea({
               onClick={handleResetAll}
               disabled={interactionLocked}
               className={cn(
-                "rounded-full",
+                "rounded-lg",
                 interactionLocked && "opacity-70 cursor-not-allowed"
               )}
             >
               재료 비우기
             </Button>
-            <Button
-              size="sm"
-              variant={
-                canCook && hasActed && !interactionLocked
-                  ? "default"
-                  : "secondary"
-              }
-              disabled={!canCook || !hasActed || interactionLocked}
-              onClick={handleCookFinish}
-              className={cn(
-                "rounded-full",
-                (!canCook || !hasActed || interactionLocked) && "opacity-80"
-              )}
-              title={
-                !hasActed
-                  ? "요리 액션을 하나 이상 수행해야 완성할 수 있어요."
-                  : interactionLocked
-                  ? "진행 중에는 완성할 수 없어요."
-                  : "요리 완성"
-              }
-            >
-              {isCooking ? (
-                <span className="inline-flex items-center gap-2">
-                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/60 border-t-transparent" />
-                  요리중…
-                </span>
-              ) : (
-                "요리 완성"
-              )}
-            </Button>
+
+            <div className="relative">
+              <Button
+                size="sm"
+                variant={
+                  hasEnough && hasActed && !interactionLocked
+                    ? "default"
+                    : "outline"
+                }
+                disabled={
+                  !(hasEnough && hasActed) || interactionLocked || !canCook
+                }
+                onClick={handleCookFinish}
+                className={cn(
+                  "rounded-lg",
+                  (!(hasEnough && hasActed) || interactionLocked) &&
+                    "opacity-80"
+                )}
+                title={
+                  !hasEnough
+                    ? "재료 10개가 필요해요."
+                    : !hasActed
+                    ? "요리 액션을 1회 이상 수행해야 해요."
+                    : interactionLocked
+                    ? "진행 중에는 완료할 수 없어요."
+                    : "요리 완성"
+                }
+              >
+                {isCooking ? (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-neutral-400/60 border-t-transparent" />
+                    요리중…
+                  </span>
+                ) : (
+                  "요리 완성"
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* 진행 중 전역 클릭 차단 */}
-      <AnimatePresence>
-        {interactionLocked && (
-          <motion.div
-            className="absolute inset-0 z-20 cursor-wait"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0 }}
-            exit={{ opacity: 0 }}
-          />
-        )}
-      </AnimatePresence>
+      {/* 결과 오버레이는 별도 컴포넌트로 */}
     </div>
   );
 }
 
-/* ─────────── 상단 10칸 세그먼트 진행바 (그라데이션 & 글로스 + 10개 이펙트) ─────────── */
+/* ──────────────────────────────────────────────────────────────
+   요구조건 체크리스트 (10개/액션)
+────────────────────────────────────────────────────────────── */
+function RequirementChecklist({
+  hasEnough,
+  needed,
+  hasActed,
+}: {
+  hasEnough: boolean;
+  needed: number;
+  hasActed: boolean;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      {/* 좌: 남은 개수 메시지 */}
+      <motion.div
+        key={`need-${needed}-${hasEnough}`}
+        initial={{ opacity: 0, y: -2 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={cn(
+          "rounded-md px-2.5 py-1 text-[12px] tabular-nums",
+          hasEnough
+            ? "bg-emerald-50 text-emerald-700"
+            : "bg-amber-50 text-amber-800",
+          "ring-1",
+          hasEnough ? "ring-emerald-200/70" : "ring-amber-200/70"
+        )}
+      >
+        {hasEnough ? "재료 10개 충족" : `10개까지 ${needed}개 남음`}
+      </motion.div>
+
+      {/* 우: 체크 칩 2개 (10개 / 액션1회) */}
+      <div className="flex items-center gap-2">
+        <CheckChip ok={hasEnough} okText="재료 10개" nokText="재료 10개 필요" />
+        <CheckChip
+          ok={hasActed}
+          okText="액션 1회 완료"
+          nokText="액션 1회 필요"
+        />
+      </div>
+    </div>
+  );
+}
+
+function CheckChip({
+  ok,
+  okText,
+  nokText,
+}: {
+  ok: boolean;
+  okText: string;
+  nokText: string;
+}) {
+  return (
+    <motion.div
+      initial={false}
+      animate={{ scale: ok ? 1 : 1 }}
+      key={`${ok}-${okText}`}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] ring-1",
+        ok
+          ? "bg-emerald-50 text-emerald-700 ring-emerald-200/70"
+          : "bg-neutral-50 text-neutral-700 ring-neutral-200"
+      )}
+    >
+      <span
+        className={cn(
+          "inline-block h-1.5 w-1.5 rounded-full",
+          ok ? "bg-emerald-500" : "bg-neutral-400"
+        )}
+      />
+      {ok ? okText : nokText}
+    </motion.div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────
+   상단 10칸 세그먼트 진행바 (미니멀 + 10개 마커 FX)
+────────────────────────────────────────────────────────────── */
 function PotProgressBar({
   total,
   min,
   max,
   segments = 10,
   requiredMark,
-  milestonePulseKey, // 10개 달성 순간 증가하는 키
+  milestonePulseKey,
 }: {
   total: number;
   min: number;
@@ -420,7 +515,6 @@ function PotProgressBar({
   const pct = Math.max(0, Math.min(1, total / max));
   const segs = Array.from({ length: segments }, (_, i) => i);
   const perSeg = max / segments;
-
   const thumbLeft = `${pct * 100}%`;
   const goodStart = Math.max(0, Math.min(1, min / max)) * 100;
   const requiredPct = requiredMark
@@ -436,12 +530,11 @@ function PotProgressBar({
           style={{
             left: `${goodStart}%`,
             width: `${100 - goodStart}%`,
-            background:
-              "linear-gradient(to right, rgba(16,185,129,0.16), rgba(16,185,129,0.10))",
+            background: "rgba(22,163,74,0.08)", // emerald-600 @ 8%
           }}
         />
 
-        {/* 10개 지점 마커 + 이펙트 */}
+        {/* 10개 지점 마커 + 펄스 + "10" 라벨 */}
         {requiredPct !== null && (
           <>
             <div
@@ -449,11 +542,11 @@ function PotProgressBar({
               style={{
                 left: `${requiredPct}%`,
                 width: 0,
-                borderLeft: "2px dashed rgba(120,85,40,0.35)",
+                borderLeft: "2px dashed rgba(0,0,0,0.14)",
               }}
             />
             <div
-              className="absolute -bottom-5 -translate-x-1/2 text-[10px] text-amber-900/80"
+              className="absolute -bottom-5 -translate-x-1/2 text-[10px] text-neutral-600"
               style={{ left: `${requiredPct}%` }}
             >
               <div
@@ -461,39 +554,30 @@ function PotProgressBar({
                 style={{
                   borderLeft: "5px solid transparent",
                   borderRight: "5px solid transparent",
-                  borderTop: "6px solid rgba(120,85,40,0.55)",
+                  borderTop: "6px solid rgba(0,0,0,0.25)",
                 }}
               />
               <div className="mt-0.5 tabular-nums">10개</div>
             </div>
 
-            {/* 10개 달성 순간 펄스 & 스파클 */}
-            <MilestoneFx
+            <MilestonePulse
               key={`ms-${milestonePulseKey}`}
               leftPct={requiredPct}
             />
           </>
         )}
 
-        {/* 세그먼트 바 */}
+        {/* 세그먼트 바 (단색) */}
         <div
           className={cn(
-            "relative grid overflow-hidden rounded-xl",
-            "ring-1 ring-amber-200/70"
+            "relative grid overflow-hidden rounded-xl ring-1 ring-neutral-200"
           )}
           style={{
             gridTemplateColumns: `repeat(${segments}, 1fr)`,
             height: 16,
-            background: "linear-gradient(180deg, #FFF7E6 0%, #FFE8B3 100%)",
+            background: "#FAFAFA",
           }}
         >
-          <div
-            className="pointer-events-none absolute inset-x-0 top-0 h-[45%]"
-            style={{
-              background:
-                "linear-gradient(180deg, rgba(255,255,255,0.65), rgba(255,255,255,0))",
-            }}
-          />
           {segs.map((i) => {
             const frac =
               total >= (i + 1) * perSeg
@@ -504,21 +588,18 @@ function PotProgressBar({
             return (
               <div
                 key={i}
-                className="relative h-full border-r border-amber-200/60 last:border-r-0"
+                className="relative h-full border-r border-neutral-200 last:border-r-0"
               >
                 <motion.div
                   initial={{ scaleX: 0 }}
                   animate={{ scaleX: frac }}
                   transition={{
                     type: "tween",
-                    duration: 0.22,
-                    delay: i * 0.02,
+                    duration: 0.18,
+                    delay: i * 0.015,
                   }}
                   className="origin-left h-full"
-                  style={{
-                    background:
-                      "linear-gradient(90deg, #FFC24D 0%, #FFB300 50%, #FFA000 100%)",
-                  }}
+                  style={{ background: "#F59E0B" }} // amber-500
                 />
               </div>
             );
@@ -538,103 +619,67 @@ function PotProgressBar({
           className="absolute -top-6"
           style={{ translateX: "-50%" }}
         >
-          <div className="select-none rounded-md bg-amber-900 text-amber-50 px-2 py-0.5 text-[11px] tabular-nums shadow-sm">
+          <div className="select-none rounded-md bg-neutral-900 text-white px-2 py-0.5 text-[11px] tabular-nums shadow-sm">
             <span className="font-semibold">{total}</span>/{max}
           </div>
-          <div className="mx-auto h-2 w-[2px] rounded bg-amber-900/70" />
+          <div className="mx-auto h-2 w-[2px] rounded bg-neutral-800/70" />
         </motion.div>
       </div>
 
       {/* 라벨 */}
-      <div className="mt-1 flex justify-between text-[10px] text-amber-900/70">
+      <div className="mt-1 flex justify-between text-[10px] text-neutral-600">
         <span>0</span>
-
         <span className="tabular-nums">max {max}</span>
       </div>
     </div>
   );
 }
 
-/* 10개 달성 FX: 마커 주변 스파클 + 원형 펄스 */
-function MilestoneFx({ leftPct }: { leftPct: number }) {
-  const dots = Array.from({ length: 10 });
+function MilestonePulse({ leftPct }: { leftPct: number }) {
   return (
-    <div className="pointer-events-none absolute inset-0">
-      {/* 원형 펄스 */}
-      <motion.div
-        className="absolute top-1/2 h-6 w-6 -translate-y-1/2 -translate-x-1/2 rounded-full"
-        style={{
-          left: `${leftPct}%`,
-          background:
-            "radial-gradient(rgba(16,185,129,0.35), rgba(16,185,129,0))",
-        }}
-        initial={{ scale: 0.6, opacity: 0.0 }}
-        animate={{ scale: [0.6, 1.4, 1.8], opacity: [0.0, 0.35, 0] }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-      />
-      {/* 스파클 */}
-      {dots.map((_, i) => (
-        <motion.span
-          key={i}
-          className="absolute h-1.5 w-1.5 rounded-full"
-          style={{
-            left: `${leftPct}%`,
-            top: "50%",
-            background: i % 2 ? "#10B981" : "#F59E0B",
-          }}
-          initial={{ opacity: 0, scale: 0.6, x: 0, y: 0 }}
-          animate={{
-            opacity: [0, 1, 0],
-            scale: [0.6, 1, 0.8],
-            x: 16 * Math.cos((i / dots.length) * Math.PI * 2),
-            y: 16 * Math.sin((i / dots.length) * Math.PI * 2),
-          }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-        />
-      ))}
-    </div>
+    <motion.div
+      className="pointer-events-none absolute top-1/2 h-6 w-6 -translate-y-1/2 -translate-x-1/2 rounded-full"
+      style={{
+        left: `${leftPct}%`,
+        background:
+          "radial-gradient(rgba(16,185,129,0.18), rgba(16,185,129,0))",
+      }}
+      initial={{ scale: 0.8, opacity: 0 }}
+      animate={{ scale: 1.4, opacity: [0, 1, 0] }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+    />
   );
 }
 
-/* ─────────── 요리 결과 카드 오버레이 + 성공/실패 이펙트 ─────────── */
+/* ──────────────────────────────────────────────────────────────
+   결과 오버레이 (미니멀)
+────────────────────────────────────────────────────────────── */
 function CookResultOverlay({ result }: { result: CookResult }) {
   return (
     <AnimatePresence>
       {result && (
         <motion.div
           key={`cook-result-${result.name}-${result.success}`}
-          initial={{ opacity: 0, scale: 0.9, y: 6 }}
+          initial={{ opacity: 0, scale: 0.98, y: 4 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.98, y: 4 }}
-          transition={{ duration: 0.25 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
           className="pointer-events-none absolute inset-0 grid place-items-center"
         >
-          {result.success ? <ConfettiBurst /> : <FailSmoke />}
+          {result.success ? <ConfettiMini /> : <FailSmokeMini />}
 
           <motion.div
             className={cn(
-              "rounded-2xl px-4 py-3 text-center bg-white/90 backdrop-blur-sm"
+              "rounded-xl px-3 py-2 text-center bg-white/90 backdrop-blur-sm shadow-sm"
             )}
-            animate={
-              result.success
-                ? {
-                    boxShadow: [
-                      "0 0 0 rgba(0,0,0,0)",
-                      "0 0 32px rgba(16,185,129,0.25)",
-                      "0 0 0 rgba(0,0,0,0)",
-                    ],
-                  }
-                : { x: [0, -6, 6, -4, 4, 0] }
-            }
-            transition={{ duration: result.success ? 0.9 : 0.4 }}
           >
-            <div className="text-3xl">{result.emoji}</div>
-            <div className="mt-1 text-sm font-semibold text-amber-900">
+            <div className="text-2xl">{result.emoji}</div>
+            <div className="mt-0.5 text-xs font-medium text-neutral-800">
               {result.name}
             </div>
             <div
               className={cn(
-                "mt-0.5 text-xs",
+                "mt-0.5 text-[11px]",
                 result.success ? "text-emerald-700" : "text-red-600"
               )}
             >
@@ -647,39 +692,45 @@ function CookResultOverlay({ result }: { result: CookResult }) {
   );
 }
 
-/* 성공: 간단 컨페티 버스트 */
-function ConfettiBurst() {
+/* 작은 콘페티 (10개 달성/성공 공용) */
+function ConfettiMini({ centerYOffset = 0 }: { centerYOffset?: number }) {
   const dots = Array.from({ length: 12 });
   return (
-    <div className="absolute inset-0 grid place-items-center">
+    <div
+      className="absolute inset-0 grid place-items-center"
+      style={{ pointerEvents: "none" }}
+    >
       {dots.map((_, i) => (
         <motion.span
           key={i}
-          className="absolute h-2 w-2 rounded-full"
-          style={{ background: i % 2 ? "#10B981" : "#F59E0B" }}
-          initial={{ opacity: 0, scale: 0.6, x: 0, y: 0 }}
+          className="absolute h-1.5 w-1.5 rounded-full"
+          style={{
+            background: i % 2 ? "#10B981" : "#F59E0B",
+            top: `calc(50% + ${centerYOffset}px)`,
+          }}
+          initial={{ opacity: 0, scale: 0.7, x: 0, y: 0 }}
           animate={{
             opacity: [0, 1, 0],
-            scale: [0.6, 1, 0.8],
-            x: 40 * Math.cos((i / dots.length) * Math.PI * 2),
-            y: 40 * Math.sin((i / dots.length) * Math.PI * 2),
+            scale: [0.7, 1, 0.9],
+            x: 28 * Math.cos((i / dots.length) * Math.PI * 2),
+            y: 28 * Math.sin((i / dots.length) * Math.PI * 2),
           }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
+          transition={{ duration: 0.48, ease: "easeOut" }}
         />
       ))}
     </div>
   );
 }
 
-/* 실패: 연무(💨) 펄스 */
-function FailSmoke() {
+/* 실패: 짧은 연무 */
+function FailSmokeMini() {
   return (
     <div className="absolute inset-0 grid place-items-center">
       <motion.div
-        initial={{ opacity: 0.0, scale: 0.8 }}
-        animate={{ opacity: [0, 0.6, 0], scale: [0.8, 1.1, 1.2] }}
-        transition={{ duration: 0.7, ease: "easeOut" }}
-        className="text-3xl"
+        initial={{ opacity: 0.0, scale: 0.9 }}
+        animate={{ opacity: [0, 0.5, 0], scale: [0.9, 1.08, 1.14] }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="text-2xl"
       >
         💨
       </motion.div>
