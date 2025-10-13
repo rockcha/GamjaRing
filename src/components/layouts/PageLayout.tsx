@@ -9,7 +9,7 @@ import FloatingLeftRail from "../widgets/FloatingLeftRail";
 
 import QuickMenu from "../widgets/QuickMenu";
 import FloatingHomeButton from "../widgets/Cards/FloatingHomeButton";
-import NotificationDropdown from "../widgets/Notification/NotificationDropdown";
+
 import HomeFabButton from "../widgets/HomeFabButton";
 
 type PageLayoutProps = {
@@ -102,8 +102,7 @@ export default function PageLayout({
       <AppHeader routeTitle={routeTitle} />
       <FloatingLeftRail />
       <QuickMenu />
-      <FloatingHomeButton />
-      <NotificationDropdown iconSize={44} />
+
       <HomeFabButton tone="daily" position="bottom-right" autoHideOnScroll />
 
       {/* 본문 */}

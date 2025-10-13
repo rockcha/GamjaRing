@@ -98,12 +98,12 @@ export default function PartnerOneLinerCard({
     >
       {/* 헤더: 중앙 정렬 타이틀/이모지 (미니멀) */}
       <div className="w-full flex items-center justify-start gap-3 mb-3 text-xl">
-        <FontAwesomeIcon icon={icon} aria-hidden />
+        <FontAwesomeIcon icon={icon} aria-hidden className="text-neutral-700" />
         <h3
           className="text-base sm:text-[20px] font-bold tracking-tight "
           title={`${nickname} 의 한마디`}
         >
-          <span className="text-amber-800"> {nickname} </span>
+          <span className="text-rose-800"> {nickname} </span>
 
           <span className="text-neutral-800 font-semibold">의 한마디</span>
         </h3>

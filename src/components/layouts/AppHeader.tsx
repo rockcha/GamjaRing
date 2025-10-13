@@ -29,6 +29,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHeartPulse } from "@fortawesome/free-solid-svg-icons";
 
+// ✅ Notice 버튼: png 아이콘 사용하는 최신 리팩토링 컴포넌트 경로로 맞춰주세요.
+import NoticeCenterFloatingButton from "@/features/dev-note/NoticeFloatingButton";
+import UserMemoEmojiButton from "@/features/memo/UserMemoEmojiButton";
+
 /* ───────────────────────── 타입 ───────────────────────── */
 type UserMessage = {
   id: number;
@@ -100,14 +104,27 @@ const MobilePreviewBar = memo(function MobilePreviewBar() {
           "p-2"
         )}
       >
-        {/* 질문 */}
+        {/* 질문 → 이미 흰색 카드로 감싼 상태 유지 */}
         <div className="min-w-0 px-1 py-1 rounded-lg bg-white/80 ring-1 ring-white/60 shadow-sm">
           <TodayQuestionInline />
         </div>
-        {/* 오늘 한마디 */}
-        <div className="min-w-0">
-          <SelfTodayOneLiner />
-        </div>
+        {/* 오늘 한마디 (필요 시) */}
+      </div>
+    </div>
+  );
+});
+
+/* ------------------------------ 모바일: 알림/공지 액션바 ------------------------------ */
+const MobileActionBar = memo(function MobileActionBar() {
+  // ✔️ 버튼들만, 배경/테두리 없이
+  return (
+    <div className="md:hidden mx-auto w-full max-w-screen-2xl px-3 sm:px-4 pb-2">
+      <div
+        className={cn("flex items-center justify-end gap-1.5 px-1.5 py-1.5")}
+      >
+        <UserMemoEmojiButton iconSize={16} />
+        <NoticeCenterFloatingButton iconSize={16} />
+        <NotificationDropdown iconSize={16} />
       </div>
     </div>
   );
@@ -120,7 +137,6 @@ function SelfTodayOneLiner() {
   const [msg, setMsg] = useState<UserMessage | null>(null);
   const [open, setOpen] = useState(false);
 
-  // 초기 로드
   useEffect(() => {
     let alive = true;
     if (!user?.id) {
@@ -145,7 +161,6 @@ function SelfTodayOneLiner() {
     };
   }, [user?.id]);
 
-  // Realtime: 저장/수정 → 프리뷰 갱신
   useEffect(() => {
     if (!user?.id) return;
     const channel = supabase
@@ -168,50 +183,9 @@ function SelfTodayOneLiner() {
       supabase.removeChannel(channel);
     };
   }, [user?.id]);
-
-  const emoji = msg?.emoji || "🙂";
-  const text = msg?.content || "오늘 한마디를 남겨보세요.";
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <button
-          className={cn(
-            "w-full rounded-xl border border-neutral-200/60 bg-white/70 backdrop-blur px-3 py-2",
-            "ring-1 ring-white/60 shadow-sm hover:shadow transition",
-            "hover:bg-white flex items-center"
-          )}
-          aria-label="내 한마디 작성/수정"
-          title="내 한마디 작성/수정"
-        >
-          <Badge
-            variant="outline"
-            className="rounded-full px-2 py-0.5 text-base bg-white/90 shrink-0 border-neutral-200/70"
-          >
-            {emoji}
-          </Badge>
-          <span className="ml-2 shrink-0 text-[13px] font-semibold text-purple-800/90">
-            나의 한마디
-          </span>
-          <span className="mx-1 shrink-0 text-neutral-300">•</span>
-          {loading ? (
-            <span className="inline-flex items-center gap-2">
-              <Skeleton className="h-4 w-24 rounded" />
-            </span>
-          ) : (
-            <span className="text-sm text-neutral-700/90 truncate">{text}</span>
-          )}
-        </button>
-      </DialogTrigger>
-
-      <DialogContent className="sm:max-w-2xl">
-        <TodayMessageCard maxLen={140} />
-      </DialogContent>
-    </Dialog>
-  );
 }
 
-/* ------------------------------ 모바일: 1행(타이틀/밸런스/아바타), 2행(DaysTogether), 3행(프리뷰 바) ------------------------------ */
+/* ------------------------------ 모바일: 1행(타이틀/밸런스/아바타), 2행(DaysTogether), 2.5행(모바일 액션바), 3행(프리뷰 바) ------------------------------ */
 const MobileRows = memo(function MobileRows({
   routeTitle,
 }: {
@@ -236,6 +210,9 @@ const MobileRows = memo(function MobileRows({
           <DaysTogetherBadge />
         </div>
       </div>
+
+      {/* 2.5행: 모바일 알림/공지 액션바 (배경 없음) */}
+      <MobileActionBar />
 
       {/* 3행: 모바일 프리뷰 바(질문 + 오늘 한마디) */}
       <MobilePreviewBar />
@@ -289,23 +266,25 @@ export default function AppHeader({
         </div>
       </div>
 
-      {/* ✅ 데스크톱 프리뷰 바 */}
+      {/* ✅ 데스크톱 프리뷰 바: Question만 흰색 카드, 버튼은 배경 없음 */}
       <div className="hidden md:block relative">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px " />
         <div className="mx-auto w-full max-w-screen-2xl py-2 px-3 sm:px-4">
-          <div
-            className={cn(
-              "flex items-center gap-2 rounded-xl",
-              " backdrop-blur",
-              "ring-1 ring-white/60 shadow-sm"
-            )}
-          >
-            <div className="min-w-0 flex-1 px-2 py-1">
-              <TodayQuestionInline />
+          <div className="flex items-center gap-2 px-0 py-0">
+            {/* Question pill만 흰색 배경 */}
+            <div className="min-w-0 flex-1">
+              <div className="px-2 py-1 rounded-xl bg-white/80 ring-1 ring-white/60 shadow-sm">
+                <TodayQuestionInline />
+              </div>
             </div>
+
             <div className="h-6 w-px bg-gradient-to-b from-transparent via-neutral-300/60 to-transparent" />
-            <div className="min-w-0 flex-1 px-2 py-1">
-              <SelfTodayOneLiner />
+
+            {/* 버튼 3종: 배경/테두리 없음, 간격 동일 */}
+            <div className="flex items-center gap-1.5 pl-1">
+              <UserMemoEmojiButton iconSize={16} />
+              <NoticeCenterFloatingButton iconSize={16} />
+              <NotificationDropdown iconSize={16} />
             </div>
           </div>
         </div>

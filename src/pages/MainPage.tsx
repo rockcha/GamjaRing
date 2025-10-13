@@ -11,16 +11,10 @@ import CoupleSchedulePreview from "@/components/widgets/Cards/CoupleShedulePrevi
 import CoupleMusicCard from "@/components/widgets/Cards/CoupleMusicCard";
 import DailyFortuneCard from "@/features/fortune/DailyFortuneCard";
 import { Skeleton } from "@/components/ui/skeleton";
-import AquariumPreviewCard from "@/components/widgets/Cards/AquariumPreviewCard";
-import CoupleDailyMessageCard from "@/components/widgets/Cards/CoupleDailyMessageCard";
-import TodayMessageCard from "@/components/widgets/Cards/TodayMessageCard";
-import GloomyMessageCard from "@/components/widgets/Cards/GloomyMessageCard";
-import GloomyRatingsBoard from "@/components/widgets/Cards/GloomyRatingsBoard";
-import GloomyRatingsCompletedBoard from "@/components/widgets/Cards/GloomyRatingsCompletedBoard";
-import UserMemoEmojiButton from "@/features/memo/UserFloatingMemo";
-import StartEndMemoriesCard from "@/components/widgets/Cards/StartEndMemoriesCard";
+
 import PartnerOneLinerCard from "@/components/widgets/Cards/PartnerOneLinerCard";
 import StartEndPixelShow from "@/components/widgets/Cards/StartEndPixelShow";
+import SelfOneLinerCard from "@/components/widgets/Cards/SelfOneLinerCard";
 
 export default function MainPage() {
   const { isCoupled, loading } = useUser(); // ✅ loading 가져오기
@@ -67,7 +61,8 @@ export default function MainPage() {
         {/* 오른쪽: 질문 + 일정 */}
         <div className="flex flex-col gap-2 min-w-0">
           <PartnerOneLinerCard />
-          <UserMemoEmojiButton />
+          <SelfOneLinerCard />
+          {/* <UserMemoEmojiButton /> */}
         </div>
       </div>
     </div>

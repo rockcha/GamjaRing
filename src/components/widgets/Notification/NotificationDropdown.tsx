@@ -2,7 +2,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 import { useUser } from "@/contexts/UserContext";
 import { useNotifications } from "./useNotifications";
 import { useRelativeTime } from "./useRelativeTime";
@@ -99,146 +98,97 @@ export default function NotificationDropdown({
   const imageSize = Math.round(wrapperSize * 0.9);
   const dotSize = Math.max(10, Math.round(wrapperSize * 0.22));
   const badgeOffset = Math.max(4, Math.round(wrapperSize * 0.12));
-  const headerIconSize = Math.round(iconSize * 0.42);
-
-  // 포털 렌더 안전 가드 (SSR 하이드레이션 대비)
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
 
   return (
     <>
-      {/* ===== 좌하단 고정 원형 버튼(FAB) 트리거 — 뷰포트 기준 고정 ===== */}
-      {mounted &&
-        typeof window !== "undefined" &&
-        createPortal(
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => handleOpenChange(true)}
-            aria-label={caption}
-            className={cn(
-              // ✅ 전역(뷰포트) 고정
-              "fixed z-[9999] left-4 bottom-4",
-              // iOS 안전영역 고려
+      {/* ✅ 고정/포털 제거: 배치한 위치에 그대로 렌더되는 트리거 버튼 */}
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={() => handleOpenChange(true)}
+        aria-label={caption}
+        className={cn(
+          "p-0 ",
 
-              "rounded-full p-0 shadow-lg hover:shadow-xl transition-shadow",
-              "ring-1 ring-black/5 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70",
-              // 크기 (원형)
-              "grid place-items-center",
-              className
-            )}
-            style={{
-              width: wrapperSize + 20, // 이미지보다 약간 크게
-              height: wrapperSize + 20,
-            }}
-          >
-            <span className="relative inline-grid place-items-center">
-              {/* 파동/글로우: 새 알림 있을 때만 */}
-              {hasUnreadBadge && (
-                <>
-                  <span
-                    className="
-                      pointer-events-none absolute inset-0 rounded-full
-                      bg-rose-400/25 blur-[0.5px] transform-gpu
-                      motion-safe:animate-[notifWave_1.6s_ease-out_infinite]
-                      "
-                    aria-hidden
-                  />
-                  <span
-                    className="pointer-events-none absolute inset-0 rounded-full ring-2 ring-rose-300/60"
-                    aria-hidden
-                  />
-                  <span className="pointer-events-none absolute inset-0 rounded-full bg-rose-300/20 blur-md" />
-                </>
-              )}
-
-              {/* 아이콘 */}
-              <img
-                src={iconSrc}
-                alt={caption}
-                className={cn(
-                  "object-contain transition-transform duration-200",
-                  "hover:scale-110 active:scale-95",
-                  hasUnreadBadge ? "animate-soft-bounce" : ""
-                )}
-                style={{ width: imageSize, height: imageSize }}
-                draggable={false}
-                loading="lazy"
-                onLoad={() => setImgLoaded(true)}
-              />
-              {!imgLoaded && (
-                <Skeleton
-                  className="rounded-full absolute"
-                  style={{ width: imageSize, height: imageSize }}
-                />
-              )}
-
-              {/* 배지 (우상단) */}
-              {hasUnreadBadge && (
-                <>
-                  <span
-                    className="pointer-events-none absolute rounded-full bg-rose-500/60 animate-ping"
-                    style={{
-                      top: -badgeOffset,
-                      right: -badgeOffset,
-                      width: dotSize,
-                      height: dotSize,
-                    }}
-                  />
-                  <span
-                    className="pointer-events-none absolute rounded-full bg-rose-500 shadow-[0_0_0_1px_rgba(255,255,255,0.9)]"
-                    style={{
-                      top: -badgeOffset,
-                      right: -badgeOffset,
-                      width: dotSize,
-                      height: dotSize,
-                    }}
-                  />
-                  <Badge
-                    variant="destructive"
-                    className="pointer-events-none absolute px-1 py-0 h-4 min-w-[1.2rem] text-[10px] leading-4 rounded-full"
-                    style={{
-                      right: -badgeOffset,
-                      bottom: -Math.max(6, Math.round(wrapperSize * 0.14)),
-                    }}
-                  >
-                    {computedUnreadCount > 99 ? "99+" : computedUnreadCount}
-                  </Badge>
-                </>
-              )}
-            </span>
-          </Button>,
-          document.body
+          "grid place-items-center",
+          className
         )}
+        style={{
+          width: wrapperSize + 20,
+          height: wrapperSize + 20,
+        }}
+      >
+        <span className="relative inline-grid place-items-center">
+          {/* 아이콘 */}
+          <img
+            src={iconSrc}
+            alt={caption}
+            className={cn(
+              "object-contain transition-transform duration-200",
+              "hover:scale-110 active:scale-95"
+            )}
+            style={{ width: imageSize, height: imageSize }}
+            draggable={false}
+            loading="lazy"
+            onLoad={() => setImgLoaded(true)}
+          />
+          {!imgLoaded && (
+            <Skeleton
+              className="rounded-full absolute"
+              style={{ width: imageSize, height: imageSize }}
+            />
+          )}
 
-      {/* ===== Dialog: 폰/데탑 모두 예쁜 비율 ===== */}
+          {/* 배지 (우상단) */}
+          {hasUnreadBadge && (
+            <>
+              <span
+                className="pointer-events-none absolute rounded-full bg-rose-500/60 animate-ping"
+                style={{
+                  top: -badgeOffset,
+                  right: -badgeOffset,
+                  width: dotSize,
+                  height: dotSize,
+                }}
+              />
+              <span
+                className="pointer-events-none absolute rounded-full bg-rose-500 shadow-[0_0_0_1px_rgba(255,255,255,0.9)]"
+                style={{
+                  top: -badgeOffset,
+                  right: -badgeOffset,
+                  width: dotSize,
+                  height: dotSize,
+                }}
+              />
+              <Badge
+                variant="destructive"
+                className="pointer-events-none absolute px-1 py-0 h-4 min-w-[1.2rem] text-[10px] leading-4 rounded-full"
+                style={{
+                  right: -badgeOffset,
+                  bottom: -Math.max(6, Math.round(wrapperSize * 0.14)),
+                }}
+              >
+                {computedUnreadCount > 99 ? "99+" : computedUnreadCount}
+              </Badge>
+            </>
+          )}
+        </span>
+      </Button>
+
+      {/* ✅ 표준 중앙 모달 + 내부 스크롤 고정 (닫기 버튼 항상 보임) */}
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent
           className={cn(
-            // 공통
-            "p-0 border-0 overflow-hidden ring-1 ring-black/5 backdrop-blur-xl",
-            "rounded-3xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.25)]",
-            "max-h-[85svh] sm:max-h-[80vh]",
-
-            // 데스크톱(>=sm): 기본 중앙 모달 스타일 유지
-            "sm:fixed sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-auto sm:max-w-md",
-
-            // 모바일(<sm): 바텀시트 — ★ 기본값들 ‘완전’ 리셋!
-            "fixed inset-x-0 bottom-0 top-auto", // top 초기화
-            "left-0 right-0", // left/right 명시
-            "translate-x-0 translate-y-0", // translate 초기화
-            "rounded-t-3xl rounded-b-none",
-            "w-full",
-            "pb-[max(env(safe-area-inset-bottom),12px)]"
+            // 레이아웃: 중앙 모달, 고정 해제
+            "p-0 border-0 overflow-hidden rounded-3xl",
+            "shadow-[0_10px_40px_-10px_rgba(0,0,0,0.25)]",
+            "sm:max-w-md w-[min(92vw,560px)]",
+            // 전체 높이 한정 (뷰포트 기준) — 내부에서만 스크롤
+            "max-h-[85svh]"
           )}
         >
-          {/* 배경 버블(은은) */}
-          <div className="pointer-events-none absolute inset-0">
-            <div className="absolute -top-12 -left-10 w-40 h-40 rounded-full bg-pink-200/30 blur-2xl animate-float-slow" />
-            <div className="absolute -bottom-12 -right-8 w-44 h-44 rounded-full bg-amber-200/40 blur-2xl animate-float-slower" />
-          </div>
-
-          <div className="relative flex flex-col min-h=[360px] max-h-[inherit]">
+          {/* 내부를 flex column으로 구성 → 중간 ScrollArea가 스크롤 담당 */}
+          <div className="relative flex flex-col h-[min(85svh,640px)]">
             <DialogHeader className="px-5 pt-5 pb-3 shrink-0">
               <DialogTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
                 {caption}
@@ -252,6 +202,7 @@ export default function NotificationDropdown({
 
             <Separator className="opacity-60" />
 
+            {/* ✅ 스크롤 가능한 영역: flex-1 + min-h-0 필수 */}
             <div className="flex-1 min-h-0">
               {loading ? (
                 <div className="px-5 py-4">
@@ -267,11 +218,7 @@ export default function NotificationDropdown({
                   새로운 알림이 없어요. 🫧
                 </div>
               ) : (
-                // 내부 스크롤 높이 (폰/데탑 모두 안정)
-                <ScrollArea
-                  className="px-1 py-2"
-                  style={{ maxHeight: "60svh" }}
-                >
+                <ScrollArea className="h-full px-1 py-2">
                   <div className="pr-3">
                     <NotificationList
                       items={visibleItems}
@@ -284,6 +231,7 @@ export default function NotificationDropdown({
 
             <Separator className="opacity-60" />
 
+            {/* ✅ Footer는 고정 영역 → 항상 보임 */}
             <DialogFooter className="px-5 py-4 shrink-0">
               <Button
                 variant="outline"
@@ -296,62 +244,6 @@ export default function NotificationDropdown({
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* 애니메이션 키프레임 */}
-      <style jsx>{`
-        @keyframes notifWave {
-          0% {
-            transform: scale(1);
-            opacity: 0.65;
-          }
-          70% {
-            transform: scale(2.15);
-            opacity: 0;
-          }
-          100% {
-            transform: scale(2.15);
-            opacity: 0;
-          }
-        }
-        @keyframes softBounce {
-          0%,
-          100% {
-            transform: translateY(0);
-          }
-          50% {
-            transform: translateY(-1.5px);
-          }
-        }
-        @keyframes floatSlow {
-          0%,
-          100% {
-            transform: translateY(0) translateX(0);
-          }
-          50% {
-            transform: translateY(-8px) translateX(4px);
-          }
-        }
-        @keyframes floatSlower {
-          0%,
-          100% {
-            transform: translateY(0) translateX(0);
-          }
-          50% {
-            transform: translateY(6px) translateX(-6px);
-          }
-        }
-      `}</style>
-      <style jsx global>{`
-        .animate-soft-bounce {
-          animation: softBounce 1.8s ease-in-out infinite;
-        }
-        .animate-float-slow {
-          animation: floatSlow 7s ease-in-out infinite;
-        }
-        .animate-float-slower {
-          animation: floatSlower 10s ease-in-out infinite;
-        }
-      `}</style>
     </>
   );
 }

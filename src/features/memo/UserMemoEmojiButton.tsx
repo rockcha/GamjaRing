@@ -16,9 +16,18 @@ import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
 
 /* Font Awesome */
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -29,12 +38,10 @@ import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 type Mode = "view" | "edit";
 
 type Props = {
-  /** 카드 헤더 왼쪽 아이콘 (FontAwesome) */
-  icon?: IconDefinition;
-  /** 외부에서 여백/정렬 조정용 */
-  className?: string;
-  /** 접근성 및 SR 전용 라벨 */
-  label?: string;
+  icon?: IconDefinition; // 메모 패널 아이콘
+  className?: string; // 트리거 버튼 외부 클래스
+  caption?: string; // 접근성 라벨
+  iconSize?: number; // 트리거 PNG 크기 (기본 48)
 };
 
 /* -------------------- URL 자동 링크 -------------------- */
@@ -87,20 +94,15 @@ function insertPrefixAtCurrentLine(
   return { nextValue, nextCursor };
 }
 
-/* -------------------- Component -------------------- */
-export default function UserMemoEmojiButton({
-  icon = faNoteSticky,
-  className = "",
-  label = "메모장",
-}: Props) {
-  const { user } = useUser(); // { id: string, ... }
-
-  // 기본 보기 모드
+/* ========================================================================== */
+/*                             Memo Panel (Card)                               */
+/* ========================================================================== */
+function MemoPanel({ icon = faNoteSticky }: { icon?: IconDefinition }) {
+  const { user } = useUser();
   const [mode, setMode] = useState<Mode>("view");
-
   const [content, setContent] = useState("");
-  const [loading, setLoading] = useState(false); // fetch 진행중
-  const [saving, setSaving] = useState(false); // 저장 진행중
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const taRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -109,7 +111,6 @@ export default function UserMemoEmojiButton({
     []
   );
 
-  /** 없으면 즉시 생성해서 보여주기 */
   const fetchOrEnsure = useCallback(async () => {
     if (!user?.id) {
       toast.error("로그인이 필요해요.");
@@ -144,7 +145,6 @@ export default function UserMemoEmojiButton({
     }
   }, [user?.id]);
 
-  /** 저장: 스위치로만 저장(편집→꺼짐) */
   const save = useCallback(
     async (next?: string) => {
       if (!user?.id) {
@@ -153,7 +153,6 @@ export default function UserMemoEmojiButton({
       }
       const body = typeof next === "string" ? next : content;
 
-      // 변경 없으면 보기 모드로만 전환
       if (!dirty && next === undefined) {
         setMode("view");
         return true;
@@ -185,12 +184,10 @@ export default function UserMemoEmojiButton({
     [user?.id, content, dirty]
   );
 
-  /** 마운트 시 로드 */
   useEffect(() => {
     fetchOrEnsure();
   }, [fetchOrEnsure]);
 
-  /** 글머리/이모지 퀵바 */
   const handleBullet = (b: string) => {
     if (!taRef.current) return;
     const { nextValue, nextCursor } = insertPrefixAtCurrentLine(
@@ -207,40 +204,26 @@ export default function UserMemoEmojiButton({
     });
   };
 
-  /** 스위치 전환 로직
-   * checked = true  → 편집모드 시작 (“수정하기”)
-   * checked = false → 저장 실행 후 보기모드 (“저장하기”)
-   */
   const handleModeSwitch = async (checked: boolean) => {
     if (saving || loading) return;
 
     if (checked) {
-      // 보기 → 편집 시작
       setMode("edit");
       requestAnimationFrame(() => taRef.current?.focus());
     } else {
-      // 편집 → 저장 후 보기
       const ok = await save();
-      if (!ok) {
-        // 저장 실패 시 스위치 다시 켜서 편집 유지
-        setMode("edit");
-      }
+      if (!ok) setMode("edit");
     }
   };
 
   const isEditing = mode === "edit";
 
   return (
-    <Card
-      className={["p-4 sm:p-5 space-y-3", className].join(" ")}
-      aria-label={label}
-    >
-      {/* 헤더 */}
+    <Card className="p-0 border-none shadow-none bg-transparent space-y-3">
+      {/* 헤더 (미니멀) */}
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-xl text-neutral-900">
-          <FontAwesomeIcon icon={icon} aria-hidden />
+        <div className="flex items-center gap-2 text-neutral-900">
           <div className="flex items-center gap-2">
-            <span className="text-base sm:text-xl font-bold">메모장</span>
             {loading && (
               <FontAwesomeIcon
                 icon={faSpinner}
@@ -256,12 +239,10 @@ export default function UserMemoEmojiButton({
           </div>
         </div>
 
-        {/* 모드 스위치: 좌측 '수정하기' | 스위치 | 우측 '저장하기' (항상 노출, 아이콘 없음) */}
         <div className="flex items-center gap-3">
           <span
             className={
-              "text-sm sm:text-base " +
-              (isEditing ? "text-muted-foreground" : "font-medium")
+              "text-sm " + (isEditing ? "text-muted-foreground" : "font-medium")
             }
           >
             저장하기
@@ -274,8 +255,7 @@ export default function UserMemoEmojiButton({
           />
           <span
             className={
-              "text-sm sm:text-base " +
-              (isEditing ? "font-medium" : "text-muted-foreground")
+              "text-sm " + (isEditing ? "font-medium" : "text-muted-foreground")
             }
           >
             수정하기
@@ -311,12 +291,12 @@ export default function UserMemoEmojiButton({
               setDirty(true);
             }}
             placeholder="오늘의 생각, 해야 할 일, 링크 등을 자유롭게 적어보세요."
-            className="min-h-[260px] resize-y mt-2"
+            className="min-h-[260px] resize-y mt-2 bg-white"
             disabled={loading || saving}
           />
         </>
       ) : (
-        <div className="min-h-[200px] rounded-md border-none shadow-lg p-3">
+        <div className="min-h-[200px] p-1">
           {content.trim().length === 0 ? (
             <div className="flex items-center gap-2 text-muted-foreground">
               <FontAwesomeIcon icon={faNoteSticky} className="h-4 w-4" />
@@ -330,5 +310,99 @@ export default function UserMemoEmojiButton({
         </div>
       )}
     </Card>
+  );
+}
+
+/* ========================================================================== */
+/*                      Trigger Button + Dialog (PNG)                          */
+/* ========================================================================== */
+export default function UserMemoEmojiButton({
+  icon = faNoteSticky,
+  className = "",
+  caption = "메모",
+  iconSize = 48,
+}: Props) {
+  const [open, setOpen] = useState(false);
+
+  // 아이콘 리소스 (/memo.png)
+  const iconSrc = "/memo.png";
+  const [imgLoaded, setImgLoaded] = useState(false);
+
+  const wrapperSize = Math.max(40, iconSize);
+  const imageSize = Math.round(wrapperSize * 0.9);
+
+  return (
+    <>
+      {/* 트리거 버튼 (NotificationDropdown 스타일과 동일) */}
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={() => setOpen(true)}
+        aria-label={caption}
+        className={["p-0 grid place-items-center", className].join(" ")}
+        style={{ width: wrapperSize + 20, height: wrapperSize + 20 }}
+      >
+        <span className="relative inline-grid place-items-center">
+          <img
+            src={iconSrc}
+            alt={caption}
+            className="object-contain transition-transform duration-200 hover:scale-110 active:scale-95"
+            style={{ width: imageSize, height: imageSize }}
+            draggable={false}
+            loading="lazy"
+            onLoad={() => setImgLoaded(true)}
+          />
+          {!imgLoaded && (
+            <Skeleton
+              className="rounded-full absolute"
+              style={{ width: imageSize, height: imageSize }}
+            />
+          )}
+        </span>
+      </Button>
+
+      {/* 미니멀 중앙 모달 + 은은한 구분선 */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent
+          className={[
+            "p-0 border-none rounded-2xl bg-white",
+            "shadow-[0_10px_40px_-10px_rgba(0,0,0,0.25)]",
+            "sm:max-w-md w-[min(92vw,560px)]",
+            "max-h-[85svh]",
+          ].join(" ")}
+        >
+          {/* 헤더 */}
+          <DialogHeader className="px-5 pt-5 pb-3">
+            <DialogTitle className="text-lg font-semibold tracking-tight">
+              {caption}
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* 상단 헤어라인(아주 은은하게) */}
+          <Separator className="mx-5 bg-neutral-200/60" />
+
+          {/* 내용 스크롤 */}
+          <div className="px-5 py-3">
+            <ScrollArea className="max-h-[60svh] pr-1">
+              <MemoPanel icon={icon} />
+            </ScrollArea>
+          </div>
+
+          {/* 하단 헤어라인 */}
+          <Separator className="mx-5 bg-neutral-200/60" />
+
+          {/* 푸터 */}
+          <DialogFooter className="px-5 py-4">
+            <Button
+              variant="outline"
+              onClick={() => setOpen(false)}
+              className="rounded-lg px-5 shadow-sm hover:shadow transition-all"
+            >
+              닫기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

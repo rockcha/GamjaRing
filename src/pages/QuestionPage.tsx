@@ -25,7 +25,7 @@ import { toast } from "sonner";
 import AvatarWidget from "@/components/widgets/AvatarWidget";
 
 // icons
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 // animation
 import { motion } from "framer-motion";
@@ -371,9 +371,8 @@ export default function QuestionPage() {
           "bg-[rgba(250,247,242,0.98)]",
           "ring-1 ring-amber-200/40",
           "shadow-[0_20px_60px_-20px_rgba(120,85,40,0.25)]",
-          // 종이 결(점조) 텍스처
-          "before:absolute before:inset-0 before:rounded-3xl",
-          "before:bg-[radial-gradient(rgba(0,0,0,0.045)_1px,transparent_1px)] before:bg-[length:12px_12px] before:opacity-25"
+          // 종이 결(점조) 텍스처 (클릭 막지 않도록!)
+          "before:absolute before:inset-0 before:rounded-3xl before:pointer-events-none"
         )}
       >
         {/* 와시테이프 (마스킹테이프) */}
@@ -523,7 +522,7 @@ export default function QuestionPage() {
                     onChange={(e) => setAnswer(e.target.value)}
                     readOnly={saveStatus === "saving"}
                     className={cn(
-                      "mx-auto min-h-[220px] md:min_h-[260px] resize-none rounded-2xl",
+                      "mx-auto min-h-[220px] md:min-h-[260px] resize-none rounded-2xl",
                       "bg-[linear-gradient(transparent_29px,rgba(0,0,0,0.035)_30px)] bg-[length:100%_30px]",
                       "border-0 ring-1 ring-neutral-200  focus-visible:ring-neutral-400",
                       "px-4 py-3 text-[15px] md:text-[16px] leading-[30px] text-neutral-800",
@@ -561,7 +560,7 @@ export default function QuestionPage() {
                   editing ? (
                     <>저장하기</>
                   ) : (
-                    <> 수정하기</>
+                    <>수정하기</>
                   )
                 ) : (
                   <>저장하기</>

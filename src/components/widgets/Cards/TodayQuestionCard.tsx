@@ -145,7 +145,7 @@ export default function TodayQuestionInline({
         // 깔끔한 1줄 바
         "w-full cursor-pointer select-none",
         "flex items-center gap-2 px-3 py-2",
-        "rounded-md border border-slate-200/70 bg-sky-50 hover:bg-sky-100 transition",
+
         "whitespace-nowrap overflow-hidden",
         className
       )}

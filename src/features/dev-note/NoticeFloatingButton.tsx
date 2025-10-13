@@ -1,13 +1,7 @@
 // src/components/NoticeCenterFloatingButton.tsx
 "use client";
 
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -15,12 +9,13 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import supabase from "@/lib/supabase";
-import { motion } from "framer-motion";
 
 /* ===== 타입 & 유틸 ===== */
 export type NoticeType = "update" | "event" | "caution";
@@ -70,7 +65,6 @@ const STRIP_WORDS = [
 ];
 function stripTitle(raw: string) {
   let s = (raw ?? "").trim();
-  // 앞쪽 이모지/아이콘 제거
   s = s.replace(/^(?:[🚨⚠️ℹ️✅⭐️📢🔥✨🛠️🎉]+)\s*/u, "");
   const wordGroup = STRIP_WORDS.join("|");
   const re = new RegExp(
@@ -93,14 +87,15 @@ const isToday = (iso: string) => {
 
 export default function NoticeCenterFloatingButton({
   className,
-  buttonEmoji = "📢",
   buttonLabel = "개발자 공지사항",
   limit = 50,
+  iconSize = 48, // NotificationDropdown 과 동일 기본값
 }: {
   className?: string;
-  buttonEmoji?: string;
   buttonLabel?: string;
   limit?: number;
+  /** 트리거 아이콘 크기(px). 기본 48 */
+  iconSize?: number;
 }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -126,7 +121,7 @@ export default function NoticeCenterFloatingButton({
   // 진입 시 1회 + 주기적 체크
   useEffect(() => {
     void checkUnread();
-    const t = setInterval(checkUnread, 60_000); // 1분 간격
+    const t = setInterval(checkUnread, 60_000);
     return () => clearInterval(t);
   }, [checkUnread]);
 
@@ -163,7 +158,6 @@ export default function NoticeCenterFloatingButton({
         if (!mounted) return;
         setItems((data as Notice[]) ?? []);
 
-        // ✅ 지금까지의 공지를 전부 읽음 처리
         await supabase.rpc("devnote_mark_all_read");
         setHasUnread(false);
       } catch (e: any) {
@@ -179,163 +173,186 @@ export default function NoticeCenterFloatingButton({
     };
   }, [open, limit]);
 
-  /* ===== PotatoPokeButton 스타일: ripple 구현 ===== */
-  const [ripple, setRipple] = useState(false);
-  const rippleTimer = useRef<number | null>(null);
-  const startRipple = () => {
-    setRipple(false);
-    requestAnimationFrame(() => {
-      setRipple(true);
-      if (rippleTimer.current) window.clearTimeout(rippleTimer.current);
-      rippleTimer.current = window.setTimeout(() => setRipple(false), 1400);
-    });
-  };
-  useEffect(() => {
-    return () => {
-      if (rippleTimer.current) window.clearTimeout(rippleTimer.current);
-    };
-  }, []);
+  /* ===== NotificationDropdown 과 동일한 PNG 트리거 ===== */
+  const iconSrc = "/notice.png";
+  const [imgLoaded, setImgLoaded] = useState(false);
 
-  const Btn = (
-    <div className="relative">
-      <motion.button
-        type="button"
-        onClick={() => {
-          startRipple();
-          setOpen(true);
-        }}
-        aria-label={buttonLabel}
-        className={cn(
-          "relative grid place-items-center",
-          "h-14 w-14 rounded-full border",
-          "bg-white/60",
-          "hover:pl-4 transition-all duration-500"
-        )}
-      >
-        {/* ripple */}
-        {ripple && (
-          <span
-            className="
-              pointer-events-none absolute inset-0 rounded-full
-              ring-4 ring-rose-300/50
-              animate-[pokePing_1.4s_ease-out_forwards]
-            "
-            aria-hidden
-          />
-        )}
-
-        {/* 이모지 (텍스트 없음) */}
-        <span className="text-xl leading-none select-none" aria-hidden>
-          {buttonEmoji}
-        </span>
-
-        <span className="sr-only">{buttonLabel}</span>
-      </motion.button>
-
-      {/* 🔴 우상단 점 + 깜빡임 (유지) */}
-      {hasUnread && (
-        <>
-          <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
-          <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-500 opacity-70 animate-ping" />
-        </>
-      )}
-
-      {/* 파동 키프레임 */}
-      <style>{`
-        @keyframes pokePing {
-          0%   { transform: scale(1);   opacity: .75; }
-          70%  { transform: scale(1.9); opacity: 0;   }
-          100% { transform: scale(1.9); opacity: 0;   }
-        }
-      `}</style>
-    </div>
-  );
+  // 파생 크기 (NotificationDropdown 계산식과 동일)
+  const wrapperSize = Math.max(40, iconSize);
+  const imageSize = Math.round(wrapperSize * 0.9);
+  const dotSize = Math.max(10, Math.round(wrapperSize * 0.22));
+  const badgeOffset = Math.max(4, Math.round(wrapperSize * 0.12));
 
   return (
-    <div>
-      {Btn}
-
-      {/* Modal */}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <span>📢 개발자 공지사항</span>
-            </DialogTitle>
-            <DialogDescription>
-              <span className="text-[13px]">최신 순 공지입니다.</span>
-              <span className="mx-2 text-muted-foreground">|</span>
-              <span className="text-[12px] text-muted-foreground inline-flex items-center gap-3 flex-wrap align-middle">
-                <span>
-                  🛠️<span className="mx-1">:</span>업데이트
-                </span>
-                <span>
-                  🎉<span className="mx-1">:</span>이벤트
-                </span>
-                <span>
-                  ⚠️<span className="mx-1">:</span>주의
-                </span>
-              </span>
-            </DialogDescription>
-          </DialogHeader>
-
-          {loading ? (
-            <div className="space-y-4">
-              <Skeleton className="h-6 w-40" />
-              <Separator />
-              <Skeleton className="h-5 w-3/4" />
-              <Skeleton className="h-5 w-2/3" />
-              <Skeleton className="h-5 w-1/2" />
-            </div>
-          ) : error ? (
-            <div className="text-sm text-destructive">{error}</div>
-          ) : ordered.length === 0 ? (
-            <div className="text-sm text-muted-foreground">
-              등록된 공지가 없습니다.
-            </div>
-          ) : (
-            <ScrollArea className="max-h-[60vh] pr-3">
-              <ul className="space-y-4">
-                {ordered.map((n) => {
-                  const cleanTitle = stripTitle(n.title);
-                  const meta = TYPE_META[n.type];
-                  return (
-                    <li
-                      key={n.id}
-                      className={cn(
-                        "rounded-xl border p-4 text-card-foreground",
-                        meta.cardClass
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="mt-1 flex items-center justify-between gap-2 w-full">
-                            <h3 className="text-base font-semibold leading-snug break-words flex items-center gap-2 min-w-0">
-                              <span className="mr-1" aria-hidden>
-                                {meta.emoji}
-                              </span>
-                              <span className="truncate">{cleanTitle}</span>
-                              {isToday(n.created_at) && (
-                                <span className="text-xs font-normal text-red-500/80 bg-red-100/60 dark:bg-red-900/40 dark:text-red-300 px-1.5 py-0.5 rounded-md">
-                                  new
-                                </span>
-                              )}
-                            </h3>
-                            <span className="text-xs text-muted-foreground whitespace-nowrap">
-                              {fmtDate(n.created_at)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap break-words">
-                        {n.content}
-                      </p>
-                    </li>
-                  );
-                })}
-              </ul>
-            </ScrollArea>
+    <div className={cn("inline-block", className)}>
+      {/* ✅ 트리거 버튼: PNG 아이콘/유령(ghost) 변형/원형 크기 동일 */}
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={() => setOpen(true)}
+        aria-label={buttonLabel}
+        className={cn("p-0 grid place-items-center")}
+        style={{ width: wrapperSize + 20, height: wrapperSize + 20 }}
+      >
+        <span className="relative inline-grid place-items-center">
+          {/* PNG 아이콘 */}
+          <img
+            src={iconSrc}
+            alt={buttonLabel}
+            className={cn(
+              "object-contain transition-transform duration-200",
+              "hover:scale-110 active:scale-95"
+            )}
+            style={{ width: imageSize, height: imageSize }}
+            draggable={false}
+            loading="lazy"
+            onLoad={() => setImgLoaded(true)}
+          />
+          {!imgLoaded && (
+            <Skeleton
+              className="rounded-full absolute"
+              style={{ width: imageSize, height: imageSize }}
+            />
           )}
+
+          {/* 읽지 않음 배지 (우상단 점 + ping) */}
+          {hasUnread && (
+            <>
+              <span
+                className="pointer-events-none absolute rounded-full bg-rose-500/60 animate-ping"
+                style={{
+                  top: -badgeOffset,
+                  right: -badgeOffset,
+                  width: dotSize,
+                  height: dotSize,
+                }}
+              />
+              <span
+                className="pointer-events-none absolute rounded-full bg-rose-500 shadow-[0_0_0_1px_rgba(255,255,255,0.9)]"
+                style={{
+                  top: -badgeOffset,
+                  right: -badgeOffset,
+                  width: dotSize,
+                  height: dotSize,
+                }}
+              />
+            </>
+          )}
+        </span>
+      </Button>
+
+      {/* ✅ 모달: NotificationDropdown 과 동일한 레이아웃/스크롤 전략 */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent
+          className={cn(
+            "p-0 border-0 overflow-hidden rounded-3xl",
+            "shadow-[0_10px_40px_-10px_rgba(0,0,0,0.25)]",
+            "sm:max-w-md w-[min(92vw,560px)]",
+            "max-h-[85svh]"
+          )}
+        >
+          <div className="relative flex flex-col h-[min(85svh,640px)]">
+            <DialogHeader className="px-5 pt-5 pb-3 shrink-0">
+              <DialogTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+                <span>📢 개발자 공지사항</span>
+              </DialogTitle>
+              <DialogDescription>
+                <span className="text-[13px]">최신 순 공지입니다.</span>
+                <span className="mx-2 text-muted-foreground">|</span>
+                <span className="text-[12px] text-muted-foreground inline-flex items-center gap-3 flex-wrap align-middle">
+                  <span>
+                    🛠️<span className="mx-1">:</span>업데이트
+                  </span>
+                  <span>
+                    🎉<span className="mx-1">:</span>이벤트
+                  </span>
+                  <span>
+                    ⚠️<span className="mx-1">:</span>주의
+                  </span>
+                </span>
+              </DialogDescription>
+            </DialogHeader>
+
+            <Separator className="opacity-60" />
+
+            {/* 스크롤 가능한 본문 */}
+            <div className="flex-1 min-h-0">
+              {loading ? (
+                <div className="px-5 py-4">
+                  <div className="space-y-4">
+                    <Skeleton className="h-6 w-40" />
+                    <Separator />
+                    <Skeleton className="h-5 w-3/4" />
+                    <Skeleton className="h-5 w-2/3" />
+                    <Skeleton className="h-5 w-1/2" />
+                  </div>
+                </div>
+              ) : error ? (
+                <div className="px-5 py-6 text-sm text-destructive">
+                  {error}
+                </div>
+              ) : ordered.length === 0 ? (
+                <div className="px-5 py-8 text-sm text-muted-foreground text-center">
+                  등록된 공지가 없습니다.
+                </div>
+              ) : (
+                <ScrollArea className="h-full px-1 py-2">
+                  <ul className="space-y-4 pr-3">
+                    {ordered.map((n) => {
+                      const cleanTitle = stripTitle(n.title);
+                      const meta = TYPE_META[n.type];
+                      return (
+                        <li
+                          key={n.id}
+                          className={cn(
+                            "rounded-xl border p-4 text-card-foreground",
+                            meta.cardClass
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="mt-1 flex items-center justify-between gap-2 w-full">
+                                <h3 className="text-base font-semibold leading-snug break-words flex items-center gap-2 min-w-0">
+                                  <span className="mr-1" aria-hidden>
+                                    {meta.emoji}
+                                  </span>
+                                  <span className="truncate">{cleanTitle}</span>
+                                  {isToday(n.created_at) && (
+                                    <span className="text-xs font-normal text-red-500/80 bg-red-100/60 dark:bg-red-900/40 dark:text-red-300 px-1.5 py-0.5 rounded-md">
+                                      new
+                                    </span>
+                                  )}
+                                </h3>
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                  {fmtDate(n.created_at)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap break-words">
+                            {n.content}
+                          </p>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </ScrollArea>
+              )}
+            </div>
+
+            <Separator className="opacity-60" />
+
+            {/* 하단 버튼(항상 보임) */}
+            <DialogFooter className="px-5 py-4 shrink-0">
+              <Button
+                variant="outline"
+                onClick={() => setOpen(false)}
+                className="rounded-lg px-5 shadow-sm hover:shadow transition-all"
+              >
+                닫기
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
