@@ -10,8 +10,6 @@ import type { CoupleSchedule, ScheduleType } from "@/utils/coupleScheduler";
 
 /* shadcn/ui */
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -33,13 +31,6 @@ interface Props {
   /** 목록 영역의 최대 높이(px or CSS 값). 넘치면 세로 스크롤 */
   maxHeight?: number | string;
 }
-
-/** 타입별 뱃지 색상 (shadcn Badge에 className으로 입힘) - 파스텔 톤으로 조정 */
-const TYPE_BADGE: Record<ScheduleType, string> = {
-  데이트: "bg-pink-50 text-rose-700 ring-rose-200",
-  기념일: "bg-amber-50 text-amber-700 ring-amber-200",
-  "기타 일정": "bg-sky-50 text-sky-700 ring-sky-200",
-};
 
 // KST 기준 YYYY-MM-DD
 function getLocalYmd(tz = "Asia/Seoul") {
@@ -77,16 +68,25 @@ function prettyKST(dateStr: string, tz = "Asia/Seoul") {
   }).format(dt);
 }
 
-/** 몽글 칩 (D-Day) */
-function DChip({ label }: { label: string }) {
+/** 타입별 D-Day 칩 스타일 (파스텔) */
+const DCHIP_STYLE: Record<ScheduleType, string> = {
+  데이트: "text-rose-700 bg-rose-50 ring-rose-200",
+  기념일: "text-amber-700 bg-amber-50 ring-amber-200",
+  "기타 일정": "text-sky-700 bg-sky-50 ring-sky-200",
+};
+
+/** 몽글 칩 (D-Day) — 타입별 색상 적용 */
+function DChip({ label, type }: { label: string; type: ScheduleType }) {
+  const color =
+    DCHIP_STYLE[type] ?? "text-neutral-700 bg-neutral-50 ring-neutral-200";
   return (
     <span
       className={cn(
         "inline-flex items-center gap-1 rounded-full px-2.5 py-1",
-        "text-[11px] font-bold text-rose-700",
-        "bg-rose-50 ring-1 ring-inset ring-rose-200",
+        "text-[11px] font-bold ring-1 ring-inset",
         "shadow-[0_1px_0_rgba(0,0,0,0.03)]",
-        "animate-[jelly_500ms_ease-in-out]"
+        "animate-[jelly_500ms_ease-in-out]",
+        color
       )}
     >
       {label}
@@ -154,7 +154,6 @@ export default function CoupleSchedulePreview({
       <Card
         className={cn(
           "relative overflow-hidden rounded-2xl border-none shadow-lg",
-          // 파스텔 그라데이션 + 소프트 글로우
           "bg-gradient-to-br from-rose-50 via-amber-50 to-sky-50",
           "shadow-[0_10px_30px_-12px_rgba(0,0,0,0.15)] ",
           className
@@ -226,13 +225,10 @@ export default function CoupleSchedulePreview({
               <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-white/70 to-transparent" />
 
               <ul className="w-full">
-                {items.map((it, idx) => {
+                {items.map((it) => {
                   const d = dday(it.schedule_date);
                   const dLabel =
                     d === 0 ? "D-Day" : d > 0 ? `D-${d}` : `D+${Math.abs(d)}`;
-                  const badgeClass =
-                    TYPE_BADGE[it.type] ??
-                    "bg-neutral-100 text-neutral-800 ring-neutral-200";
                   const pretty = prettyKST(it.schedule_date);
 
                   return (
@@ -243,33 +239,22 @@ export default function CoupleSchedulePreview({
                             to="/scheduler"
                             className={cn(
                               "flex w-full items-center justify-start gap-4 rounded-xl px-2.5 py-2",
-                              // 젤리 캡슐 스타일
                               "shadow-sm backdrop-blur-[2px] ",
                               "hover:bg-white/80 hover:shadow-[0_6px_20px_-10px_rgba(0,0,0,0.25)]",
                               "transition-all duration-200 hover:-translate-y-[1px] hover:scale-[1.01]"
                             )}
                             aria-label={`${it.schedule_date} ${it.title}로 이동`}
                           >
-                            {/* D-day 칩 */}
-                            <DChip label={dLabel} />
+                            {/* ✅ 타입별 색상으로 변하는 D-Day 칩 */}
+                            <DChip label={dLabel} type={it.type} />
 
-                            {/* 날짜 • 타입 (스티커 감성) */}
+                            {/* 날짜 • 타입(중립 텍스트) */}
                             <div className="flex shrink-0 items-center gap-2 text-xs text-[#7b6146]">
                               <span className="hidden sm:inline rounded-md bg-white/60 ring-1 ring-black/5 px-2 py-0.5">
                                 {pretty}
                               </span>
                               <span className="sm:hidden rounded-md bg-white/60 ring-1 ring-black/5 px-2 py-0.5">
                                 {it.schedule_date}
-                              </span>
-                              <span aria-hidden>•</span>
-                              <span
-                                className={cn(
-                                  "rounded-md px-1.5 py-0.5 text-[11px] leading-none",
-                                  "ring-1 ring-inset",
-                                  badgeClass
-                                )}
-                              >
-                                {it.type}
                               </span>
                             </div>
 

@@ -535,7 +535,7 @@ export default function QuestionPage() {
                         : "이곳에 답변을 입력해주세요..."
                     }
                   />
-                  <div className="mx-auto w-full md:w-[80%] lg:w-[70%] -mt-1 text-right text-[11px] text-amber-900/60">
+                  <div className="mx-auto w-full md:w-[90%] lg:w-[80%] -mt-1 text-right text-[11px] text-amber-900/60">
                     {answer.length.toLocaleString("ko-KR")} 자
                   </div>
                 </div>
@@ -543,7 +543,7 @@ export default function QuestionPage() {
             </CardContent>
 
             {/* 단일 버튼 + 상태 피드백 라인 */}
-            <CardFooter className="sticky bottom-0 bg-gradient-to-t from-[rgba(250,247,242,0.98)] to-transparent pt-6 pb-7 flex flex-col items-center gap-2">
+            <CardFooter className=" bg-gradient-to-t from-[rgba(250,247,242,0.98)] to-transparent pt-6 pb-7 flex flex-col items-end gap-2">
               <Button
                 onClick={onPrimaryClick}
                 disabled={saveStatus === "saving"}

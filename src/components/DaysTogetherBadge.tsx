@@ -35,7 +35,196 @@ type ActionKey = Extract<
   | "깜짝쪽지"
   | "어깨토닥이기"
   | "하트날리기"
+  | "노래 불러주기"
+  | "음침한 말 하기"
+  | "째려보기"
+  | "우울해하기"
 >;
+
+/** ⬇️ 이모지 액션 리스트 (NEW 포함) — 위로 올려서 state 초기화에 활용 */
+const ACTION_ITEMS: {
+  key: ActionKey;
+  label: string;
+  desc: string;
+  emoji: string;
+  bg: string;
+  ring: string;
+}[] = [
+  {
+    key: "콕찌르기",
+    label: "콕찌르기",
+    desc: "가볍게 관심 보내기",
+    emoji: "👉",
+    bg: "bg-amber-50 hover:bg-amber-100 border-amber-200",
+    ring: "focus-visible:ring-amber-300",
+  },
+  {
+    key: "뽀뽀하기",
+    label: "뽀뽀하기",
+    desc: "달달한 인사",
+    emoji: "💋",
+    bg: "bg-rose-50 hover:bg-rose-100 border-rose-200",
+    ring: "focus-visible:ring-rose-300",
+  },
+  {
+    key: "머리쓰다듬기",
+    label: "머리 쓰다듬기",
+    desc: "다정하게 토닥",
+    emoji: "🫶",
+    bg: "bg-slate-50 hover:bg-slate-100 border-slate-200",
+    ring: "focus-visible:ring-slate-300",
+  },
+  {
+    key: "안아주기",
+    label: "안아주기",
+    desc: "따뜻한 포옹",
+    emoji: "🤗",
+    bg: "bg-orange-50 hover:bg-orange-100 border-orange-200",
+    ring: "focus-visible:ring-orange-300",
+  },
+  {
+    key: "간지럽히기",
+    label: "간지럽히기",
+    desc: "웃음 버튼 ON",
+    emoji: "😂",
+    bg: "bg-sky-50 hover:bg-sky-100 border-sky-200",
+    ring: "focus-visible:ring-sky-300",
+  },
+
+  // ===== NEW/기존 혼합 (컬러 분산) =====
+  {
+    key: "응원하기",
+    label: "응원하기",
+    desc: "힘내! 파워 충전",
+    emoji: "💪",
+    bg: "bg-lime-50 hover:bg-lime-100 border-lime-200",
+    ring: "focus-visible:ring-lime-300",
+  },
+  {
+    key: "애교부리기",
+    label: "애교 부리기",
+    desc: "심장 녹이기",
+    emoji: "🥰",
+    bg: "bg-pink-50 hover:bg-pink-100 border-pink-200",
+    ring: "focus-visible:ring-pink-300",
+  },
+  {
+    key: "하이파이브",
+    label: "하이파이브",
+    desc: "찰칵! 팀워크",
+    emoji: "🙌",
+    bg: "bg-indigo-50 hover:bg-indigo-100 border-indigo-200",
+    ring: "focus-visible:ring-indigo-300",
+  },
+  {
+    key: "꽃 선물하기",
+    label: "꽃 선물하기",
+    desc: "깜짝 서프라이즈",
+    emoji: "💐",
+    bg: "bg-violet-50 hover:bg-violet-100 border-violet-200",
+    ring: "focus-visible:ring-violet-300",
+  },
+  {
+    key: "유혹하기",
+    label: "유혹하기",
+    desc: "치명적인 눈빛",
+    emoji: "😏",
+    bg: "bg-fuchsia-50 hover:bg-fuchsia-100 border-fuchsia-200",
+    ring: "focus-visible:ring-fuchsia-300",
+  },
+  {
+    key: "윙크하기",
+    label: "윙크하기",
+    desc: "시그널 전달",
+    emoji: "😉",
+    bg: "bg-emerald-50 hover:bg-emerald-100 border-emerald-200",
+    ring: "focus-visible:ring-emerald-300",
+  },
+  {
+    key: "사랑스럽게 쳐다보기",
+    label: "사랑스럽게 쳐다보기",
+    desc: "한 눈빛으로 K.O",
+    emoji: "👀",
+    bg: "bg-amber-50/70 hover:bg-amber-100/80 border-amber-200",
+    ring: "focus-visible:ring-amber-300",
+  },
+
+  // ===== 신규 5종 =====
+  {
+    key: "사랑고백 속삭이기",
+    label: "사랑고백 속삭이기",
+    desc: "귓속말로 두근두근",
+    emoji: "🤫",
+    bg: "bg-rose-50/70 hover:bg-rose-100/80 border-rose-200",
+    ring: "focus-visible:ring-rose-300",
+  },
+  {
+    key: "오구오구해주기",
+    label: "오구오구해주기",
+    desc: "귀여움 폭발 케어",
+    emoji: "🐻",
+    bg: "bg-amber-50/70 hover:bg-amber-100/80 border-amber-200",
+    ring: "focus-visible:ring-amber-300",
+  },
+  {
+    key: "깜짝쪽지",
+    label: "깜짝 쪽지",
+    desc: "쓱 건네는 메모",
+    emoji: "✉️",
+    bg: "bg-blue-50/70 hover:bg-blue-100/80 border-blue-200",
+    ring: "focus-visible:ring-blue-300",
+  },
+  {
+    key: "어깨토닥이기",
+    label: "어깨 토닥이기",
+    desc: "조용히 응원하기",
+    emoji: "🙌",
+    bg: "bg-slate-50/70 hover:bg-slate-100/80 border-slate-200",
+    ring: "focus-visible:ring-slate-300",
+  },
+  {
+    key: "하트날리기",
+    label: "하트 날리기",
+    desc: "사르르 애정 발사",
+    emoji: "🫰",
+    bg: "bg-pink-50/70 hover:bg-pink-100/80 border-pink-200",
+    ring: "focus-visible:ring-pink-300",
+  },
+
+  // ===== 신규 4종 =====
+  {
+    key: "노래 불러주기",
+    label: "노래 불러주기",
+    desc: "잔잔하게 세레나데",
+    emoji: "🎤",
+    bg: "bg-cyan-50 hover:bg-cyan-100 border-cyan-200",
+    ring: "focus-visible:ring-cyan-300",
+  },
+  {
+    key: "음침한 말 하기",
+    label: "음침한 말 하기",
+    desc: "음침하지?",
+    emoji: "🌚",
+    bg: "bg-stone-50 hover:bg-stone-100 border-stone-200",
+    ring: "focus-visible:ring-stone-300",
+  },
+  {
+    key: "째려보기",
+    label: "째려보기",
+    desc: "눈빛으로 경고",
+    emoji: "😒",
+    bg: "bg-red-50 hover:bg-red-100 border-red-200",
+    ring: "focus-visible:ring-red-300",
+  },
+  {
+    key: "우울해하기",
+    label: "우울해하기",
+    desc: "기운이 없어요",
+    emoji: "😔",
+    bg: "bg-zinc-50/70 hover:bg-zinc-100/80 border-zinc-200",
+    ring: "focus-visible:ring-zinc-300",
+  },
+];
 
 export default function DaysTogetherBadge() {
   const { couple, partnerId } = useCoupleContext();
@@ -75,28 +264,16 @@ export default function DaysTogetherBadge() {
   const [open, setOpen] = useState(false);
   const [sending, setSending] = useState<string | null>(null);
 
-  /** 클릭 이펙트 상태 */
+  /** ⬇️ 클릭 이펙트 상태 — ACTION_ITEMS 기반으로 자동 초기화 */
   const [activeEffects, setActiveEffects] = useState<
     Record<ActionKey, boolean>
-  >({
-    콕찌르기: false,
-    뽀뽀하기: false,
-    머리쓰다듬기: false,
-    안아주기: false,
-    간지럽히기: false,
-    응원하기: false,
-    애교부리기: false,
-    하이파이브: false,
-    "꽃 선물하기": false,
-    유혹하기: false,
-    윙크하기: false,
-    "사랑스럽게 쳐다보기": false,
-    "사랑고백 속삭이기": false,
-    오구오구해주기: false,
-    깜짝쪽지: false,
-    어깨토닥이기: false,
-    하트날리기: false,
-  });
+  >(
+    () =>
+      Object.fromEntries(ACTION_ITEMS.map((a) => [a.key, false])) as Record<
+        ActionKey,
+        boolean
+      >
+  );
 
   useEffect(() => {
     let alive = true;
@@ -137,157 +314,6 @@ export default function DaysTogetherBadge() {
     (user as any)?.email?.split?.("@")?.[0] ??
     "나";
   const partnerLabel = partnerNickname ?? "상대";
-
-  /** ⬇️ 이모지 액션 리스트 (NEW 포함) */
-  const ACTION_ITEMS: {
-    key: ActionKey;
-    label: string;
-    desc: string;
-    emoji: string;
-    bg: string;
-    ring: string;
-  }[] = [
-    {
-      key: "콕찌르기",
-      label: "콕찌르기",
-      desc: "가볍게 관심 보내기",
-      emoji: "👉",
-      bg: "bg-amber-50 hover:bg-amber-100 border-amber-200",
-      ring: "focus-visible:ring-amber-300",
-    },
-    {
-      key: "뽀뽀하기",
-      label: "뽀뽀하기",
-      desc: "달달한 인사",
-      emoji: "💋",
-      bg: "bg-rose-50 hover:bg-rose-100 border-rose-200",
-      ring: "focus-visible:ring-rose-300",
-    },
-    {
-      key: "머리쓰다듬기",
-      label: "머리 쓰다듬기",
-      desc: "다정하게 토닥",
-      emoji: "🫶",
-      bg: "bg-slate-50 hover:bg-slate-100 border-slate-200",
-      ring: "focus-visible:ring-slate-300",
-    },
-    {
-      key: "안아주기",
-      label: "안아주기",
-      desc: "따뜻한 포옹",
-      emoji: "🤗",
-      bg: "bg-orange-50 hover:bg-orange-100 border-orange-200",
-      ring: "focus-visible:ring-orange-300",
-    },
-    {
-      key: "간지럽히기",
-      label: "간지럽히기",
-      desc: "웃음 버튼 ON",
-      emoji: "😂",
-      bg: "bg-sky-50 hover:bg-sky-100 border-sky-200",
-      ring: "focus-visible:ring-sky-300",
-    },
-
-    // ===== NEW/기존 혼합 (컬러 분산) =====
-    {
-      key: "응원하기",
-      label: "응원하기",
-      desc: "힘내! 파워 충전",
-      emoji: "💪",
-      bg: "bg-lime-50 hover:bg-lime-100 border-lime-200",
-      ring: "focus-visible:ring-lime-300",
-    },
-    {
-      key: "애교부리기",
-      label: "애교 부리기",
-      desc: "심장 녹이기",
-      emoji: "🥰",
-      bg: "bg-pink-50 hover:bg-pink-100 border-pink-200",
-      ring: "focus-visible:ring-pink-300",
-    },
-    {
-      key: "하이파이브",
-      label: "하이파이브",
-      desc: "찰칵! 팀워크",
-      emoji: "🙌",
-      bg: "bg-indigo-50 hover:bg-indigo-100 border-indigo-200",
-      ring: "focus-visible:ring-indigo-300",
-    },
-    {
-      key: "꽃 선물하기",
-      label: "꽃 선물하기",
-      desc: "깜짝 서프라이즈",
-      emoji: "💐",
-      bg: "bg-violet-50 hover:bg-violet-100 border-violet-200",
-      ring: "focus-visible:ring-violet-300",
-    },
-    {
-      key: "유혹하기",
-      label: "유혹하기",
-      desc: "치명적인 눈빛",
-      emoji: "😏",
-      bg: "bg-fuchsia-50 hover:bg-fuchsia-100 border-fuchsia-200",
-      ring: "focus-visible:ring-fuchsia-300",
-    },
-    {
-      key: "윙크하기",
-      label: "윙크하기",
-      desc: "시그널 전달",
-      emoji: "😉",
-      bg: "bg-emerald-50 hover:bg-emerald-100 border-emerald-200",
-      ring: "focus-visible:ring-emerald-300",
-    },
-    {
-      key: "사랑스럽게 쳐다보기",
-      label: "사랑스럽게 쳐다보기",
-      desc: "한 눈빛으로 K.O",
-      emoji: "💘",
-      bg: "bg-amber-50/70 hover:bg-amber-100/80 border-amber-200",
-      ring: "focus-visible:ring-amber-300",
-    },
-
-    // ===== 신규 5종 =====
-    {
-      key: "사랑고백 속삭이기",
-      label: "사랑고백 속삭이기",
-      desc: "귓속말로 두근두근",
-      emoji: "💞",
-      bg: "bg-rose-50/70 hover:bg-rose-100/80 border-rose-200",
-      ring: "focus-visible:ring-rose-300",
-    },
-    {
-      key: "오구오구해주기",
-      label: "오구오구해주기",
-      desc: "귀여움 폭발 케어",
-      emoji: "🐻",
-      bg: "bg-amber-50/70 hover:bg-amber-100/80 border-amber-200",
-      ring: "focus-visible:ring-amber-300",
-    },
-    {
-      key: "깜짝쪽지",
-      label: "깜짝 쪽지",
-      desc: "쓱 건네는 메모",
-      emoji: "✉️",
-      bg: "bg-blue-50/70 hover:bg-blue-100/80 border-blue-200",
-      ring: "focus-visible:ring-blue-300",
-    },
-    {
-      key: "어깨토닥이기",
-      label: "어깨 토닥이기",
-      desc: "조용히 응원하기",
-      emoji: "🤍",
-      bg: "bg-slate-50/70 hover:bg-slate-100/80 border-slate-200",
-      ring: "focus-visible:ring-slate-300",
-    },
-    {
-      key: "하트날리기",
-      label: "하트 날리기",
-      desc: "사르르 애정 발사",
-      emoji: "🫰",
-      bg: "bg-pink-50/70 hover:bg-pink-100/80 border-pink-200",
-      ring: "focus-visible:ring-pink-300",
-    },
-  ];
 
   function triggerBurst(k: ActionKey) {
     setActiveEffects((s) => ({ ...s, [k]: false }));
