@@ -19,8 +19,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 
+/* ========= Lucide (직접 사용) ========= */
+import { type LucideIcon, ListChecks } from "lucide-react";
+
 /* ========= Font Awesome 아이콘을 Lucide 타입처럼 래핑 ========= */
-import { type LucideIcon } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faHandHoldingHeart,
@@ -79,6 +81,7 @@ type NavId =
   | "timeCapsule"
   | "memories"
   | "gloomy"
+  | "bucketList" // ✅ 추가
   | "farm"
   | "kitchen"
   | "exchange"
@@ -108,6 +111,9 @@ const NAV_DEFS: Record<NavId, NavDef> = {
   memories: { id: "memories", label: "추억조각", icon: PuzzlePiece },
   gloomy: { id: "gloomy", label: "음침한 방", icon: Ghost },
 
+  // ✅ 새 항목: 버킷리스트
+  bucketList: { id: "bucketList", label: "버킷리스트", icon: ListChecks },
+
   farm: { id: "farm", label: "농장", icon: Tractor },
   kitchen: { id: "kitchen", label: "조리실", icon: CookingPot },
   exchange: { id: "exchange", label: "교환소", icon: ArrowLeftRight },
@@ -130,6 +136,10 @@ const GUARDS: Record<
   timeCapsule: { requireLogin: true, requireCouple: true },
   memories: { requireLogin: true, requireCouple: true },
   gloomy: { requireLogin: true, requireCouple: true },
+
+  // ✅ 버킷리스트 접근 조건
+  bucketList: { requireLogin: true, requireCouple: true },
+
   farm: { requireLogin: true, requireCouple: true },
   kitchen: { requireLogin: true, requireCouple: true },
   exchange: { requireLogin: true, requireCouple: true },
@@ -148,6 +158,10 @@ const FALLBACK_ROUTE: Record<string, string> = {
   timeCapsule: "/timeCapsule",
   memories: "/memories",
   gloomy: "/gloomy",
+
+  // ✅ 버킷리스트 라우트
+  bucketList: "/bucketlist",
+
   farm: "/potatoField",
   kitchen: "/kitchen",
   exchange: "/exchange",
@@ -165,6 +179,7 @@ const DAILY_IDS = [
   "timeCapsule",
   "memories",
   "gloomy",
+  "bucketList", // ✅ “음침한 방” 옆(뒤)에 배치
 ] as const;
 
 const WORLD_IDS = [
@@ -392,7 +407,7 @@ export default function QuickMenu() {
           </DrawerTitle>
         </DrawerHeader>
 
-        {/* ✅ 모드 전환: 커스텀 캡슐 + 확장 Switch (크기/터치영역/접근성 개선) */}
+        {/* ✅ 모드 전환: 커스텀 캡슐 + 확장 Switch */}
         <div className="px-1 sm:px-2">
           <div
             role="group"
@@ -417,20 +432,16 @@ export default function QuickMenu() {
               우리의 일상
             </button>
 
-            {/* 중간 큰 스위치 (확대 + 썸 이동거리 재정의 + 키보드 접근성 유지) */}
+            {/* 중간 큰 스위치 */}
             <Switch
               checked={isWorld}
               onCheckedChange={(v) => setIsWorld(v)}
               aria-label="우리의 일상/감자링 월드 전환"
               className={cn(
-                // 크기 확장
                 "h-8 w-14",
-                // 트랙 색상
                 "data-[state=unchecked]:bg-emerald-200/80 data-[state=checked]:bg-indigo-300/80",
                 "transition-colors",
-                // 썸(thumb) 크기/위치 재정의
                 "[&>span]:h-6 [&>span]:w-6 [&>span]:translate-x-1 data-[state=checked]:[&>span]:translate-x-7",
-                // 테두리/그림자
                 "ring-1 ring-inset ring-black/5 shadow-sm"
               )}
             />
