@@ -5,8 +5,8 @@
  * FishingPage
  * - 배경이 전체를 채움
  * - 시간대별 배경: /fishing/{morning|noon|evening|night}.png
- * - 중앙 고정 카드: "일괄 낚시 설정" (Dialog → Card)
- * - 우하단: 미니 재료통 위젯(퀵-낚시) (현재 파일에서는 레이아웃 자리만, 위젯은 별도)
+ * - 중앙 고정 카드: "일괄 낚시 설정" (기본 접힘 → 버튼으로 열림, 카드 내부에서 접기 가능)
+ * - 우하단: 미니 재료통 위젯 자리 (별도 파일)
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -23,6 +23,7 @@ import WaitFishingDialog from "@/features/fishing/WaitFishingDialog";
 import { useBaitAndTanks } from "@/features/fishing/useBaitAndTanks";
 import { useBulkFishing } from "@/features/fishing/useBulkFishing";
 import { Card } from "@/components/ui/card";
+import { X } from "lucide-react";
 
 /* ───────────────── 시간대 판별 ─────────────────
    - morning: 05:00 ~ 11:59
@@ -33,7 +34,7 @@ import { Card } from "@/components/ui/card";
 function getTimeSegment(
   d: Date = new Date()
 ): "morning" | "noon" | "evening" | "night" {
-  const m = d.getHours() * 60 + d.getMinutes(); // minutes since midnight
+  const m = d.getHours() * 60 + d.getMinutes();
 
   const MORNING_START = 5 * 60; // 05:00 => 300
   const MORNING_END = 11 * 60 + 59; // 11:59 => 719
@@ -59,7 +60,7 @@ export default function FishingPage() {
     const id = window.setInterval(() => {
       const next = getTimeSegment();
       setSegment((prev) => (prev === next ? prev : next));
-    }, 30_000); // 30초마다 체크 (분 경계 ±지연 대비)
+    }, 30_000);
     return () => window.clearInterval(id);
   }, []);
 
@@ -144,6 +145,18 @@ export default function FishingPage() {
     }
   }
 
+  /* ───────── 중앙 카드 접힘/펼침 ───────── */
+  const [panelOpen, setPanelOpen] = useState(false);
+
+  // ESC로 접기
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setPanelOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   return (
     <div
       className={cn(
@@ -195,18 +208,51 @@ export default function FishingPage() {
       {/* 비네트 */}
       <div className="pointer-events-none absolute inset-0 [background:radial-gradient(60%_60%_at_50%_40%,rgba(0,0,0,0)_0%,rgba(0,0,0,.25)_100%)] md:[background:radial-gradient(55%_65%_at_50%_35%,rgba(0,0,0,0)_0%,rgba(0,0,0,.18)_100%)]" />
 
-      {/* ✅ 중앙 고정 카드 */}
+      {/* ✅ 중앙 카드 토글 버튼 (기본 접힘) */}
+      {!panelOpen && (
+        <button
+          type="button"
+          onClick={() => setPanelOpen(true)}
+          className={cn(
+            "fixed left-1/2 top-[78%] -translate-x-1/2 -translate-y-1/2 z-30",
+            "rounded-full px-4 py-2 text-sm font-medium",
+            "bg-white/90 backdrop-blur-md shadow-[0_18px_60px_-20px_rgba(0,0,0,.45)]",
+            "hover:bg-white transition active:scale-[0.98]"
+          )}
+          aria-expanded={panelOpen}
+          aria-controls="bulk-fishing-card"
+        >
+          🎣 미끼통 꺼내기
+        </button>
+      )}
+
+      {/* ✅ 중앙 고정 카드 (펼침 시) */}
       <div
+        id="bulk-fishing-card"
         className={cn(
-          "fixed left-1/2 top-[80%] -translate-x-1/2 -translate-y-1/2 z-30",
-          "w-[76vw] max-w-[400px]",
-          "sm:w-[72vw] sm:max-w-[460px]",
-          "md:w-[62vw] md:max-w-[520px]",
-          "lg:w-[46vw] lg:max-w-[560px]"
+          "fixed left-1/2 top-[78%] -translate-x-1/2 -translate-y-1/2 z-30",
+          "w-[76vw] max-w-[400px] sm:w-[72vw] sm:max-w-[460px] md:w-[62vw] md:max-w-[520px] lg:w-[46vw] lg:max-w-[560px]",
+          // 슬라이드/페이드 애니메이션
+          "transition-all duration-300",
+          panelOpen
+            ? "opacity-100 translate-y-[-50%] pointer-events-auto"
+            : "opacity-0 translate-y-[10%] pointer-events-none"
         )}
+        // role은 굳이 dialog가 아니므로 Card 컨테이너로 충분
       >
-        <Card className="rounded-3xl border bg-white/90 backdrop-blur-md shadow-[0_24px_80px_-24px_rgba(0,0,0,0.45)] p-3 md:p-5">
-          <div className="space-y-4">
+        <Card className="relative rounded-3xl border bg-white/90 backdrop-blur-md shadow-[0_24px_80px_-24px_rgba(0,0,0,0.45)] p-3 md:p-5">
+          {/* 접기 버튼 */}
+          <button
+            type="button"
+            onClick={() => setPanelOpen(false)}
+            className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/70 hover:bg-white text-slate-600 shadow-sm transition"
+            aria-label="패널 접기"
+            title="접기"
+          >
+            <X className="h-4 w-4" />
+          </button>
+
+          <div className="space-y-4 pt-4">
             {/* 상단: 미끼 잔량/구매 */}
             <BaitHeader
               loading={loading}
@@ -237,6 +283,7 @@ export default function FishingPage() {
           </div>
         </Card>
       </div>
+
       {/* 결과 모달 */}
       <BulkResultsModal
         open={bulk.open}
