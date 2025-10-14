@@ -17,6 +17,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import supabase from "@/lib/supabase";
 
+/* Lucide Icons */
+import { Megaphone, Wrench, PartyPopper, AlertTriangle } from "lucide-react";
+
 /* ===== 타입 & 유틸 ===== */
 export type NoticeType = "update" | "event" | "caution";
 export type Notice = {
@@ -27,25 +30,27 @@ export type Notice = {
   created_at: string; // ISO
 };
 
+type LucideIconType = React.ComponentType<React.SVGProps<SVGSVGElement>>;
+
 const TYPE_META: Record<
   NoticeType,
-  { label: string; emoji: string; cardClass: string }
+  { label: string; Icon: LucideIconType; cardClass: string }
 > = {
   update: {
     label: "업데이트",
-    emoji: "🛠️",
+    Icon: Wrench,
     cardClass:
       "bg-sky-50/70 border-sky-200 text-card-foreground dark:bg-sky-900/20 dark:border-sky-800",
   },
   event: {
     label: "이벤트",
-    emoji: "🎉",
+    Icon: PartyPopper,
     cardClass:
       "bg-violet-50/70 border-violet-200 text-card-foreground dark:bg-violet-900/20 dark:border-violet-800",
   },
   caution: {
     label: "주의",
-    emoji: "⚠️",
+    Icon: AlertTriangle,
     cardClass:
       "bg-amber-50/70 border-amber-200 text-card-foreground dark:bg-amber-900/20 dark:border-amber-800",
   },
@@ -241,33 +246,39 @@ export default function NoticeCenterFloatingButton({
         </span>
       </Button>
 
-      {/* ✅ 모달: NotificationDropdown 과 동일한 레이아웃/스크롤 전략 */}
+      {/* ✅ 모달: 반응형 비율 기반으로 더 넓게 */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
           className={cn(
             "p-0 border-0 overflow-hidden rounded-3xl",
             "shadow-[0_10px_40px_-10px_rgba(0,0,0,0.25)]",
-            "sm:max-w-md w-[min(92vw,560px)]",
+            // 👉 viewport 비율 기반 가변 너비 + 상한
+            // 모바일: 94vw / 태블릿: 88vw / 데스크톱: 72~56vw / 최대 980px
+            "w-[94vw] sm:w-[88vw] md:w-[72vw] lg:w-[56vw] xl:w-[48vw] 2xl:w-[42vw] max-w-[980px]",
             "max-h-[85svh]"
           )}
         >
-          <div className="relative flex flex-col h-[min(85svh,640px)]">
+          <div className="relative flex flex-col h-[min(85svh,680px)]">
             <DialogHeader className="px-5 pt-5 pb-3 shrink-0">
               <DialogTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-                <span>📢 개발자 공지사항</span>
+                <Megaphone className="w-5 h-5" aria-hidden />
+                <span>개발자 공지사항</span>
               </DialogTitle>
               <DialogDescription>
                 <span className="text-[13px]">최신 순 공지입니다.</span>
                 <span className="mx-2 text-muted-foreground">|</span>
-                <span className="text-[12px] text-muted-foreground inline-flex items-center gap-3 flex-wrap align-middle">
-                  <span>
-                    🛠️<span className="mx-1">:</span>업데이트
+                <span className="text-[12px] text-muted-foreground inline-flex items-center gap-2 flex-wrap align-middle">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Wrench className="w-4 h-4" aria-hidden />
+                    <span>업데이트</span>
                   </span>
-                  <span>
-                    🎉<span className="mx-1">:</span>이벤트
+                  <span className="inline-flex items-center gap-1.5">
+                    <PartyPopper className="w-4 h-4" aria-hidden />
+                    <span>이벤트</span>
                   </span>
-                  <span>
-                    ⚠️<span className="mx-1">:</span>주의
+                  <span className="inline-flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4" aria-hidden />
+                    <span>주의</span>
                   </span>
                 </span>
               </DialogDescription>
@@ -297,10 +308,11 @@ export default function NoticeCenterFloatingButton({
                 </div>
               ) : (
                 <ScrollArea className="h-full px-1 py-2">
-                  <ul className="space-y-4 pr-3">
+                  <ul className="space-y-1 pr-3">
                     {ordered.map((n) => {
                       const cleanTitle = stripTitle(n.title);
                       const meta = TYPE_META[n.type];
+                      const Icon = meta.Icon;
                       return (
                         <li
                           key={n.id}
@@ -313,13 +325,14 @@ export default function NoticeCenterFloatingButton({
                             <div className="min-w-0 flex-1">
                               <div className="mt-1 flex items-center justify-between gap-2 w-full">
                                 <h3 className="text-base font-semibold leading-snug break-words flex items-center gap-2 min-w-0">
-                                  <span className="mr-1" aria-hidden>
-                                    {meta.emoji}
-                                  </span>
+                                  <Icon
+                                    className="w-4 h-4 shrink-0"
+                                    aria-hidden
+                                  />
                                   <span className="truncate">{cleanTitle}</span>
                                   {isToday(n.created_at) && (
-                                    <span className="text-xs font-normal text-red-500/80 bg-red-100/60 dark:bg-red-900/40 dark:text-red-300 px-1.5 py-0.5 rounded-md">
-                                      new
+                                    <span className="text-xs font-medium text-red-600 bg-red-100/70 dark:bg-red-900/40 dark:text-red-300 px-1.5 py-0.5 rounded-md">
+                                      NEW
                                     </span>
                                   )}
                                 </h3>
