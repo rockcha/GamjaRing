@@ -4,12 +4,9 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import "@/lib/fontawesome";
 
 import AppHeader from "./AppHeader";
-
 import FloatingLeftRail from "../widgets/FloatingLeftRail";
-
 import QuickMenu from "../widgets/QuickMenu";
 import FloatingHomeButton from "../widgets/Cards/FloatingHomeButton";
-
 import HomeFabButton from "../widgets/HomeFabButton";
 
 type PageLayoutProps = {
@@ -26,7 +23,7 @@ export default function PageLayout({
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
-  // 경로 → 타이틀 매핑
+  // ✅ 경로 → 타이틀 매핑
   const titleMap: Record<string, string> = {
     "/main": "감자링",
     "/info": "감자링이란?",
@@ -45,6 +42,9 @@ export default function PageLayout({
     "/exchange": "교환소",
     "/miniGame": "미니게임",
     "/gloomy": "음침한 방",
+
+    // ✅ 추가된 버킷리스트
+    "/bucketlist": "버킷리스트",
   };
 
   // 경로 정규화(뒤 슬래시 제거)

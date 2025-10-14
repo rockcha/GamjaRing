@@ -33,6 +33,7 @@ import FragmentListPage from "./features/memories/FragmentListPage";
 import FragmentFormPage from "./features/memories/FragmentFormPage";
 import FragmentDetailPage from "./features/memories/FragmentDetailPage";
 import CookingPage from "./features/cooking/CookingPage";
+import BucketListPage from "./features/bucketlist/BucketListPage";
 
 export default function App() {
   return (
@@ -72,6 +73,7 @@ export default function App() {
               <Route path="exchange" element={<ExchangePage />} />
 
               <Route path="gloomy" element={<GloomyPage />} />
+              <Route path="bucketlist" element={<BucketListPage />} />
 
               <Route path="/memories" element={<FragmentListPage />} />
 
