@@ -34,6 +34,8 @@ import FragmentFormPage from "./features/memories/FragmentFormPage";
 import FragmentDetailPage from "./features/memories/FragmentDetailPage";
 import CookingPage from "./features/cooking/CookingPage";
 import BucketListPage from "./features/bucketlist/BucketListPage";
+import SavingProductPage from "./pages/SavingProductPage";
+import BankPage from "./features/savings/BankPage";
 
 export default function App() {
   return (
@@ -70,6 +72,7 @@ export default function App() {
               <Route path="oddEven" element={<OddEvenGamesPage />} />
               <Route path="stickerBoard" element={<StickerBoardPage />} />
               <Route path="miniGame" element={<MiniGamePage />} />
+              <Route path="bank" element={<BankPage />} />
               <Route path="exchange" element={<ExchangePage />} />
 
               <Route path="gloomy" element={<GloomyPage />} />

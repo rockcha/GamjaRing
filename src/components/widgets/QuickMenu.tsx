@@ -43,6 +43,7 @@ import {
   faGhost,
   faPuzzlePiece,
   faBolt,
+  faLandmark, // ✅ 은행 건물 아이콘
 } from "@fortawesome/free-solid-svg-icons";
 
 const makeFA =
@@ -70,6 +71,7 @@ const ArrowLeftRight = makeFA(faRightLeft) as unknown as LucideIcon;
 const Ghost = makeFA(faGhost) as unknown as LucideIcon;
 const PuzzlePiece = makeFA(faPuzzlePiece) as unknown as LucideIcon;
 const Bolt = makeFA(faBolt) as unknown as LucideIcon;
+const Landmark = makeFA(faLandmark) as unknown as LucideIcon; // ✅ 은행 건물
 
 /* ========= 내부 전용 네비 정의 ========= */
 type NavId =
@@ -81,14 +83,15 @@ type NavId =
   | "timeCapsule"
   | "memories"
   | "gloomy"
-  | "bucketList" // ✅ 추가
+  | "bucketList"
   | "farm"
   | "kitchen"
   | "exchange"
   | "aquarium"
   | "fishing"
   | "stickerBoard"
-  | "miniGame";
+  | "miniGame"
+  | "bank"; // ✅ 추가
 
 type NavDef = {
   id: NavId;
@@ -111,7 +114,6 @@ const NAV_DEFS: Record<NavId, NavDef> = {
   memories: { id: "memories", label: "추억조각", icon: PuzzlePiece },
   gloomy: { id: "gloomy", label: "음침한 방", icon: Ghost },
 
-  // ✅ 새 항목: 버킷리스트
   bucketList: { id: "bucketList", label: "버킷리스트", icon: ListChecks },
 
   farm: { id: "farm", label: "농장", icon: Tractor },
@@ -121,6 +123,9 @@ const NAV_DEFS: Record<NavId, NavDef> = {
   fishing: { id: "fishing", label: "낚시터", icon: Waves },
   stickerBoard: { id: "stickerBoard", label: "스티커보드", icon: Sticker },
   miniGame: { id: "miniGame", label: "미니게임", icon: Gamepad2 },
+
+  // ✅ 감자링 은행 (은행 건물 아이콘)
+  bank: { id: "bank", label: "감자링 은행", icon: Landmark },
 };
 
 /* 가드 & 라우팅 */
@@ -136,10 +141,7 @@ const GUARDS: Record<
   timeCapsule: { requireLogin: true, requireCouple: true },
   memories: { requireLogin: true, requireCouple: true },
   gloomy: { requireLogin: true, requireCouple: true },
-
-  // ✅ 버킷리스트 접근 조건
   bucketList: { requireLogin: true, requireCouple: true },
-
   farm: { requireLogin: true, requireCouple: true },
   kitchen: { requireLogin: true, requireCouple: true },
   exchange: { requireLogin: true, requireCouple: true },
@@ -147,6 +149,7 @@ const GUARDS: Record<
   fishing: { requireLogin: true, requireCouple: true },
   stickerBoard: { requireLogin: true, requireCouple: true },
   miniGame: { requireLogin: true, requireCouple: true },
+  bank: { requireLogin: true, requireCouple: true }, // ✅ 추가
 };
 
 const FALLBACK_ROUTE: Record<string, string> = {
@@ -158,10 +161,7 @@ const FALLBACK_ROUTE: Record<string, string> = {
   timeCapsule: "/timeCapsule",
   memories: "/memories",
   gloomy: "/gloomy",
-
-  // ✅ 버킷리스트 라우트
   bucketList: "/bucketlist",
-
   farm: "/potatoField",
   kitchen: "/kitchen",
   exchange: "/exchange",
@@ -169,6 +169,7 @@ const FALLBACK_ROUTE: Record<string, string> = {
   fishing: "/fishing",
   stickerBoard: "/stickerBoard",
   miniGame: "/miniGame",
+  bank: "/bank", // ✅ 추가
 };
 
 /* ========= 영역 구성 ========= */
@@ -179,13 +180,14 @@ const DAILY_IDS = [
   "timeCapsule",
   "memories",
   "gloomy",
-  "bucketList", // ✅ “음침한 방” 옆(뒤)에 배치
+  "bucketList",
 ] as const;
 
 const WORLD_IDS = [
   "farm",
   "kitchen",
   "exchange",
+  "bank", // ✅ 감자링 은행 추가
   "aquarium",
   "fishing",
   "stickerBoard",
@@ -325,6 +327,7 @@ export default function QuickMenu() {
       return NAV_DEFS[lastIconId].icon;
     }
     return isWorld ? Gamepad2 : Bolt;
+    // 월드 모드일 때 마지막이 은행이면 자동으로 Landmark가 뜸
   }, [lastIconId, isWorld]);
 
   const ids = isWorld ? WORLD_IDS : DAILY_IDS;
@@ -407,7 +410,7 @@ export default function QuickMenu() {
           </DrawerTitle>
         </DrawerHeader>
 
-        {/* ✅ 모드 전환: 커스텀 캡슐 + 확장 Switch */}
+        {/* ✅ 모드 전환 */}
         <div className="px-1 sm:px-2">
           <div
             role="group"
@@ -417,7 +420,6 @@ export default function QuickMenu() {
               "rounded-2xl bg-white/70 p-2 ring-1 ring-black/5 shadow-sm"
             )}
           >
-            {/* 왼쪽 라벨 전체 클릭 가능 */}
             <button
               type="button"
               onClick={() => setIsWorld(false)}
@@ -432,7 +434,6 @@ export default function QuickMenu() {
               우리의 일상
             </button>
 
-            {/* 중간 큰 스위치 */}
             <Switch
               checked={isWorld}
               onCheckedChange={(v) => setIsWorld(v)}
@@ -446,7 +447,6 @@ export default function QuickMenu() {
               )}
             />
 
-            {/* 오른쪽 라벨 전체 클릭 가능 */}
             <button
               type="button"
               onClick={() => setIsWorld(true)}
@@ -462,7 +462,6 @@ export default function QuickMenu() {
             </button>
           </div>
 
-          {/* 보조 설명 (터치 힌트) */}
           <p className="mx-auto mt-1.5 max-w-xs text-center text-[11px] text-muted-foreground">
             라벨을 눌러도 전환돼요 · 스위치는 크게 키워 터치가 쉬워졌어요
           </p>
