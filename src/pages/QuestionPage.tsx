@@ -582,7 +582,7 @@ export default function QuestionPage() {
           delay: 0.05,
         }}
         className={cn(
-          "pointer-events-none fixed right-5 bottom-5 sm:right-8 sm:bottom-8 z-40",
+          "pointer-events-none fixed left-5 bottom-5 sm:left-8 sm:bottom-8 z-40",
           "max-w-[78vw] sm:max-w-xs"
         )}
         aria-live="polite"

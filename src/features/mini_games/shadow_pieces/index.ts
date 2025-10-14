@@ -5,7 +5,7 @@ export const shadowPiecesMeta: MiniGameDef = {
   id: "shadow-pieces",
   title: "그림자 맞추기",
   icon: "🔍",
-  entryFee: 20,
+  entryFee: 15,
   howTo: [
     "이미지를 완전한 실루엣(검은 그림자)으로만 보여줘요.",
     "총 5스테이지, 각 스테이지마다 제한시간과 보기 개수가 달라집니다.",
