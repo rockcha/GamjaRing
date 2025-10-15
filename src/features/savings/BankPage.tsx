@@ -6,7 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, Sparkles, Info, SlidersHorizontal } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, Info, SlidersHorizontal } from "lucide-react";
 
 import type { Account, Product } from "./api";
 import { depositToday, fetchAccounts, fetchProducts, openAccount } from "./api";
@@ -34,8 +35,9 @@ export default function BankPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [openAmount, setOpenAmount] = useState<Record<number, string>>({});
   const [sortKey, setSortKey] = useState<SortKey>("term_asc");
+
+  const MAX_OPEN = 2;
 
   const loadAll = useCallback(async () => {
     if (!coupleId) return;
@@ -67,6 +69,9 @@ export default function BankPage() {
 
   const myActive = accounts.filter((a) => a.status === "active");
   const myOther = accounts.filter((a) => a.status !== "active");
+
+  const activeSavingCount = myActive.length;
+  const reachedLimit = activeSavingCount >= MAX_OPEN;
 
   const sortedProducts = useMemo(() => {
     const list = [...products];
@@ -101,20 +106,27 @@ export default function BankPage() {
     }
   }
 
-  async function handleOpen(p: Product) {
+  /** ✅ 프론트에서만 가입 차단 + 최저금액 보정 */
+  async function handleOpen(p: Product, dailyAmount: number) {
     if (!coupleId) return alert("커플 정보가 필요합니다.");
-    const val = parseFloat(openAmount[p.id] ?? "");
-    if (Number.isNaN(val)) return alert("일일 금액을 입력하세요.");
-    if (val < p.min_daily_amount)
-      return alert(`최소 ${p.min_daily_amount} 이상 납입해야 합니다.`);
+
+    if (reachedLimit) {
+      alert(
+        `활성 적금이 ${activeSavingCount}개입니다. 최대 ${MAX_OPEN}개까지만 가입할 수 있어요.`
+      );
+      return;
+    }
+
+    const min = p.min_daily_amount ?? 0;
+    const safe = Math.max(min, Math.floor(dailyAmount) || min);
+
     try {
       await openAccount({
         couple_id: coupleId,
         product_id: p.id,
-        daily_amount: val,
+        daily_amount: safe,
       });
-      setOpenAmount((prev) => ({ ...prev, [p.id]: "" }));
-      alert(`${p.name} 가입 완료! 납입은 내일부터 가능합니다.`);
+      alert(`${p.name} 가입 완료! (일일 납입액: ${safe.toLocaleString()})`);
       await loadAll();
     } catch (e: any) {
       alert(e?.message ?? "가입 실패");
@@ -124,11 +136,6 @@ export default function BankPage() {
   return (
     <div className="mx-auto max-w-6xl p-4 space-y-6">
       {/* 헤더 */}
-      <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">감자링 중앙은행</h1>
-      </header>
-
-      <RulesSection />
 
       {!coupleId && (
         <Alert>
@@ -144,7 +151,39 @@ export default function BankPage() {
         </Alert>
       )}
 
-      {/* 탭 (슬라이드 애니메이션 추가) */}
+      {/* 상단 상태 바 */}
+      <div className="rounded-xl border bg-card/60 p-4">
+        {/* 1줄: 제목 (가운데) */}
+        <header className="flex items-center justify-center">
+          <h1 className="text-xl md:text-2xl font-bold tracking-tight">
+            감자링 중앙은행
+          </h1>
+        </header>
+
+        {/* 2줄: 현재 활성 개수 + 배지 (가운데) */}
+        <div className="mt-2 flex items-center justify-center gap-3">
+          <div className="text-sm md:text-base">
+            현재 활성 적금: <b className="tabular-nums">{activeSavingCount}</b>{" "}
+            / {MAX_OPEN}
+          </div>
+          {reachedLimit ? (
+            <Badge variant="destructive" className="text-[11px] md:text-xs">
+              적금 추가 가입 불가
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-[11px] md:text-xs">
+              가입 가능
+            </Badge>
+          )}
+        </div>
+
+        {/* 규칙 섹션 */}
+        <div className="mt-3 ">
+          <RulesSection />
+        </div>
+      </div>
+
+      {/* 탭 */}
       <Tabs defaultValue="mine" className="w-full">
         <TabsList className="w-full md:w-auto grid grid-cols-2 rounded-xl bg-muted/50 p-1">
           <TabsTrigger
@@ -161,7 +200,7 @@ export default function BankPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* 내 적금 - 슬라이드 인 */}
+        {/* 내 적금 */}
         <TabsContent
           value="mine"
           className="mt-4 space-y-4 data-[state=active]:animate-in data-[state=active]:fade-in-50 data-[state=active]:slide-in-from-left-6"
@@ -220,7 +259,7 @@ export default function BankPage() {
           )}
         </TabsContent>
 
-        {/* 상품 둘러보기 - 정렬바 + 슬라이드 인 */}
+        {/* 상품 둘러보기 */}
         <TabsContent
           value="browse"
           className="mt-4 space-y-4 data-[state=active]:animate-in data-[state=active]:fade-in-50 data-[state=active]:slide-in-from-right-6"
@@ -269,11 +308,9 @@ export default function BankPage() {
               <ProductCard
                 key={p.id}
                 p={p}
-                value={openAmount[p.id] ?? ""}
-                onChange={(v) =>
-                  setOpenAmount((prev) => ({ ...prev, [p.id]: v }))
-                }
-                onOpen={(pp) => handleOpen(pp)}
+                onOpen={(pp, amt) => handleOpen(pp, amt)} // 금액까지 전달
+                activeSavingCount={activeSavingCount} // 프론트 차단 정보 전달
+                maxOpen={MAX_OPEN}
               />
             ))}
           </div>

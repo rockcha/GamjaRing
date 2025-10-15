@@ -2,62 +2,60 @@
 "use client";
 
 import * as React from "react";
+import { Button } from "@/components/ui/button";
 import {
-  Collapsible,
-  CollapsibleTrigger,
-  CollapsibleContent,
-} from "@/components/ui/collapsible";
-import { Card } from "@/components/ui/card";
-import {
-  CalendarPlus,
-  Clock,
-  ShieldX,
-  HelpCircle,
-  ChevronDown,
-} from "lucide-react";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { CalendarPlus, Clock, ShieldX, HelpCircle } from "lucide-react";
 
-/** 미니멀 · 담백한 도움말 섹션 */
 type RulesSectionProps = {
-  defaultOpen?: boolean; // 기본 접힘/펼침
+  /** 버튼 컨테이너에 전달할 클래스 (옵션) */
   className?: string;
+  /** 초기 오픈 여부 (디폴트 false) */
+  defaultOpen?: boolean;
 };
 
 export default function RulesSection({
-  defaultOpen = false,
   className,
+  defaultOpen = false,
 }: RulesSectionProps) {
   const [open, setOpen] = React.useState(defaultOpen);
 
   return (
     <section className={`w-full ${className ?? ""}`}>
-      <Collapsible open={open} onOpenChange={setOpen}>
-        <Card className="p-2">
-          {/* 헤더(전체 트리거) — 최소한의 라인/컬러 */}
-          <CollapsibleTrigger
-            className="flex w-full items-center justify-between rounded-md px-2 py-2 text-left hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-            aria-expanded={open}
-          >
-            <div className="flex items-center gap-2">
-              <HelpCircle className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium">도움말</span>
-            </div>
-            <ChevronDown
-              className={`w-4 h-4 text-muted-foreground transition-transform ${
-                open ? "rotate-180" : ""
-              }`}
-            />
-          </CollapsibleTrigger>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button variant="outline" className="gap-2">
+            <HelpCircle className="h-4 w-4" />
+            도움말
+          </Button>
+        </DialogTrigger>
 
-          {/* 콘텐츠 — 타임라인/테두리 제거, 컴팩트 리스트 */}
-          <CollapsibleContent asChild>
-            <ul role="list" className="mt-2 space-y-2">
+        {/* ✅ 반응형: 모바일는 거의 전폭, md/ld에서 점진적 확대 */}
+        <DialogContent className="w-[92vw] sm:max-w-md md:max-w-lg lg:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>적금 이용 안내</DialogTitle>
+            <DialogDescription>
+              납입 시작일, 시간, 보너스 조건을 확인하세요.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* 본문: 스크롤 여유를 위해 max-h 부여 */}
+          <div className="max-h-[65vh] overflow-y-auto pr-1">
+            <ul role="list" className="space-y-3">
               <RuleRow
                 icon={<CalendarPlus className="w-4 h-4" />}
                 title="납입 시작"
                 desc={
                   <>
-                    적금은 <b className="font-semibold">개설 다음날(D1)</b>부터
-                    시작합니다.
+                    적금은 <b className="font-semibold">개설 다음날(D1)</b>
+                    부터 시작합니다.
                   </>
                 }
               />
@@ -66,7 +64,7 @@ export default function RulesSection({
                 title="납입 시간"
                 desc={
                   <>
-                    매일 <b className="font-semibold">09:00–18:00 (KST)</b>{" "}
+                    매일 <b className="font-semibold">09:00–18:00 (KST)</b>
                     입니다.
                   </>
                 }
@@ -77,16 +75,21 @@ export default function RulesSection({
                 desc={
                   <>
                     <b className="font-semibold">미납일 발생 시</b> 만기{" "}
-                    <b className="font-semibold">
-                      완주 보너스를 수령할 수 없습니다.
-                    </b>
+                    <b className="font-semibold">완주 보너스</b>를 수령할 수
+                    없습니다.
                   </>
                 }
               />
             </ul>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              닫기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
@@ -103,11 +106,8 @@ function RuleRow({
   desc: React.ReactNode;
 }) {
   return (
-    <li className="flex items-start gap-3 rounded-lg px-2 py-1.5">
-      {/* 아이콘: 원형 배경/테두리 제거 → 더 미니멀 */}
-      <div className="mt-0.5 text-muted-foreground">{icon}</div>
-
-      {/* 텍스트: 제목 얇게, 핵심은 desc에서 굵게 */}
+    <li className="flex items-start gap-3 rounded-lg px-1 py-1.5">
+      <div className="mt-0.5 text-muted-foreground shrink-0">{icon}</div>
       <div className="min-w-0">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">
           {title}
