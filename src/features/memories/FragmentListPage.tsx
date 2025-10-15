@@ -100,13 +100,17 @@ function MaskingTape({
   );
 }
 
+/** =========================
+ * 새 PushPin: 정면 비스듬 + 3D 느낌, 내부그림자(클리핑 없음)
+ * needleTip 기준으로 배치되도록 오프셋 처리
+ * ========================*/
 function PushPin({
   color = "#d43c3c",
-  top = "-10px",
+  top = "-6px",
   left = "50%",
   rotate = 0,
   zIndex = 8,
-  size = 22,
+  size = 40, // 헤드가 또렷하도록 조금 키움
 }: {
   color?: string;
   top?: string;
@@ -115,34 +119,90 @@ function PushPin({
   zIndex?: number;
   size?: number;
 }) {
-  // 단순 SVG 핀
+  // SVG 크기와 바늘팁 기준점
+  const W = 40; // viewBox width
+  const H = 60; // viewBox height
+  const tipX = W / 2;
+  const tipY = H - 2; // 거의 맨 아래가 바늘팁
+
   return (
     <svg
       aria-hidden
       className="pointer-events-none absolute"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
+      width={W}
+      height={H}
+      viewBox={`0 0 ${W} ${H}`}
       style={{
-        transform: `translate(-50%, -50%) translateX(${left}) translateY(${top}) rotate(${rotate}deg)`,
+        // needle tip을 (left, top) 위치에 고정시키기 위한 보정
+        transform: `translate(calc(${left} - ${tipX}px), calc(${top} - ${tipY}px)) rotate(${rotate}deg)`,
         zIndex,
-        filter: "drop-shadow(0 6px 6px rgba(0,0,0,0.18))",
+        overflow: "visible",
       }}
     >
-      <path
-        d="M8 3C7.44772 3 7 3.44772 7 4V7.5C7 8.32843 6.32843 9 5.5 9H5C4.44772 9 4 9.44772 4 10V11C4 11.5523 4.44772 12 5 12H10.5V21C10.5 21.5523 10.9477 22 11.5 22H12.5C13.0523 22 13.5 21.5523 13.5 21V12H19C19.5523 12 20 11.5523 20 11V10C20 9.44772 19.5523 9 19 9H18.5C17.6716 9 17 8.32843 17 7.5V4C17 3.44772 16.5523 3 16 3H8Z"
-        fill={color}
+      {/* 부드러운 접촉 그림자 (핀 아래) */}
+      <ellipse cx={tipX} cy={tipY - 1} rx="10" ry="3" fill="rgba(0,0,0,0.18)" />
+
+      {/* 바늘(빛 반사 그라데이션) */}
+      <defs>
+        <linearGradient id="pin-needle" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#b9bcc2" />
+          <stop offset="50%" stopColor="#e6e8ec" />
+          <stop offset="100%" stopColor="#9aa0a8" />
+        </linearGradient>
+        <radialGradient id="pin-head" cx="50%" cy="40%" r="55%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9" />
+          <stop offset="35%" stopColor={color} stopOpacity="0.95" />
+          <stop offset="100%" stopColor={color} />
+        </radialGradient>
+      </defs>
+
+      {/* 바늘 몸통 */}
+      <rect
+        x={tipX - 1.1}
+        y={18}
+        width={2.2}
+        height={tipY - 20}
+        rx={1.1}
+        fill="url(#pin-needle)"
       />
-      <circle cx="12" cy="4" r="2.3" fill="#fff" opacity="0.4" />
+      {/* 바늘 팁 */}
+      <path
+        d={`M ${tipX - 1.2} ${tipY - 20} L ${tipX} ${tipY} L ${tipX + 1.2} ${
+          tipY - 20
+        } Z`}
+        fill="url(#pin-needle)"
+      />
+
+      {/* 헤드(정면 원형 + 약간의 타원 왜곡으로 비스듬 느낌) */}
+      <g transform="translate(0,0) skewX(-4)">
+        <circle cx={W / 2} cy={16} r={12} fill="url(#pin-head)" />
+        {/* 반사 하이라이트 */}
+        <ellipse
+          cx={W / 2 - 4}
+          cy={12}
+          rx={5}
+          ry={3}
+          fill="#fff"
+          opacity="0.6"
+        />
+        {/* 헤드 테두리/음영 */}
+        <circle
+          cx={W / 2}
+          cy={16}
+          r={12}
+          fill="none"
+          stroke="rgba(0,0,0,0.25)"
+          strokeOpacity="0.25"
+        />
+      </g>
     </svg>
   );
 }
 
 /* =========================
- * 코르크보드 배경
+ * 코르크보드 배경 (유지)
  * =======================*/
 function CorkboardBackdrop() {
-  // 코르크 질감: SVG 노이즈 + 점 패턴
   const noiseSvg =
     "url('data:image/svg+xml;utf8," +
     encodeURIComponent(
@@ -157,8 +217,11 @@ function CorkboardBackdrop() {
       <div
         className="fixed inset-0 z-[1]"
         style={{
-          background:
-            "radial-gradient(1200px 800px at 30% 10%, rgba(210,180,140,0.32), transparent 60%), radial-gradient(1600px 1000px at 70% 40%, rgba(205,170,125,0.28), transparent 60%)",
+          background: [
+            "radial-gradient(1200px 800px at 30% 10%, rgba(214,178,127,0.60), transparent 63%)",
+            "radial-gradient(1500px 1000px at 72% 42%, rgba(198,157,103,0.50), transparent 62%)",
+            "radial-gradient(1400px 900px at 50% 50%, transparent 60%, rgba(86,64,38,0.20) 100%)",
+          ].join(", "),
         }}
         aria-hidden
       />
@@ -192,7 +255,9 @@ function PolaroidOnCork({
   children: React.ReactNode;
   idSeed: string | number;
 }) {
-  const tilt = seededTiltDeg(String(idSeed), 2.6);
+  const tilt = seededTiltDeg(String(idSeed), 2.2);
+
+  // 테이프 컬러 랜덤
   const tapeVariant = (() => {
     const r = seededRandom(String(idSeed))();
     if (r < 0.33) return "beige";
@@ -200,9 +265,13 @@ function PolaroidOnCork({
     return "pink";
   })();
 
-  // 핀/테이프 약간 랜덤 배치
-  const pinLeft = `${40 + seededRandom(String(idSeed) + "pin")() * 20}%`;
-  const pinRot = (seededRandom(String(idSeed) + "pr")() - 0.5) * 20;
+  // 압정: 좌/우 상단 랜덤 + 색상 랜덤 + 각도 소량
+  const rnd = seededRandom(String(idSeed) + ":pin");
+  const cornerRight = rnd() > 0.5;
+  const pinLeft = cornerRight ? `${78 + rnd() * 6}%` : `${22 - rnd() * 6}%`; // 좌/우 상단 모서리 근처
+  const pinRot = (rnd() - 0.5) * 10; // -5° ~ 5°
+  const pinColors = ["#d43c3c", "#27b3a1", "#3366cc", "#e0b100", "#8b5cf6"];
+  const pinColor = pinColors[Math.floor(rnd() * pinColors.length)];
 
   const tapeLeft = `${8 + seededRandom(String(idSeed) + "tape")() * 20}%`;
   const tapeRot = (seededRandom(String(idSeed) + "tr")() - 0.5) * 10;
@@ -220,10 +289,11 @@ function PolaroidOnCork({
         left={tapeLeft}
         rotate={tapeRot}
       />
-      {/* 핀 */}
-      <PushPin left={pinLeft} rotate={pinRot} />
 
-      {/* 폴라로이드 카드를 벽에 붙인 느낌 */}
+      {/* 새 3D 압정(정면 비스듬) — 바늘팁이 사진 상단을 찍도록 top 좁게 */}
+      <PushPin left={pinLeft} top="-2px" rotate={pinRot} color={pinColor} />
+
+      {/* 폴라로이드 카드 (테두리/그림자 유지) */}
       <div
         className={cn(
           "relative rounded-[14px] p-2 bg-[linear-gradient(180deg,#fefefe_0%,#faf9f7_60%,#f6f3ee_100%)]",
@@ -365,27 +435,23 @@ function ListViewMasonry({
 }) {
   return (
     <div className="columns-1 sm:columns-2 lg:columns-3 gap-7 [column-fill:balance]">
-      {items.map((f) => {
-        return (
-          <div key={f.id} className="mb-7 break-inside-avoid">
-            <ImageBox
-              idSeed={f.id}
-              src={
-                f.cover_photo_path ? publicUrl(f.cover_photo_path) : undefined
-              }
-              alt={f.title ?? ""}
-              onOpen={() => onOpen(f.id)}
-              hearts={f.hearts ?? 0}
-            />
-          </div>
-        );
-      })}
+      {items.map((f) => (
+        <div key={f.id} className="mb-7 break-inside-avoid">
+          <ImageBox
+            idSeed={f.id}
+            src={f.cover_photo_path ? publicUrl(f.cover_photo_path) : undefined}
+            alt={f.title ?? ""}
+            onOpen={() => onOpen(f.id)}
+            hearts={f.hearts ?? 0}
+          />
+        </div>
+      ))}
     </div>
   );
 }
 
 /* =========================
- * ❤️ 하트 버스트 (클릭시에만, 은은하게/살짝 큼)
+ * ❤️ 하트 버스트
  * =======================*/
 function useInjectHeartStyles() {
   useEffect(() => {
@@ -433,12 +499,11 @@ function HeartBurst({ trigger }: { trigger: number }) {
   >([]);
 
   useEffect(() => {
-    // 클릭시에만 발동
     if (trigger <= 0) return;
-    const emojis = ["💗", "💕", "❤️"]; // 은은한 톤
+    const emojis = ["💗", "💕", "❤️"];
     const arr = Array.from({ length: 5 }).map(() => ({
-      left: Math.round(-28 + Math.random() * 56), // -28px ~ 28px
-      delay: Math.random() * 120, // ms
+      left: Math.round(-28 + Math.random() * 56),
+      delay: Math.random() * 120,
       emoji: emojis[Math.floor(Math.random() * emojis.length)],
     }));
     setParts(arr);
@@ -450,11 +515,9 @@ function HeartBurst({ trigger }: { trigger: number }) {
 
   return (
     <div className="pointer-events-none absolute left-1/2 bottom-6 -translate-x-1/2">
-      {/* 중앙 큰 하트 */}
       <span className="mem-heart-center" aria-hidden>
         💖
       </span>
-      {/* 주변 하트 */}
       {parts.map((p, i) => (
         <span
           key={`${trigger}-${i}`}
@@ -470,7 +533,7 @@ function HeartBurst({ trigger }: { trigger: number }) {
 }
 
 /* =========================
- * ✅ 메모 패드 (코르크 스타일) + 하트 버튼(크게)
+ * ✅ 메모 패드: 배경/보더 제거, 텍스트만 (벽에 쓴 느낌)
  * =======================*/
 function MemoPad({
   fragment,
@@ -487,10 +550,9 @@ function MemoPad({
   const [val, setVal] = useState(fragment.memo ?? "");
   const [saving, setSaving] = useState(false);
 
-  // 하트 로컬 상태
   const [hearts, setHearts] = useState<number>(fragment.hearts ?? 0);
   const [hearting, setHearting] = useState(false);
-  const [burstKey, setBurstKey] = useState(0); // 0에서 시작 → 첫 렌더 이펙트 X
+  const [burstKey, setBurstKey] = useState(0);
 
   const placeClass =
     outerSide === "left"
@@ -499,11 +561,6 @@ function MemoPad({
 
   const dateStr = formatDate(fragment.event_date);
 
-  // 코르크 노트 느낌의 배경
-  const notePaper =
-    "linear-gradient(180deg, rgba(255,252,246,0.96), rgba(253,248,238,0.96))";
-
-  // 하트 업
   const handleHeartUp = async () => {
     if (hearting) return;
     setHearting(true);
@@ -512,7 +569,7 @@ function MemoPad({
       await updateFragment(fragment.id, { hearts: next });
       setHearts(next);
       onHeartsChange?.(fragment.id, next);
-      setBurstKey((k) => k + 1); // 클릭 때만 이펙트
+      setBurstKey((k) => k + 1);
     } finally {
       setHearting(false);
     }
@@ -524,170 +581,128 @@ function MemoPad({
         "absolute top-1/2 -translate-y-1/2 w-[min(58ch,42vw)] md:w-[min(62ch,40vw)]",
         "flex flex-col gap-3"
       )}
-      style={{
-        ...(outerSide === "left" ? { left: 0 } : { right: 0 }),
-      }}
+      style={{ ...(outerSide === "left" ? { left: 0 } : { right: 0 }) }}
     >
-      <div
-        className={cn(
-          "relative rounded-2xl p-5 md:p-6",
-          "ring-1 ring-amber-200/40",
-          "shadow-[0_8px_28px_-16px_rgba(120,85,40,0.28)]"
-        )}
-        style={{ background: notePaper }}
-      >
-        {/* 하트 버스트 */}
+      {/* 하트 버스트 (텍스트 위 얹힘) */}
+      <div className="relative">
         <HeartBurst trigger={burstKey} />
+      </div>
 
-        {/* 상단 테이프 */}
-        <MaskingTape
-          variant="beige"
-          width="38%"
-          left="4%"
-          rotate={-4}
-          top="-14px"
-          zIndex={9}
-        />
-        <MaskingTape
-          variant="mint"
-          width="34%"
-          left="60%"
-          rotate={6}
-          top="-14px"
-          zIndex={9}
-        />
+      {/* 날짜/제목/본문 - 배경 없이 텍스트만 */}
+      <div className={cn("mb-2", placeClass)}>
+        <div className="text-[14px] md:text-[16px] tabular-nums text-stone-700 tracking-[0.02em]">
+          {dateStr}
+        </div>
+        <div
+          className={cn(
+            "mt-1 font-extrabold text-stone-950 font-hand",
+            "text-[28px] sm:text-[32px] md:text-[36px] leading-snug"
+          )}
+          style={{ textShadow: "0 0 1px rgba(0,0,0,0.04)" }}
+        >
+          {fragment.title || "제목 없음"}
+        </div>
+      </div>
 
-        <div className={cn("mb-3", placeClass)}>
-          <div className="text-[13px] md:text-[14px] tabular-nums text-stone-600 tracking-[0.03em]">
-            {dateStr}
+      {editing ? (
+        <>
+          <textarea
+            value={val}
+            onChange={(e) => setVal(e.target.value)}
+            placeholder="그날의 감정, 소소한 메모를 남겨보자…"
+            className={cn(
+              "w-full min-h-[170px] md:min-h-[190px] resize-y rounded-xl border",
+              "bg-white/80 focus:bg-white focus:outline-none",
+              "p-3 text-[15.5px] md:text-[17px] leading-relaxed",
+              "font-hand"
+            )}
+          />
+          <div
+            className={cn("mt-2 flex items-center gap-2 flex-wrap", placeClass)}
+          >
+            <Button
+              size="sm"
+              className="rounded-full"
+              onClick={async () => {
+                setSaving(true);
+                try {
+                  await updateFragment(fragment.id, { memo: val });
+                  onSaved?.(val);
+                  setEditing(false);
+                } finally {
+                  setSaving(false);
+                }
+              }}
+              disabled={saving}
+            >
+              {saving ? "저장 중…" : "메모 저장"}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="rounded-full"
+              onClick={() => setEditing(false)}
+              disabled={saving}
+            >
+              취소
+            </Button>
+
+            <Button
+              size="lg"
+              variant="outline"
+              className="rounded-full h-10 px-4 text-base gap-2"
+              onClick={handleHeartUp}
+              disabled={hearting}
+              title="하트 올리기"
+            >
+              <span className="text-xl" aria-hidden>
+                ❤️
+              </span>
+              <span className="font-semibold">하트</span>
+              <span className="ml-1 text-stone-500">({hearts})</span>
+            </Button>
           </div>
+        </>
+      ) : (
+        <>
           <div
             className={cn(
-              "mt-1 font-extrabold text-stone-900 font-hand",
-              "text-[26px] sm:text-[28px] md:text-[32px] leading-tight"
+              "whitespace-pre-wrap text-[15.5px] md:text-[17px] leading-relaxed",
+              "text-stone-900/95 font-hand"
             )}
-            style={{ textShadow: "0 0 1px rgba(0,0,0,0.06)" }}
           >
-            {fragment.title || "제목 없음"}
+            {val || "아직 메모가 없어요. ‘메모 수정’으로 기록해볼까요?"}
           </div>
-          <div className="mt-2 h-[10px] w-full bg-[radial-gradient(closest-side,rgba(120,85,40,0.25),transparent_70%)] opacity-35 rounded-full" />
-        </div>
+          <div
+            className={cn("mt-2 flex items-center gap-2 flex-wrap", placeClass)}
+          >
+            <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
+              메모 수정
+            </Button>
 
-        {editing ? (
-          <>
-            <textarea
-              value={val}
-              onChange={(e) => setVal(e.target.value)}
-              placeholder="그날의 감정, 소소한 메모를 남겨보자…"
-              className={cn(
-                "w-full min-h-[170px] md:min-h-[190px] resize-y rounded-xl border",
-                "bg-white/90 focus:bg-white focus:outline-none",
-                "p-3 text-[14.5px] md:text-[16px] leading-relaxed",
-                "font-hand"
-              )}
-            />
-            <div
-              className={cn(
-                "mt-2 flex items-center gap-2 flex-wrap",
-                placeClass
-              )}
+            <Button
+              size="lg"
+              variant="secondary"
+              className="rounded-lg h-10 px-4 text-base gap-2 bg-rose-50 text-rose-600 hover:bg-rose-100 shadow-sm"
+              onClick={handleHeartUp}
+              disabled={hearting}
+              title="하트 누르기"
             >
-              <Button
-                size="sm"
-                className="rounded-full"
-                onClick={async () => {
-                  setSaving(true);
-                  try {
-                    await updateFragment(fragment.id, { memo: val });
-                    onSaved?.(val);
-                    setEditing(false);
-                  } finally {
-                    setSaving(false);
-                  }
-                }}
-                disabled={saving}
-              >
-                {saving ? "저장 중…" : "메모 저장"}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="rounded-full"
-                onClick={() => setEditing(false)}
-                disabled={saving}
-              >
-                취소
-              </Button>
-
-              {/* ❤️ 큰 하트 버튼 */}
-              <Button
-                size="lg"
-                variant="outline"
-                className="rounded-full h-10 px-4 text-base gap-2"
-                onClick={handleHeartUp}
-                disabled={hearting}
-                title="하트 올리기"
-              >
-                <span className="text-xl" aria-hidden>
-                  ❤️
-                </span>
-                <span className="font-semibold">하트</span>
-
-                <span className="ml-1 text-stone-500">({hearts})</span>
-              </Button>
-            </div>
-          </>
-        ) : (
-          <>
-            <div
-              className={cn(
-                "whitespace-pre-wrap text-[14.5px] md:text-[16px] leading-relaxed",
-                "text-stone-800/95 font-hand"
-              )}
-            >
-              {val || "아직 메모가 없어요. ‘메모 수정’으로 기록해볼까요?"}
-            </div>
-            <div
-              className={cn(
-                "mt-2 flex items-center gap-2 flex-wrap",
-                placeClass
-              )}
-            >
-              <Button
-                size="sm"
-                variant="outline"
-                className="rounded-full"
-                onClick={() => setEditing(true)}
-              >
-                메모 수정
-              </Button>
-
-              {/* ❤️ 큰 하트 버튼 */}
-              <Button
-                size="lg"
-                variant="secondary"
-                className="rounded-full h-10 px-4 text-base gap-2 bg-rose-50 text-rose-600 hover:bg-rose-100 shadow-sm"
-                onClick={handleHeartUp}
-                disabled={hearting}
-                title="하트 누르기"
-              >
-                <span className="text-xl" aria-hidden>
-                  ❤️
-                </span>
-                <span className="font-semibold">하트</span>
-
-                <span className="ml-1 text-stone-500">({hearts})</span>
-              </Button>
-            </div>
-          </>
-        )}
-      </div>
+              <span className="text-xl" aria-hidden>
+                ❤️
+              </span>
+              <span className="font-semibold">하트</span>
+              <span className="ml-1 text-stone-500">({hearts})</span>
+            </Button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
 /* =========================
- * 🗓 타임라인 (코르크보드 섹션)
+ * 🗓 타임라인
  * =======================*/
 function TimelineLarge({
   items,
@@ -703,27 +718,26 @@ function TimelineLarge({
   const groups = useMemo(() => groupByYearMonth(items), [items]);
   return (
     <div className="relative">
-      {groups.map(({ ym, rows }) => {
-        return (
-          <MonthSection
-            key={ym}
-            ym={ym}
-            rows={
-              rows as (Fragment & {
-                memo?: string | null;
-                hearts?: number | null;
-              })[]
-            }
-            onOpen={onOpen}
-            onSaveMemo={onSaveMemo}
-            onHeartsChange={onHeartsChange}
-          />
-        );
-      })}
+      {groups.map(({ ym, rows }) => (
+        <MonthSection
+          key={ym}
+          ym={ym}
+          rows={
+            rows as (Fragment & {
+              memo?: string | null;
+              hearts?: number | null;
+            })[]
+          }
+          onOpen={onOpen}
+          onSaveMemo={onSaveMemo}
+          onHeartsChange={onHeartsChange}
+        />
+      ))}
     </div>
   );
 }
 
+/** 월 섹션: 배경/보더 제거, 텍스트만 */
 function MonthSection({
   ym,
   rows,
@@ -738,44 +752,26 @@ function MonthSection({
   onHeartsChange: (id: Fragment["id"], hearts: number) => void;
 }) {
   const monthNum = parseMonthFromYm(ym);
-  const theme = monthTheme(monthNum);
   const emoji = monthEmoji(monthNum);
 
-  // 월 배너를 “코르크에 붙인 라벨” 느낌으로
   return (
-    <section
-      className={cn("relative py-12", theme.sectionBg ?? "")}
-      id={ymToId(ym)}
-    >
-      <div className="mx-auto mb-8 w-[min(1100px,96%)]">
-        <div
-          className={cn(
-            "relative rounded-2xl px-6 py-5",
-            "bg-[linear-gradient(180deg,#fffefb_0%,#fef9f0_100%)] ring-1 ring-amber-200/60",
-            "shadow-[0_18px_36px_-22px_rgba(120,85,40,0.28)]"
-          )}
-        >
-          {/* 테이프 두 줄 */}
-          <MaskingTape variant="beige" width="42%" left="6%" rotate={-5} />
-          <MaskingTape variant="pink" width="32%" left="62%" rotate={8} />
-          <PushPin left="12%" rotate={-10} />
-          <PushPin left="88%" rotate={12} color="#4ea8a8" />
-
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-            <div className="flex items-center gap-3">
-              <div className="text-[20px] md:text-[24px] font-extrabold font-hand text-stone-900">
-                {monthNum}월
-              </div>
-              <div className="text-[12.5px] md:text-[13.5px] tabular-nums text-stone-600">
-                {ym}
-              </div>
+    <section className="relative py-10" id={ymToId(ym)}>
+      {/* 월 타이틀: 텍스트만 */}
+      <div className="mx-auto mb-6 w-[min(1100px,96%)]">
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-2">
+          <div className="flex items-baseline gap-3">
+            <div className="text-[26px] md:text-[32px] font-extrabold font-hand text-stone-950">
+              {monthNum}월
             </div>
-            <div className="text-[13.5px] md:text-[15px] text-stone-800/95 font-hand">
-              <span className="mr-1" aria-hidden>
-                {emoji}
-              </span>
-              {monthMessage(monthNum)}
+            <div className="text-[13px] md:text-[14px] tabular-nums text-stone-600">
+              {ym}
             </div>
+          </div>
+          <div className="text-[15px] md:text-[17px] text-stone-900/95 font-hand">
+            <span className="mr-1" aria-hidden>
+              {emoji}
+            </span>
+            {monthMessage(monthNum)}
           </div>
         </div>
       </div>
@@ -823,7 +819,7 @@ function MonthSection({
 }
 
 /* =========================
- * 월 내비게이터 "패널"(UI만) — viewport 고정은 포털에서 담당
+ * 월 내비게이터 (UI만) – 유지
  * =======================*/
 function MonthNavigatorPanel({ months }: { months: string[] }) {
   const parsed = useMemo(
@@ -879,7 +875,6 @@ function MonthNavigatorPanel({ months }: { months: string[] }) {
     <TooltipProvider delayDuration={150}>
       <div
         className={cn(
-          // 포털 래퍼가 fixed를 담당 → 여기서는 일반 컨테이너
           "flex flex-col items-center gap-2 max-h-[70vh] overflow-y-auto"
         )}
         tabIndex={0}
@@ -947,7 +942,7 @@ function MonthNavigatorPanel({ months }: { months: string[] }) {
 }
 
 /* =========================
- * 월 내비게이터 "포털" — 화면 기준 우측 중앙에 고정
+ * 월 내비게이터 포털
  * =======================*/
 function MonthNavigatorFixedPortal({
   months,
@@ -1016,45 +1011,7 @@ function parseMonthFromYm(ym: string) {
   return Number(m[2]);
 }
 
-/** 월별 보조 배경 */
-function monthTheme(m: number) {
-  switch (m) {
-    case 3:
-      return {
-        sectionBg:
-          "bg-[radial-gradient(200px_140px_at_20%_30%,rgba(255,182,193,0.08),transparent_65%)]",
-      };
-    case 5:
-      return {
-        sectionBg:
-          "bg-[radial-gradient(220px_140px_at_80%_30%,rgba(255,214,150,0.08),transparent_65%)]",
-      };
-    case 7:
-      return {
-        sectionBg:
-          "bg-[radial-gradient(220px_140px_at_20%_70%,rgba(255,230,120,0.08),transparent_65%)]",
-      };
-    case 9:
-      return {
-        sectionBg:
-          "bg-[radial-gradient(200px_140px_at_75%_35%,rgba(120,85,40,0.08),transparent_65%)]",
-      };
-    case 10:
-      return {
-        sectionBg:
-          "bg-[radial-gradient(220px_160px_at_30%_60%,rgba(255,160,80,0.09),transparent_70%)]",
-      };
-    case 12:
-      return {
-        sectionBg:
-          "bg-[radial-gradient(220px_140px_at_70%_65%,rgba(80,180,140,0.08),transparent_65%)]",
-      };
-    default:
-      return { sectionBg: "" };
-  }
-}
-
-/** 월별 이모지(1개 고정) */
+/** 월별 이모지/멘트 (유지) */
 function monthEmoji(m: number) {
   switch (m) {
     case 1:
@@ -1085,8 +1042,6 @@ function monthEmoji(m: number) {
       return "🗓️";
   }
 }
-
-/** 월별 멘트 */
 function monthMessage(m: number) {
   const map: Record<number, string> = {
     1: "새해의 첫 페이지, 우리 이야기도 새로 또렷해져요.",
@@ -1106,7 +1061,7 @@ function monthMessage(m: number) {
 }
 
 /* =========================
- * 빈/로딩 상태
+ * 빈/로딩 상태 (유지)
  * =======================*/
 function EmptyState({ onCreate }: { onCreate: () => void }) {
   return (
@@ -1204,14 +1159,18 @@ export default function FragmentListPage() {
       {/* 코르크보드 배경 */}
       <CorkboardBackdrop />
 
-      {/* 종이 래퍼 → 코르크 위에 올린 “앨범 페이지” */}
+      {/* 종이 래퍼 */}
       <div
         className={cn(
           "relative z-[2] w-full sm:w-[92%] lg:w-[86%] mx-auto max-w-7xl p-4 sm:p-6 space-y-6",
-          "rounded-3xl bg-[rgba(255,254,252,0.85)] ring-1 ring-amber-300/40",
+          "rounded-3xl ring-1 ring-amber-300/50",
           "shadow-[0_24px_60px_-24px_rgba(80,60,25,0.45)]",
           "backdrop-blur-[2px]"
         )}
+        style={{
+          background:
+            "linear-gradient(180deg, rgba(252,244,230,0.92) 0%, rgba(244,229,206,0.92) 60%, rgba(238,220,194,0.92) 100%)",
+        }}
       >
         {/* Sticky Toolbar */}
         <div
@@ -1281,7 +1240,6 @@ export default function FragmentListPage() {
                     )
                   }
                 />
-                {/* 월 네비는 포털로 렌더됨 */}
               </div>
             </TabsContent>
 
@@ -1295,7 +1253,7 @@ export default function FragmentListPage() {
         )}
       </div>
 
-      {/* 화면 기준 우측 중앙 고정 네비게이터 (포털) */}
+      {/* 월 네비 포털 */}
       <MonthNavigatorFixedPortal
         months={months}
         show={isTimeline && !loading && months.length > 0}
