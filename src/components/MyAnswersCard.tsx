@@ -241,8 +241,8 @@ export default function MyAnswersCard() {
   // 로딩 스켈레톤
   if (loading) {
     return (
-      <Card className="h-[540px] flex flex-col">
-        <CardContent className="flex-1 space-y-3 overflow-hidden">
+      <Card className="h-[540px] flex flex-col ">
+        <CardContent className="flex-1 space-y-3 overflow-hidden ">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="space-y-2">
               <Skeleton className="h-4 w-40" />
@@ -261,8 +261,8 @@ export default function MyAnswersCard() {
   // ─────────────────────────────────────────────────────────────
   return (
     <>
-      <div className="h-[540px] flex flex-col">
-        <CardContent className="flex-1 overflow-y-auto space-y-2">
+      <div className="h-[540px] flex flex-col ">
+        <CardContent className="flex-1 overflow-y-auto space-y-2 ">
           {currentAnswers.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               아직 내 답변이 없습니다.

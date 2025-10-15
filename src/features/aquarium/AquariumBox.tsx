@@ -29,14 +29,14 @@ type EntityRow = {
   name_ko: string | null;
   rarity: string | null;
   size: number | null;
-  swim_y: [number, number]; // 0=위, 100=아래 (항상 존재)
+  swim_y: [number, number];
   is_movable: boolean | null;
   price: number | null;
-  glow_color: string | null; // ← 추가: hue 키워드('none' 기본)
+  glow_color: string | null;
 };
 
 type InvRow = {
-  id?: string; // ★ 인벤토리 row id (안정 키)
+  id?: string;
   entity_id: string;
   created_at?: string;
 };
@@ -51,14 +51,17 @@ type RenderFish = {
   swimY: [number, number];
   isMovable: boolean | null;
   price: number | null;
-  glowColor: string | null; // ← 추가
+  glowColor: string | null;
+};
+
+type Ripple = {
+  id: number;
+  xPct: number;
+  yPct: number;
+  kind: "tap";
 };
 
 /* ---------- utils ---------- */
-function randInRange(min: number, max: number) {
-  if (max < min) [min, max] = [max, min];
-  return min + Math.random() * (max - min);
-}
 function clamp(v: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, v));
 }
@@ -128,13 +131,9 @@ function normalizeBand(
   if (a === b) b = Math.min(100, a + 1);
   return [a, b];
 }
-function isEntityRow(x: unknown): x is EntityRow {
-  return !!x && typeof (x as any).id === "string";
-}
 
-/* ======== 핵심 추가: 시드 랜덤 기본 슬롯 생성기 ======== */
+/* ======== 시드 랜덤 기본 슬롯 생성기 ======== */
 function seededRand(seedStr: string) {
-  // 간단한 FNV-1a + 섞기
   let h = 2166136261 >>> 0;
   for (let i = 0; i < seedStr.length; i++) {
     h ^= seedStr.charCodeAt(i);
@@ -307,8 +306,7 @@ export default function AquariumBox({
         .from("aquarium_entities")
         .select(
           "id, name_ko, rarity, size, swim_y, is_movable, price, glow_color"
-        ) // ← glow_color 추가
-        .in("id", ids);
+        );
       if (entErr) throw entErr;
 
       const map: Record<string, EntityRow> = {};
@@ -322,10 +320,10 @@ export default function AquariumBox({
           name_ko: (row as any).name_ko ?? null,
           rarity: (row as any).rarity ?? null,
           size: (row as any).size ?? null,
-          swim_y: parsed, // 항상 튜플
+          swim_y: parsed,
           is_movable: (row as any).is_movable ?? null,
           price: (row as any).price ?? null,
-          glow_color: (row as any).glow_color ?? null, // ← 저장
+          glow_color: (row as any).glow_color ?? null,
         };
       }
       setEntityMap(map);
@@ -361,12 +359,12 @@ export default function AquariumBox({
   const fishes = useMemo<RenderFish[]>(() => {
     return invRows
       .map((row) => {
-        if (!row.id) return null; // ★ id 없으면 스킵(안정 키 보장)
+        if (!row.id) return null; // 안정 키
         const ent = entityMap[row.entity_id];
         if (!ent) return null;
 
         return {
-          slotKey: row.id, // 안정 키
+          slotKey: row.id,
           entityId: ent.id,
           labelKo: ent.name_ko ?? ent.id,
           image: entityImagePath(ent),
@@ -375,26 +373,22 @@ export default function AquariumBox({
           swimY: ent.swim_y,
           isMovable: ent.is_movable ?? null,
           price: ent.price ?? null,
-          glowColor: ent.glow_color ?? null, // ← 전달
+          glowColor: ent.glow_color ?? null,
         };
       })
       .filter((x): x is RenderFish => x !== null);
   }, [invRows, entityMap]);
 
-  /* ======== 4) 초기 랜덤 배치 (페인트 전 확정) ======== */
+  /* ======== 4) 초기 랜덤 배치 ======== */
   useLayoutEffect(() => {
     if (fishes.length === 0) return;
     setSlots((prev) => {
       const next: Record<string, Slot> = { ...prev };
-
-      // 새 물고기만 시드 랜덤 좌표 생성
       for (const f of fishes) {
         if (!next[f.slotKey]) {
           next[f.slotKey] = seededInitialSlot(f.slotKey, f.swimY, f.size);
         }
       }
-
-      // 사라진 물고기 슬롯 정리(옵션)
       for (const k in next) {
         if (!fishes.some((ff) => ff.slotKey === k)) delete next[k];
       }
@@ -414,9 +408,9 @@ export default function AquariumBox({
     return () => clearTimeout(t);
   }, [fishes.length]);
 
-  /* ======== 5) 드래그 로직 (데스크탑 전용) ======== */
+  /* ======== 5) 드래그 로직 ======== */
   const pctFromClient = (clientX: number, clientY: number) => {
-    const el = stageRef.current; // ★ 여기 기준
+    const el = stageRef.current;
     if (!el) return { leftPct: 50, topPct: 50 };
     const rect = el.getBoundingClientRect();
     const x = clamp(((clientX - rect.left) / rect.width) * 100, 0, 100);
@@ -440,7 +434,6 @@ export default function AquariumBox({
       const stageRect = stageEl.getBoundingClientRect();
       const wrapRect = wrapEl.getBoundingClientRect();
 
-      // 현재 보이는 위치(애니메이션 포함)를 %로 환산
       const effLeftPct = clamp(
         ((wrapRect.left - stageRect.left) / stageRect.width) * 100,
         0,
@@ -452,24 +445,20 @@ export default function AquariumBox({
         100
       );
 
-      // 1) 먼저 슬롯을 "현재 보이는 위치"로 고정 (jump 방지 핵심)
       setSlots((prev) => ({
         ...prev,
         [slotKey]: { leftPct: effLeftPct, topPct: effTopPct },
       }));
 
-      // 2) 오프셋 계산 (마우스와 물고기 사이 간격)
       dragOffsetRef.current = {
         dxPct: effLeftPct - mx,
         dyPct: effTopPct - my,
       };
     } else {
-      // 폴백
       const s = slots[slotKey] ?? seededInitialSlot(slotKey, [30, 70], null);
       dragOffsetRef.current = { dxPct: s.leftPct - mx, dyPct: s.topPct - my };
     }
 
-    // 3) 드래그 시작
     dragKeyRef.current = slotKey;
     setDragKey(slotKey);
 
@@ -481,12 +470,10 @@ export default function AquariumBox({
   const onMove = (e: MouseEvent) => {
     const activeKey = dragKeyRef.current;
     if (!activeKey) return;
-
     const { leftPct: mx, topPct: my } = pctFromClient(e.clientX, e.clientY);
     const { dxPct, dyPct } = dragOffsetRef.current;
     const nx = clamp(mx + dxPct, 0, 100);
     const ny = clamp(my + dyPct, 0, 100);
-
     setSlots((prev) => ({
       ...prev,
       [activeKey]: { leftPct: nx, topPct: ny },
@@ -505,15 +492,110 @@ export default function AquariumBox({
       window.removeEventListener("mousemove", onMove);
       document.body.style.cursor = "";
     };
-    // eslint-disable-next-line react-hooks/exhaustive-comments
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* ======== 6) CSS-only Ripple (빈 공간 탭만) ======== */
+  const [ripples, setRipples] = useState<Ripple[]>([]);
+  const rippleIdRef = useRef(1);
+
+  const pdState = useRef<{
+    x: number;
+    y: number;
+    xPct: number;
+    yPct: number;
+    t: number;
+    stageDown: boolean;
+    moved: boolean;
+  } | null>(null);
+
+  const RIPPLE_TAP_MAX_MOVE = 8; // px
+  const TAP_MAX_DURATION = 320; // ms
+
+  const onStagePointerDown = (e: React.PointerEvent) => {
+    // FishSprite 위에선 리플 금지 → stage만 허용
+    if (e.target !== stageRef.current) return;
+
+    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    const xPct = clamp(((x - rect.left) / rect.width) * 100, 0, 100);
+    const yPct = clamp(((y - rect.top) / rect.height) * 100, 0, 100);
+
+    pdState.current = {
+      x,
+      y,
+      xPct,
+      yPct,
+      t: performance.now(),
+      stageDown: true,
+      moved: false,
+    };
+
+    (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+  };
+
+  const onStagePointerMove = (e: React.PointerEvent) => {
+    if (!pdState.current?.stageDown) return;
+    const dx = Math.abs(e.clientX - pdState.current.x);
+    const dy = Math.abs(e.clientY - pdState.current.y);
+    if (dx > RIPPLE_TAP_MAX_MOVE || dy > RIPPLE_TAP_MAX_MOVE) {
+      pdState.current.moved = true;
+    }
+  };
+
+  const onStagePointerUp = (e: React.PointerEvent) => {
+    const st = pdState.current;
+    pdState.current = null;
+    if (!st?.stageDown) return;
+
+    const dt = performance.now() - st.t;
+    const isTap = !st.moved && dt <= TAP_MAX_DURATION;
+
+    if (isTap) {
+      const id = rippleIdRef.current++;
+      setRipples((prev) => [
+        ...prev,
+        {
+          id,
+          xPct: st.xPct,
+          yPct: st.yPct,
+          kind: "tap",
+        },
+      ]);
+    }
+  };
+
+  const onRippleAnimEnd = (id: number) => {
+    setRipples((prev) => prev.filter((r) => r.id !== id));
+  };
 
   /* ======== render ======== */
   const showBgSkeleton = themeLoading || !bgUrl || !bgReady;
 
   return (
-    <Card className="rounded-2xl  bg-transparent shadow-none border-none">
+    <Card className="rounded-2xl bg-transparent shadow-none border-none">
       <CardContent className="p-0">
+        {/* CSS keyframes: 리플만 유지 (느리게/두껍게 조정) */}
+        <style>{`
+          @keyframes ring {
+            0%   { transform: translate(-50%, -50%) scale(0.12); opacity: .55; filter: blur(0); }
+            45%  { opacity: .44; }
+            100% { transform: translate(-50%, -50%) scale(1.2); opacity: 0; filter: blur(1.4px); }
+          }
+          @keyframes highlight {
+            0%   { opacity: .6; transform: translate(-50%, -50%) scale(0.6); }
+            100% { opacity: 0;   transform: translate(-50%, -50%) scale(1.3); }
+          }
+          @keyframes sparkle {
+            0%   { transform: translate(-50%, -50%) scale(.5); opacity:.75; }
+            100% { transform: translate(-50%, -50%) scale(1.6); opacity:0; }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .rpl-ring, .rpl-highlight, .rpl-sparkle { animation-duration: 160ms !important; }
+          }
+        `}</style>
+
         <div
           ref={containerRef}
           className={cn(
@@ -545,12 +627,12 @@ export default function AquariumBox({
             />
           )}
 
-          {/* shadcn Skeleton로 대체 */}
+          {/* Skeleton */}
           {showBgSkeleton && (
             <Skeleton className="absolute inset-0 z-0" aria-hidden />
           )}
 
-          {/* 탱크 없음 안내 (shadcn Alert) */}
+          {/* 탱크 없음 안내 */}
           {noTank && (
             <div className="absolute inset-0 z-10 grid place-items-center bg-black/10">
               <Alert className="w-fit rounded-lg bg-white/90 backdrop-blur border shadow">
@@ -562,8 +644,15 @@ export default function AquariumBox({
             </div>
           )}
 
-          {/* 물고기 레이어 */}
-          <div className="absolute inset-0" ref={stageRef}>
+          {/* 물고기 & 스테이지 */}
+          <div
+            className="absolute inset-0"
+            ref={stageRef}
+            // 빈 공간 탭 전용 핸들러 (어항 빈 공간에서만 리플)
+            onPointerDown={onStagePointerDown}
+            onPointerMove={onStagePointerMove}
+            onPointerUp={onStagePointerUp}
+          >
             {loading ? (
               <div
                 className="absolute inset-0 grid place-items-center"
@@ -579,7 +668,6 @@ export default function AquariumBox({
               </div>
             ) : (
               fishes.map((f) => {
-                // ★ 슬롯이 없으면 "즉시" 시드 랜덤 기본 슬롯 사용 → 50/50 프레임 노출 방지
                 const slot =
                   slots[f.slotKey] ??
                   seededInitialSlot(f.slotKey, f.swimY, f.size);
@@ -596,7 +684,7 @@ export default function AquariumBox({
                   swimY: f.swimY,
                   isMovable: f.isMovable,
                   price: f.price,
-                  glowColor: f.glowColor, // ← hue 전달
+                  glowColor: f.glowColor,
                 };
 
                 return (
@@ -608,12 +696,116 @@ export default function AquariumBox({
                     containerScale={fitToContainer ? containerScale : 1}
                     onMouseDown={onMouseDownSprite(f.slotKey)}
                     isDragging={isDragging}
-                    /** 드롭 후 그 자리에서 보브만 유지 (수직 왕복 off) */
                     lockTop={true}
                   />
                 );
               })
             )}
+
+            {/* 💧 CSS-only Ripple Overlay (느리게, 두껍게) */}
+            {ripples.map((r) => (
+              <div
+                key={r.id}
+                className="pointer-events-none absolute"
+                style={{
+                  left: `${r.xPct}%`,
+                  top: `${r.yPct}%`,
+                }}
+                onAnimationEnd={() => onRippleAnimEnd(r.id)}
+              >
+                {/* 중심 하이라이트 (조금 더 유지) */}
+                <span
+                  className="rpl-highlight block absolute"
+                  style={{
+                    left: "50%",
+                    top: "50%",
+                    width: "min(28vmin, 240px)",
+                    height: "min(28vmin, 240px)",
+                    borderRadius: "9999px",
+                    background:
+                      "radial-gradient(closest-side, rgba(255,255,255,0.75), rgba(255,255,255,0.0) 65%)",
+                    mixBlendMode: "screen",
+                    transform: "translate(-50%, -50%)",
+                    animation: "highlight 280ms ease-out forwards",
+                    filter: "blur(1px)",
+                  }}
+                />
+                {/* 작은 스파클 (조금 천천히) */}
+                <span
+                  className="rpl-sparkle block absolute"
+                  style={{
+                    left: "50%",
+                    top: "50%",
+                    width: "min(8vmin, 68px)",
+                    height: "min(8vmin, 68px)",
+                    borderRadius: "9999px",
+                    background:
+                      "radial-gradient(circle, rgba(210,255,255,0.9), rgba(255,255,255,0.0) 60%)",
+                    mixBlendMode: "screen",
+                    transform: "translate(-50%, -50%)",
+                    animation: "sparkle 480ms ease-out forwards",
+                    filter: "blur(0.4px)",
+                  }}
+                />
+
+                {/* 링 1 (두께 ↑, 지속 ↑) */}
+                <span
+                  className="rpl-ring block absolute"
+                  style={{
+                    left: "50%",
+                    top: "50%",
+                    width: "min(36vmin, 300px)",
+                    height: "min(36vmin, 300px)",
+                    borderRadius: "9999px",
+                    border: "4px solid rgba(255,255,255,0.7)",
+                    boxShadow:
+                      "0 0 0 2px rgba(160, 240, 255, 0.35), inset 0 0 18px rgba(255,255,255,0.2)",
+                    backdropFilter: "blur(0.6px)",
+                    mixBlendMode: "screen",
+                    transform: "translate(-50%, -50%) scale(0.12)",
+                    animation: "ring 900ms ease-out forwards",
+                  }}
+                />
+                {/* 링 2 (시안 틴트, 두께 ↑, 지속 ↑) */}
+                <span
+                  className="rpl-ring block absolute"
+                  style={{
+                    left: "50%",
+                    top: "50%",
+                    width: "min(44vmin, 360px)",
+                    height: "min(44vmin, 360px)",
+                    borderRadius: "9999px",
+                    border: "4px solid rgba(120,220,255,0.6)",
+                    boxShadow:
+                      "0 0 0 2px rgba(120, 220, 255, 0.3), inset 0 0 16px rgba(160,230,255,0.18)",
+                    backdropFilter: "blur(0.6px)",
+                    mixBlendMode: "screen",
+                    transform: "translate(-50%, -50%) scale(0.12)",
+                    animation: "ring 1000ms ease-out forwards",
+                    animationDelay: "60ms",
+                  }}
+                />
+                {/* 링 3 (대형, 두께 ↑, 지속 ↑) */}
+                <span
+                  className="rpl-ring block absolute"
+                  style={{
+                    left: "50%",
+                    top: "50%",
+                    width: "min(52vmin, 420px)",
+                    height: "min(52vmin, 420px)",
+                    borderRadius: "9999px",
+                    border: "3px solid rgba(100,200,240,0.42)",
+                    boxShadow:
+                      "0 0 0 1.5px rgba(140, 220, 255, 0.22), inset 0 0 12px rgba(200,240,255,0.12)",
+                    backdropFilter: "blur(0.4px)",
+                    mixBlendMode: "screen",
+                    transform: "translate(-50%, -50%) scale(0.12)",
+                    animation: "ring 1100ms ease-out forwards",
+                    animationDelay: "100ms",
+                  }}
+                />
+              </div>
+            ))}
           </div>
         </div>
       </CardContent>

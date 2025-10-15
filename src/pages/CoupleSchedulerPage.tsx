@@ -510,7 +510,7 @@ export default function CoupleSchedulerPage() {
         onPick={(yy, mm0) => setCursor(new Date(yy, mm0, 1))}
       />
 
-      <Card className="relative bg-white border shadow-sm pt-3 md:pt-4">
+      <Card className="relative bg-transparent border-0 shadow-none pt-3 md:pt-4">
         {/* 페이지 타이틀 영역 (센터) */}
         <div className="flex items-center justify-center px-4">
           <CardTitle className="text-base md:text-lg py-1">
