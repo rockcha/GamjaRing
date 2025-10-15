@@ -46,6 +46,9 @@ type Props = {
   value?: string; // 계산기 초기값 seed (옵션)
   onChange?: (v: string) => void;
   onOpen: (p: Product, dailyAmount: number) => void; // 가입 확정 (즉시)
+  /** 현재 가입 개수와 최대 허용 개수(기본 2) */
+  activeSavingCount?: number;
+  maxOpen?: number;
 };
 
 export default function ProductCard({
@@ -53,18 +56,20 @@ export default function ProductCard({
   value = "",
   onChange,
   onOpen,
+  activeSavingCount = 0,
+  maxOpen = 2,
 }: Props) {
   const minDaily = p.min_daily_amount ?? 0;
   const days = p.term_days;
 
-  /** ⚠️ 요구사항: apy_bps 그대로 퍼센트 표기/계산
-   *  5000 → 5% (표시), 계산 rate = 0.05
-   */
+  /** apy_bps 그대로 퍼센트 표기/계산 */
   const ratePctInt = Math.round((p.apy_bps ?? 0) / 100); // 2800 → 28
   const rate = (p.apy_bps ?? 0) / 10000; // 2800 → 0.28
 
   /** 정액 보너스: completion_bonus_bps 그대로 금액 */
   const bonusAmount = Math.max(0, p.completion_bonus_bps ?? 0);
+
+  const reachedLimit = activeSavingCount >= maxOpen;
 
   // 계산기 다이얼로그
   const [calcOpen, setCalcOpen] = useState(false);
@@ -82,9 +87,9 @@ export default function ProductCard({
     const total = principal + interest + bonus;
     const profit = interest + bonus;
 
-    // 비율(진행바)
     const denom = Math.max(total, 1);
     return {
+      A,
       principal,
       interest,
       bonus,
@@ -105,11 +110,16 @@ export default function ProductCard({
   const totalAnim = useCountUp(raw.total);
   const profitAnim = useCountUp(raw.profit);
 
+  /** 가입 핸들러: 입력이 비었거나 최저 미만이어도 minDaily로 가입 */
   const handleJoinFromCalc = () => {
-    const amt = Number(calcAmount);
-    if (!Number.isFinite(amt) || amt < minDaily || amt <= 0) return;
-    onOpen(p, amt); // ✅ 즉시 가입
-    setCalcOpen(false); // ✅ 다이얼로그 닫기
+    if (reachedLimit) return; // 한도면 가입 막기 (계산기는 열 수 있음)
+    const n = Number(calcAmount);
+    const safeAmt =
+      Number.isFinite(n) && n > 0
+        ? Math.max(minDaily, Math.floor(n))
+        : minDaily;
+    onOpen(p, safeAmt);
+    setCalcOpen(false);
   };
 
   const Tagline = p.tagline ? (
@@ -131,9 +141,12 @@ export default function ProductCard({
       >
         {/* 헤더 */}
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg md:text-xl font-extrabold tracking-tight">
-            {p.name}
-          </CardTitle>
+          <div className="flex items-start justify-between gap-3">
+            <CardTitle className="text-lg md:text-xl font-extrabold tracking-tight">
+              {p.name}
+            </CardTitle>
+            {/* ❌ 카드별 배지 제거 (페이지 상단에서만 표시) */}
+          </div>
           {Tagline}
         </CardHeader>
 
@@ -145,8 +158,8 @@ export default function ProductCard({
               <h3 className="text-sm font-semibold">상품 정보</h3>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <InfoTile emoji="⏳" title="기간" value={`${days}일`} />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <InfoTile emoji="⏳" title="기간(일수)" value={`${days}일`} />
               <InfoTile
                 emoji="💰"
                 title="일일 최소 납입"
@@ -169,9 +182,19 @@ export default function ProductCard({
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-[12px] text-muted-foreground">
-                일일 납입액을 바꿔 보며 만기 수령액을 미리 계산할 수 있어요.
+                일일 납입액과 일수({days}일)를 기준으로 만기 수령액을 미리
+                계산해요.
               </p>
-              <Button variant="outline" onClick={() => setCalcOpen(true)}>
+              <Button
+                variant="outline"
+                onClick={() => setCalcOpen(true)}
+                // ✅ 계산기는 항상 열 수 있게 유지 (한도여도 열림)
+                title={
+                  reachedLimit
+                    ? "가입은 제한되지만 계산은 가능합니다"
+                    : "계산기 열기"
+                }
+              >
                 계산기 열기
               </Button>
             </div>
@@ -179,46 +202,55 @@ export default function ProductCard({
         </CardContent>
       </Card>
 
-      {/* ── 계산기 다이얼로그 (여기서 바로 가입) ── */}
+      {/* ── 계산기 다이얼로그 ── */}
       <Dialog open={calcOpen} onOpenChange={setCalcOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="w-[92vw] sm:max-w-lg md:max-w-2xl">
           <DialogHeader>
             <DialogTitle>만기액 계산기</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4">
-            {/* 입력 */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">일일 납입액</label>
-              <div className="flex items-center gap-2">
-                <Input
-                  inputMode="numeric"
-                  value={Number.isFinite(calcAmount) ? String(calcAmount) : ""}
-                  onChange={(e) => {
-                    const raw = e.target.value.replace(/[^\d]/g, "");
-                    const n = Number(raw);
-                    setCalcAmount(Number.isFinite(n) ? n : 0);
-                    onChange?.(raw);
-                  }}
-                  placeholder={`${fmt(minDaily)} 이상`}
-                  className={`w-[180px] ${
-                    calcAmount < minDaily ? "ring-1 ring-destructive/40" : ""
-                  }`}
-                />
-                <span className="text-[12px] text-muted-foreground">
-                  최저 <b>{fmt(minDaily)}</b>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* 좌측: 입력 & 핵심 요약 */}
+            <div className="space-y-4">
+              {/* 입력 */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">일일 납입액</label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    inputMode="numeric"
+                    value={
+                      Number.isFinite(calcAmount) ? String(calcAmount) : ""
+                    }
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/[^\d]/g, "");
+                      const n = Number(raw);
+                      setCalcAmount(Number.isFinite(n) ? n : 0);
+                      onChange?.(raw);
+                    }}
+                    placeholder={`${fmt(minDaily)} 이상`}
+                    className="w-full md:w-[200px]"
+                  />
+                  <span className="text-[12px] text-muted-foreground whitespace-nowrap">
+                    최저 <b>{fmt(minDaily)}</b>
+                  </span>
+                </div>
+                {Number(calcAmount) < minDaily && (
+                  <p className="text-[12px] text-muted-foreground">
+                    입력이 없거나 최저 미만이면 <b>{fmt(minDaily)}</b>로
+                    가입돼요.
+                  </p>
+                )}
+              </div>
+
+              {/* A × 일수 = 원금 요약 */}
+              <div className="rounded-lg border bg-background p-3 text-sm flex items-center justify-between">
+                <span className="text-muted-foreground">원금 계산</span>
+                <span className="tabular-nums font-semibold">
+                  {fmt(raw.A)} × {days}일 = {fmt(principalAnim)}
                 </span>
               </div>
-              {calcAmount < minDaily && (
-                <p className="text-[12px] text-destructive">
-                  최저 납입액 이상 입력해 주세요.
-                </p>
-              )}
-            </div>
 
-            {/* 결과 카드 */}
-            <div className="rounded-xl border bg-card p-4 shadow-sm space-y-4">
-              {/* 상단 Big KPI (애니메이션) */}
+              {/* 상단 Big KPI */}
               <div className="text-center space-y-1">
                 <div className="text-[11px] text-muted-foreground">
                   만기 수령액
@@ -230,8 +262,11 @@ export default function ProductCard({
                   이자 포함
                 </div>
               </div>
+            </div>
 
-              {/* 3색 진행바: 원금 / 이자 / 보너스 (부드러운 width 전환) */}
+            {/* 우측: 분해 구성 + KPI들 */}
+            <div className="space-y-4">
+              {/* 3색 진행바 */}
               <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted relative">
                 <span
                   className="absolute left-0 top-0 h-full bg-primary/70"
@@ -260,13 +295,8 @@ export default function ProductCard({
                   title={`보너스 ${fmt(bonusAnim)}`}
                 />
               </div>
-              <div className="mt-1 grid grid-cols-3 text-[11px] text-muted-foreground">
-                <span className="text-left">원금 {fmt(principalAnim)}</span>
-                <span className="text-center">이자 {fmt(interestAnim)}</span>
-                <span className="text-right">보너스 {fmt(bonusAnim)}</span>
-              </div>
 
-              {/* KPI 3열 (애니메이션 숫자) */}
+              {/* 3열 KPI */}
               <div className="grid grid-cols-3 gap-2 text-center">
                 <Kpi label="만기 수령액" value={fmt(totalAnim)} strong />
                 <Kpi label="원금(총 납입)" value={fmt(principalAnim)} />
@@ -287,17 +317,26 @@ export default function ProductCard({
             </div>
           </div>
 
-          {/* 버튼: [가입하기] [닫기] — 가입하기를 왼쪽에 배치 */}
+          {/* 가입 제한 안내 (다이얼로그 내부 안내 문구만) */}
+          {reachedLimit && (
+            <div className="mt-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-[12px] text-destructive">
+              현재 활성 적금이 {activeSavingCount}/{maxOpen} 입니다. 추가 가입은
+              제한됩니다.
+            </div>
+          )}
+
+          {/* 버튼: 가입하기/닫기 — 가입만 막음 */}
           <DialogFooter className="flex w-full items-center justify-between gap-2">
             <Button
               onClick={handleJoinFromCalc}
-              disabled={
-                !Number.isFinite(calcAmount) ||
-                calcAmount < minDaily ||
-                calcAmount <= 0
+              disabled={reachedLimit}
+              title={
+                reachedLimit
+                  ? `신규 가입 불가 (${activeSavingCount}/${maxOpen})`
+                  : "가입하기"
               }
             >
-              가입하기
+              {reachedLimit ? `가입 한도 초과 (${maxOpen}개)` : "가입하기"}
             </Button>
             <Button variant="outline" onClick={() => setCalcOpen(false)}>
               닫기
@@ -321,12 +360,7 @@ function InfoTile({
   value: string;
 }) {
   return (
-    <div
-      className="
-      rounded-xl ring-1 ring-border bg-background/60 backdrop-blur-[2px]
-      p-3 shadow-[0_1px_0_rgba(0,0,0,0.02)]
-    "
-    >
+    <div className="rounded-xl ring-1 ring-border bg-background/60 backdrop-blur-[2px] p-3 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
       <div className="flex items-center gap-2 text-muted-foreground">
         <span className="text-base">{emoji}</span>
         <span className="text-[12px] font-semibold">{title}</span>
