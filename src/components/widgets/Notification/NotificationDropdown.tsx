@@ -22,17 +22,31 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
+/* Tooltip — PartnerActionButton과 동일 패턴 */
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
 export default function NotificationDropdown({
   onUnreadChange,
   className,
   caption = "알림",
-  /** 트리거 아이콘 크기(px). 기본 48 */
-  iconSize = 48,
+  /** PartnerActionButton과 동일한 크기 시스템 */
+  size = "icon",
+  /** 트리거 이모지 (기본 🔔) */
+  emoji = "🔔",
+  /** 트리거 이모지 실제 폰트 크기(px) — icon일 때 */
+  emojiSizePx = 22,
 }: {
   onUnreadChange?: (count: number) => void;
   className?: string;
   caption?: string;
-  iconSize?: number;
+  size?: "icon" | "sm" | "default" | "lg";
+  emoji?: string;
+  emojiSizePx?: number;
 }) {
   const { user } = useUser();
   const uid = user?.id ?? null;
@@ -89,101 +103,75 @@ export default function NotificationDropdown({
     }
   };
 
-  // 아이콘 리소스
-  const iconSrc = "/bell.png";
-  const [imgLoaded, setImgLoaded] = useState(false);
-
-  // 파생 크기
-  const wrapperSize = Math.max(40, iconSize); // 원형 내부 이미지 크기 기준
-  const imageSize = Math.round(wrapperSize * 0.9);
-  const dotSize = Math.max(10, Math.round(wrapperSize * 0.22));
-  const badgeOffset = Math.max(4, Math.round(wrapperSize * 0.12));
-
   return (
     <>
-      {/* ✅ 고정/포털 제거: 배치한 위치에 그대로 렌더되는 트리거 버튼 */}
-      <Button
-        type="button"
-        variant="ghost"
-        onClick={() => handleOpenChange(true)}
-        aria-label={caption}
-        className={cn(
-          "p-0 ",
-
-          "grid place-items-center",
-          className
-        )}
-        style={{
-          width: wrapperSize + 20,
-          height: wrapperSize + 20,
-        }}
-      >
-        <span className="relative inline-grid place-items-center">
-          {/* 아이콘 */}
-          <img
-            src={iconSrc}
-            alt={caption}
-            className={cn(
-              "object-contain transition-transform duration-200",
-              "hover:scale-110 active:scale-95"
-            )}
-            style={{ width: imageSize, height: imageSize }}
-            draggable={false}
-            loading="lazy"
-            onLoad={() => setImgLoaded(true)}
-          />
-          {!imgLoaded && (
-            <Skeleton
-              className="rounded-full absolute"
-              style={{ width: imageSize, height: imageSize }}
-            />
-          )}
-
-          {/* 배지 (우상단) */}
-          {hasUnreadBadge && (
-            <>
-              <span
-                className="pointer-events-none absolute rounded-full bg-rose-500/60 animate-ping"
-                style={{
-                  top: -badgeOffset,
-                  right: -badgeOffset,
-                  width: dotSize,
-                  height: dotSize,
-                }}
-              />
-              <span
-                className="pointer-events-none absolute rounded-full bg-rose-500 shadow-[0_0_0_1px_rgba(255,255,255,0.9)]"
-                style={{
-                  top: -badgeOffset,
-                  right: -badgeOffset,
-                  width: dotSize,
-                  height: dotSize,
-                }}
-              />
-              <Badge
-                variant="destructive"
-                className="pointer-events-none absolute px-1 py-0 h-4 min-w-[1.2rem] text-[10px] leading-4 rounded-full"
-                style={{
-                  right: -badgeOffset,
-                  bottom: -Math.max(6, Math.round(wrapperSize * 0.14)),
-                }}
+      {/* ✅ 트리거 버튼: PartnerActionButton과 동일 + Tooltip "알림" */}
+      <TooltipProvider delayDuration={120}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={cn("inline-flex", className)}>
+              <Button
+                type="button"
+                variant="ghost"
+                size={size}
+                onClick={() => handleOpenChange(true)}
+                aria-label={caption}
+                className={cn(
+                  "relative h-10 w-10 transition-all",
+                  "grid place-items-center",
+                  "before:pointer-events-none before:absolute before:inset-0",
+                  "before:opacity-0 hover:before:opacity-100 before:transition-opacity",
+                  "before:bg-[radial-gradient(120px_80px_at_50%_-20%,rgba(255,182,193,0.35),transparent_60%)]",
+                  { "w-auto px-3": size !== "icon" }
+                )}
               >
-                {computedUnreadCount > 99 ? "99+" : computedUnreadCount}
-              </Badge>
-            </>
-          )}
-        </span>
-      </Button>
+                {/* 🔔 이모지 — icon일 때 22px, 나머지 18px */}
+                <span
+                  style={{ fontSize: size === "icon" ? emojiSizePx : 18 }}
+                  className={
+                    size !== "icon"
+                      ? "font-medium leading-none"
+                      : "leading-none"
+                  }
+                >
+                  {emoji}
+                </span>
+
+                {/* 읽지 않음 점 + 숫자 뱃지 (40x40 기준 위치, non-icon도 자연스럽게 배치) */}
+                {hasUnreadBadge && (
+                  <>
+                    <span
+                      className="pointer-events-none absolute -top-1.5 -right-1.5 h-2.5 w-2.5 rounded-full bg-rose-500/60 animate-ping"
+                      aria-hidden
+                    />
+                    <span
+                      className="pointer-events-none absolute -top-1.5 -right-1.5 h-2.5 w-2.5 rounded-full bg-rose-500 shadow-[0_0_0_1px_rgba(255,255,255,0.9)]"
+                      aria-hidden
+                    />
+                    <Badge
+                      variant="destructive"
+                      className="pointer-events-none absolute px-1 py-0 h-4 min-w-[1.2rem] text-[10px] leading-4 rounded-full -right-1.5 -bottom-1.5"
+                    >
+                      {computedUnreadCount > 99 ? "99+" : computedUnreadCount}
+                    </Badge>
+                  </>
+                )}
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="center">
+            알림
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
       {/* ✅ 표준 중앙 모달 + 내부 스크롤 고정 (닫기 버튼 항상 보임) */}
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent
           className={cn(
-            // 레이아웃: 중앙 모달, 고정 해제
             "p-0 border-0 overflow-hidden rounded-3xl",
             "shadow-[0_10px_40px_-10px_rgba(0,0,0,0.25)]",
             "sm:max-w-md w-[min(92vw,560px)]",
-            // 전체 높이 한정 (뷰포트 기준) — 내부에서만 스크롤
             "max-h-[85svh]"
           )}
         >

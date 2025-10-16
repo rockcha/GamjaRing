@@ -17,7 +17,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import supabase from "@/lib/supabase";
 
-/* Lucide Icons */
+/* Tooltip (PartnerActionButton과 동일 패턴) */
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+/* Lucide Icons (본문 카드용) */
 import { Megaphone, Wrench, PartyPopper, AlertTriangle } from "lucide-react";
 
 /* ===== 타입 & 유틸 ===== */
@@ -94,13 +102,19 @@ export default function NoticeCenterFloatingButton({
   className,
   buttonLabel = "개발자 공지사항",
   limit = 50,
-  iconSize = 48, // NotificationDropdown 과 동일 기본값
+  /** PartnerActionButton과 동일한 크기 시스템 */
+  size = "icon",
+  /** 트리거 이모지 (요청: 📢) */
+  emoji = "📢",
+  /** 트리거 이모지 실제 폰트 크기(px) */
+  emojiSizePx = 22,
 }: {
   className?: string;
   buttonLabel?: string;
   limit?: number;
-  /** 트리거 아이콘 크기(px). 기본 48 */
-  iconSize?: number;
+  size?: "icon" | "sm" | "default" | "lg";
+  emoji?: string;
+  emojiSizePx?: number;
 }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -178,81 +192,66 @@ export default function NoticeCenterFloatingButton({
     };
   }, [open, limit]);
 
-  /* ===== NotificationDropdown 과 동일한 PNG 트리거 ===== */
-  const iconSrc = "/notice.png";
-  const [imgLoaded, setImgLoaded] = useState(false);
-
-  // 파생 크기 (NotificationDropdown 계산식과 동일)
-  const wrapperSize = Math.max(40, iconSize);
-  const imageSize = Math.round(wrapperSize * 0.9);
-  const dotSize = Math.max(10, Math.round(wrapperSize * 0.22));
-  const badgeOffset = Math.max(4, Math.round(wrapperSize * 0.12));
-
   return (
     <div className={cn("inline-block", className)}>
-      {/* ✅ 트리거 버튼: PNG 아이콘/유령(ghost) 변형/원형 크기 동일 */}
-      <Button
-        type="button"
-        variant="ghost"
-        onClick={() => setOpen(true)}
-        aria-label={buttonLabel}
-        className={cn("p-0 grid place-items-center")}
-        style={{ width: wrapperSize + 20, height: wrapperSize + 20 }}
-      >
-        <span className="relative inline-grid place-items-center">
-          {/* PNG 아이콘 */}
-          <img
-            src={iconSrc}
-            alt={buttonLabel}
-            className={cn(
-              "object-contain transition-transform duration-200",
-              "hover:scale-110 active:scale-95"
-            )}
-            style={{ width: imageSize, height: imageSize }}
-            draggable={false}
-            loading="lazy"
-            onLoad={() => setImgLoaded(true)}
-          />
-          {!imgLoaded && (
-            <Skeleton
-              className="rounded-full absolute"
-              style={{ width: imageSize, height: imageSize }}
-            />
-          )}
+      {/* ✅ 트리거 버튼: PartnerActionButton과 동일한 패턴 + Tooltip "개발자 공지사항" */}
+      <TooltipProvider delayDuration={120}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex" onClick={() => setOpen(true)}>
+              <Button
+                type="button"
+                variant="ghost"
+                size={size}
+                className={cn(
+                  "relative h-10 w-10 transition-all",
+                  "before:pointer-events-none before:absolute before:inset-0",
+                  "before:opacity-0 hover:before:opacity-100 before:transition-opacity",
+                  "before:bg-[radial-gradient(120px_80px_at_50%_-20%,rgba(255,182,193,0.35),transparent_60%)]",
+                  { "w-auto px-3": size !== "icon" }
+                )}
+                aria-label={buttonLabel}
+              >
+                {/* 이모지 22px 고정 (요청) */}
+                <span
+                  style={{ fontSize: size === "icon" ? emojiSizePx : 18 }}
+                  className={
+                    size !== "icon"
+                      ? "font-medium leading-none"
+                      : "leading-none"
+                  }
+                >
+                  {emoji}
+                </span>
 
-          {/* 읽지 않음 배지 (우상단 점 + ping) */}
-          {hasUnread && (
-            <>
-              <span
-                className="pointer-events-none absolute rounded-full bg-rose-500/60 animate-ping"
-                style={{
-                  top: -badgeOffset,
-                  right: -badgeOffset,
-                  width: dotSize,
-                  height: dotSize,
-                }}
-              />
-              <span
-                className="pointer-events-none absolute rounded-full bg-rose-500 shadow-[0_0_0_1px_rgba(255,255,255,0.9)]"
-                style={{
-                  top: -badgeOffset,
-                  right: -badgeOffset,
-                  width: dotSize,
-                  height: dotSize,
-                }}
-              />
-            </>
-          )}
-        </span>
-      </Button>
+                {/* 읽지 않음 배지 (우상단) — 40x40 기준에 맞춘 상수값 */}
+                {hasUnread && (
+                  <>
+                    <span
+                      className="pointer-events-none absolute -top-1.5 -right-1.5 h-2.5 w-2.5 rounded-full bg-rose-500/60 animate-ping"
+                      aria-hidden
+                    />
+                    <span
+                      className="pointer-events-none absolute -top-1.5 -right-1.5 h-2.5 w-2.5 rounded-full bg-rose-500 shadow-[0_0_0_1px_rgba(255,255,255,0.9)]"
+                      aria-hidden
+                    />
+                  </>
+                )}
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="center">
+            개발자 공지사항
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
-      {/* ✅ 모달: 반응형 비율 기반으로 더 넓게 */}
+      {/* ✅ 모달: 반응형 비율 기반으로 넓게 (기존 유지) */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
           className={cn(
             "p-0 border-0 overflow-hidden rounded-3xl",
             "shadow-[0_10px_40px_-10px_rgba(0,0,0,0.25)]",
-            // 👉 viewport 비율 기반 가변 너비 + 상한
             // 모바일: 94vw / 태블릿: 88vw / 데스크톱: 72~56vw / 최대 980px
             "w-[94vw] sm:w-[88vw] md:w-[72vw] lg:w-[56vw] xl:w-[48vw] 2xl:w-[42vw] max-w-[980px]",
             "max-h-[85svh]"
