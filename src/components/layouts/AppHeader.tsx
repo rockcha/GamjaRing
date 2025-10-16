@@ -33,6 +33,9 @@ import { faHeartPulse } from "@fortawesome/free-solid-svg-icons";
 import NoticeCenterFloatingButton from "@/features/dev-note/NoticeFloatingButton";
 import UserMemoEmojiButton from "@/features/memo/UserMemoEmojiButton";
 
+/* ✅ NEW: 파트너 액션 버튼 추가 */
+import PartnerActionButton from "../widgets/PartnerActionButton";
+
 /* ───────────────────────── 타입 ───────────────────────── */
 type UserMessage = {
   id: number;
@@ -122,7 +125,10 @@ const MobileActionBar = memo(function MobileActionBar() {
       <div
         className={cn("flex items-center justify-end gap-1.5 px-1.5 py-1.5")}
       >
-        <UserMemoEmojiButton iconSize={16} />
+        {/* ✅ NEW: 파트너 액션 버튼을 메모 버튼 왼쪽에 */}
+        <PartnerActionButton />
+
+        <UserMemoEmojiButton />
         <NoticeCenterFloatingButton iconSize={16} />
         <NotificationDropdown iconSize={16} />
       </div>
@@ -282,6 +288,9 @@ export default function AppHeader({
 
             {/* 버튼 3종: 배경/테두리 없음, 간격 동일 */}
             <div className="flex items-center gap-1.5 pl-1">
+              {/* ✅ NEW: 파트너 액션 버튼을 메모 버튼 왼쪽에 */}
+              <PartnerActionButton />
+
               <UserMemoEmojiButton iconSize={16} />
               <NoticeCenterFloatingButton iconSize={16} />
               <NotificationDropdown iconSize={16} />

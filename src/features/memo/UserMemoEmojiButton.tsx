@@ -24,24 +24,41 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
-/* Font Awesome */
+/* Font Awesome (보기/빈 상태 표시용) */
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faNoteSticky, faSpinner } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
+
+/* utils */
+import { cn } from "@/lib/utils";
 
 /* -------------------- Types & Props -------------------- */
 type Mode = "view" | "edit";
 
 type Props = {
-  icon?: IconDefinition; // 메모 패널 아이콘
-  className?: string; // 트리거 버튼 외부 클래스
-  caption?: string; // 접근성 라벨
-  iconSize?: number; // 트리거 PNG 크기 (기본 48)
+  /** 트리거 이모지 (기본: 🗒️) */
+  label?: string;
+  /** 버튼 크기 */
+  size?: "icon" | "sm" | "default" | "lg";
+  /** 모달 제목 */
+  caption?: string;
+  /** 트리거 외부 클래스 */
+  className?: string;
+  /** 내부 패널 헤더 아이콘 (보기/비었을 때만 사용) */
+  icon?: IconDefinition;
+  /** 이모지 폰트 크기 (px) */
+  emojiSizePx?: number;
 };
 
 /* -------------------- URL 자동 링크 -------------------- */
@@ -95,7 +112,7 @@ function insertPrefixAtCurrentLine(
 }
 
 /* ========================================================================== */
-/*                             Memo Panel (Card)                               */
+/*                               Memo Panel                                   */
 /* ========================================================================== */
 function MemoPanel({ icon = faNoteSticky }: { icon?: IconDefinition }) {
   const { user } = useUser();
@@ -220,7 +237,7 @@ function MemoPanel({ icon = faNoteSticky }: { icon?: IconDefinition }) {
 
   return (
     <Card className="p-0 border-none shadow-none bg-transparent space-y-3">
-      {/* 헤더 (미니멀) */}
+      {/* 헤더 */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-neutral-900">
           <div className="flex items-center gap-2">
@@ -241,9 +258,10 @@ function MemoPanel({ icon = faNoteSticky }: { icon?: IconDefinition }) {
 
         <div className="flex items-center gap-3">
           <span
-            className={
-              "text-sm " + (isEditing ? "text-muted-foreground" : "font-medium")
-            }
+            className={cn(
+              "text-sm",
+              isEditing ? "text-muted-foreground" : "font-medium"
+            )}
           >
             저장하기
           </span>
@@ -254,9 +272,10 @@ function MemoPanel({ icon = faNoteSticky }: { icon?: IconDefinition }) {
             disabled={loading || saving}
           />
           <span
-            className={
-              "text-sm " + (isEditing ? "font-medium" : "text-muted-foreground")
-            }
+            className={cn(
+              "text-sm",
+              isEditing ? "font-medium" : "text-muted-foreground"
+            )}
           >
             수정하기
           </span>
@@ -283,6 +302,7 @@ function MemoPanel({ icon = faNoteSticky }: { icon?: IconDefinition }) {
             ))}
           </div>
 
+          {/* 깔끔한 텍스트영역 */}
           <Textarea
             ref={taRef}
             value={content}
@@ -291,9 +311,26 @@ function MemoPanel({ icon = faNoteSticky }: { icon?: IconDefinition }) {
               setDirty(true);
             }}
             placeholder="오늘의 생각, 해야 할 일, 링크 등을 자유롭게 적어보세요."
-            className="min-h-[260px] resize-y mt-2 bg-white"
             disabled={loading || saving}
+            className={cn(
+              "mt-3 min-h-[280px] md:min-h-[320px] resize-y",
+              // 배경/보더
+              "rounded-2xl border border-neutral-200 bg-white shadow-[inset_0_1px_0_rgba(0,0,0,0.02)]",
+              // 패딩/타이포
+              "px-4 py-3 text-[15px] leading-7 tracking-[-0.005em]",
+              "placeholder:text-neutral-400",
+              // 인터랙션
+              "transition-colors focus-visible:outline-none",
+              "focus-visible:ring-2 focus-visible:ring-rose-200 focus-visible:border-rose-200",
+              "hover:border-neutral-300"
+            )}
           />
+
+          {/* 하단 보조 라벨 + 글자수 */}
+          <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+            <span className="select-none">이모지/링크 자동 인식</span>
+            <span>{content.length.toLocaleString()}자</span>
+          </div>
         </>
       ) : (
         <div className="min-h-[200px] p-1">
@@ -314,89 +351,90 @@ function MemoPanel({ icon = faNoteSticky }: { icon?: IconDefinition }) {
 }
 
 /* ========================================================================== */
-/*                      Trigger Button + Dialog (PNG)                          */
+/*                        Trigger Button + Dialog (Emoji)                      */
 /* ========================================================================== */
 export default function UserMemoEmojiButton({
-  icon = faNoteSticky,
-  className = "",
+  label = "🗒️",
+  size = "icon",
   caption = "메모",
-  iconSize = 48,
+  className,
+  icon = faNoteSticky,
+  emojiSizePx = 22, // 트리거 이모지 크기(기본 ↑)
 }: Props) {
   const [open, setOpen] = useState(false);
 
-  // 아이콘 리소스 (/memo.png)
-  const iconSrc = "/memo.png";
-  const [imgLoaded, setImgLoaded] = useState(false);
-
-  const wrapperSize = Math.max(40, iconSize);
-  const imageSize = Math.round(wrapperSize * 0.9);
-
   return (
     <>
-      {/* 트리거 버튼 (NotificationDropdown 스타일과 동일) */}
-      <Button
-        type="button"
-        variant="ghost"
-        onClick={() => setOpen(true)}
-        aria-label={caption}
-        className={["p-0 grid place-items-center", className].join(" ")}
-        style={{ width: wrapperSize + 20, height: wrapperSize + 20 }}
-      >
-        <span className="relative inline-grid place-items-center">
-          <img
-            src={iconSrc}
-            alt={caption}
-            className="object-contain transition-transform duration-200 hover:scale-110 active:scale-95"
-            style={{ width: imageSize, height: imageSize }}
-            draggable={false}
-            loading="lazy"
-            onLoad={() => setImgLoaded(true)}
-          />
-          {!imgLoaded && (
-            <Skeleton
-              className="rounded-full absolute"
-              style={{ width: imageSize, height: imageSize }}
-            />
-          )}
-        </span>
-      </Button>
+      {/* 트리거 버튼: PartnerActionButton과 동일한 감성 */}
+      <TooltipProvider delayDuration={120}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={cn("inline-flex")} onClick={() => setOpen(true)}>
+              <Button
+                type="button"
+                variant="ghost"
+                size={size}
+                className={cn(
+                  "relative h-10 w-10 transition-all",
+                  "before:pointer-events-none before:absolute before:inset-0",
+                  "before:opacity-0 hover:before:opacity-100 before:transition-opacity",
+                  "before:bg-[radial-gradient(120px_80px_at_50%_-20%,rgba(255,182,193,0.35),transparent_60%)]",
+                  className,
+                  { "w-auto px-3": size !== "icon" }
+                )}
+                aria-label={`${caption} 열기`}
+              >
+                <span
+                  style={{ fontSize: size === "icon" ? emojiSizePx : 18 }}
+                  className={size !== "icon" ? "font-medium" : ""}
+                >
+                  {label}
+                </span>
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="center">
+            {caption}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
-      {/* 미니멀 중앙 모달 + 은은한 구분선 */}
+      {/* Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
-          className={[
-            "p-0 border-none rounded-2xl bg-white",
-            "shadow-[0_10px_40px_-10px_rgba(0,0,0,0.25)]",
-            "sm:max-w-md w-[min(92vw,560px)]",
-            "max-h-[85svh]",
-          ].join(" ")}
+          className={cn(
+            // 넓이 확장 + 반응형
+            "sm:max-w-[640px] md:max-w-[760px] w-[min(96vw,760px)]",
+            "max-h-[88svh]",
+            // 시각 스타일
+            "rounded-2xl",
+            "border border-border",
+            "shadow-[0_10px_40px_-10px_rgba(0,0,0,0.25)]"
+          )}
         >
-          {/* 헤더 */}
-          <DialogHeader className="px-5 pt-5 pb-3">
-            <DialogTitle className="text-lg font-semibold tracking-tight">
-              {caption}
-            </DialogTitle>
+          <DialogHeader>
+            <DialogTitle>{caption}</DialogTitle>
+            <DialogDescription>
+              간단한 메모, 할 일, 링크를 자유롭게 기록해보세요.{" "}
+              <br className="hidden sm:block" />줄 맨 앞에 이모지/기호를 빠르게
+              넣어 글머리를 만들 수도 있어요.
+            </DialogDescription>
           </DialogHeader>
 
-          {/* 상단 헤어라인(아주 은은하게) */}
-          <Separator className="mx-5 bg-neutral-200/60" />
-
-          {/* 내용 스크롤 */}
-          <div className="px-5 py-3">
-            <ScrollArea className="max-h-[60svh] pr-1">
+          {/* 내용 스크롤 영역 */}
+          <div className="mt-1">
+            <ScrollArea className="max-h-[62svh] md:max-h-[66svh] pr-1">
               <MemoPanel icon={icon} />
             </ScrollArea>
           </div>
 
-          {/* 하단 헤어라인 */}
-          <Separator className="mx-5 bg-neutral-200/60" />
+          <Separator className="bg-neutral-200/60" />
 
-          {/* 푸터 */}
-          <DialogFooter className="px-5 py-4">
+          <DialogFooter className="pt-1">
             <Button
-              variant="outline"
+              variant="ghost"
               onClick={() => setOpen(false)}
-              className="rounded-lg px-5 shadow-sm hover:shadow transition-all"
+              className="rounded-lg px-5 transition-all hover:-translate-y-0.5"
             >
               닫기
             </Button>
