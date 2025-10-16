@@ -1,3 +1,4 @@
+// src/features/mini_games/center_tile/CenterTileGame.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
@@ -15,16 +16,6 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useCoupleContext } from "@/contexts/CoupleContext";
-
-import {
-  STAGES,
-  ENTRY_FEE,
-  PENALTY_ON_FAIL,
-  normalizeRarity,
-  type StageSpec,
-  type RarityKey,
-} from "./stageConfig";
-
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCheckCircle,
@@ -37,13 +28,39 @@ import {
   faTrophy,
 } from "@fortawesome/free-solid-svg-icons";
 
-/* shadcn tooltip */
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+/* 허브에서 쓰는 미니게임 메타 타입 */
+import type { MiniGameDef } from "@/features/mini_games/RecipeMemoryGame";
+
+/* ----------------------------- 간단 스테이지 설정 ----------------------------- */
+/* 필요하면 프로젝트 공용 stageConfig로 대체해도 됩니다. */
+type StageSpec = {
+  index: number;
+  timeSec: number;
+  optionsCount: number;
+  rewardOnSuccess: number;
+};
+const STAGES: StageSpec[] = [
+  { index: 1, timeSec: 12, optionsCount: 5, rewardOnSuccess: 10 },
+  { index: 2, timeSec: 10, optionsCount: 5, rewardOnSuccess: 10 },
+  { index: 3, timeSec: 10, optionsCount: 7, rewardOnSuccess: 10 },
+  { index: 4, timeSec: 9, optionsCount: 7, rewardOnSuccess: 10 },
+  { index: 5, timeSec: 9, optionsCount: 9, rewardOnSuccess: 15 },
+  { index: 6, timeSec: 8, optionsCount: 9, rewardOnSuccess: 15 },
+];
+
+const ENTRY_FEE = 25;
+const PENALTY_ON_FAIL = 10;
+
+/* ----------------------------- 희귀도 폴더 ----------------------------- */
+type RarityKey = "common" | "rare" | "epic" | "legend" | "unknown";
+function normalizeRarity(r: string | null): RarityKey {
+  const t = (r ?? "").trim();
+  if (/^전설|legend/i.test(t)) return "legend";
+  if (/^에픽|epic/i.test(t)) return "epic";
+  if (/^희귀|rare/i.test(t)) return "rare";
+  if (/^일반|common/i.test(t)) return "common";
+  return "unknown";
+}
 
 /* ----------------------------- 타입 ----------------------------- */
 type Entity = { id: string; name_ko: string | null; rarity: string | null };
@@ -56,7 +73,7 @@ type RoundState = {
   submitted?: boolean;
   isCorrect?: boolean;
   rewardDelta?: number;
-  revealLabel?: string; // 정답 라벨
+  revealLabel?: string;
 };
 type ResultRow = { stage: number; isCorrect: boolean; rewardDelta: number };
 
@@ -77,7 +94,14 @@ function getImageUrlByEntity(e: Entity): string {
   return `/aquarium/${rarityFolder}/${encodeURIComponent(e.id)}.png`;
 }
 
-/* ------------------------- 캔버스 Halo ------------------------- */
+/* ------------------------- 타이머 링 ------------------------- */
+type DangerKey = "safe" | "d1" | "d2" | "d3";
+const dangerToRingClass: Record<DangerKey, string> = {
+  safe: "ring-safe",
+  d1: "ring-d1",
+  d2: "ring-d2",
+  d3: "ring-d3",
+};
 function CanvasTimeHalo({
   progress,
   danger,
@@ -102,14 +126,6 @@ function CanvasTimeHalo({
   );
 }
 
-type DangerKey = "safe" | "d1" | "d2" | "d3";
-const dangerToRingClass: Record<DangerKey, string> = {
-  safe: "ring-safe",
-  d1: "ring-d1",
-  d2: "ring-d2",
-  d3: "ring-d3",
-};
-
 /* ------------------------- Supabase 풀 로딩 ------------------------- */
 const POOL_SIZE = 120;
 async function loadEntityPool(): Promise<Entity[]> {
@@ -131,26 +147,20 @@ async function loadEntityPool(): Promise<Entity[]> {
   return cleaned;
 }
 
-/* ---------------------------- 메인 컴포넌트 ---------------------------- */
-export default function ShadowSilhouetteGame({
-  onExit,
-}: {
-  onExit?: () => void;
-}) {
+/* =========================
+ * Main Game Component
+ * =======================*/
+export function CenterTileGame({ onExit }: { onExit?: () => void }) {
   const { addGold, fetchCoupleData } = useCoupleContext();
 
   const [rounds, setRounds] = useState<RoundState[]>([]);
   const [stageIdx, setStageIdx] = useState(0);
-
   const [isLoadingPool, setIsLoadingPool] = useState(true);
 
   // 타이머
-  const [timeLeftMs, setTimeLeftMs] = useState(0);
+  const [progressVal, setProgressVal] = useState(0);
   const deadlineRef = useRef<number>(0);
   const rafRef = useRef<number | null>(null);
-
-  // 프리필(0→100)
-  const [progressVal, setProgressVal] = useState(0);
   const prefillRAF = useRef<number | null>(null);
   const isPrefillRef = useRef(false);
 
@@ -159,7 +169,6 @@ export default function ShadowSilhouetteGame({
   const [rewardAcc, setRewardAcc] = useState(0);
   const [correct, setCorrect] = useState(0);
   const [wrong, setWrong] = useState(0);
-
   const [showReveal, setShowReveal] = useState<null | { ok: boolean }>(null);
   const [resultOpen, setResultOpen] = useState(false);
   const claimedRef = useRef(false);
@@ -168,21 +177,13 @@ export default function ShadowSilhouetteGame({
   // 캔버스 & 이미지
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const imgCacheRef = useRef<Record<string, HTMLImageElement>>({});
-  const [showColorImage, setShowColorImage] = useState(false);
+  const [revealFull, setRevealFull] = useState(false);
 
   const totalStages = STAGES.length;
+  const curStage = useMemo(() => STAGES[stageIdx] ?? null, [stageIdx]);
+  const curRound = useMemo(() => rounds[stageIdx] ?? null, [rounds, stageIdx]);
 
-  /** 현재 스테이지/라운드 */
-  const curStage: StageSpec | null = useMemo(
-    () => STAGES[stageIdx] ?? null,
-    [stageIdx]
-  );
-  const curRound: RoundState | null = useMemo(
-    () => rounds[stageIdx] ?? null,
-    [rounds, stageIdx]
-  );
-
-  /* -------------- 위험도 계산(링 컬러/효과 용) -------------- */
+  // 링 색상 단계
   const danger: DangerKey =
     progressVal <= 7
       ? "d3"
@@ -192,7 +193,6 @@ export default function ShadowSilhouetteGame({
       ? "d1"
       : "safe";
 
-  /* ------------------------- 공용 RAF 정지 ------------------------- */
   const stopAllRAF = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
@@ -200,20 +200,33 @@ export default function ShadowSilhouetteGame({
     prefillRAF.current = null;
   }, []);
 
-  /* ------------------------- resetTimer ------------------------- */
   const resetTimer = useCallback((sec: number) => {
     const ms = Math.max(1, Math.floor(sec * 1000));
     deadlineRef.current = Date.now() + ms;
-    setTimeLeftMs(ms);
     setProgressVal(100);
   }, []);
 
-  /* ------------------------- startPrefillThenTimer ------------------------- */
+  const tickRef = useRef(() => {});
+  tickRef.current = () => {
+    if (isPrefillRef.current || !curStage) return;
+    const left = Math.max(0, deadlineRef.current - Date.now());
+    const p = Math.max(
+      0,
+      Math.min(100, (left / (curStage.timeSec * 1000)) * 100)
+    );
+    setProgressVal(p);
+    if (left <= 0) {
+      handleTimeoutAutoSubmit();
+      return;
+    }
+    rafRef.current = requestAnimationFrame(tickRef.current);
+  };
+
   const startPrefillThenTimer = useCallback(
     (sec: number) => {
       stopAllRAF();
       setShowReveal(null);
-
+      setRevealFull(false);
       const DURATION = 600;
       const start = performance.now();
       isPrefillRef.current = true;
@@ -235,7 +248,7 @@ export default function ShadowSilhouetteGame({
     [resetTimer, stopAllRAF]
   );
 
-  /* ------------------------- 초기 라운드 구성 ------------------------- */
+  /* 초기 라운드 */
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -243,19 +256,15 @@ export default function ShadowSilhouetteGame({
         setIsLoadingPool(true);
         const p = await loadEntityPool();
         if (!alive) return;
-
         if (!p.length) {
           toast.error("문제를 생성할 수 있는 엔티티가 없습니다.");
           setRounds([]);
           return;
         }
-
-        const nextRounds: RoundState[] = STAGES.map((stage) => {
-          const fallback = p[(Math.random() * p.length) | 0]!;
-          const answer = sample(p, 1)[0] ?? fallback;
-          const distractorPool = p.filter((e) => e.id !== answer.id);
+        const next: RoundState[] = STAGES.map((stage) => {
+          const answer = sample(p, 1)[0]!;
           const distractors = sample(
-            distractorPool,
+            p.filter((e) => e.id !== answer.id),
             Math.max(0, stage.optionsCount - 1)
           );
           const options = shuffle([answer, ...distractors]);
@@ -268,8 +277,7 @@ export default function ShadowSilhouetteGame({
             revealLabel: answer.name_ko ?? answer.id,
           };
         });
-
-        setRounds(nextRounds);
+        setRounds(next);
         startPrefillThenTimer(STAGES[0].timeSec);
       } catch (e) {
         console.error(e);
@@ -286,26 +294,6 @@ export default function ShadowSilhouetteGame({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* ------------------------- 타이머 tick ------------------------- */
-  const tickRef = useRef(() => {});
-  tickRef.current = () => {
-    if (isPrefillRef.current) return;
-    const left = Math.max(0, deadlineRef.current - Date.now());
-    setTimeLeftMs(left);
-    if (curStage) {
-      const p = Math.max(
-        0,
-        Math.min(100, (left / (curStage.timeSec * 1000)) * 100)
-      );
-      setProgressVal(p);
-    }
-    if (left <= 0) {
-      handleTimeoutAutoSubmit();
-      return;
-    }
-    rafRef.current = requestAnimationFrame(tickRef.current);
-  };
-
   useEffect(() => {
     if (!running || !curRound) return;
     if (!isPrefillRef.current && !curRound.submitted) {
@@ -316,33 +304,29 @@ export default function ShadowSilhouetteGame({
     };
   }, [running, curRound]);
 
-  /* ------------------------- 이미지 로드 & 렌더 ------------------------- */
   useEffect(() => {
     if (!curRound) return;
-    setShowColorImage(false);
-
+    setRevealFull(false);
     let cancelled = false;
     (async () => {
       const url = curRound.imageUrl;
-      let img: HTMLImageElement | undefined = imgCacheRef.current[url];
+      let img = imgCacheRef.current[url];
       if (!img) {
         try {
           img = await loadImage(url);
           imgCacheRef.current[url] = img;
         } catch {
-          img = undefined;
+          img = undefined as any;
         }
       }
       if (!img || cancelled) return;
-      drawSilhouette(canvasRef.current, img);
+      drawCenterTile(canvasRef.current, img);
     })();
-
     return () => {
       cancelled = true;
     };
   }, [curRound?.imageUrl]);
 
-  // 리사이즈 반영
   useEffect(() => {
     let rAF = 0;
     function onResize() {
@@ -351,8 +335,8 @@ export default function ShadowSilhouetteGame({
         if (!curRound) return;
         const img = imgCacheRef.current[curRound.imageUrl];
         if (!img) return;
-        if (showColorImage) drawOriginal(canvasRef.current, img);
-        else drawSilhouette(canvasRef.current, img);
+        if (revealFull) drawOriginal(canvasRef.current, img);
+        else drawCenterTile(canvasRef.current, img);
       });
     }
     window.addEventListener("resize", onResize);
@@ -360,9 +344,8 @@ export default function ShadowSilhouetteGame({
       window.removeEventListener("resize", onResize);
       cancelAnimationFrame(rAF);
     };
-  }, [curRound, showColorImage]);
+  }, [curRound, revealFull]);
 
-  /* ------------------------- 선택 & 제출 ------------------------- */
   const freezeTimer = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
@@ -377,17 +360,14 @@ export default function ShadowSilhouetteGame({
       setRounds(snapshot);
 
       const ok = id === curRound.answer.id;
-
-      setRewardAcc((prev) => {
-        if (ok) return prev + curRound.stage.rewardOnSuccess;
-        const penalty = Math.min(PENALTY_ON_FAIL, prev);
-        return prev - penalty;
-      });
-
+      setRewardAcc((prev) =>
+        ok
+          ? prev + curRound.stage.rewardOnSuccess
+          : prev - Math.min(PENALTY_ON_FAIL, prev)
+      );
       if (ok) setCorrect((c) => c + 1);
       else setWrong((w) => w + 1);
 
-      // 정답 공개: 오답/시간초과 포함
       const next = snapshot.slice();
       next[stageIdx] = {
         ...snapshot[stageIdx],
@@ -401,11 +381,10 @@ export default function ShadowSilhouetteGame({
 
       const img = imgCacheRef.current[curRound.imageUrl];
       if (img) {
-        setShowColorImage(true);
+        setRevealFull(true);
         drawOriginal(canvasRef.current, img);
       }
       setShowReveal({ ok });
-
       freezeTimer();
     },
     [curRound, rounds, stageIdx, freezeTimer, rewardAcc]
@@ -413,7 +392,6 @@ export default function ShadowSilhouetteGame({
 
   const handleTimeoutAutoSubmit = useCallback(() => {
     if (!curRound || curRound.submitted) return;
-
     setRewardAcc((prev) => prev - Math.min(PENALTY_ON_FAIL, prev));
     setWrong((w) => w + 1);
 
@@ -426,10 +404,9 @@ export default function ShadowSilhouetteGame({
     };
     setRounds(next);
 
-    // 정답 공개
     const img = imgCacheRef.current[curRound.imageUrl];
     if (img) {
-      setShowColorImage(true);
+      setRevealFull(true);
       drawOriginal(canvasRef.current, img);
     }
     setShowReveal({ ok: false });
@@ -438,7 +415,6 @@ export default function ShadowSilhouetteGame({
 
   const goNextStage = useCallback(() => {
     setShowReveal(null);
-
     if (stageIdx >= STAGES.length - 1) {
       setRunning(false);
       setResultOpen(true);
@@ -449,7 +425,6 @@ export default function ShadowSilhouetteGame({
     startPrefillThenTimer(STAGES[nextIdx].timeSec);
   }, [stageIdx, startPrefillThenTimer]);
 
-  /* ------------------------- 최종 지급 ------------------------- */
   const totalGold = rewardAcc;
 
   const onResultClose = useCallback(
@@ -482,7 +457,17 @@ export default function ShadowSilhouetteGame({
     [addGold, fetchCoupleData, onExit, totalGold]
   );
 
-  /* ------------------------- 렌더 ------------------------- */
+  /* 옵션 그리드 열수 계산 */
+  const optionCount = curStage?.optionsCount ?? 4;
+  const cols = optionCount >= 8 ? 4 : optionCount >= 6 ? 3 : 2;
+  const gridColsClass =
+    cols === 4
+      ? "md:grid-cols-4"
+      : cols === 3
+      ? "md:grid-cols-3"
+      : "md:grid-cols-2";
+
+  /* 렌더 */
   const stageLabelHUD = curStage
     ? `${curStage.index}/${totalStages}`
     : `-/\${totalStages}`;
@@ -496,46 +481,6 @@ export default function ShadowSilhouetteGame({
     [rounds]
   );
 
-  const optionCount = curStage?.optionsCount ?? 4;
-  const cols = optionCount >= 8 ? 4 : optionCount >= 6 ? 3 : 2;
-  const gridColsClass =
-    cols === 4
-      ? "md:grid-cols-4"
-      : cols === 3
-      ? "md:grid-cols-3"
-      : "md:grid-cols-2";
-
-  // 스테이지 O/X 라인
-  const StageOX = (
-    <div className="flex items-center gap-1.5">
-      {STAGES.map((s, i) => {
-        const r = rounds[i];
-        const submitted = r?.submitted;
-        const ok = !!r?.isCorrect;
-        return (
-          <div
-            key={s.index}
-            className={cn(
-              "grid place-items-center text-base md:text-lg w-7 h-7 md:w-8 md:h-8 rounded-lg border",
-              !submitted && "text-muted-foreground bg-muted/30",
-              submitted && ok && "bg-emerald-600 text-white border-emerald-600",
-              submitted && !ok && "bg-rose-600 text-white border-rose-600"
-            )}
-            aria-label={
-              !submitted
-                ? `${s.index} 미응답`
-                : ok
-                ? `${s.index} 정답`
-                : `${s.index} 오답`
-            }
-          >
-            {!submitted ? "-" : ok ? "O" : "X"}
-          </div>
-        );
-      })}
-    </div>
-  );
-
   return (
     <div className="w-full max-w-5xl mx-auto">
       {/* 상단 HUD */}
@@ -546,7 +491,40 @@ export default function ShadowSilhouetteGame({
               <FontAwesomeIcon icon={faLayerGroup} className="h-4 w-4" />
               스테이지 {stageLabelHUD}
             </Badge>
-            <div className="hidden md:flex items-center">{StageOX}</div>
+            <div className="hidden md:flex items-center">
+              {/* O/X 진행 라인 */}
+              <div className="flex items-center gap-1.5">
+                {STAGES.map((s, i) => {
+                  const r = rounds[i];
+                  const submitted = r?.submitted;
+                  const ok = !!r?.isCorrect;
+                  return (
+                    <div
+                      key={s.index}
+                      className={cn(
+                        "grid place-items-center text-base md:text-lg w-7 h-7 md:w-8 md:h-8 rounded-lg border",
+                        !submitted && "text-muted-foreground bg-muted/30",
+                        submitted &&
+                          ok &&
+                          "bg-emerald-600 text-white border-emerald-600",
+                        submitted &&
+                          !ok &&
+                          "bg-rose-600 text-white border-rose-600"
+                      )}
+                      aria-label={
+                        !submitted
+                          ? `${s.index} 미응답`
+                          : ok
+                          ? `${s.index} 정답`
+                          : `${s.index} 오답`
+                      }
+                    >
+                      {!submitted ? "-" : ok ? "O" : "X"}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <Badge variant="outline" className="gap-2">
@@ -559,7 +537,6 @@ export default function ShadowSilhouetteGame({
             </Badge>
           </div>
         </div>
-        <div className="mt-3 md:hidden">{StageOX}</div>
       </Card>
 
       <Separator className="my-5" />
@@ -567,32 +544,17 @@ export default function ShadowSilhouetteGame({
       {/* 메인 카드 */}
       <Card className="rounded-3xl overflow-hidden">
         <div className="grid md:grid-cols-[minmax(280px,520px),1fr] gap-6 md:gap-8 p-5 md:p-7">
-          {/* 캔버스 영역 */}
+          {/* 캔버스 */}
           <div className="relative">
-            <div
-              className={cn(
-                "relative rounded-2xl border overflow-hidden shadow-sm bg-gradient-to-b from-background to-muted/40",
-                (isLoadingPool || isPrefillRef.current) &&
-                  "animate-pulse ring-1 ring-primary/10"
-              )}
-            >
-              {isLoadingPool ? (
-                <div className="aspect-square w-full grid place-items-center text-muted-foreground">
-                  불러오는 중...
-                </div>
-              ) : (
-                <>
-                  <canvas
-                    ref={canvasRef}
-                    className="block w-full aspect-square"
-                    aria-label="정답 이미지 프리뷰"
-                  />
-                  {/* Sweep 타이머 */}
-                  <CanvasTimeHalo progress={progressVal} danger={danger} />
-                </>
-              )}
+            <div className="relative rounded-2xl border overflow-hidden shadow-sm bg-gradient-to-b from-background to-muted/40 ring-1 ring-primary/10">
+              <canvas
+                ref={canvasRef}
+                className="block w-full aspect-square"
+                aria-label="중앙 타일 프리뷰"
+              />
+              <CanvasTimeHalo progress={progressVal} danger={danger} />
 
-              {/* 좌측 상단: 스테이지 진행 표시 */}
+              {/* 좌측 상단: 스테이지 진행 */}
               {curStage && (
                 <div className="absolute top-2 left-2">
                   <Badge className="backdrop-blur bg-white/80 text-foreground font-semibold px-3 py-1 rounded-xl">
@@ -601,7 +563,7 @@ export default function ShadowSilhouetteGame({
                 </div>
               )}
 
-              {/* 우측 상단: 이번 스테이지 보상 금액 */}
+              {/* 우측 상단: 보상 */}
               {curStage && (
                 <div className="absolute top-2 right-2">
                   <Badge
@@ -650,7 +612,7 @@ export default function ShadowSilhouetteGame({
             </div>
           </div>
 
-          {/* 보기 + CTA */}
+          {/* 보기 & CTA */}
           <div className="flex flex-col justify-between">
             <div>
               <h3 className="text-lg font-semibold mb-5 flex items-center gap-2">
@@ -658,84 +620,56 @@ export default function ShadowSilhouetteGame({
                   icon={faImage}
                   className="h-5 w-5 text-muted-foreground"
                 />
-                그림자의 주인공을 맞춰보세요
+                중앙 조각을 보고 맞춰보세요
               </h3>
 
-              {/* 옵션 리스트 + Tooltip */}
-              <TooltipProvider delayDuration={150}>
-                {isLoadingPool ? (
-                  <div className="grid gap-2.5 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-                    {Array.from({ length: 6 }).map((_, i) => (
-                      <div
-                        key={i}
-                        className="h-12 rounded-xl border bg-muted/40 animate-pulse"
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div
-                    className={cn(
-                      // ✅ 줄바꿈에 맞춰 셀 높이가 자연스럽게 커지도록
-                      "grid gap-2.5 grid-cols-1 sm:grid-cols-2 auto-rows-[minmax(3rem,auto)]",
-                      gridColsClass
-                    )}
-                  >
-                    {curRound?.options.map((opt) => {
-                      const active = curRound.pickedId === opt.id;
-                      const isAnswer =
-                        !!curRound.submitted && opt.id === curRound.answer.id;
-                      const isWrongActive =
-                        !!curRound.submitted &&
-                        opt.id !== curRound.answer.id &&
-                        active;
-                      const disabled = !!curRound?.submitted;
-
-                      return (
-                        <Tooltip key={opt.id}>
-                          <TooltipTrigger asChild>
-                            {/* disabled 속성 대신 aria-disabled 로 툴팁 유지 */}
-                            <Button
-                              aria-disabled={disabled}
-                              onClick={() => {
-                                if (disabled) return;
-                                pickAndSubmit(opt.id);
-                              }}
-                              title={opt.name_ko ?? opt.id} // ✅ 네이티브 툴팁도 추가
-                              aria-label={opt.name_ko ?? opt.id}
-                              variant={active ? "default" : "outline"}
-                              className={cn(
-                                // ✅ 고정 높이 제거 + 줄바꿈 허용 + 좌측 정렬
-                                "min-h-12 h-auto py-2 rounded-xl justify-start text-left",
-                                "whitespace-normal break-words leading-snug",
-                                disabled && "opacity-75 cursor-not-allowed",
-                                active &&
-                                  "ring-2 ring-primary/40 shadow-sm -translate-y-[1px]",
-                                isAnswer &&
-                                  "bg-emerald-600 text-white border-emerald-600",
-                                isWrongActive &&
-                                  "bg-rose-600 text-white border-rose-600"
-                              )}
-                            >
-                              {/* ✅ line-clamp 제거하여 전부 보이게 */}
-                              <span className="block">
-                                {opt.name_ko ?? opt.id}
-                              </span>
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" sideOffset={6}>
-                            <p className="max-w-[260px] break-keep">
-                              {opt.name_ko ?? opt.id}
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      );
-                    })}
-                  </div>
+              <div
+                className={cn(
+                  "grid gap-2.5 grid-cols-1 sm:grid-cols-2 auto-rows-[minmax(3rem,auto)]",
+                  gridColsClass
                 )}
-              </TooltipProvider>
+              >
+                {curRound?.options.map((opt) => {
+                  const active = curRound.pickedId === opt.id;
+                  const isAnswer =
+                    !!curRound.submitted && opt.id === curRound.answer.id;
+                  const isWrongActive =
+                    !!curRound.submitted &&
+                    opt.id !== curRound.answer.id &&
+                    active;
+                  const disabled = !!curRound?.submitted;
+
+                  return (
+                    <Button
+                      key={opt.id}
+                      aria-disabled={disabled}
+                      onClick={() => {
+                        if (disabled) return;
+                        pickAndSubmit(opt.id);
+                      }}
+                      title={opt.name_ko ?? opt.id}
+                      aria-label={opt.name_ko ?? opt.id}
+                      variant={active ? "default" : "outline"}
+                      className={cn(
+                        "min-h-12 h-auto py-2 rounded-xl justify-start text-left",
+                        "whitespace-normal break-words leading-snug",
+                        disabled && "opacity-75 cursor-not-allowed",
+                        active &&
+                          "ring-2 ring-primary/40 shadow-sm -translate-y-[1px]",
+                        isAnswer &&
+                          "bg-emerald-600 text-white border-emerald-600",
+                        isWrongActive &&
+                          "bg-rose-600 text-white border-rose-600"
+                      )}
+                    >
+                      <span className="block">{opt.name_ko ?? opt.id}</span>
+                    </Button>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* 누적 보상 (플로팅 제거) */}
+            {/* 누적 보상 */}
             <div className="mt-6">
               <h3 className="text-lg font-semibold flex items-center gap-2 mb-5">
                 <FontAwesomeIcon
@@ -863,7 +797,8 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-function drawSilhouette(
+/** 중앙 1/9 타일만 캔버스에 확대 렌더 */
+function drawCenterTile(
   canvas: HTMLCanvasElement | null,
   img: HTMLImageElement
 ) {
@@ -882,57 +817,38 @@ function drawSilhouette(
   ctx.scale(dpr, dpr);
   ctx.clearRect(0, 0, W, H);
 
-  const { dx, dy, dw, dh } = fitContain(
-    img.naturalWidth,
-    img.naturalHeight,
-    W,
-    H
-  );
+  // 원본에서 가장 큰 정사각형(중앙 크롭)
+  const S = Math.min(img.naturalWidth, img.naturalHeight);
+  const sx0 = Math.floor((img.naturalWidth - S) / 2);
+  const sy0 = Math.floor((img.naturalHeight - S) / 2);
 
+  // 중앙 1/3 타일(= 3x3 중 정중앙)
+  const tile = Math.floor(S / 3);
+  const tsx = sx0 + Math.floor((S - tile) / 2);
+  const tsy = sy0 + Math.floor((S - tile) / 2);
+
+  // 캔버스에 꽉 차게 확대
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, dx, dy, dw, dh);
+  ctx.drawImage(img, tsx, tsy, tile, tile, 0, 0, W, H);
 
-  ctx.globalCompositeOperation = "source-in";
-  ctx.fillStyle = "#0f172a"; // slate-900
-  ctx.fillRect(0, 0, W, H);
-
-  // 바닥 그림자
-  ctx.globalCompositeOperation = "multiply";
-  ctx.fillStyle = "rgba(0,0,0,0.12)";
-  const shadowW = Math.floor(W * 0.6);
-  const shadowH = Math.floor(H * 0.08);
-  ctx.beginPath();
-  ctx.ellipse(
-    W / 2,
-    Math.floor(H * 0.78),
-    shadowW / 2,
-    shadowH / 2,
-    0,
-    0,
-    Math.PI * 2
-  );
-  ctx.fill();
-
-  // 비네팅
-  const grad = ctx.createRadialGradient(
-    W / 2,
-    H / 2,
-    Math.min(W, H) * 0.45,
-    W / 2,
-    H / 2,
-    Math.min(W, H) * 0.65
-  );
-  grad.addColorStop(0, "rgba(0,0,0,0)");
-  grad.addColorStop(1, "rgba(0,0,0,0.12)");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
-
-  // 테두리
-  ctx.globalCompositeOperation = "source-over";
+  // 테두리 & 약한 비네팅
   ctx.strokeStyle = "rgba(0,0,0,0.18)";
   ctx.lineWidth = 2;
   ctx.strokeRect(1, 1, W - 2, H - 2);
+
+  const grad = ctx.createRadialGradient(
+    W / 2,
+    H / 2,
+    Math.min(W, H) * 0.55,
+    W / 2,
+    H / 2,
+    Math.min(W, H) * 0.8
+  );
+  grad.addColorStop(0, "rgba(0,0,0,0)");
+  grad.addColorStop(1, "rgba(0,0,0,0.08)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
 
   ctx.restore();
 }
@@ -985,3 +901,17 @@ function fitContain(sw: number, sh: number, dw: number, dh: number) {
   const y = Math.round((dh - h) / 2);
   return { dx: x, dy: y, dw: w, dh: h };
 }
+
+/* =========================
+ * MiniGame 메타(난이도/태그 생략 가능)
+ * =======================*/
+export const centerTileMeta: MiniGameDef = {
+  id: "center-tile",
+  title: "중앙 조각 맞히기",
+  entryFee: ENTRY_FEE,
+  howTo:
+    "정사각형 이미지를 3×3으로 나눈 뒤 '정중앙 조각'만 크게 보여줍니다.\n" +
+    "제한시간 내 정답을 선택하세요. 오답/시간초과 시 패널티가 있으며,\n" +
+    "제출 후에는 전체 원본 이미지가 공개됩니다.",
+  Component: (props: { onExit?: () => void }) => <CenterTileGame {...props} />,
+};

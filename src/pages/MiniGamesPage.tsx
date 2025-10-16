@@ -31,12 +31,14 @@ import {
 } from "@/features/mini_games/RecipeMemoryGame";
 import { potatoTossMeta } from "@/features/mini_games/potato_toss/PotatoTossGame";
 import { shadowPiecesMeta } from "@/features/mini_games/shadow_pieces";
+import { centerTileMeta } from "@/features/mini_games/CenterTileGame";
 
 /** 등록된 게임 목록 */
 const GAMES: MiniGameDef[] = [
   recipeMemoryMeta,
   potatoTossMeta,
   shadowPiecesMeta,
+  centerTileMeta,
 ];
 
 const CATS = [
