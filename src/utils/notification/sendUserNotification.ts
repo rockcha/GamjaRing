@@ -47,6 +47,8 @@ export type NotificationType =
   | "음침한 말 하기"
   | "째려보기"
   | "우울해하기"
+  // ✅ 신규: 꽃 재배(에픽 획득 시 사용)
+  | "꽃 재배"
   // ✅ 신규: 커스텀 액션
   | "커스텀 액션";
 
@@ -59,7 +61,7 @@ export interface SendUserNotificationInput {
   isRequest?: boolean;
   foodName?: string;
   gold?: number; // (미사용)
-  itemName?: string;
+  itemName?: string; // ✅ 꽃/아이템 이름
   capsuleTitle?: string;
 }
 
@@ -86,6 +88,7 @@ const ACTION_BY_TYPE: Record<
     | "타임캡슐"
     | "타임캡슐해제"
     | "커스텀 액션"
+    | "꽃 재배"
   >,
   string
 > = {
@@ -172,7 +175,6 @@ export const sendUserNotification = async ({
   // 2) 액션 문구 작성
   let action: string;
   if (type === "커스텀 액션") {
-    // ✅ 커스텀은 전달받은 description을 그대로 사용 (이미 호출부에서 하트 붙임)
     action = (description ?? "").trim() || "메시지를 보냈어요 💌";
   } else if (type === "음식공유") {
     const name = (foodName ?? "").trim();
@@ -209,6 +211,12 @@ export const sendUserNotification = async ({
     action = name
       ? `${withObjectJosa(quote(name))} 타임캡슐이 열람 가능해졌어요 ⏰`
       : "타임캡슐이 열람 가능해졌어요 ⏰";
+  } else if (type === "꽃 재배") {
+    const name = (itemName ?? "").trim();
+    // 에픽 전용 느낌의 문구(일반/희귀에 써도 어색하지 않음)
+    action = name
+      ? `${withObjectJosa(quote(name))} 재배했어요 🌸✨`
+      : "꽃을 재배했어요 🌸✨";
   } else {
     action =
       ACTION_BY_TYPE[
@@ -222,6 +230,7 @@ export const sendUserNotification = async ({
           | "타임캡슐"
           | "타임캡슐해제"
           | "커스텀 액션"
+          | "꽃 재배"
         >
       ] ?? String(type);
   }
