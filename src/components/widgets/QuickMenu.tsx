@@ -43,7 +43,8 @@ import {
   faGhost,
   faPuzzlePiece,
   faBolt,
-  faLandmark, // ✅ 은행 건물 아이콘
+  faLandmark, // 은행 건물 아이콘
+  faSeedling, // ✅ 꽃집 아이콘
 } from "@fortawesome/free-solid-svg-icons";
 
 const makeFA =
@@ -71,7 +72,8 @@ const ArrowLeftRight = makeFA(faRightLeft) as unknown as LucideIcon;
 const Ghost = makeFA(faGhost) as unknown as LucideIcon;
 const PuzzlePiece = makeFA(faPuzzlePiece) as unknown as LucideIcon;
 const Bolt = makeFA(faBolt) as unknown as LucideIcon;
-const Landmark = makeFA(faLandmark) as unknown as LucideIcon; // ✅ 은행 건물
+const Landmark = makeFA(faLandmark) as unknown as LucideIcon; // 은행 건물
+const Seedling = makeFA(faSeedling) as unknown as LucideIcon; // ✅ 꽃집
 
 /* ========= 내부 전용 네비 정의 ========= */
 type NavId =
@@ -91,7 +93,8 @@ type NavId =
   | "fishing"
   | "stickerBoard"
   | "miniGame"
-  | "bank"; // ✅ 추가
+  | "bank"
+  | "flowerShop"; // ✅ 추가
 
 type NavDef = {
   id: NavId;
@@ -124,8 +127,10 @@ const NAV_DEFS: Record<NavId, NavDef> = {
   stickerBoard: { id: "stickerBoard", label: "스티커보드", icon: Sticker },
   miniGame: { id: "miniGame", label: "미니게임", icon: Gamepad2 },
 
-  // ✅ 감자링 은행 (은행 건물 아이콘)
   bank: { id: "bank", label: "감자링 은행", icon: Landmark },
+
+  // ✅ 꽃집
+  flowerShop: { id: "flowerShop", label: "꽃집", icon: Seedling },
 };
 
 /* 가드 & 라우팅 */
@@ -149,7 +154,8 @@ const GUARDS: Record<
   fishing: { requireLogin: true, requireCouple: true },
   stickerBoard: { requireLogin: true, requireCouple: true },
   miniGame: { requireLogin: true, requireCouple: true },
-  bank: { requireLogin: true, requireCouple: true }, // ✅ 추가
+  bank: { requireLogin: true, requireCouple: true },
+  flowerShop: { requireLogin: true, requireCouple: true }, // ✅ 추가
 };
 
 const FALLBACK_ROUTE: Record<string, string> = {
@@ -169,7 +175,8 @@ const FALLBACK_ROUTE: Record<string, string> = {
   fishing: "/fishing",
   stickerBoard: "/stickerBoard",
   miniGame: "/miniGame",
-  bank: "/bank", // ✅ 추가
+  bank: "/bank",
+  flowerShop: "/flowershop", // ✅ 추가
 };
 
 /* ========= 영역 구성 ========= */
@@ -187,7 +194,8 @@ const WORLD_IDS = [
   "farm",
   "kitchen",
   "exchange",
-  "bank", // ✅ 감자링 은행 추가
+  "flowerShop", // ✅ 감자링 월드에 꽃집 추가
+  "bank",
   "aquarium",
   "fishing",
   "stickerBoard",
@@ -327,7 +335,6 @@ export default function QuickMenu() {
       return NAV_DEFS[lastIconId].icon;
     }
     return isWorld ? Gamepad2 : Bolt;
-    // 월드 모드일 때 마지막이 은행이면 자동으로 Landmark가 뜸
   }, [lastIconId, isWorld]);
 
   const ids = isWorld ? WORLD_IDS : DAILY_IDS;
@@ -410,7 +417,7 @@ export default function QuickMenu() {
           </DrawerTitle>
         </DrawerHeader>
 
-        {/* ✅ 모드 전환 */}
+        {/* 모드 전환 */}
         <div className="px-1 sm:px-2">
           <div
             role="group"

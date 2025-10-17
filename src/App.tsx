@@ -36,6 +36,7 @@ import CookingPage from "./features/cooking/CookingPage";
 import BucketListPage from "./features/bucketlist/BucketListPage";
 import SavingProductPage from "./pages/SavingProductPage";
 import BankPage from "./features/savings/BankPage";
+import FlowerShopPage from "./features/FlowerShop/FlowerShopPage";
 
 export default function App() {
   return (
@@ -74,6 +75,7 @@ export default function App() {
               <Route path="miniGame" element={<MiniGamePage />} />
               <Route path="bank" element={<BankPage />} />
               <Route path="exchange" element={<ExchangePage />} />
+              <Route path="flowershop" element={<FlowerShopPage />} />
 
               <Route path="gloomy" element={<GloomyPage />} />
               <Route path="bucketlist" element={<BucketListPage />} />

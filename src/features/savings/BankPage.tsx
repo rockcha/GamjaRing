@@ -25,6 +25,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import SeedShopButton from "../FlowerShop/SeedShopButton";
+import FlowerDexButton from "../FlowerShop/FlowerDexButton";
+import GardenBackyard from "../FlowerShop/GardenBackyard";
+
 type SortKey = "term_asc" | "min_daily_asc" | "apy_desc" | "bonus_desc";
 
 export default function BankPage() {
@@ -260,6 +264,9 @@ export default function BankPage() {
         </TabsContent>
 
         {/* 상품 둘러보기 */}
+        <SeedShopButton />
+        <FlowerDexButton />
+        <GardenBackyard />
         <TabsContent
           value="browse"
           className="mt-4 space-y-4 data-[state=active]:animate-in data-[state=active]:fade-in-50 data-[state=active]:slide-in-from-right-6"
