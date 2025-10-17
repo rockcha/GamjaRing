@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -220,7 +220,6 @@ export default function FlowerShop() {
           <h2 className="text-lg font-bold tracking-tight">인벤토리</h2>
 
           <div className="flex items-center gap-2">
-            {/* 🔧 blur 제거 */}
             <Tabs value={invTab} onValueChange={(v) => setInvTab(v as any)}>
               <TabsList className="rounded-full bg-background/60 supports-[backdrop-filter]:bg-background/60">
                 <TabsTrigger className="rounded-full" value="all">
@@ -269,7 +268,6 @@ export default function FlowerShop() {
                   </Badge>
 
                   <CardContent className="p-3 flex flex-col gap-2">
-                    {/* 🔧 blur 제거 & 배경은 미세한 그라데이션만 유지 */}
                     <div
                       className="w-full aspect-square rounded-xl overflow-hidden grid place-items-center
                       bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,.06),transparent)]
@@ -295,42 +293,43 @@ export default function FlowerShop() {
         </ScrollArea>
       </section>
 
-      {/* 우: 주문 받는 섹션 */}
+      {/* 우: 주문 섹션 */}
       <section className="lg:col-span-7 mt-6 lg:mt-10">
+        {/* ▶ 인벤토리와 일관된 바깥 헤더 */}
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-bold tracking-tight">🧾 주문 받기</h2>
+
+          <div className="flex items-center gap-3">
+            {ordering && (
+              <span className="text-sm text-amber-600 flex items-center gap-1">
+                <Loader2 className="size-4 animate-spin" />
+                수령 중…
+              </span>
+            )}
+
+            <Button onClick={handleOrder} disabled={ordering} className="gap-2">
+              {ordering ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  수령 중…
+                </>
+              ) : (
+                <>🪙 20 주문 받기</>
+              )}
+            </Button>
+          </div>
+        </div>
+
         <Card className="border-muted/60">
-          {/* 🔧 sticky header의 blur 제거 */}
-          <CardHeader className="pb-2 sticky top-0 z-10 bg-background/60 border-b">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">🧾 주문 받기</CardTitle>
-              <div className="flex items-center gap-3">
-                {ordering && (
-                  <span className="text-sm text-amber-600 flex items-center gap-1">
-                    <Loader2 className="size-4 animate-spin" />
-                    수령 중…
-                  </span>
-                )}
-
-                <Button
-                  onClick={handleOrder}
-                  disabled={ordering}
-                  className="gap-2"
-                >
-                  {ordering ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" />
-                      수령 중…
-                    </>
-                  ) : (
-                    <>🪙 20 주문 받기</>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-
-          <CardContent className="pt-3">
+          <CardContent className="pt-4">
             <AnimatePresence mode="popLayout">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              {/* auto-fit 그리드: 작은 화면에서도 잘 접힘 + 높이 자동 */}
+              <div
+                className="
+                  grid gap-3
+                  [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]
+                "
+              >
                 {slots.map((slot, idx) => {
                   if (slot.state === "empty") {
                     return (
@@ -340,11 +339,16 @@ export default function FlowerShop() {
                         initial={{ opacity: 0.4, scale: 0.96 }}
                         animate={{ opacity: 0.8, scale: 1 }}
                         exit={{ opacity: 0 }}
-                        className="rounded-xl h-40 grid place-items-center text-xs font-medium
-                        border-2 border-dashed border-border/60 bg-background/40
-                        shadow-[inset_0_1px_0_rgba(255,255,255,.04)]"
+                        className="
+                          rounded-xl grid
+                          border-2 border-dashed border-border/60 bg-background/40
+                          shadow-[inset_0_1px_0_rgba(255,255,255,.04)]
+                        "
                       >
-                        대기 슬롯
+                        {/* ▶ 정사각형 래퍼로 높이 제한 제거 */}
+                        <div className="aspect-square w-full grid place-items-center text-xs font-medium">
+                          대기 슬롯
+                        </div>
                       </motion.div>
                     );
                   }
@@ -357,13 +361,17 @@ export default function FlowerShop() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="relative rounded-xl h-40 grid place-items-center text-sm
-                        bg-emerald-50/60 dark:bg-emerald-900/20 border border-emerald-200/60
-                        shadow-[inset_0_0_0_1px_rgba(16,185,129,.25)]"
+                        className="
+                          relative rounded-xl grid
+                          bg-emerald-50/60 dark:bg-emerald-900/20 border border-emerald-200/60
+                          shadow-[inset_0_0_0_1px_rgba(16,185,129,.25)]
+                        "
                       >
-                        <span className="font-semibold text-emerald-700 dark:text-emerald-300">
-                          판매 완료
-                        </span>
+                        <div className="aspect-square w-full grid place-items-center text-sm">
+                          <span className="font-semibold text-emerald-700 dark:text-emerald-300">
+                            판매 완료
+                          </span>
+                        </div>
                         <span
                           className="absolute -rotate-12 top-2 left-2 text-[10px] px-1.5 py-0.5 rounded
                           bg-emerald-600/10 border border-emerald-600/30 text-emerald-700"
@@ -392,11 +400,11 @@ export default function FlowerShop() {
                         stiffness: 350,
                         damping: 22,
                       }}
-                      className={`group relative overflow-hidden rounded-xl h-40 border p-2 text-left ${
-                        gradeTone[f.grade]
-                      } 
-                      before:absolute before:inset-0 before:content-[''] before:opacity-0 
-                      before:transition-opacity before:duration-300 active:before:opacity-20 before:bg-white/30`}
+                      className={`group relative overflow-hidden border p-2 text-left rounded-xl
+                        ${gradeTone[f.grade]}
+                        before:absolute before:inset-0 before:content-[''] before:opacity-0
+                        before:transition-opacity before:duration-300 active:before:opacity-20 before:bg-white/30
+                      `}
                       disabled={selling === f.id}
                       aria-busy={selling === f.id}
                       onClick={async () => {
@@ -407,9 +415,9 @@ export default function FlowerShop() {
                         await sell(f, idx);
                       }}
                     >
-                      {/* 이미지 컨테이너 — 🔧 blur 제거 */}
+                      {/* 정사각형 이미지 래퍼 (높이 고정 제거) */}
                       <div
-                        className="w-full h-full grid place-items-center rounded-lg overflow-hidden
+                        className="aspect-square w-full grid place-items-center rounded-lg overflow-hidden
                         bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,.06),transparent)]
                         border border-white/10"
                       >
@@ -422,7 +430,7 @@ export default function FlowerShop() {
                         />
                       </div>
 
-                      {/* 🔧 이름 라벨: 가로 중앙 정렬 */}
+                      {/* 이름 라벨 */}
                       <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-2 text-[11px] font-semibold px-2 py-1 rounded-full bg-black/35 text-white border border-white/10">
                         {f.label}
                       </div>
