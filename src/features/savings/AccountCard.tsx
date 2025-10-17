@@ -15,30 +15,92 @@ import supabase from "@/lib/supabase";
 /* ===== 유틸 ===== */
 const fmt = (n: number | string) => Math.round(Number(n || 0)).toLocaleString();
 
-/** 내일 09:00(로컬)을 반환. 이미 그 시각을 지났다면 모레 09:00 */
-function getTomorrowNine(from = new Date()) {
-  const y = from.getFullYear();
-  const m = from.getMonth();
-  const d = from.getDate();
-  const target = new Date(y, m, d + 1, 9, 0, 0, 0);
-  return target.getTime() > from.getTime()
-    ? target
-    : new Date(y, m, d + 2, 9, 0, 0, 0);
+/** HH:MM:SS 포맷 */
+function fmtHMS(ms: number) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const hh = Math.floor(s / 3600);
+  const mm = Math.floor((s % 3600) / 60);
+  const ss = s % 60;
+  const z = (n: number) => n.toString().padStart(2, "0");
+  return `${z(hh)}:${z(mm)}:${z(ss)}`;
 }
 
-/** 목표 시각까지 남은 시간 n시간 m분 */
-function useCountdownToTomorrowNine() {
+/** 오늘의 특정 시각 Date(로컬) */
+function todayAt(hour: number, min = 0, sec = 0, ms = 0, from = new Date()) {
+  return new Date(
+    from.getFullYear(),
+    from.getMonth(),
+    from.getDate(),
+    hour,
+    min,
+    sec,
+    ms
+  );
+}
+
+/**
+ * 감자링 적금의 납입 윈도우(로컬 09:00 ~ 18:00 가정)
+ * - now가 윈도우 이전:   start=today 09:00, end=today 18:00, isOpen=false
+ * - now가 윈도우 사이:   start=today 09:00, end=today 18:00, isOpen=true
+ * - now가 윈도우 이후:   start=tomorrow 09:00, end=tomorrow 18:00, isOpen=false
+ */
+function getDepositWindow(now = new Date()) {
+  const startToday = todayAt(9, 0, 0, 0, now);
+  const endToday = todayAt(18, 0, 0, 0, now);
+
+  if (now < startToday) {
+    return {
+      isOpen: false,
+      start: startToday,
+      end: endToday,
+      nextStart: startToday,
+    };
+  }
+  if (now >= startToday && now < endToday) {
+    return {
+      isOpen: true,
+      start: startToday,
+      end: endToday,
+      nextStart: endToday,
+    };
+  }
+  // after end -> tomorrow window
+  const tomorrow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1
+  );
+  const startTomorrow = todayAt(9, 0, 0, 0, tomorrow);
+  const endTomorrow = todayAt(18, 0, 0, 0, tomorrow);
+  return {
+    isOpen: false,
+    start: startTomorrow,
+    end: endTomorrow,
+    nextStart: startTomorrow,
+  };
+}
+
+/** 초 단위 카운트다운 훅 (윈도우 열림/닫힘에 따라 마감/다음 시작까지 남은 시간 계산) */
+function useDepositCountdown(enabled: boolean) {
   const [now, setNow] = useState(() => new Date());
+
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 30_000); // 30초마다 가볍게 갱신
+    if (!enabled) return;
+    const id = setInterval(() => setNow(new Date()), 1000); // 1초마다 갱신
     return () => clearInterval(id);
-  }, []);
-  const target = useMemo(() => getTomorrowNine(now), [now]);
-  const diffMs = Math.max(0, target.getTime() - now.getTime());
-  const totalMinutes = Math.ceil(diffMs / 60000);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return { target, hours, minutes };
+  }, [enabled]);
+
+  const { isOpen, end, start } = useMemo(() => getDepositWindow(now), [now]);
+  const msUntilClose = isOpen ? end.getTime() - now.getTime() : 0;
+  const msUntilOpen = isOpen ? 0 : start.getTime() - now.getTime();
+
+  return {
+    isOpen,
+    msUntilClose: Math.max(0, msUntilClose),
+    msUntilOpen: Math.max(0, msUntilOpen),
+    label: isOpen ? "납입 마감까지" : "다음 납입 시작까지",
+    hms: isOpen ? fmtHMS(msUntilClose) : fmtHMS(msUntilOpen),
+  };
 }
 
 type Props = {
@@ -103,9 +165,13 @@ export default function AccountCard({ acc, product, onDeposit }: Props) {
     );
   }, [acc.status, acc.is_perfect, isMatured, isClosed]);
 
-  // ⏱ active일 때만: 내일 09:00까지 남은 시간
-  const { hours, minutes } = useCountdownToTomorrowNine();
-  const showCountdown = acc.status === "active" && !isMatured && !isClosed;
+  // ⏱ active이면서 미만기/미지급 상태에서만 카운트다운 사용
+  const countdownEnabled = acc.status === "active" && !isMatured && !isClosed;
+  const {
+    isOpen: windowOpen,
+    label,
+    hms,
+  } = useDepositCountdown(countdownEnabled);
 
   // 🧾 납입
   const handleDeposit = async () => {
@@ -154,6 +220,12 @@ export default function AccountCard({ acc, product, onDeposit }: Props) {
       setClaiming(false);
     }
   };
+
+  // 납입 가능 시 버튼을 빛나게(펄스 + 글로우)
+  const payBtnGlow =
+    canDeposit && !submitting && !lacksGold
+      ? "animate-pulse ring-2 ring-amber-400/70 shadow-[0_0_24px_rgba(245,158,11,0.35)]"
+      : "";
 
   return (
     <Card
@@ -232,7 +304,7 @@ export default function AccountCard({ acc, product, onDeposit }: Props) {
           </div>
         </section>
 
-        {/* ⏰ 납입 안내 + 카운트다운(내일 09:00) */}
+        {/* ⏰ 납입 안내 + 카운트다운 */}
         {!isMatured && !isClosed && (
           <>
             <section>
@@ -241,21 +313,23 @@ export default function AccountCard({ acc, product, onDeposit }: Props) {
                 <h3 className="text-sm font-semibold">납입 안내</h3>
               </div>
 
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">상태</span>
-                <span className="font-medium">
-                  {isTodayDue(acc) ? "오늘" : "대기"}
-                </span>
-              </div>
-
-              {/* ✅ active일 때만 표시 */}
               {acc.status === "active" && (
                 <div className="mt-2 rounded-lg border bg-background/70 px-3 py-2 flex items-center justify-between">
                   <span className="text-[12px] text-muted-foreground">
-                    다음 납입 시간까지
+                    {windowOpen ? "납입 마감까지" : "다음 납입 시작까지"}
                   </span>
-                  <span className="text-[13px] font-semibold tabular-nums">
-                    {hours}시간 {minutes}분
+                  <span
+                    className={`
+                      text-[13px] font-semibold tabular-nums
+                      ${
+                        windowOpen
+                          ? "text-rose-600 dark:text-rose-400"
+                          : "text-emerald-600 dark:text-emerald-400"
+                      }
+                    `}
+                    aria-live="polite"
+                  >
+                    {hms}
                   </span>
                 </div>
               )}
@@ -263,13 +337,10 @@ export default function AccountCard({ acc, product, onDeposit }: Props) {
 
             {/* 💳 결제(골드) 안내 */}
             <div className="rounded-lg border bg-background px-3 py-2 text-[12px] flex items-center justify-between">
-              <span className="text-muted-foreground">하루 납입 비용</span>
+              <span className="text-muted-foreground">납입 금액</span>
               <span className="tabular-nums font-semibold">
                 🪙{fmt(acc.daily_amount)}
               </span>
-            </div>
-            <div className="text-[12px] text-muted-foreground text-right -mt-2">
-              보유: 🪙<b className="tabular-nums">{fmt(gold ?? 0)}</b>
             </div>
           </>
         )}
@@ -316,7 +387,7 @@ export default function AccountCard({ acc, product, onDeposit }: Props) {
         {!isMatured && !isClosed && (
           <div className="pt-2 flex items-center justify-between gap-2">
             <Button
-              className="flex-1"
+              className={`flex-1 transition-shadow ${payBtnGlow}`}
               disabled={!canDeposit || submitting || lacksGold}
               onClick={handleDeposit}
             >
@@ -326,7 +397,7 @@ export default function AccountCard({ acc, product, onDeposit }: Props) {
                 ? "골드 부족"
                 : submitting
                 ? "처리 중..."
-                : "오늘 납입하기"}
+                : "납입하기"}
             </Button>
           </div>
         )}
@@ -350,7 +421,7 @@ function InfoTile({
 }: {
   emoji: string;
   title: string;
-  value: string;
+  value: string | number;
 }) {
   return (
     <div className="rounded-xl ring-1 ring-border bg-background/60 backdrop-blur-[2px] p-3 shadow-[0_1px_0_rgba(0,0,0,0.02)]">

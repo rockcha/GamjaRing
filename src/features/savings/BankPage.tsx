@@ -37,7 +37,7 @@ export default function BankPage() {
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("term_asc");
 
-  const MAX_OPEN = 2;
+  const MAX_OPEN = 4;
 
   const loadAll = useCallback(async () => {
     if (!coupleId) return;
