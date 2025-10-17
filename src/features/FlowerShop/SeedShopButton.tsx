@@ -36,7 +36,19 @@ type Seed = {
 type QtyState = Record<number, string>;
 type OwnedMap = Record<number, number>;
 
-export default function SeedShopButton({ className }: { className?: string }) {
+type Props = {
+  className?: string;
+  /** 구매 성공 직후, 증가한 수량을 알림: { [seedId]: +qty } */
+  onPurchased?: (delta: Record<number, number>) => void;
+  /** 서버 리프레시(선택). 부모가 주면 구매 후 호출 */
+  onSync?: () => Promise<void> | void;
+};
+
+export default function SeedShopButton({
+  className,
+  onPurchased,
+  onSync,
+}: Props) {
   const { couple, gold, spendGold } = useCoupleContext();
   const coupleId = couple?.id ?? null;
 
@@ -47,7 +59,6 @@ export default function SeedShopButton({ className }: { className?: string }) {
   const [qtyMap, setQtyMap] = useState<QtyState>({ 1: "1", 2: "1", 3: "1" });
   const [owned, setOwned] = useState<OwnedMap>({}); // seed_id -> qty
 
-  // ── 데이터 로드
   const loadSeeds = useCallback(async () => {
     const { data, error } = await supabase
       .from("seeds")
@@ -129,14 +140,12 @@ export default function SeedShopButton({ className }: { className?: string }) {
     setOwned(map);
   }, [coupleId]);
 
-  // Dialog 열릴 때 로드
   useEffect(() => {
     if (!open) return;
     void loadSeeds();
     void loadOwned();
   }, [open, loadSeeds, loadOwned]);
 
-  // ── 유틸
   const safeQty = useCallback(
     (seedId: number) => {
       const n = Math.floor(Number(qtyMap[seedId]));
@@ -160,7 +169,6 @@ export default function SeedShopButton({ className }: { className?: string }) {
     await loadOwned();
   }, [loadOwned]);
 
-  // ── 구매
   const handleBuy = useCallback(
     async (seed: Seed) => {
       if (!coupleId) {
@@ -218,12 +226,20 @@ export default function SeedShopButton({ className }: { className?: string }) {
           }
         }
 
-        // 낙관적 보유수량 갱신 + 수량 리셋
+        // ✅ 내부 카드 표시도 갱신
         setOwned((m) => ({ ...m, [seed.id]: (m[seed.id] ?? 0) + qty }));
         setQtyMap((m) => ({ ...m, [seed.id]: "1" }));
 
+        // ✅ 부모에게 “구매됨” 알림 → 텃밭 즉시 반영
+        onPurchased?.({ [seed.id]: qty });
+
         toast.success(`"${seed.label}" ${qty}개 구매 완료! 🌱`);
+
+        // (선택) 서버 정합성 재확인
         void refreshOwned();
+        if (onSync) {
+          await onSync();
+        }
       } catch (e: any) {
         console.error("[SeedShop] buy error:", e?.message ?? e);
         toast.error(e?.message ?? "구매 중 오류가 발생했습니다.");
@@ -231,10 +247,9 @@ export default function SeedShopButton({ className }: { className?: string }) {
         setLoading(false);
       }
     },
-    [coupleId, gold, spendGold, refreshOwned, safeQty]
+    [coupleId, gold, spendGold, safeQty, onPurchased, onSync, refreshOwned]
   );
 
-  // ── 렌더
   return (
     <>
       <Button className={className} onClick={() => setOpen(true)}>
@@ -258,7 +273,6 @@ export default function SeedShopButton({ className }: { className?: string }) {
             </DialogDescription>
           </DialogHeader>
 
-          {/* 부드러운 경계 */}
           <div className="h-px w-full bg-gradient-to-r from-transparent via-muted to-transparent" />
 
           <ScrollArea className="max-h-[70vh] px-6 py-5">
@@ -298,7 +312,6 @@ export default function SeedShopButton({ className }: { className?: string }) {
                         </p>
                       ) : null}
 
-                      {/* 가격 ↔ 보유 (오른쪽으로 이동) */}
                       <div className="flex items-center justify-between">
                         <div className="text-lg font-semibold">
                           🪙 {seed.price.toLocaleString()}
@@ -312,7 +325,6 @@ export default function SeedShopButton({ className }: { className?: string }) {
                         </div>
                       </div>
 
-                      {/* 수량 입력(왼쪽) ↔ 총액(오른쪽) */}
                       <div className="mt-auto flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
                           <label
@@ -336,7 +348,6 @@ export default function SeedShopButton({ className }: { className?: string }) {
                             placeholder="1"
                           />
                         </div>
-
                         <div className="text-muted-foreground">
                           총액:{" "}
                           <span className="font-semibold">

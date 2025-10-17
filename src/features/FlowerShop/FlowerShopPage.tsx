@@ -25,13 +25,11 @@ export default function FlowerShopPage() {
 
   const handleSwitch = useCallback((next: View) => setView(next), []);
 
-  /** ===== 콘텐츠 전환 애니메이션 ===== */
+  /** ===== 콘텐츠 전환 애니메이션(미니멀) ===== */
   const variants = {
-    enterFromRight: { x: 40, opacity: 0, scale: 0.98 },
-    center: { x: 0, opacity: 1, scale: 1 },
-    exitToLeft: { x: -40, opacity: 0, scale: 0.98 },
-    enterFromLeft: { x: -40, opacity: 0, scale: 0.98 },
-    exitToRight: { x: 40, opacity: 0, scale: 0.98 },
+    initial: { opacity: 0, y: 6, scale: 0.995 },
+    animate: { opacity: 1, y: 0, scale: 1 },
+    exit: { opacity: 0, y: -6, scale: 0.995 },
   };
   const transition = { type: "spring", stiffness: 220, damping: 22, mass: 0.9 };
 
@@ -43,11 +41,9 @@ export default function FlowerShopPage() {
   const onTouchEnd = (e: React.TouchEvent) => {
     if (touchStartX.current == null) return;
     const dx = e.changedTouches[0].clientX - touchStartX.current;
-    // 임계값
     if (Math.abs(dx) > 40) {
-      if (dx < 0 && view === "shop")
-        handleSwitch("garden"); // 왼쪽으로 스와이프 → 다음
-      else if (dx > 0 && view === "garden") handleSwitch("shop"); // 오른쪽 스와이프 → 이전
+      if (dx < 0 && view === "shop") handleSwitch("garden");
+      else if (dx > 0 && view === "garden") handleSwitch("shop");
     }
     touchStartX.current = null;
   };
@@ -123,22 +119,17 @@ export default function FlowerShopPage() {
         </div>
       </div>
 
-      {/* 콘텐츠 영역 (애니메이션 + 스와이프) */}
-      <div
-        className="relative min-h-[60vh] overflow-hidden rounded-2xl border"
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-      >
+      {/* 콘텐츠 영역 — 미니멀: 감싸던 래퍼/절대배치/overflow 제거 */}
+      <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         <AnimatePresence mode="wait" initial={false}>
           {view === "shop" ? (
             <motion.div
               key="shop"
-              initial="enterFromRight"
-              animate="center"
-              exit="exitToLeft"
               variants={variants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
               transition={transition}
-              className="absolute inset-0"
               id="panel-shop"
               role="tabpanel"
               aria-labelledby="shop"
@@ -148,12 +139,11 @@ export default function FlowerShopPage() {
           ) : (
             <motion.div
               key="garden"
-              initial="enterFromLeft"
-              animate="center"
-              exit="exitToRight"
               variants={variants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
               transition={transition}
-              className="absolute inset-0"
               id="panel-garden"
               role="tabpanel"
               aria-labelledby="garden"
@@ -162,32 +152,6 @@ export default function FlowerShopPage() {
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* 하단 보조 네비(선택): 좌/우 버튼 */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-between p-2">
-          <div className="pointer-events-auto">
-            <Button
-              size="icon"
-              variant="ghost"
-              aria-label="꽃집으로"
-              className="rounded-full"
-              onClick={() => handleSwitch("shop")}
-            >
-              ←
-            </Button>
-          </div>
-          <div className="pointer-events-auto">
-            <Button
-              size="icon"
-              variant="ghost"
-              aria-label="뒤뜰로"
-              className="rounded-full"
-              onClick={() => handleSwitch("garden")}
-            >
-              →
-            </Button>
-          </div>
-        </div>
       </div>
     </div>
   );
