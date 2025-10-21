@@ -18,7 +18,7 @@ import {
   toneClasses,
 } from "@/features/bucketlist/types";
 import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 
 /** ✅ 선택 카테고리 이모지 워터마크 배경 */
 function EmojiBackdrop({
@@ -33,6 +33,7 @@ function EmojiBackdrop({
       aria-hidden
       className={cn(
         "pointer-events-none absolute inset-0 -z-[1] overflow-hidden rounded-2xl",
+        "[content-visibility:auto]",
         toneClass
       )}
     >
@@ -113,7 +114,6 @@ const ALL_KEY = "전체" as const;
 const ALL_META = {
   emoji: "👀",
   desc: "모든 버킷리스트를 한눈에 확인해요.",
-  // toneClasses를 쓰지 않고 직접 중립 톤을 구성
   softBg: "bg-neutral-50",
   ring: "ring-neutral-300/70",
 };
@@ -130,11 +130,12 @@ export default function BucketListPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<BucketItem | null>(null);
 
-  /** ✅ 상태 필터 미사용 → 항상 전체 노출 */
+  /** ✅ 상태/작성자 필터 미사용 → 항상 전체 노출 */
   useEffect(() => {
     setFilters((f: any) => {
       const next = { ...f };
       if ("status" in next) next.status = undefined;
+      if ("author" in next) next.author = undefined; // 작성자 구분 제거
       return next;
     });
   }, [setFilters]);
@@ -152,6 +153,7 @@ export default function BucketListPage() {
     due_date?: string | null;
   }) => {
     try {
+      // DB 스키마 호환 위해 author_id는 저장하되 UI/필터에선 사용 안 함
       await add({
         couple_id: coupleId,
         author_id: myUserId,
@@ -212,14 +214,14 @@ export default function BucketListPage() {
   // 선택된 카테고리 테마(전체는 null)
   const theme = useMemo(() => {
     if (filters.category === ALL_KEY) return null;
-    const meta = CATEGORY_META[filters.category];
+    const meta = CATEGORY_META[filters.category as BucketCategory];
     return toneClasses(meta.tone);
   }, [filters.category]);
 
   const selectedEmoji =
     filters.category === ALL_KEY
       ? ALL_META.emoji
-      : CATEGORY_META[filters.category].emoji;
+      : CATEGORY_META[filters.category as BucketCategory].emoji;
 
   const basePastel = (softBg?: string) => cn(softBg ?? "bg-slate-50");
 
@@ -251,9 +253,9 @@ export default function BucketListPage() {
           softBg: ALL_META.softBg,
         }
       : {
-          emoji: CATEGORY_META[filters.category].emoji,
+          emoji: CATEGORY_META[filters.category as BucketCategory].emoji,
           title: String(filters.category),
-          desc: CATEGORY_META[filters.category].desc,
+          desc: CATEGORY_META[filters.category as BucketCategory].desc,
           softBg: theme?.softBg ?? "bg-slate-50",
         };
 
@@ -264,13 +266,7 @@ export default function BucketListPage() {
     <div className="w-full px-2 sm:px-4 py-4">
       {/* 상단 바: 추가 버튼만 */}
       <div className="mb-4 flex items-center justify-end w-full">
-        <Button
-          onClick={() => {
-            setEditing(null);
-            setFormOpen(true);
-          }}
-          className="gap-1"
-        >
+        <Button onClick={openCreate} className="gap-1">
           <Plus className="w-4 h-4" />
           추가
         </Button>
@@ -278,121 +274,155 @@ export default function BucketListPage() {
 
       {/* 좌-우 레이아웃 */}
       <div className="grid grid-cols-1 md:grid-cols-[220px_minmax(0,1fr)] gap-4 w-full">
-        {/* 좌측: 유형 네비 */}
-        <aside className="w-full">
-          <div className="sticky top-[76px] space-y-2">
-            {filterKeys.map((key) => {
-              const isAll = key === ALL_KEY;
-              const active = filters.category === key;
-              const meta = isAll
-                ? { emoji: ALL_META.emoji }
-                : CATEGORY_META[key as BucketCategory];
-              const tone = isAll ? null : toneClasses(meta.tone as any);
-              const softBg = isAll ? ALL_META.softBg : tone?.softBg;
+        <LayoutGroup>
+          {/* 좌측: 유형 네비 */}
+          <aside className="w-full">
+            <div className="sticky top[76px] md:top-[76px] space-y-2 min-h-[72vh]">
+              {filterKeys.map((key) => {
+                const isAll = key === ALL_KEY;
+                const active = filters.category === key;
+                const meta = isAll
+                  ? { emoji: ALL_META.emoji }
+                  : CATEGORY_META[key as BucketCategory];
+                const tone = isAll ? null : toneClasses(meta.tone as any);
+                const softBg = isAll ? ALL_META.softBg : tone?.softBg;
 
-              return (
-                <button
-                  key={key}
-                  onClick={() =>
-                    setFilters((f: any) => ({ ...f, category: key }))
-                  }
-                  className={cn(
-                    "group w-full text-left rounded-xl px-3 py-2 transition",
-                    basePastel(softBg),
-                    "text-slate-800",
-                    active
-                      ? cn(
-                          isAll ? ALL_META.ring : tone?.ring,
-                          "ring-2 shadow-sm -translate-y-[1px] bg-white"
-                        )
-                      : cn(
-                          "hover:shadow-sm hover:-translate-y-[1px]",
-                          "focus-visible:outline-none focus-visible:ring-2",
-                          isAll ? ALL_META.ring : tone?.ring
-                        ),
-                    "active:scale-[0.98]"
-                  )}
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <span className="text-lg group-hover:scale-110 transition-transform">
-                      {isAll ? ALL_META.emoji : meta.emoji}
+                return (
+                  <button
+                    key={key as string}
+                    onClick={() =>
+                      setFilters((f: any) => ({ ...f, category: key }))
+                    }
+                    className={cn(
+                      "group w-full text-left rounded-xl px-3 py-2 transition",
+                      basePastel(softBg),
+                      "text-slate-800",
+                      active
+                        ? cn(
+                            isAll ? ALL_META.ring : tone?.ring,
+                            "ring-2 shadow-sm -translate-y-[1px] bg-white"
+                          )
+                        : cn(
+                            "hover:shadow-sm hover:-translate-y-[1px]",
+                            "focus-visible:outline-none focus-visible:ring-2",
+                            isAll ? ALL_META.ring : tone?.ring
+                          ),
+                      "active:scale-[0.98]"
+                    )}
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <span className="text-lg group-hover:scale-110 transition-transform">
+                        {isAll ? ALL_META.emoji : meta.emoji}
+                      </span>
+                      <span className="font-medium">
+                        {isAll ? "전체보기" : (key as string)}
+                      </span>
                     </span>
-                    <span className="font-medium">
-                      {isAll ? "전체보기" : (key as string)}
-                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </aside>
+
+          {/* 우측: 섹션 (보더 제거, 섀도우) */}
+          <section
+            className={cn(
+              "relative w-full rounded-2xl bg-white p-3 sm:p-4 overflow-hidden",
+              "min-h-[72vh]"
+            )}
+            style={sectionShadowStyle}
+          >
+            {/* 상단 헤더: 선택 카테고리 or 전체보기 */}
+            {selectedMeta && (
+              <div
+                className={cn(
+                  "mb-3 sm:mb-4 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5",
+                  basePastel(selectedMeta.softBg),
+                  "backdrop-blur-[1px]",
+                  "min-h-[56px] flex items-center"
+                )}
+              >
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="text-xl">{selectedMeta.emoji}</span>
+                  <span className="font-semibold">{selectedMeta.title}</span>
+                  <span className="text-xs sm:text-sm text-muted-foreground">
+                    {selectedMeta.desc}
                   </span>
-                  {/* 버튼 내부 디테일 멘트는 없음 (요구사항) */}
-                </button>
-              );
-            })}
-          </div>
-        </aside>
-
-        {/* 우측: 섹션 (보더 제거, 섀도우) */}
-        <section
-          className={cn(
-            "relative w-full rounded-2xl bg-white p-3 sm:p-4 overflow-hidden"
-          )}
-          style={sectionShadowStyle}
-        >
-          {/* 상단 헤더: 선택 카테고리 or 전체보기 */}
-          {selectedMeta && (
-            <div
-              className={cn(
-                "mb-3 sm:mb-4 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5",
-                basePastel(selectedMeta.softBg),
-                "backdrop-blur-[1px]"
-              )}
-            >
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span className="text-xl">{selectedMeta.emoji}</span>
-                <span className="font-semibold">{selectedMeta.title}</span>
-                <span className="text-xs sm:text-sm text-muted-foreground">
-                  {selectedMeta.desc}
-                </span>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* 배경 이모지 워터마크 (전체보기는 제외) */}
-          {filters.category !== ALL_KEY && selectedEmoji && (
-            <EmojiBackdrop
-              emoji={selectedEmoji}
-              toneClass={theme?.softBg ?? ""}
-            />
-          )}
+            {/* 배경 이모지 워터마크 (전체보기는 제외) */}
+            {filters.category !== ALL_KEY && selectedEmoji && (
+              <EmojiBackdrop
+                emoji={selectedEmoji}
+                toneClass={theme?.softBg ?? ""}
+              />
+            )}
 
-          {loading ? (
-            <div className="text-sm text-muted-foreground relative z-10">
-              불러오는 중…
-            </div>
-          ) : items.length === 0 ? (
-            <div className="rounded-xl p-8 text-center text-sm text-muted-foreground relative z-10">
-              조건에 해당하는 버킷이 없어요.
-            </div>
-          ) : (
-            <motion.div
-              layout
-              className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 w-full relative z-10"
+            {/* 내부 스크롤 영역 */}
+            <div
+              className="relative z-10 overflow-y-auto overscroll-contain pt-1 pb-2 pr-1
+                            [scrollbar-width:thin] [scrollbar-gutter:stable_both-sides]
+                            h-[calc(72vh-82px)] sm:h-[calc(72vh-90px)]"
             >
-              <AnimatePresence initial={false}>
-                {items.map((it) => (
-                  <BucketItemCard
-                    key={it.id}
-                    item={it}
-                    me={myUserId}
-                    onToggleComplete={toggleComplete}
-                    onEdit={(item) => {
-                      setEditing(item);
-                      setFormOpen(true);
-                    }}
-                    onDelete={onDelete}
-                  />
-                ))}
-              </AnimatePresence>
-            </motion.div>
-          )}
-        </section>
+              {loading ? (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 min-h-[420px]">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="h-[220px] sm:h-[240px] animate-pulse rounded-xl bg-slate-100"
+                    />
+                  ))}
+                </div>
+              ) : items.length === 0 ? (
+                <div className="min-h-[420px] rounded-xl grid place-content-center text-center">
+                  <div className="space-y-2">
+                    <div className="text-5xl opacity-30">
+                      {selectedEmoji ?? "🌱"}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      조건에 해당하는 버킷이 없어요.
+                    </p>
+                    <Button
+                      onClick={openCreate}
+                      size="sm"
+                      variant="outline"
+                      className="mt-2"
+                    >
+                      새 버킷 추가
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <motion.div
+                  layout
+                  className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 w-full"
+                >
+                  <AnimatePresence initial={false} mode="sync">
+                    {items.map((it) => (
+                      <motion.div
+                        key={it.id}
+                        layout
+                        className="rounded-xl h-[220px] sm:h-[240px] overflow-hidden"
+                      >
+                        <BucketItemCard
+                          item={it}
+                          onToggleComplete={toggleComplete}
+                          onEdit={(item) => {
+                            setEditing(item);
+                            setFormOpen(true);
+                          }}
+                          onDelete={onDelete}
+                        />
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </motion.div>
+              )}
+            </div>
+          </section>
+        </LayoutGroup>
       </div>
 
       {/* 추가/수정 다이얼로그 */}
