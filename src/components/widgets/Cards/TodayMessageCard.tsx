@@ -302,7 +302,6 @@ export default function TodayMessageCard({ maxLen = 140, onSaved }: Props) {
               disabled={!canSave}
               className="h-9 rounded-lg"
             >
-              <FontAwesomeIcon icon={faPaperPlane} className="mr-2" />
               저장
             </Button>
           </div>
