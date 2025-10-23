@@ -9,6 +9,9 @@ import { cn } from "@/lib/utils";
 import supabase from "@/lib/supabase";
 import { INGREDIENTS, type IngredientTitle } from "@/features/cooking/type";
 import { emitPotCenterFx } from "@/features/cooking/potEventBus";
+import { Button } from "@/components/ui/button"; // ✅ 추가
+import { Input } from "@/components/ui/input"; // ✅ 추가
+import { toast } from "sonner"; // ✅ 추가
 
 type KitchenIngredientRow = { num: number; title: IngredientTitle };
 
@@ -71,8 +74,8 @@ export default function IngredientGrid({
     left: number;
   };
 
+  const staged = stagedMap ?? {};
   const rows: Row[] = useMemo(() => {
-    const staged = stagedMap ?? {};
     return INGREDIENTS.map((it) => {
       const title = it.title as IngredientTitle;
       const have = Math.max(0, Number(invMap[title] ?? 0));
@@ -81,6 +84,15 @@ export default function IngredientGrid({
       return { title, emoji: it.emoji, have, staged: s, left };
     });
   }, [invMap, stagedMap]);
+
+  // ✅ 현재 스테이징 총합
+  const stagedTotal = useMemo(
+    () => rows.reduce((acc, r) => acc + r.staged, 0),
+    [rows]
+  );
+
+  // ✅ “랜덤 재료 넣기”용 목표 총합 입력 (10~15)
+  const [targetTotal, setTargetTotal] = useState<number>(10);
 
   const handleClick = (row: Row) => {
     if (row.left <= 0) {
@@ -91,10 +103,79 @@ export default function IngredientGrid({
       // 최대치 도달 시 부모에서 토스트를 띄우므로 여기서는 무음 처리
       return;
     }
-    // 1) 부모에 알림(수량 증가)
     onPick?.(row.title);
-    // 2) 냄비 중앙 이펙트 트리거
     emitPotCenterFx({ title: row.title, emoji: row.emoji });
+  };
+
+  // ✅ 랜덤으로 (targetTotal - stagedTotal) 만큼 채우기
+  const handleBulkRandomFill = () => {
+    // 1) 입력값 검증
+    if (Number.isNaN(targetTotal)) {
+      toast.error("숫자를 입력해주세요.");
+      return;
+    }
+    if (targetTotal < 10 || targetTotal > 15) {
+      toast.warning("목표 개수는 10개 이상 15개 이하로 설정해주세요.");
+      return;
+    }
+    if (stagedTotal > targetTotal) {
+      toast.warning(
+        `이미 ${stagedTotal}개가 담겨 있어요. 목표(${targetTotal})보다 많습니다.`
+      );
+      return;
+    }
+    if (maxReached) {
+      toast.warning("최대 15개에 도달했어요.");
+      return;
+    }
+
+    // 2) 필요 개수 산출 (남은 슬롯, 재고 한도 고려)
+    const needRaw = targetTotal - stagedTotal;
+    if (needRaw <= 0) {
+      toast.info("이미 목표 개수만큼 담겨 있어요.");
+      return;
+    }
+
+    const slotsLeft = Math.max(0, 15 - stagedTotal);
+    if (slotsLeft <= 0) {
+      toast.warning("최대 15개까지 넣을 수 있어요.");
+      return;
+    }
+
+    // 재고 풀(남은 수량만큼 복제한 풀) 구성
+    const pool: IngredientTitle[] = [];
+    rows.forEach((r) => {
+      if (r.left > 0) {
+        for (let i = 0; i < r.left; i++) pool.push(r.title);
+      }
+    });
+
+    if (pool.length === 0) {
+      toast.error("사용 가능한 재료가 없어요.");
+      return;
+    }
+
+    const need = Math.min(needRaw, slotsLeft, pool.length);
+    if (need <= 0) {
+      toast.warning("추가로 넣을 수 있는 재료가 없어요.");
+      return;
+    }
+
+    // 3) 랜덤 샘플링 (재고 한도 내에서 중복 가능)
+    //    풀에서 하나 뽑을 때마다 제거 → 재고 소진 반영
+    for (let i = 0; i < need; i++) {
+      const idx = Math.floor(Math.random() * pool.length);
+      const title = pool[idx];
+      onPick?.(title);
+      // 과한 이펙트 스팸 방지: 첫 1~2개만 이펙트 (선택)
+      if (i < 2) {
+        const emoji = INGREDIENTS.find((x) => x.title === title)?.emoji ?? "🥕";
+        emitPotCenterFx({ title, emoji });
+      }
+      // 해당 인덱스 제거
+      pool.splice(idx, 1);
+      if (pool.length === 0 && i < need - 1) break;
+    }
   };
 
   return (
@@ -142,6 +223,37 @@ export default function IngredientGrid({
             </button>
           );
         })}
+      </div>
+
+      {/* ✅ 랜덤 재료 넣기 (갯수 입력) */}
+      <div className="mt-3 flex items-center gap-2">
+        <label className="text-xs text-neutral-700">목표 개수</label>
+        <Input
+          type="number"
+          inputMode="numeric"
+          min={10}
+          max={15}
+          value={targetTotal}
+          onChange={(e) => setTargetTotal(Number(e.currentTarget.value))}
+          className="h-8 w-20"
+        />
+        <Button
+          size="sm"
+          onClick={handleBulkRandomFill}
+          disabled={!!maxReached}
+          className={cn(
+            "rounded-lg",
+            maxReached && "opacity-70 cursor-not-allowed"
+          )}
+          title="현재 담긴 개수에서 목표 개수까지 랜덤으로 채우기"
+        >
+          랜덤 재료 넣기
+        </Button>
+
+        {/* 작은 힌트 */}
+        <span className="ml-auto text-[11px] text-neutral-500">
+          현재 {stagedTotal}개 / 목표 {Math.min(15, targetTotal)}개
+        </span>
       </div>
     </Card>
   );
