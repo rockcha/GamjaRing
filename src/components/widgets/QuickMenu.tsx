@@ -45,6 +45,7 @@ import {
   faBolt,
   faLandmark, // 은행 건물 아이콘
   faSeedling, // ✅ 꽃집 아이콘
+  faRecycle, // ✅ 분리수거장 아이콘
 } from "@fortawesome/free-solid-svg-icons";
 
 const makeFA =
@@ -74,6 +75,7 @@ const PuzzlePiece = makeFA(faPuzzlePiece) as unknown as LucideIcon;
 const Bolt = makeFA(faBolt) as unknown as LucideIcon;
 const Landmark = makeFA(faLandmark) as unknown as LucideIcon; // 은행 건물
 const Seedling = makeFA(faSeedling) as unknown as LucideIcon; // ✅ 꽃집
+const Recycle = makeFA(faRecycle) as unknown as LucideIcon; // ✅ 분리수거장
 
 /* ========= 내부 전용 네비 정의 ========= */
 type NavId =
@@ -94,7 +96,8 @@ type NavId =
   | "stickerBoard"
   | "miniGame"
   | "bank"
-  | "flowerShop"; // ✅ 추가
+  | "flowerShop"
+  | "recycleStation"; // ✅ 추가
 
 type NavDef = {
   id: NavId;
@@ -131,6 +134,9 @@ const NAV_DEFS: Record<NavId, NavDef> = {
 
   // ✅ 꽃집
   flowerShop: { id: "flowerShop", label: "꽃집", icon: Seedling },
+
+  // ✅ 분리수거장
+  recycleStation: { id: "recycleStation", label: "분리수거장", icon: Recycle },
 };
 
 /* 가드 & 라우팅 */
@@ -155,7 +161,8 @@ const GUARDS: Record<
   stickerBoard: { requireLogin: true, requireCouple: true },
   miniGame: { requireLogin: true, requireCouple: true },
   bank: { requireLogin: true, requireCouple: true },
-  flowerShop: { requireLogin: true, requireCouple: true }, // ✅ 추가
+  flowerShop: { requireLogin: true, requireCouple: true }, // ✅
+  recycleStation: { requireLogin: true, requireCouple: true }, // ✅
 };
 
 const FALLBACK_ROUTE: Record<string, string> = {
@@ -176,7 +183,8 @@ const FALLBACK_ROUTE: Record<string, string> = {
   stickerBoard: "/stickerBoard",
   miniGame: "/miniGame",
   bank: "/bank",
-  flowerShop: "/flowershop", // ✅ 추가
+  flowerShop: "/flowershop", // ✅
+  recycleStation: "/recycleStation", // ✅
 };
 
 /* ========= 영역 구성 ========= */
@@ -194,7 +202,8 @@ const WORLD_IDS = [
   "farm",
   "kitchen",
   "exchange",
-  "flowerShop", // ✅ 감자링 월드에 꽃집 추가
+  "recycleStation", // ✅ 감자링 월드에 분리수거장 추가
+  "flowerShop", // ✅ 꽃집
   "bank",
   "aquarium",
   "fishing",
