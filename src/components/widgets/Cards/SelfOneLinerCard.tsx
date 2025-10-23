@@ -1,7 +1,7 @@
 // src/components/widgets/Cards/SelfOneLinerCard.tsx
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -55,36 +55,53 @@ export default function SelfOneLinerCard({
   const [msg, setMsg] = useState<UserMessage | null>(null);
   const [open, setOpen] = useState(false);
 
-  // 로드
+  /** 안전한 의존성 메모 */
+  const channelName = useMemo(
+    () =>
+      myId
+        ? `self_user_message_live_card:${myId}`
+        : "self_user_message_live_card",
+    [myId]
+  );
+
+  /** 단일 로드 함수 */
+  const reload = useCallback(async () => {
+    if (!myId) {
+      setMsg(null);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("user_message")
+      .select("*")
+      .eq("author_id", myId)
+      .maybeSingle<UserMessage>();
+
+    if (error) {
+      console.error("[SelfOneLinerCard] load error:", error);
+    }
+    setMsg(data ?? null);
+    setLoading(false);
+  }, [myId]);
+
+  /** 최초 로드 */
   useEffect(() => {
     let alive = true;
     (async () => {
-      if (!myId) {
-        setLoading(false);
-        setMsg(null);
-        return;
-      }
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("user_message")
-        .select("*")
-        .eq("author_id", myId)
-        .maybeSingle<UserMessage>();
-      if (!alive) return;
-      if (error) console.error("[SelfOneLinerCard] load error:", error);
-      setMsg(data ?? null);
-      setLoading(false);
+      await reload();
     })();
     return () => {
       alive = false;
     };
-  }, [myId]);
+  }, [reload]);
 
-  // realtime
+  /** Realtime 구독 (백업용) */
   useEffect(() => {
     if (!myId) return;
+
     const ch = supabase
-      .channel("self_user_message_live_card")
+      .channel(channelName)
       .on(
         "postgres_changes",
         {
@@ -94,15 +111,54 @@ export default function SelfOneLinerCard({
           filter: `author_id=eq.${myId}`,
         },
         (payload) => {
-          if (payload?.new) setMsg(payload.new as UserMessage);
-          else if ((payload as any)?.eventType === "DELETE") setMsg(null);
+          // 실시간 수신 시 즉시 반영
+          if ((payload as any)?.new) {
+            setMsg((payload as any).new as UserMessage);
+          } else if ((payload as any)?.eventType === "DELETE") {
+            setMsg(null);
+          }
         }
       )
       .subscribe();
+
     return () => {
       supabase.removeChannel(ch);
     };
-  }, [myId]);
+  }, [myId, channelName]);
+
+  /** 저장 완료 시: 1) 낙관적 업데이트 2) 서버 재조회 3) 다이얼로그 닫기 */
+  const handleSaved = useCallback(
+    async (next?: Partial<Pick<UserMessage, "content" | "emoji" | "id">>) => {
+      // 1) 낙관적 반영
+      if (next) {
+        setMsg((prev) => {
+          if (!prev) {
+            // 처음 생성된 경우를 대비
+            return {
+              id: next.id ?? -1,
+              author_id: myId ?? "",
+              content: next.content ?? "",
+              emoji: next.emoji ?? "🙂",
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            };
+          }
+          return {
+            ...prev,
+            ...next,
+            updated_at: new Date().toISOString(),
+          } as UserMessage;
+        });
+      }
+
+      // 2) 서버와 최종 동기화
+      await reload();
+
+      // 3) 다이얼로그 닫기
+      setOpen(false);
+    },
+    [myId, reload]
+  );
 
   const emoji = msg?.emoji ?? "🙂";
   const content = msg?.content ?? "오늘 한마디를 남겨보세요.";
@@ -201,7 +257,8 @@ export default function SelfOneLinerCard({
         <TodayMessageCard
           maxLen={140}
           initialShowEmojiPicker={false}
-          onSaved={() => setOpen(false)}
+          // onSaved가 payload를 주지 않는 구현이어도 동작하도록 방어
+          onSaved={handleSaved}
         />
       </DialogContent>
     </Dialog>
