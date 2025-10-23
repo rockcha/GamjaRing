@@ -45,6 +45,8 @@ export default function PageLayout({
 
     // ✅ 추가된 버킷리스트
     "/bucketlist": "버킷리스트",
+    "/recyclingStation": "분리수거장",
+    "/flowershop": "꽃집",
   };
 
   // 경로 정규화(뒤 슬래시 제거)

@@ -37,6 +37,7 @@ import BucketListPage from "./features/bucketlist/BucketListPage";
 import SavingProductPage from "./pages/SavingProductPage";
 import BankPage from "./features/savings/BankPage";
 import FlowerShopPage from "./features/FlowerShop/FlowerShopPage";
+import RecyclingStation from "./features/recycle/RecyclingStation";
 
 export default function App() {
   return (
@@ -76,6 +77,7 @@ export default function App() {
               <Route path="bank" element={<BankPage />} />
               <Route path="exchange" element={<ExchangePage />} />
               <Route path="flowershop" element={<FlowerShopPage />} />
+              <Route path="recycleStation" element={<RecyclingStation />} />
 
               <Route path="gloomy" element={<GloomyPage />} />
               <Route path="bucketlist" element={<BucketListPage />} />
