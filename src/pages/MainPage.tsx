@@ -12,9 +12,10 @@ import CoupleMusicCard from "@/components/widgets/Cards/CoupleMusicCard";
 import DailyFortuneCard from "@/features/fortune/DailyFortuneCard";
 import { Skeleton } from "@/components/ui/skeleton";
 
-import PartnerOneLinerCard from "@/components/widgets/Cards/PartnerOneLinerCard";
 import StartEndPixelShow from "@/components/widgets/Cards/StartEndPixelShow";
-import SelfOneLinerCard from "@/components/widgets/Cards/SelfOneLinerCard";
+
+import OneLinerCard from "@/components/widgets/Cards/OneLinerCard";
+import StartEndMemoriesSlider from "@/components/widgets/Cards/StartEndMemoriesSlider";
 
 export default function MainPage() {
   const { isCoupled, loading } = useUser(); // ✅ loading 가져오기
@@ -54,17 +55,19 @@ export default function MainPage() {
 
         {/* 가운데: 커플 이미지 */}
         <div className="flex flex-col gap-2 min-w-0">
-          <StartEndPixelShow
+          <StartEndMemoriesSlider />
+          {/* <StartEndPixelShow
             respectReducedMotion={false}
             holdDuration={8000}
             idleGap={400}
-          />
+          /> */}
         </div>
 
         {/* 오른쪽: 질문 + 일정 */}
         <div className="flex flex-col gap-2 min-w-0">
-          <PartnerOneLinerCard />
-          <SelfOneLinerCard />
+          {/* <PartnerOneLinerCard />
+          <SelfOneLinerCard /> */}
+          <OneLinerCard />
           {/* <UserMemoEmojiButton /> */}
         </div>
       </div>
