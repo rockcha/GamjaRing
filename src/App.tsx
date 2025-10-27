@@ -90,7 +90,7 @@ export default function App() {
           </Routes>
 
           {/* ✅ 여기! Routes 바깥에 전역으로 한 번만 */}
-          <Toaster position="bottom-right" richColors />
+          <Toaster position="bottom-left" richColors />
         </BrowserRouter>
       </CoupleProvider>
     </UserProvider>
