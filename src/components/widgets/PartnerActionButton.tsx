@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+
+/* 아이콘 - 닫기 버튼 */
+import { X } from "lucide-react";
 
 /** 알림 액션 키 타입 (커스텀은 별도 입력창으로 처리) */
 type ActionKey = Extract<
@@ -84,18 +88,12 @@ const ACTION_ITEMS: { key: ActionKey; label: string; emoji: string }[] = [
 
 /**
  * 외부에서 <PartnerActionButton /> 하나만 쓰면 됨
- * - sender/receiver/label 내부 로딩
- * - Dialog 전송 후 유지
- * - Hover Tooltip 적용
- * - 커스텀 전송은 항상 "💕" 추가 + type: "커스텀 액션"
  */
 export default function PartnerActionButton({
   className,
   label = "💕",
   size = "icon",
-  /** ✅ 추가: 트리거 이모지 크기(px) */
   emojiSizePx = 22,
-  /** ✅ 추가: 액션 그리드 이모지 크기(px) */
   actionEmojiSizePx = 18,
 }: {
   className?: string;
@@ -106,14 +104,11 @@ export default function PartnerActionButton({
 }) {
   const { couple, partnerId } = useCoupleContext();
   const { user } = useUser();
-
   const senderId = (user as any)?.id ?? null;
 
   const [receiverLabel, setReceiverLabel] = useState<string>("상대");
   const [open, setOpen] = useState(false);
   const [sending, setSending] = useState<ActionKey | null>(null);
-
-  // 커스텀 액션 입력
   const [customText, setCustomText] = useState("");
 
   // 파트너 닉네임 로딩
@@ -174,7 +169,6 @@ export default function PartnerActionButton({
         toast.success(
           `‘${receiverLabel}’에게 ${emoji} ${type} 알림을 보냈어요!`
         );
-        // 보낸 뒤에도 Dialog 유지
       }
     } catch {
       toast.error("알림 전송 중 오류가 발생했어요.");
@@ -205,7 +199,7 @@ export default function PartnerActionButton({
         toast.error("알림 전송에 실패했어요. 잠시 후 다시 시도해주세요.");
       } else {
         toast.success(`‘${receiverLabel}’에게 커스텀 액션을 보냈어요!`);
-        setCustomText(""); // 입력만 초기화, Dialog는 유지
+        setCustomText("");
       }
     } catch {
       toast.error("알림 전송 중 오류가 발생했어요.");
@@ -221,11 +215,10 @@ export default function PartnerActionButton({
 
   return (
     <>
-      {/* 트리거 버튼: ghost + hover 이펙트 + Tooltip("액션 보내기") */}
+      {/* 트리거 버튼 */}
       <TooltipProvider delayDuration={120}>
         <Tooltip>
           <TooltipTrigger asChild>
-            {/* disabled일 때도 툴팁 보이게 span 래퍼 사용 */}
             <span
               className={cn(
                 "inline-flex",
@@ -238,8 +231,8 @@ export default function PartnerActionButton({
                 variant="ghost"
                 size={size}
                 className={cn(
-                  "relative h-10 w-10 transition-all ",
-                  "before:pointer-events-none before:absolute before:inset-0 ",
+                  "relative h-10 w-10 transition-all",
+                  "before:pointer-events-none before:absolute before:inset-0",
                   "before:opacity-0 hover:before:opacity-100 before:transition-opacity",
                   "before:bg-[radial-gradient(120px_80px_at_50%_-20%,rgba(255,182,193,0.35),transparent_60%)]",
                   className,
@@ -248,7 +241,6 @@ export default function PartnerActionButton({
                 aria-label="애정 액션 보내기"
                 disabled={disabled}
               >
-                {/* ✅ 이모지 크기 style로 제어 */}
                 <span
                   style={{ fontSize: size === "icon" ? emojiSizePx : 18 }}
                   className={
@@ -270,15 +262,44 @@ export default function PartnerActionButton({
 
       {/* Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[520px]">
-          <DialogHeader>
-            <DialogTitle>{receiverLabel}에게 액션 보내기</DialogTitle>
-            <DialogDescription>
-              아래에서 하나를 선택하거나, 직접 메시지를 적어 보낼 수 있어요.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent
+          className={cn(
+            // 모바일 폭 & 둥근 모서리
+            "w-[calc(100vw-2rem)] sm:max-w-[520px] rounded-2xl",
+            // 패딩: 모바일은 조금 작게
+            "p-4 sm:p-6",
+            // 세로 제한 + 스크롤
+            "max-h-[85vh] overflow-y-auto",
+            // iOS 사파리 안전영역 약간 고려
+            "sm:mx-0"
+          )}
+        >
+          {/* 닫기 버튼: 항상 보이도록 우상단 고정 */}
+          <DialogClose asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute right-2 top-2 h-9 w-9 rounded-full"
+              aria-label="닫기"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </DialogClose>
 
-          {/* 액션 그리드: Tooltip + hover 효과 */}
+          {/* 헤더: 스티키로 상단 고정 (모바일에서 스크롤 시 헤더 유지) */}
+          <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-3 px-4 pt-4 pb-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-t-2xl">
+            <DialogHeader className="space-y-1">
+              <DialogTitle className="text-base sm:text-lg">
+                {receiverLabel}에게 액션 보내기
+              </DialogTitle>
+              <DialogDescription className="text-xs sm:text-sm">
+                아래에서 하나를 선택하거나, 직접 메시지를 적어 보낼 수 있어요.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          {/* 액션 그리드 */}
           <TooltipProvider delayDuration={120}>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {ACTION_ITEMS.map((a) => (
@@ -288,7 +309,7 @@ export default function PartnerActionButton({
                       type="button"
                       variant="secondary"
                       className={cn(
-                        "group relative justify-start h-12 px-3 text-[13px] font-medium",
+                        "group relative justify-start h-12 sm:h-12 px-3 text-[13px] font-medium",
                         "rounded-xl border border-border transition-all",
                         "hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0",
                         "focus-visible:ring-2 focus-visible:ring-rose-300/70",
@@ -300,7 +321,6 @@ export default function PartnerActionButton({
                       onClick={() => handleSend(a.key, a.emoji)}
                       aria-label={`${receiverLabel}에게 ${a.label} 보내기 (${a.emoji})`}
                     >
-                      {/* ✅ 그리드 이모지 크기 style로 제어 */}
                       <span
                         className="mr-2 leading-none"
                         aria-hidden
@@ -320,7 +340,7 @@ export default function PartnerActionButton({
           </TooltipProvider>
 
           {/* 커스텀 액션 입력 */}
-          <div className="mt-3 space-y-2">
+          <div className="mt-4 space-y-2">
             <label className="text-sm font-medium text-muted-foreground">
               직접 보내기
             </label>
@@ -330,6 +350,7 @@ export default function PartnerActionButton({
                 onChange={(e) => setCustomText(e.target.value)}
                 onKeyDown={onCustomKeyDown}
                 placeholder="예: 볼을 꼬집었어요!"
+                className="h-10"
               />
               <Button
                 type="button"
@@ -337,7 +358,7 @@ export default function PartnerActionButton({
                 onClick={handleSendCustom}
                 disabled={!customText.trim()}
                 className={cn(
-                  "transition-all hover:-translate-y-0.5",
+                  "h-10 transition-all hover:-translate-y-0.5",
                   "ring-1 ring-transparent hover:ring-rose-200/80"
                 )}
               >
@@ -346,11 +367,16 @@ export default function PartnerActionButton({
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setOpen(false)}>
-              닫기
-            </Button>
-          </DialogFooter>
+          {/* 푸터: 스크롤 시 하단 고정 */}
+          <div className="sticky bottom-0 mt-4 -mx-4 px-4 py-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-b-2xl">
+            <DialogFooter className="sm:justify-end">
+              <DialogClose asChild>
+                <Button variant="ghost" className="h-10">
+                  닫기
+                </Button>
+              </DialogClose>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </>
