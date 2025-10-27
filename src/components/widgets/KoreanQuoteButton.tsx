@@ -2,16 +2,26 @@
 "use client";
 
 import * as React from "react";
-import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { X } from "lucide-react";
+
+/* Tooltip: PartnerActionButton과 동일 스타일 */
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type Quote = {
   author: string;
@@ -41,34 +51,21 @@ async function fetchKoreanQuote(timeoutMs = 7000): Promise<Quote> {
 
 export default function KoreanQuoteButton({
   className,
-  buttonEmoji = "🧾",
+  label = "🧾",
+  size = "icon",
+  emojiSizePx = 22,
   ariaLabel = "오늘의 명언",
 }: {
   className?: string;
-  buttonEmoji?: string;
+  label?: string; // 버튼 이모지
+  size?: "icon" | "sm" | "default" | "lg";
+  emojiSizePx?: number;
   ariaLabel?: string;
 }) {
   const [open, setOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [err, setErr] = React.useState("");
   const [quote, setQuote] = React.useState<Quote | null>(null);
-
-  // MapModalButton과 동일한 '원형 + 리플' 버튼 구현
-  const [ripple, setRipple] = React.useState(false);
-  const rippleTimer = React.useRef<number | null>(null);
-  const startRipple = () => {
-    setRipple(false);
-    requestAnimationFrame(() => {
-      setRipple(true);
-      if (rippleTimer.current) window.clearTimeout(rippleTimer.current);
-      rippleTimer.current = window.setTimeout(() => setRipple(false), 1400);
-    });
-  };
-  React.useEffect(() => {
-    return () => {
-      if (rippleTimer.current) window.clearTimeout(rippleTimer.current);
-    };
-  }, []);
 
   async function load() {
     setLoading(true);
@@ -84,7 +81,6 @@ export default function KoreanQuoteButton({
   }
 
   const handleOpen = () => {
-    startRipple();
     setOpen(true);
     void load();
   };
@@ -93,77 +89,103 @@ export default function KoreanQuoteButton({
     if (!quote) return "";
     const by = (quote.author || "").trim();
     const prof = (quote.authorProfile || "").trim();
-    // 지은이/프로필 둘 중 없는 값이 있으면 자연스럽게 생략
     if (by && prof) return `${by} · ${prof}`;
     return by || prof || "작자 미상";
   }, [quote]);
 
-  const CircleButton = (
-    <motion.button
-      type="button"
-      aria-label={ariaLabel}
-      onClick={handleOpen}
-      className={cn(
-        "relative grid place-items-center",
-        "h-14 w-14 rounded-full border",
-        "bg-white/60",
-        "hover:pl-4 transition-all duration-500",
-        className
-      )}
-    >
-      {/* 클릭 리플 */}
-      {ripple && (
-        <span
-          className="
-            pointer-events-none absolute inset-0 rounded-full
-            ring-4 ring-rose-300/50
-            animate-[pokePing_1.4s_ease-out_forwards]
-          "
-          aria-hidden
-        />
-      )}
-
-      {/* 이모지 아이콘만 노출 (텍스트 없음) */}
-      <span className="text-2xl leading-none select-none" aria-hidden>
-        {buttonEmoji}
-      </span>
-
-      {/* 파동 키프레임 (MapModalButton과 동일) */}
-      <style>{`
-        @keyframes pokePing {
-          0%   { transform: scale(1);   opacity: .75; }
-          70%  { transform: scale(1.9); opacity: 0;   }
-          100% { transform: scale(1.9); opacity: 0;   }
-        }
-      `}</style>
-    </motion.button>
-  );
-
   return (
     <>
-      {CircleButton}
+      {/* ───────── Trigger: ghost + 라디얼 호버 + Tooltip ───────── */}
+      <TooltipProvider delayDuration={120}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={cn("inline-flex", className)}>
+              <Button
+                type="button"
+                variant="ghost"
+                size={size}
+                className={cn(
+                  "relative h-10 w-10 transition-all",
+                  "before:pointer-events-none before:absolute before:inset-0",
+                  "before:opacity-0 hover:before:opacity-100 before:transition-opacity",
+                  "before:bg-[radial-gradient(120px_80px_at_50%_-20%,rgba(255,182,193,0.35),transparent_60%)]",
+                  { "w-auto px-3": size !== "icon" }
+                )}
+                aria-label={ariaLabel}
+                onClick={handleOpen}
+              >
+                <span
+                  style={{ fontSize: size === "icon" ? emojiSizePx : 18 }}
+                  className={
+                    size !== "icon"
+                      ? "font-medium leading-none"
+                      : "leading-none"
+                  }
+                  aria-hidden
+                >
+                  {label}
+                </span>
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="center">
+            오늘의 명언
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
-      {/* Dialog 레이아웃은 기존 구조 유지 */}
+      {/* ───────── Dialog: 우상단 X, 스티키 헤더/푸터, 본문 카드 ───────── */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>오늘의 명언</DialogTitle>
-          </DialogHeader>
+        <DialogContent
+          className={cn(
+            "w-[calc(100vw-2rem)] sm:max-w-[520px] rounded-2xl",
+            "p-4 sm:p-6",
+            "max-h-[85vh] overflow-y-auto"
+          )}
+        >
+          {/* 닫기(X) */}
+          <DialogClose asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute right-2 top-2 h-9 w-9 rounded-full"
+              aria-label="닫기"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </DialogClose>
 
+          {/* 스티키 헤더 */}
+          <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-3 px-4 pt-4 pb-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-t-2xl">
+            <DialogHeader className="space-y-1">
+              <DialogTitle className="text-base sm:text-lg">
+                오늘의 명언
+              </DialogTitle>
+              <DialogDescription className="text-xs sm:text-sm">
+                한국어 명언을 랜덤으로 가져와 보여드려요.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          {/* 본문 카드 */}
           <div className="rounded-lg border p-4 bg-white/60 dark:bg-zinc-900/40 min-h-[132px]">
             {err ? (
               <div className="text-sm text-rose-600">{err}</div>
             ) : loading ? (
-              <div className="text-sm text-neutral-600">불러오는 중…</div>
+              <div className="space-y-3">
+                <div className="text-sm text-neutral-600">불러오는 중…</div>
+                <div className="h-3 w-5/6 bg-neutral-200/70 rounded animate-pulse" />
+                <div className="h-3 w-4/6 bg-neutral-200/60 rounded animate-pulse" />
+                <div className="h-3 w-3/6 bg-neutral-200/50 rounded animate-pulse" />
+              </div>
             ) : quote ? (
               <div className="space-y-3">
-                {/* ✅ 실제 '말'을 시각적으로 강조 + 큰 따옴표 표기 */}
-                <div className="relative">
+                <blockquote className="relative">
                   <p className="text-[15px] font-semibold leading-relaxed whitespace-pre-wrap">
-                    {'"' + quote.message + '"'}
+                    “{quote.message}”
                   </p>
-                </div>
-
+                </blockquote>
                 <div className="text-sm text-neutral-700 dark:text-neutral-300">
                   — {authorLine}
                 </div>
@@ -171,18 +193,24 @@ export default function KoreanQuoteButton({
             ) : null}
           </div>
 
-          <DialogFooter className="gap-2">
-            <Button
-              variant="ghost"
-              onClick={() => void load()}
-              disabled={loading}
-            >
-              다시 뽑기
-            </Button>
-            <Button variant="ghost" onClick={() => setOpen(false)}>
-              닫기
-            </Button>
-          </DialogFooter>
+          {/* 스티키 푸터 */}
+          <div className="sticky bottom-0 mt-4 -mx-4 px-4 py-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-b-2xl">
+            <DialogFooter className="sm:justify-end gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => void load()}
+                disabled={loading}
+                className="h-10"
+              >
+                다시 뽑기
+              </Button>
+              <DialogClose asChild>
+                <Button variant="ghost" className="h-10">
+                  닫기
+                </Button>
+              </DialogClose>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </>

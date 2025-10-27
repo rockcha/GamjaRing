@@ -10,11 +10,13 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { X } from "lucide-react";
 
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import {
@@ -22,6 +24,14 @@ import {
   type IngredientTitle,
 } from "@/features/kitchen/type";
 import { addIngredients } from "@/features/kitchen/kitchenApi";
+
+/* shadcn/ui Tooltip */
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 /* ─ settings ─ */
 const POTATO = "🥔";
@@ -181,19 +191,6 @@ export default function SlotSpinButton({
   const { couple, spendGold, addGold, addPotatoes } = useCoupleContext();
   const coupleId = couple?.id ?? null;
 
-  // KoreanQuoteButton과 동일한 원형+리플
-  const [ripple, setRipple] = React.useState(false);
-  const tRef = React.useRef<number | null>(null);
-  const poke = () => {
-    setRipple(false);
-    requestAnimationFrame(() => {
-      setRipple(true);
-      if (tRef.current) clearTimeout(tRef.current);
-      tRef.current = window.setTimeout(() => setRipple(false), 1400);
-    });
-  };
-  React.useEffect(() => () => tRef.current && clearTimeout(tRef.current), []);
-
   // Dialog/상태
   const [open, setOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
@@ -201,8 +198,6 @@ export default function SlotSpinButton({
   const [symbols, setSymbols] = React.useState<[string, string, string] | null>(
     null
   );
-
-  // 지급 영수증 텍스트 (보상 상세)
   const [rewardText, setRewardText] = React.useState("");
   const [rewardDetail, setRewardDetail] = React.useState<string | null>(null);
 
@@ -214,8 +209,7 @@ export default function SlotSpinButton({
   ];
 
   const onOpen = () => {
-    poke();
-    // 초기화: 미스핀 상태
+    // 초기화
     setTier(null);
     setSymbols(null);
     setRewardText("");
@@ -223,7 +217,7 @@ export default function SlotSpinButton({
     setOpen(true);
   };
 
-  // 보상 지급(실행) + 영수증 텍스트 구성 (🪙 이모지 사용)
+  // 보상 지급(실행) + 영수증 텍스트 구성
   const grant = async (decided: Tier) => {
     const pick = (Math.random() * 3) | 0;
     if (decided === "평범") {
@@ -329,12 +323,12 @@ export default function SlotSpinButton({
       // 2) 결과 미리 결정 (감자 앞쪽 고정)
       const { symbols: final, tier: decidedTier } = roll();
 
-      // 3) 고속 롤링 시작 (repeat: Infinity — 기다리지 않음)
+      // 3) 고속 롤링 시작
       startReel(reels[0], 0.5);
       startReel(reels[1], 0.55);
       startReel(reels[2], 0.6);
 
-      // 4) 1.2초 고속 유지 → 0.6s 간격 순차 정지 = 총 3.0초
+      // 4) 순차 감속
       await new Promise((r) => setTimeout(r, 1200)); // t = 1.2s
       await stopTo(reels[0], final[0], 0.6); // t = 1.8s
       await new Promise((r) => setTimeout(r, 600));
@@ -359,82 +353,102 @@ export default function SlotSpinButton({
     }
   };
 
-  // 원형 버튼 (KoreanQuoteButton 동일 뼈대, 이모지 🎰)
-  const CircleButton = (
-    <motion.button
-      type="button"
-      aria-label={ariaLabel}
-      onClick={onOpen}
-      className={cn(
-        "relative grid place-items-center h-14 w-14 rounded-full border",
-        "bg-white/60 hover:pl-4 transition-all duration-500",
-        className
-      )}
-    >
-      {ripple && (
-        <span
-          className="pointer-events-none absolute inset-0 rounded-full ring-4 ring-rose-300/50 animate-[pokePing_1.4s_ease-out_forwards]"
-          aria-hidden
-        />
-      )}
-      <span className="text-2xl leading-none select-none" aria-hidden>
-        🎰
-      </span>
-      <style>{`
-        @keyframes pokePing {
-          0% { transform: scale(1); opacity:.75 }
-          70%,100% { transform: scale(1.9); opacity:0 }
-        }
-      `}</style>
-    </motion.button>
-  );
-
   const tierTheme = tier ? TIER_THEME[tier] : null;
 
   return (
     <>
-      {CircleButton}
+      {/* ───── Trigger: ghost + 라디얼 호버 + Tooltip ───── */}
+      <TooltipProvider delayDuration={120}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={cn("inline-flex", className)}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "relative h-10 w-10 transition-all",
+                  "before:pointer-events-none before:absolute before:inset-0",
+                  "before:opacity-0 hover:before:opacity-100 before:transition-opacity",
+                  "before:bg-[radial-gradient(120px_80px_at_50%_-20%,rgba(255,182,193,0.35),transparent_60%)]"
+                )}
+                aria-label={ariaLabel}
+                onClick={onOpen}
+              >
+                <span className="leading-none text-[22px]" aria-hidden>
+                  🎰
+                </span>
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="center">
+            감자 룰렛
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
+      {/* ───── Dialog: 우상단 X, 스티키 헤더/푸터, 바깥클릭/ESC 방지 ───── */}
       <Dialog
         open={open}
         onOpenChange={(v) => {
-          if (!v && busy) return;
+          if (!v && busy) return; // 스핀 중 닫기 방지
           setOpen(v);
         }}
       >
         <DialogContent
           className={cn(
-            "sm:max-w-md",
-            // ↓ 중앙 정렬 강제
-            "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
-            // ↓ 다른 sticky 헤더/컨테이너 위로
-            "z-[80]",
-            // ↓ 높이 넘치면 스크롤
-            "max-h-[85vh] w-[90vw] max-w-md overflow-hidden"
+            "w-[calc(100vw-2rem)] sm:max-w-[520px] rounded-2xl",
+            "p-4 sm:p-6",
+            "max-h-[85vh] overflow-hidden"
           )}
-          onInteractOutside={(e) => {
-            if (busy) e.preventDefault();
-          }} // 바깥 클릭 방지
-          onEscapeKeyDown={(e) => {
-            if (busy) e.preventDefault();
-          }} // ESC 방지
+          onInteractOutside={(e) => busy && e.preventDefault()}
+          onEscapeKeyDown={(e) => busy && e.preventDefault()}
         >
-          {/* 등급 이펙트 */}
+          {/* 닫기(X): busy일 땐 비활성 */}
+          {busy ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute right-2 top-2 h-9 w-9 rounded-full opacity-60"
+              aria-label="닫기"
+              disabled
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          ) : (
+            <DialogClose asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute right-2 top-2 h-9 w-9 rounded-full"
+                aria-label="닫기"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </DialogClose>
+          )}
+
+          {/* 등급 이펙트 (배경 위) */}
           <TierFX tier={tier ?? null} />
 
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              감자 룰렛
-              {tier && (
-                <Badge className={cn("ml-1", tierTheme?.badge)}>{tier}</Badge>
-              )}
-            </DialogTitle>
-          </DialogHeader>
+          {/* 스티키 헤더 */}
+          <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-3 px-4 pt-4 pb-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-t-2xl">
+            <DialogHeader className="space-y-1">
+              <DialogTitle className="text-base sm:text-lg flex items-center gap-2">
+                감자 룰렛
+                {tier && (
+                  <Badge className={cn("ml-1", tierTheme?.badge)}>{tier}</Badge>
+                )}
+              </DialogTitle>
+            </DialogHeader>
+          </div>
 
           {/* 릴 + 등급별 배경 그라데이션 */}
           <div
             className={cn(
-              "mt-2 rounded-xl p-3 bg-gradient-to-b",
+              "rounded-xl p-3 bg-gradient-to-b",
               tierTheme?.bg || "from-transparent to-transparent"
             )}
           >
@@ -450,6 +464,7 @@ export default function SlotSpinButton({
                         key={`${s}-${idx}`}
                         className={cn(
                           "h-16 w-16 grid place-items-center text-4xl select-none",
+                          // 감자 하이라이트 링
                           symbols?.[i] === POTATO &&
                             s === POTATO &&
                             "ring-2 ring-amber-400/70 rounded-xl"
@@ -473,7 +488,7 @@ export default function SlotSpinButton({
                   <div className="text-[11px] text-zinc-500">
                     감자 갯수에 따라 <b>높은 보상</b>을 받습니다.
                     <br /> (🥔 70% → <b>평범</b> / 🥔🥔 25% → <b>대박</b> /
-                    🥔🥔🥔 5% →<b> 초대박</b>)
+                    🥔🥔🥔 5% → <b>초대박</b>)
                   </div>
                 </>
               ) : (
@@ -489,19 +504,23 @@ export default function SlotSpinButton({
               )}
             </div>
           </div>
-          <DialogFooter className="sm:justify-center gap-2">
-            {/* 2) 닫기 버튼 비활성화 */}
-            <Button
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={busy}
-            >
-              닫기
-            </Button>
-            <Button onClick={spin} disabled={busy}>
-              {busy ? "돌리는 중…" : `돌리기 ( 🪙 ${spinCost} )`}
-            </Button>
-          </DialogFooter>
+
+          {/* 스티키 푸터 */}
+          <div className="sticky bottom-0 mt-4 -mx-4 px-4 py-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-b-2xl">
+            <DialogFooter className="sm:justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setOpen(false)}
+                disabled={busy}
+                className="h-10"
+              >
+                닫기
+              </Button>
+              <Button onClick={spin} disabled={busy} className="h-10">
+                {busy ? "돌리는 중…" : `돌리기 ( 🪙 ${spinCost} )`}
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </>

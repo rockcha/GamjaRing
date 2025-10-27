@@ -1,25 +1,39 @@
+// src/components/timecapsule/TimeCapsuleButton.tsx
 "use client";
 
 import * as React from "react";
-import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
+  DialogDescription,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import supabase from "@/lib/supabase";
 import { toast } from "sonner";
 import { useUser } from "@/contexts/UserContext";
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
+
+/* Tooltip (PartnerActionButton 스타일) */
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+/* 아이콘 - 닫기 버튼 */
+import { X } from "lucide-react";
+
+/* 연출 & 날짜 선택 */
 import TimeRippleEffect from "./TimeRippleEffect";
 import DateTimePicker from "./date-time-picker";
 
@@ -34,10 +48,14 @@ export default function TimeCapsuleButton({
   className,
   buttonEmoji = "⏳",
   ariaLabel = "타임캡슐 작성",
+  size = "icon",
+  emojiSizePx = 22,
 }: {
   className?: string;
   buttonEmoji?: string;
   ariaLabel?: string;
+  size?: "icon" | "sm" | "default" | "lg";
+  emojiSizePx?: number;
 }) {
   const { user } = useUser();
   const { couple } = useCoupleContext();
@@ -80,30 +98,6 @@ export default function TimeCapsuleButton({
       setShouldToastOnClose(true);
     }
   }, [sealing, fxDone, readyToClose]);
-
-  // 원형 버튼 리플
-  const [ripple, setRipple] = React.useState(false);
-  const rippleTimer = React.useRef<number | null>(null);
-  const startRipple = () => {
-    setRipple(false);
-    requestAnimationFrame(() => {
-      setRipple(true);
-      if (rippleTimer.current) window.clearTimeout(rippleTimer.current);
-      rippleTimer.current = window.setTimeout(() => setRipple(false), 1400);
-    });
-  };
-  React.useEffect(
-    () => () => {
-      if (rippleTimer.current) window.clearTimeout(rippleTimer.current);
-    },
-    []
-  );
-
-  const handleOpen = () => {
-    startRipple();
-    setErr("");
-    setOpen(true);
-  };
 
   const resetForm = () => {
     setTitle("");
@@ -197,40 +191,88 @@ export default function TimeCapsuleButton({
     }
   }
 
-  const CircleButton = (
-    <motion.button
-      type="button"
-      aria-label={ariaLabel}
-      onClick={handleOpen}
-      className={cn(
-        "relative grid place-items-center h-14 w-14 rounded-full border bg-white/60 hover:pl-4 transition-all duration-500",
-        className
-      )}
-    >
-      {ripple && (
-        <span
-          className="pointer-events-none absolute inset-0 rounded-full ring-4 ring-rose-300/50 animate-[pokePing_1.4s_ease_out_forwards]"
-          aria-hidden
-        />
-      )}
-      <span className="text-2xl leading-none select-none" aria-hidden>
-        {buttonEmoji}
-      </span>
-      <style>{`@keyframes pokePing{0%{transform:scale(1);opacity:.75}70%{transform:scale(1.9);opacity:0}100%{transform:scale(1.9);opacity:0}}`}</style>
-    </motion.button>
+  /** ───────── Trigger Button (PartnerActionButton 스타일) ───────── */
+  const Trigger = (
+    <TooltipProvider delayDuration={120}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className={cn("inline-flex", className)}>
+            <Button
+              type="button"
+              variant="ghost"
+              size={size}
+              className={cn(
+                "relative h-10 w-10 transition-all",
+                "before:pointer-events-none before:absolute before:inset-0",
+                "before:opacity-0 hover:before:opacity-100 before:transition-opacity",
+                "before:bg-[radial-gradient(120px_80px_at_50%_-20%,rgba(255,182,193,0.35),transparent_60%)]",
+                { "w-auto px-3": size !== "icon" }
+              )}
+              aria-label={ariaLabel}
+              onClick={() => {
+                setErr("");
+                setOpen(true);
+              }}
+            >
+              <span
+                style={{ fontSize: size === "icon" ? emojiSizePx : 18 }}
+                className={
+                  size !== "icon" ? "font-medium leading-none" : "leading-none"
+                }
+                aria-hidden
+              >
+                {buttonEmoji}
+              </span>
+            </Button>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" align="center">
+          타임캡슐 작성
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 
   return (
     <>
-      {CircleButton}
+      {Trigger}
 
       <Dialog open={open} onOpenChange={handleDialogChange}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>타임캡슐 작성</DialogTitle>
-          </DialogHeader>
+        <DialogContent
+          className={cn(
+            "w-[calc(100vw-2rem)] sm:max-w-[520px] rounded-2xl",
+            "p-4 sm:p-6",
+            "max-h-[85vh] overflow-y-auto",
+            "sm:mx-0"
+          )}
+        >
+          {/* 우상단 닫기 버튼 */}
+          <DialogClose asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute right-2 top-2 h-9 w-9 rounded-full"
+              aria-label="닫기"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </DialogClose>
 
-          {/* ★ 봉인 중 화면 */}
+          {/* 스티키 헤더 */}
+          <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-3 px-4 pt-4 pb-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-t-2xl">
+            <DialogHeader className="space-y-1">
+              <DialogTitle className="text-base sm:text-lg">
+                타임캡슐 작성
+              </DialogTitle>
+              <DialogDescription className="text-xs sm:text-sm">
+                제목은 상대에게 공개되며, 열람 가능 일시는 현재보다 이후여야
+                해요.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          {/* 본문 */}
           {sealing ? (
             <div className="relative h-96 sm:h-64">
               <TimeRippleEffect
@@ -244,71 +286,86 @@ export default function TimeCapsuleButton({
               </div>
             </div>
           ) : (
-            <>
-              {/* 폼 */}
-              <div
-                className={cn(
-                  "space-y-4",
-                  sealing && "pointer-events-none opacity-50"
-                )}
-              >
-                <div className="space-y-1.5">
-                  <Label htmlFor="tc-title">제목</Label>
-                  <div className="relative">
-                    <Input
-                      id="tc-title"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      placeholder="예) 1주년 기념 편지"
-                      maxLength={10}
-                    />
-                    <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-neutral-400">
-                      {title.length}/10
-                    </span>
-                  </div>
+            <div
+              className={cn(
+                "space-y-4",
+                sealing && "pointer-events-none opacity-50"
+              )}
+            >
+              {/* 제목 */}
+              <div className="space-y-1.5">
+                <Label htmlFor="tc-title">제목</Label>
+                <div className="relative">
+                  <Input
+                    id="tc-title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="예) 1주년 기념 편지"
+                    maxLength={10}
+                    className="h-10"
+                  />
+                  <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-neutral-400">
+                    {title.length}/10
+                  </span>
                 </div>
                 <p className="text-[11px] text-neutral-500">
                   * 제목은 상대에게 공개됩니다.
                 </p>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="tc-content">내용</Label>
-                  <Textarea
-                    id="tc-content"
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    placeholder="열었을 때 그 사람에게 전하고 싶은 말을 적어보세요..."
-                    className="min-h-[160px]"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label>열람 가능 일시</Label>
-                  <DateTimePicker
-                    value={openAt}
-                    onChange={(d) => d && setOpenAt(d)}
-                    min={new Date()}
-                  />
-                </div>
-
-                {err && <div className="text-sm text-rose-600">{err}</div>}
               </div>
 
-              <Separator className="my-3" />
+              {/* 내용 */}
+              <div className="space-y-1.5">
+                <Label htmlFor="tc-content">내용</Label>
+                <Textarea
+                  id="tc-content"
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="열었을 때 전하고 싶은 말을 적어보세요..."
+                  className="min-h-[160px]"
+                />
+              </div>
 
-              <DialogFooter className="gap-2">
-                <Button onClick={onSave} disabled={saving}>
-                  {saving ? "타임캡슐 봉인 중…" : "타임캡슐 봉인"}
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => handleDialogChange(false)}
-                >
-                  닫기
-                </Button>
-              </DialogFooter>
-            </>
+              {/* 열람 가능 일시 */}
+              <div className="space-y-1.5">
+                <Label>열람 가능 일시</Label>
+                <DateTimePicker
+                  value={openAt}
+                  onChange={(d) => d && setOpenAt(d)}
+                  min={new Date()}
+                />
+              </div>
+
+              {err && <div className="text-sm text-rose-600">{err}</div>}
+            </div>
           )}
+
+          {/* 스티키 푸터 */}
+          <div className="sticky bottom-0 mt-4 -mx-4 px-4 py-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-b-2xl">
+            <DialogFooter className="sm:justify-end gap-2">
+              {!sealing ? (
+                <>
+                  <Button
+                    onClick={onSave}
+                    disabled={saving}
+                    className="h-10 transition-all hover:-translate-y-0.5 ring-1 ring-transparent hover:ring-rose-200/80"
+                  >
+                    {saving ? "타임캡슐 봉인 중…" : "타임캡슐 봉인"}
+                  </Button>
+                  <DialogClose asChild>
+                    <Button variant="ghost" className="h-10">
+                      닫기
+                    </Button>
+                  </DialogClose>
+                </>
+              ) : (
+                <DialogClose asChild>
+                  <Button variant="ghost" className="h-10">
+                    취소
+                  </Button>
+                </DialogClose>
+              )}
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </>

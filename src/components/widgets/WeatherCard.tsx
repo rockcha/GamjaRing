@@ -2,7 +2,6 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogClose,
 } from "@/components/ui/dialog";
 import {
   Popover,
@@ -24,8 +24,16 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+/* Tooltip (통일 스타일) */
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 /* ===== 타입 ===== */
 type GeoResult = {
@@ -396,61 +404,17 @@ export default function WeatherCard({
     }
   };
 
-  /* ===== TimeCapsuleButton과 완전 동일한 리플/호버 구조 ===== */
-  const [ripple, setRipple] = useState(false);
-  const rippleTimer = useRef<number | null>(null);
-  const startRipple = () => {
-    setRipple(false);
-    requestAnimationFrame(() => {
-      setRipple(true);
-      if (rippleTimer.current) window.clearTimeout(rippleTimer.current);
-      rippleTimer.current = window.setTimeout(() => setRipple(false), 1400);
-    });
-  };
-  useEffect(() => {
-    return () => {
-      if (rippleTimer.current) window.clearTimeout(rippleTimer.current);
-    };
-  }, []);
-
   const handleOpen = () => {
     setSelected(region);
     setErr("");
-    startRipple();
     setOpen(true);
   };
 
-  // 라벨(버튼 아래 캡션은 TimeCapsuleButton엔 없으므로 제거)
+  // 라벨
   const label = useMemo(
     () =>
       city && temp != null ? `${city} · ${Math.round(temp)}°` : city || "날씨",
     [city, temp]
-  );
-
-  const CircleButton = (
-    <motion.button
-      type="button"
-      aria-label={ariaLabel}
-      onClick={handleOpen}
-      className={cn(
-        "relative grid place-items-center h-14 w-14 rounded-full border bg-white/60",
-        // ⬇️ TimeCapsuleButton과 동일
-        "hover:pl-4 transition-all duration-500",
-        className
-      )}
-    >
-      {ripple && (
-        <span
-          className="pointer-events-none absolute inset-0 rounded-full ring-4 ring-rose-300/50 animate-[pokePing_1.4s_ease_out_forwards]"
-          aria-hidden
-        />
-      )}
-      <span className="text-2xl leading-none select-none" aria-hidden>
-        {emoji}
-      </span>
-      <span className="sr-only">{label}</span>
-      <style>{`@keyframes pokePing{0%{transform:scale(1);opacity:.75}70%{transform:scale(1.9);opacity:0}100%{transform:scale(1.9);opacity:0}}`}</style>
-    </motion.button>
   );
 
   const lastUpdatedText = lastTs
@@ -459,33 +423,85 @@ export default function WeatherCard({
 
   return (
     <>
-      {CircleButton}
+      {/* ── Trigger: ghost + 라디얼 호버 + Tooltip (통일) ── */}
+      <TooltipProvider delayDuration={120}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={cn("inline-flex", className)}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "relative h-10 w-10 transition-all",
+                  "before:pointer-events-none before:absolute before:inset-0",
+                  "before:opacity-0 hover:before:opacity-100 before:transition-opacity",
+                  "before:bg-[radial-gradient(120px_80px_at_50%_-20%,rgba(135,206,235,0.35),transparent_60%)]"
+                )}
+                aria-label={ariaLabel}
+                onClick={handleOpen}
+              >
+                <span className="leading-none text-[22px]" aria-hidden>
+                  {emoji}
+                </span>
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="center">
+            {label}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
-      {/* 상세 모달 */}
+      {/* ── Dialog: 우상단 X, 스티키 헤더/푸터 ── */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md" onKeyDown={onKeyDown}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <span>현재 날씨</span>
-              <span className="text-lg" aria-hidden>
-                {emoji}
-              </span>
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent
+          className={cn(
+            "w-[calc(100vw-2rem)] sm:max-w-[520px] rounded-2xl",
+            "p-4 sm:p-6",
+            "max-h-[85vh] overflow-y-auto"
+          )}
+          onKeyDown={onKeyDown}
+        >
+          {/* 닫기(X) */}
+          <DialogClose asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute right-2 top-2 h-9 w-9 rounded-full"
+              aria-label="닫기"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </DialogClose>
 
+          {/* 헤더 (sticky) */}
+          <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-3 px-4 pt-4 pb-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-t-2xl">
+            <DialogHeader className="space-y-1">
+              <DialogTitle className="text-base sm:text-lg flex items-center gap-2">
+                현재 날씨{" "}
+                <span className="text-lg" aria-hidden>
+                  {emoji}
+                </span>
+              </DialogTitle>
+            </DialogHeader>
+          </div>
+
+          {/* 본문 */}
           <div className="space-y-4">
-            {/* 상세 정보 */}
-            <div className="rounded-lg border p-3 bg-muted/30">
+            {/* 상세 정보 카드 */}
+            <div className="rounded-lg border p-3 bg-white/60 dark:bg-zinc-900/40">
               <div className="text-sm text-neutral-500">지역</div>
               <div className="text-base font-semibold">{city || region}</div>
               <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
-                <div className="rounded-md bg-white/60 dark:bg-zinc-900/40 p-2 border">
+                <div className="rounded-md bg-white/70 dark:bg-zinc-900/50 p-2 border">
                   <div className="text-neutral-500">온도</div>
                   <div className="text-lg font-semibold">
                     {temp != null ? `${Math.round(temp)}°C` : "—"}
                   </div>
                 </div>
-                <div className="rounded-md bg-white/60 dark:bg-zinc-900/40 p-2 border">
+                <div className="rounded-md bg-white/70 dark:bg-zinc-900/50 p-2 border">
                   <div className="text-neutral-500">상태</div>
                   <div className="text-lg font-semibold">
                     {codeToText(code)}
@@ -545,18 +561,24 @@ export default function WeatherCard({
             </div>
           </div>
 
-          <DialogFooter>
-            <Button
-              variant="ghost"
-              onClick={() => saveAndLoad(selected)}
-              disabled={loading || !selected}
-            >
-              {loading ? "저장 중…" : "저장"}
-            </Button>
-            <Button variant="ghost" onClick={() => setOpen(false)}>
-              닫기
-            </Button>
-          </DialogFooter>
+          {/* 푸터 (sticky) */}
+          <div className="sticky bottom-0 mt-4 -mx-4 px-4 py-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-b-2xl">
+            <DialogFooter className="sm:justify-end gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => saveAndLoad(selected)}
+                disabled={loading || !selected}
+                className="h-10"
+              >
+                {loading ? "저장 중…" : "저장"}
+              </Button>
+              <DialogClose asChild>
+                <Button variant="ghost" className="h-10">
+                  닫기
+                </Button>
+              </DialogClose>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </>

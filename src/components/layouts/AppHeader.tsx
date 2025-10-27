@@ -1,50 +1,35 @@
 // src/components/layouts/AppHeader.tsx
 "use client";
 
-import React, { memo, useEffect, useState } from "react";
+import React, { memo } from "react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/contexts/UserContext";
 import { useCoupleContext } from "@/contexts/CoupleContext";
-import supabase from "@/lib/supabase";
 
 import NotificationDropdown from "../widgets/Notification/NotificationDropdown";
 import CoupleBalanceCard from "../widgets/Cards/CoupleBalanceCard";
 import DaysTogetherBadge from "../DaysTogetherBadge";
 import TodayQuestionInline from "../widgets/Cards/TodayQuestionCard";
 import AvatarWidget from "../widgets/AvatarWidget";
-import TodayMessageCard from "../widgets/Cards/TodayMessageCard";
-
-/* shadcn/ui */
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 
 /* Font Awesome */
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHeartPulse } from "@fortawesome/free-solid-svg-icons";
 
-// ✅ Notice 버튼: png 아이콘 사용하는 최신 리팩토링 컴포넌트 경로로 맞춰주세요.
+/* ✅ Notice & 기타 위젯 */
 import NoticeCenterFloatingButton from "@/features/dev-note/NoticeFloatingButton";
 import UserMemoEmojiButton from "@/features/memo/UserMemoEmojiButton";
 
-/* ✅ NEW: 파트너 액션 버튼 추가 */
+/* ✅ NEW: 파트너 액션/기타 버튼 */
 import PartnerActionButton from "../widgets/PartnerActionButton";
+import TimeCapsuleButton from "@/features/time-capsule/TimeCapsuleButton";
+import DailyFortuneCard from "@/features/fortune/DailyFortuneCard";
+import KoreanQuoteButton from "../widgets/KoreanQuoteButton";
+import WeatherCard from "../widgets/WeatherCard";
+import SlotSpinButton from "../widgets/SlotSpinButton";
 
 /* ───────────────────────── 타입 ───────────────────────── */
-type UserMessage = {
-  id: number;
-  author_id: string;
-  content: string;
-  emoji: string;
-  created_at: string;
-  updated_at: string;
-};
+// (필요 시 타입 추가)
 
 /* ------------------------------ 상단 클러스터 ------------------------------ */
 const TitleCluster = memo(function TitleCluster({
@@ -96,102 +81,56 @@ const RightClusterDesktop = memo(function RightClusterDesktop() {
   );
 });
 
-/* ------------------------------ 모바일 프리뷰 바(질문 + 오늘 한마디) ------------------------------ */
-const MobilePreviewBar = memo(function MobilePreviewBar() {
+/* ------------------------------ 모바일: 데스크탑 순서(좌→질문→우) 레일 ------------------------------ */
+/** 모바일에서만 좌측 버튼군 → 질문 → 우측 버튼군을 가로 스크롤로 순서 유지해 노출 */
+const MobileLinearRail = memo(function MobileLinearRail() {
   return (
     <div className="md:hidden mx-auto w-full max-w-screen-2xl px-3 sm:px-4 pb-2">
       <div
         className={cn(
-          "flex flex-col gap-2 rounded-xl",
-          "bg-white/70 backdrop-blur ring-1 ring-neutral-200/70 shadow-sm",
-          "p-2"
+          "flex items-stretch gap-2",
+          "overflow-x-auto overscroll-x-contain",
+          // 프로젝트에 유틸이 있으면 스크롤바 감춤: no-scrollbar / scrollbar-none
+          "no-scrollbar",
+          "snap-x snap-mandatory",
+          "px-1.5 py-2"
         )}
       >
-        {/* 질문 → 이미 흰색 카드로 감싼 상태 유지 */}
-        <div className="min-w-0 px-1 py-1 rounded-lg bg-white/80 ring-1 ring-white/60 shadow-sm">
-          <TodayQuestionInline />
+        {/* ── Left group (데스크탑 좌측 버튼들) ────────────────── */}
+        <div className="flex items-center gap-1.5 shrink-0 snap-start">
+          <NoticeCenterFloatingButton iconSize={16} />
+          <NotificationDropdown iconSize={16} />
+          <KoreanQuoteButton />
+          <WeatherCard />
         </div>
-        {/* 오늘 한마디 (필요 시) */}
+
+        {/* 구분선 */}
+        <div className="shrink-0 self-stretch w-px bg-gradient-to-b from-transparent via-neutral-300/60 to-transparent" />
+
+        {/* ── Question pill (가운데 질문) ─────────────────────── */}
+        <div className="min-w-[75%] max-w-[92%] shrink-0 snap-start">
+          <div className="px-2 py-1 rounded-xl bg-white/80 ring-1 ring-white/60 shadow-sm">
+            <TodayQuestionInline />
+          </div>
+        </div>
+
+        {/* 구분선 */}
+        <div className="shrink-0 self-stretch w-px bg-gradient-to-b from-transparent via-neutral-300/60 to-transparent" />
+
+        {/* ── Right group (데스크탑 우측 버튼들) ───────────────── */}
+        <div className="flex items-center gap-1.5 shrink-0 snap-start">
+          <PartnerActionButton />
+          <SlotSpinButton />
+          <DailyFortuneCard />
+          <UserMemoEmojiButton />
+          <TimeCapsuleButton />
+        </div>
       </div>
     </div>
   );
 });
 
-/* ------------------------------ 모바일: 알림/공지 액션바 ------------------------------ */
-const MobileActionBar = memo(function MobileActionBar() {
-  // ✔️ 버튼들만, 배경/테두리 없이
-  return (
-    <div className="md:hidden mx-auto w-full max-w-screen-2xl px-3 sm:px-4 pb-2">
-      <div
-        className={cn("flex items-center justify-end gap-1.5 px-1.5 py-1.5")}
-      >
-        {/* ✅ NEW: 파트너 액션 버튼을 메모 버튼 왼쪽에 */}
-        <PartnerActionButton />
-
-        <UserMemoEmojiButton />
-        <NoticeCenterFloatingButton iconSize={16} />
-        <NotificationDropdown iconSize={16} />
-      </div>
-    </div>
-  );
-});
-
-/* ------------------------------ 내 한마디: 한줄 프리뷰 + 수정 다이얼로그 ------------------------------ */
-function SelfTodayOneLiner() {
-  const { user } = useUser();
-  const [loading, setLoading] = useState(true);
-  const [msg, setMsg] = useState<UserMessage | null>(null);
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-    if (!user?.id) {
-      setLoading(false);
-      setMsg(null);
-      return;
-    }
-    (async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("user_message")
-        .select("*")
-        .eq("author_id", user.id)
-        .maybeSingle<UserMessage>();
-      if (!alive) return;
-      if (error) console.error("[AppHeader] self message load error:", error);
-      setMsg(data ?? null);
-      setLoading(false);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    const channel = supabase
-      .channel("self_user_message_live")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "user_message",
-          filter: `author_id=eq.${user.id}`,
-        },
-        (payload) => {
-          if (payload.new) setMsg(payload.new as UserMessage);
-          else if ((payload as any).eventType === "DELETE") setMsg(null);
-        }
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id]);
-}
-
-/* ------------------------------ 모바일: 1행(타이틀/밸런스/아바타), 2행(DaysTogether), 2.5행(모바일 액션바), 3행(프리뷰 바) ------------------------------ */
+/* ------------------------------ 모바일: 1행(타이틀/밸런스/아바타), 2행(DaysTogether), 3행(레일) ------------------------------ */
 const MobileRows = memo(function MobileRows({
   routeTitle,
 }: {
@@ -217,11 +156,8 @@ const MobileRows = memo(function MobileRows({
         </div>
       </div>
 
-      {/* 2.5행: 모바일 알림/공지 액션바 (배경 없음) */}
-      <MobileActionBar />
-
-      {/* 3행: 모바일 프리뷰 바(질문 + 오늘 한마디) */}
-      <MobilePreviewBar />
+      {/* 3행: 데스크탑 순서(좌→질문→우) 그대로 가로 스크롤 레일 */}
+      <MobileLinearRail />
     </>
   );
 });
@@ -277,6 +213,13 @@ export default function AppHeader({
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px " />
         <div className="mx-auto w-full max-w-screen-2xl py-2 px-3 sm:px-4">
           <div className="flex items-center gap-2 px-0 py-0">
+            <div className="flex items-center gap-1.5 pl-1">
+              <NoticeCenterFloatingButton />
+              <NotificationDropdown />
+              <KoreanQuoteButton />
+              <WeatherCard />
+            </div>
+            <div className="h-6 w-px bg-gradient-to-b from-transparent via-neutral-300/60 to-transparent" />
             {/* Question pill만 흰색 배경 */}
             <div className="min-w-0 flex-1">
               <div className="px-2 py-1 rounded-xl bg-white/80 ring-1 ring-white/60 shadow-sm">
@@ -288,12 +231,11 @@ export default function AppHeader({
 
             {/* 버튼 3종: 배경/테두리 없음, 간격 동일 */}
             <div className="flex items-center gap-1.5 pl-1">
-              {/* ✅ NEW: 파트너 액션 버튼을 메모 버튼 왼쪽에 */}
               <PartnerActionButton />
-
-              <UserMemoEmojiButton iconSize={16} />
-              <NoticeCenterFloatingButton iconSize={16} />
-              <NotificationDropdown iconSize={16} />
+              <SlotSpinButton />
+              <DailyFortuneCard />
+              <UserMemoEmojiButton />
+              <TimeCapsuleButton />
             </div>
           </div>
         </div>

@@ -5,7 +5,6 @@ import * as React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import {
   Popover,
   PopoverContent,
@@ -20,9 +19,7 @@ import { Home, ArrowUp, Navigation } from "lucide-react";
    설정
 ---------------------------------------------- */
 const NAV_HISTORY_KEY = "app_nav_history"; // sessionStorage
-const LONG_PRESS_MS = 520; // 롱프레스 기준 (터치 대응)
 const HOVER_OPEN_DELAY_MS = 420; // 일정 시간 호버 시 팝오버 열기
-const SCROLL_TOP_MODE_THRESHOLD = 120; // 이 값 이상 스크롤되면 위로가기 모드
 
 /** 테마 톤 (간결화했지만 prop은 유지) */
 type Tone = "daily" | "world";
@@ -31,7 +28,6 @@ type Tone = "daily" | "world";
 type HomeFabButtonProps = {
   tone?: Tone;
   position?: "bottom-right" | "bottom-left" | "bottom-center";
-  autoHideOnScroll?: boolean; // 모드 전환만; 버튼 숨김은 안 함
   className?: string;
 };
 
@@ -68,7 +64,6 @@ function getScrollY() {
 export default function HomeFabButton({
   tone = "daily",
   position = "bottom-right",
-  autoHideOnScroll = true,
   className,
 }: HomeFabButtonProps) {
   const nav = useNavigate();
@@ -90,84 +85,9 @@ export default function HomeFabButton({
     [pathname]
   );
 
-  /* --------- Popover 제어 --------- */
+  /* --------- Popover 제어 (호버로만 오픈) --------- */
   const [open, setOpen] = useState(false);
   const hoverTimerRef = useRef<number | null>(null);
-  const longPressTimerRef = useRef<number | null>(null);
-
-  /* --------- 스크롤 상태 추적 --------- */
-  const [scrollTopMode, setScrollTopMode] = useState(false); // 아이콘 전환용(임계치 기반)
-  const [atTop, setAtTop] = useState(true); // 실제 최상단 여부(정확한 클릭 규칙용)
-  useEffect(() => {
-    const onScroll = () => {
-      const y = getScrollY();
-      setAtTop(y <= 0);
-      if (autoHideOnScroll) setScrollTopMode(y > SCROLL_TOP_MODE_THRESHOLD);
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [autoHideOnScroll]);
-
-  /* --------- 클릭/호버/롱프레스 동작 --------- */
-  // Popover의 "메인 이동/상단" 버튼은 기존 의미 유지
-  const goHomeOrTop = React.useCallback(() => {
-    if (pathname === "/main") {
-      try {
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      } catch {}
-      return;
-    }
-    nav("/main");
-  }, [nav, pathname]);
-
-  // ✅ 메인 FAB의 클릭 규칙(요청사항)
-  // - 메인페이지:
-  //    · 이미 상단이면 아무 것도 하지 않음
-  //    · 상단이 아니면 메인 상단으로 스크롤
-  // - 다른 페이지:
-  //    · 상단이 아니면 현재 페이지 상단으로 스크롤
-  //    · 이미 상단이면 메인으로 이동
-  const onButtonClick = () => {
-    const y = getScrollY();
-    const isTop = y <= 0;
-
-    if (pathname === "/main") {
-      if (!isTop) {
-        try {
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        } catch {}
-      }
-      return; // 상단이면 아무 동작 없음
-    }
-
-    // 다른 페이지인 경우
-    if (!isTop) {
-      try {
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      } catch {}
-      return;
-    }
-
-    // 다른 페이지 + 이미 상단 → 메인으로 이동
-    nav("/main");
-  };
-
-  const onButtonPointerDown = () => {
-    if (longPressTimerRef.current) {
-      window.clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-    longPressTimerRef.current = window.setTimeout(() => {
-      setOpen(true);
-    }, LONG_PRESS_MS);
-  };
-  const onButtonPointerUpOrLeave = () => {
-    if (longPressTimerRef.current) {
-      window.clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-  };
 
   const onButtonMouseEnter = () => {
     if (hoverTimerRef.current) {
@@ -185,13 +105,41 @@ export default function HomeFabButton({
     }
   };
 
-  /* --------- 간결한 스타일 --------- */
+  /* --------- 스크롤 상태 --------- */
+  const [atTop, setAtTop] = useState(true); // 실제 최상단 여부
+  useEffect(() => {
+    const onScroll = () => setAtTop(getScrollY() <= 0);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  /* --------- 메인 FAB 클릭 동작 (요청된 규칙) --------- */
+  // - 상단인 경우: 홈 아이콘, 동작은
+  //    · 메인 페이지면 아무 것도 안 함
+  //    · 다른 페이지면 메인으로 이동
+  // - 상단이 아닌 경우: 위로가기 아이콘, 동작은 현재 페이지 최상단 스크롤
+  const onButtonClick = () => {
+    const isTop = getScrollY() <= 0;
+
+    if (!isTop) {
+      try {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } catch {}
+      return;
+    }
+
+    // 이미 상단
+    if (pathname === "/main") return;
+    nav("/main");
+  };
+
+  /* --------- 스타일 --------- */
   const baseColor =
     tone === "world"
       ? "bg-indigo-600 hover:bg-indigo-700 ring-indigo-300/50"
       : "bg-emerald-600 hover:bg-emerald-700 ring-emerald-300/50";
 
-  /* --------- 위치 --------- */
   const positionClass = {
     "bottom-right":
       "right-[max(1rem,env(safe-area-inset-right))] bottom-[max(1rem,env(safe-area-inset-bottom))]",
@@ -201,7 +149,6 @@ export default function HomeFabButton({
       "left-1/2 -translate-x-1/2 bottom-[max(1rem,env(safe-area-inset-bottom))]",
   }[position];
 
-  /* --------- 접근성 --------- */
   const ariaLabel = atTop
     ? pathname === "/main"
       ? "메인(이미 상단)"
@@ -223,9 +170,6 @@ export default function HomeFabButton({
             aria-label={ariaLabel}
             title={ariaLabel}
             onClick={onButtonClick}
-            onPointerDown={onButtonPointerDown}
-            onPointerUp={onButtonPointerUpOrLeave}
-            onPointerLeave={onButtonPointerUpOrLeave}
             onMouseEnter={onButtonMouseEnter}
             onMouseLeave={onButtonMouseLeave}
             className={cn(
@@ -234,15 +178,14 @@ export default function HomeFabButton({
               baseColor,
               "transition-transform active:scale-[0.98]",
               "overflow-hidden",
-              // 유리/그레인 제거 → 더 깔끔
               className
             )}
           >
-            {/* 아이콘: 스크롤 상태에 따라 전환 (간결하게) */}
+            {/* 아이콘: 상단 여부에 따라 표시 */}
             <div
               className={cn(
                 "absolute inset-0 flex items-center justify-center transition-opacity duration-150",
-                scrollTopMode ? "opacity-0" : "opacity-100"
+                atTop ? "opacity-100" : "opacity-0"
               )}
             >
               <Home className="h-[26px] w-[26px]" />
@@ -250,16 +193,15 @@ export default function HomeFabButton({
             <div
               className={cn(
                 "absolute inset-0 flex items-center justify-center transition-opacity duration-150",
-                scrollTopMode ? "opacity-100" : "opacity-0"
+                atTop ? "opacity-0" : "opacity-100"
               )}
             >
               <ArrowUp className="h-[26px] w-[26px]" />
             </div>
-            {/* ✅ 우상단 반짝이(스파클) 제거 */}
           </Button>
         </PopoverTrigger>
 
-        {/* 롱프레스/호버 지연으로 여는 팝오버 */}
+        {/* ✅ 호버 시: '최근 페이지 목록'만 노출 (나머지 기능 제거) */}
         <PopoverContent
           side={
             position === "bottom-left"
@@ -269,34 +211,9 @@ export default function HomeFabButton({
               : "top"
           }
           align={position === "bottom-center" ? "center" : "end"}
-          className={cn(
-            "w-[220px] rounded-2xl p-2",
-            // 더 담백한 배경
-            "bg-white shadow-md border"
-          )}
+          className={cn("w-[220px] rounded-2xl p-2 bg-white shadow-md border")}
         >
           <div className="mt-1 grid gap-1">
-            {/* 메인 이동/상단 */}
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                goHomeOrTop();
-              }}
-              className={cn(
-                "flex items-center gap-2 rounded-xl px-3 py-2 text-left",
-                "hover:bg-muted/50 transition-colors"
-              )}
-            >
-              <Home className="h-4 w-4 text-foreground/80" />
-              <span className="text-sm font-medium">
-                {pathname === "/main" ? "메인 상단으로" : "홈으로"}
-              </span>
-            </button>
-
-            <Separator className="my-1" />
-
-            {/* 최근 방문 3곳 */}
             {recent.length > 0 ? (
               recent.map((p) => (
                 <button
@@ -320,26 +237,6 @@ export default function HomeFabButton({
                 최근 방문 기록이 없어요
               </div>
             )}
-
-            <Separator className="my-1" />
-
-            {/* 현재 페이지 맨 위로 */}
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                try {
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                } catch {}
-              }}
-              className={cn(
-                "flex items-center gap-2 rounded-xl px-3 py-2 text-left",
-                "hover:bg-muted/50 transition-colors"
-              )}
-            >
-              <ArrowUp className="h-4 w-4 text-foreground/70" />
-              <span className="text-sm">현재 페이지 맨 위로</span>
-            </button>
           </div>
         </PopoverContent>
       </Popover>
