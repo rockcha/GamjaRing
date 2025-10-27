@@ -6,7 +6,6 @@ import { GetQuestionById } from "@/utils/GetQuestionById";
 import { useUser } from "@/contexts/UserContext";
 import { useCompleteTask } from "@/utils/tasks/CompleteTask";
 import { cn } from "@/lib/utils";
-
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 import supabase from "@/lib/supabase";
 
@@ -21,12 +20,11 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "sonner";
 import AvatarWidget from "@/components/widgets/AvatarWidget";
+import { toast } from "sonner";
 
 // icons
 import { Loader2 } from "lucide-react";
-
 // animation
 import { motion } from "framer-motion";
 
@@ -272,7 +270,9 @@ export default function QuestionPage() {
           .from("answer")
           .upsert(
             [{ user_id: user.id, question_id: displayQuestionId, content }],
-            { onConflict: "user_id,question_id" }
+            {
+              onConflict: "user_id,question_id",
+            }
           );
 
         if (error) throw error;
@@ -362,247 +362,259 @@ export default function QuestionPage() {
     });
   };
 
+  // ✅ 공통 본문 높이 클래스 (작성 전/후 동일하게 적용)
+  const BODY_FIXED_H = "h-[260px] md:h-[320px]";
+
   return (
-    <main className="mx-auto w-full max-w-screen-lg px-4 md:px-6">
-      {/* 편지지 느낌의 컨테이너 */}
-      <Card
-        className={cn(
-          "relative mx-auto max-w-3xl border-0 rounded-xl",
-          "bg-[rgba(250,247,242,0.98)]",
-          "ring-1 ring-amber-200/40",
-          "shadow-[0_20px_60px_-20px_rgba(120,85,40,0.25)]",
-          // 종이 결(점조) 텍스처 (클릭 막지 않도록!)
-          "before:absolute before:inset-0 before:rounded-3xl before:pointer-events-none"
-        )}
-      >
-        {/* 와시테이프 (마스킹테이프) */}
-        <div className="pointer-events-none absolute -top-3 left-10 rotate-[-4deg] h-6 w-24 bg-sky-200/70 rounded-[4px] shadow-sm" />
-        <div className="pointer-events-none absolute -top-2 right-12 rotate-[6deg] h-6 w-20 bg-pink-200/60 rounded-[4px] shadow-sm" />
+    <main
+      className={cn("min-h-[100dvh] w-full", "bg-fixed bg-cover bg-center")}
+      style={{
+        backgroundImage: "url('/questionpageBackground.png')",
+      }}
+    >
+      {/* 배경 가독성을 위한 은은한 오버레이 */}
+      <div className="min-h-[100dvh] ">
+        <div className="mx-auto w-full max-w-screen-lg px-4 md:px-6 py-6 md:py-10">
+          {/* 편지지 느낌의 컨테이너 */}
+          <Card
+            className={cn(
+              "relative mx-auto max-w-3xl border-0 rounded-xl",
+              "bg-[rgba(250,247,242,0.96)]",
+              "ring-1 ring-amber-200/40",
+              "shadow-[0_20px_60px_-20px_rgba(120,85,40,0.25)]",
+              "before:absolute before:inset-0 before:rounded-3xl before:pointer-events-none"
+            )}
+          >
+            {/* 와시테이프 */}
+            <div className="pointer-events-none absolute -top-3 left-10 rotate-[-4deg] h-6 w-24 bg-sky-200/70 rounded-[4px] shadow-sm" />
+            <div className="pointer-events-none absolute -top-2 right-12 rotate-[6deg] h-6 w-20 bg-pink-200/60 rounded-[4px] shadow-sm" />
 
-        {/* 바인더 펀칭홀 */}
-        <div className="pointer-events-none absolute left-3 top-20 flex flex-col gap-6 opacity-60">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-3 w-3 rounded-full bg-white shadow-inner ring-1 ring-amber-300/50"
-            />
-          ))}
-        </div>
+            {/* 바인더 펀칭홀 */}
+            <div className="pointer-events-none absolute left-3 top-20 flex flex-col gap-6 opacity-60">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-3 w-3 rounded-full bg-white shadow-inner ring-1 ring-amber-300/50"
+                />
+              ))}
+            </div>
 
-        {loading ? (
-          <>
-            {/* 헤더 영역 스켈레톤(높이 안정화) */}
-            <CardHeader className="items-center pt-10">
-              <Skeleton className="h-6 w-80 rounded-md" />
-            </CardHeader>
+            {loading ? (
+              <>
+                <CardHeader className="items-center pt-10">
+                  <Skeleton className="h-6 w-80 rounded-md" />
+                </CardHeader>
 
-            <CardContent className="space-y-5">
-              <Separator />
-
-              {/* 이모지 버튼 + (파트너 위젯 제거됨) */}
-              <div className="mx-auto w-full md:w-[80%] lg:w-[70%]">
-                <div className="mb-2 text-center">
-                  <Skeleton className="h-4 w-72 mx-auto rounded-md" />
-                </div>
-
-                <div className="flex items-center justify-center">
-                  {/* 이모지 버튼 자리 */}
-                  <Skeleton className="h-10 w-[150px] rounded-full mr-2" />
-                </div>
-              </div>
-
-              {/* 답변 textarea 자리 */}
-              <div className="mx-auto w-full md:w-[90%] lg:w-[70%]">
-                <Skeleton className="h-[220px] md:h-[260px] w-full rounded-2xl" />
-              </div>
-            </CardContent>
-
-            {/* 하단 버튼/상태 라인 */}
-            <CardFooter className="flex flex-col items-center gap-2 pb-8">
-              <Skeleton className="h-10 w-[150px] rounded-full" />
-            </CardFooter>
-          </>
-        ) : (
-          <>
-            {/* 레터헤드 + 날짜 배지 */}
-            <CardHeader className="items-center pt-10">
-              <div
-                className={cn(
-                  "inline-flex items-center gap-2 px-3 py-1.5 rounded-full",
-                  " text-amber-800 text-xs"
-                )}
-              >
-                ✉️ <span className="font-medium">Dear us</span>
-                <span className="text-amber-600/60">·</span>
-                <span className="px-2 py-0.5 rounded-full ">
-                  {new Intl.DateTimeFormat("ko-KR", {
-                    dateStyle: "long",
-                    timeZone: "Asia/Seoul",
-                  }).format(new Date())}
-                </span>
-              </div>
-
-              {/* ✅ 도장: 작성 완료 / 미작성 */}
-              <CornerStamp submitted={submitted} />
-            </CardHeader>
-
-            <CardContent className="space-y-6">
-              {/* 질문 본문 */}
-              <p className="text-lg md:text-xl text-[#5b3d1d] whitespace-pre-line text-center leading-relaxed italic tracking-wide">
-                {question ? `"${question}"` : "표시할 질문이 없습니다."}
-              </p>
-
-              <Separator className="bg-amber-200/50" />
-
-              {/* 안내줄 (파트너 위젯 라인은 제거) */}
-              <div className="mx-auto w-full md:w-[80%] lg:w-[70%]">
-                <div className="flex items-center justify-center">
-                  {/* 버튼 + 드롭다운을 위한 상대 컨테이너 */}
-                  <div className="relative">
-                    <Button
-                      ref={emojiBtnRef}
-                      type="button"
-                      variant="default"
-                      className={cn(
-                        canEdit
-                          ? "cursor-pointer"
-                          : "pointer-events-none opacity-60"
-                      )}
-                      onClick={() => canEdit && setEmojiOpen((o) => !o)}
-                    >
-                      이모지 추가하기
-                    </Button>
-
-                    {emojiOpen && (
-                      <div
-                        ref={emojiMenuRef}
-                        role="grid"
-                        aria-label="이모지 선택"
-                        className="absolute z-50 mt-2 w-[300px]  rounded-lg bg-white/95 backdrop-blur-sm p-2 shadow-lg"
-                      >
-                        <div className="grid grid-cols-6 gap-2">
-                          {EMOJIS_5x6.map((e) => (
-                            <button
-                              key={e}
-                              role="gridcell"
-                              onClick={() => {
-                                insertAtCursor(e);
-                                setEmojiOpen(false);
-                              }}
-                              className="h-9 w-9 flex items-center justify-center rounded-lg border-2  bg-white hover:bg-amber-200 active:scale-95 shadow-sm text-[18px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
-                              aria-label={`${e} 삽입`}
-                              tabIndex={0}
-                            >
-                              {e}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* 내 답변 */}
-              {submitted && !editing ? (
-                // ✅ 제출 완료 & 편집 중 아님: 보기 전용 카드 (안내문 삭제)
-                <div className="mx-auto w-full md:w-[80%] lg:w-[70%]">
-                  <div className="rounded-2xl border border-amber-200/70 bg-amber-50/70 p-4 md:p-5 ring-1 ring-amber-200/50 shadow-inner">
-                    <div className="whitespace-pre-wrap break-words text-[15px] md:text-base leading-relaxed text-neutral-800">
-                      {answer || "작성 내용이 없습니다."}
+                <CardContent className="space-y-5">
+                  <Separator />
+                  <div className="mx-auto w-full md:w-[80%] lg:w-[70%]">
+                    <div className="mb-2 text-center">
+                      <Skeleton className="h-4 w-72 mx-auto rounded-md" />
+                    </div>
+                    <div className="flex items-center justify-center">
+                      <Skeleton className="h-10 w-[150px] rounded-full mr-2" />
                     </div>
                   </div>
-                </div>
-              ) : (
-                // ✍️ 신규 작성 중이거나, '수정하기' 눌러 편집 모드일 때: 입력 가능
-                <div className="mx-auto w-full md:w-[90%] lg:w-[80%] space-y-2 text-center relative">
-                  <Textarea
-                    ref={textareaRef}
-                    value={answer}
-                    onChange={(e) => setAnswer(e.target.value)}
-                    readOnly={saveStatus === "saving"}
-                    className={cn(
-                      "mx-auto min-h-[220px] md:min-h-[260px] resize-none rounded-2xl",
-                      "bg-[linear-gradient(transparent_29px,rgba(0,0,0,0.035)_30px)] bg-[length:100%_30px]",
-                      "border-0 ring-1 ring-neutral-200  focus-visible:ring-neutral-400",
-                      "px-4 py-3 text-[15px] md:text-[16px] leading-[30px] text-neutral-800",
-                      "shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]"
-                    )}
-                    placeholder={
-                      submitted
-                        ? "수정 중입니다. 저장하기를 눌러 반영합니다."
-                        : "이곳에 답변을 입력해주세요..."
-                    }
-                  />
-                  <div className="mx-auto w-full md:w-[90%] lg:w-[80%] -mt-1 text-right text-[11px] text-amber-900/60">
-                    {answer.length.toLocaleString("ko-KR")} 자
+                  {/* ✅ 스켈레톤도 고정 높이 */}
+                  <div className="mx-auto w-full md:w-[90%] lg:w-[70%]">
+                    <Skeleton
+                      className={cn("w-full rounded-2xl", BODY_FIXED_H)}
+                    />
                   </div>
-                </div>
-              )}
-            </CardContent>
+                </CardContent>
 
-            {/* 단일 버튼 + 상태 피드백 라인 */}
-            <CardFooter className=" bg-gradient-to-t from-[rgba(250,247,242,0.98)] to-transparent pt-6 pb-7 flex flex-col items-end gap-2">
-              <Button
-                onClick={onPrimaryClick}
-                disabled={saveStatus === "saving"}
-                className={cn(
-                  "min-w-[150px] rounded-lg text-neutral-600",
-                  "bg-rose-200 hover:bg-rose-300",
-                  "shadow-[inset_0_-2px_0_rgba(0,0,0,0.12),0_10px_24px_-10px_rgba(244,114,182,0.6)] active:scale-95"
-                )}
-              >
-                {saveStatus === "saving" ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 저장 중…
-                  </>
-                ) : submitted ? (
-                  editing ? (
-                    <>저장하기</>
+                <CardFooter className="flex flex-col items-center gap-2 pb-8">
+                  <Skeleton className="h-10 w-[150px] rounded-full" />
+                </CardFooter>
+              </>
+            ) : (
+              <>
+                {/* 레터헤드 + 날짜 배지 */}
+                <CardHeader className="items-center pt-10">
+                  <div
+                    className={cn(
+                      "inline-flex items-center gap-2 px-3 py-1.5 rounded-full",
+                      " text-amber-800 text-xs"
+                    )}
+                  >
+                    ✉️ <span className="font-medium">Dear us</span>
+                    <span className="text-amber-600/60">·</span>
+                    <span className="px-2 py-0.5 rounded-full ">
+                      {new Intl.DateTimeFormat("ko-KR", {
+                        dateStyle: "long",
+                        timeZone: "Asia/Seoul",
+                      }).format(new Date())}
+                    </span>
+                  </div>
+                  <CornerStamp submitted={submitted} />
+                </CardHeader>
+
+                <CardContent className="space-y-6">
+                  {/* 질문 본문 */}
+                  <p className="text-lg md:text-xl text-[#5b3d1d] whitespace-pre-line text-center leading-relaxed italic tracking-wide">
+                    {question ? `"${question}"` : "표시할 질문이 없습니다."}
+                  </p>
+
+                  <Separator className="bg-amber-200/50" />
+
+                  {/* 이모지 드롭다운 */}
+                  <div className="mx-auto w-full md:w-[80%] lg:w-[70%]">
+                    <div className="flex items-center justify-center">
+                      <div className="relative">
+                        <Button
+                          ref={emojiBtnRef}
+                          type="button"
+                          variant="default"
+                          className={cn(
+                            canEdit
+                              ? "cursor-pointer"
+                              : "pointer-events-none opacity-60"
+                          )}
+                          onClick={() => canEdit && setEmojiOpen((o) => !o)}
+                        >
+                          이모지 추가하기
+                        </Button>
+
+                        {emojiOpen && (
+                          <div
+                            ref={emojiMenuRef}
+                            role="grid"
+                            aria-label="이모지 선택"
+                            className="absolute z-50 mt-2 w-[300px] rounded-lg bg-white/95 backdrop-blur-sm p-2 shadow-lg"
+                          >
+                            <div className="grid grid-cols-6 gap-2">
+                              {EMOJIS_5x6.map((e) => (
+                                <button
+                                  key={e}
+                                  role="gridcell"
+                                  onClick={() => {
+                                    insertAtCursor(e);
+                                    setEmojiOpen(false);
+                                  }}
+                                  className="h-9 w-9 flex items-center justify-center rounded-lg border-2 bg-white hover:bg-amber-200 active:scale-95 shadow-sm text-[18px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
+                                  aria-label={`${e} 삽입`}
+                                  tabIndex={0}
+                                >
+                                  {e}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 내 답변 */}
+                  {submitted && !editing ? (
+                    // ✅ 보기 전용 (고정 높이 + 스크롤)
+                    <div className="mx-auto w-full md:w-[80%] lg:w-[70%]">
+                      <div
+                        className={cn(
+                          "rounded-2xl border border-amber-200/70 bg-amber-50/70 p-4 md:p-5 ring-1 ring-amber-200/50 shadow-inner",
+                          "whitespace-pre-wrap break-words text-[15px] md:text-base leading-relaxed text-neutral-800",
+                          BODY_FIXED_H,
+                          "overflow-y-auto"
+                        )}
+                      >
+                        {answer || "작성 내용이 없습니다."}
+                      </div>
+                    </div>
                   ) : (
-                    <>수정하기</>
-                  )
-                ) : (
-                  <>저장하기</>
-                )}
-              </Button>
-            </CardFooter>
-          </>
-        )}
-      </Card>
+                    // ✍️ 편집 모드 (고정 높이 + 스크롤)
+                    <div className="mx-auto w-full md:w-[90%] lg:w-[80%] space-y-2 text-center relative">
+                      <Textarea
+                        ref={textareaRef}
+                        value={answer}
+                        onChange={(e) => setAnswer(e.target.value)}
+                        readOnly={saveStatus === "saving"}
+                        className={cn(
+                          "mx-auto resize-none rounded-2xl",
+                          "bg-[linear-gradient(transparent_29px,rgba(0,0,0,0.035)_30px)] bg-[length:100%_30px]",
+                          "border-0 ring-1 ring-neutral-200 focus-visible:ring-neutral-400",
+                          "px-4 py-3 text-[15px] md:text-[16px] leading-[30px] text-neutral-800",
+                          "shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]",
+                          BODY_FIXED_H,
+                          "overflow-y-auto"
+                        )}
+                        placeholder={
+                          submitted
+                            ? "수정 중입니다. 저장하기를 눌러 반영합니다."
+                            : "이곳에 답변을 입력해주세요..."
+                        }
+                      />
+                      <div className="mx-auto w-full md:w-[90%] lg:w-[80%] -mt-1 text-right text-[11px] text-amber-900/60">
+                        {answer.length.toLocaleString("ko-KR")} 자
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
 
-      {/* ✅ 우하단: 파트너 아바타 + 랜덤 멘트 (고정 영역) */}
-      <motion.aside
-        initial={{ opacity: 0, y: 12, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{
-          type: "spring",
-          stiffness: 260,
-          damping: 20,
-          delay: 0.05,
-        }}
-        className={cn(
-          "pointer-events-none fixed left-5 bottom-5 sm:left-8 sm:bottom-8 z-40",
-          "max-w-[78vw] sm:max-w-xs"
-        )}
-        aria-live="polite"
-      >
-        <div
-          className={cn(
-            "pointer-events-auto flex items-center gap-3 sm:gap-4",
-            "rounded-3xl bg-white/90 backdrop-blur-md",
-            "ring-1 ring-pink-200/60 shadow-[0_10px_30px_-12px_rgba(255,0,90,0.25)]",
-            "p-3 sm:p-4"
-          )}
-        >
-          <AvatarWidget type="partner" size="md" />
-          <div className="min-w-0">
-            <div className="text-[13px] sm:text-[14px] leading-relaxed text-neutral-800 mt-0.5">
-              {randomMent?.text} {randomMent?.emoji}
+                {/* 단일 버튼 */}
+                <CardFooter className=" bg-gradient-to-t from-[rgba(250,247,242,0.98)] to-transparent pt-6 pb-7 flex flex-col items-end gap-2">
+                  <Button
+                    onClick={onPrimaryClick}
+                    disabled={saveStatus === "saving"}
+                    className={cn(
+                      "min-w-[150px] rounded-lg text-neutral-600",
+                      "bg-rose-200 hover:bg-rose-300",
+                      "shadow-[inset_0_-2px_0_rgba(0,0,0,0.12),0_10px_24px_-10px_rgba(244,114,182,0.6)] active:scale-95"
+                    )}
+                  >
+                    {saveStatus === "saving" ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 저장
+                        중…
+                      </>
+                    ) : submitted ? (
+                      editing ? (
+                        <>저장하기</>
+                      ) : (
+                        <>수정하기</>
+                      )
+                    ) : (
+                      <>저장하기</>
+                    )}
+                  </Button>
+                </CardFooter>
+              </>
+            )}
+          </Card>
+
+          {/* ✅ 우하단: 파트너 아바타 + 랜덤 멘트 */}
+          <motion.aside
+            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{
+              type: "spring",
+              stiffness: 260,
+              damping: 20,
+              delay: 0.05,
+            }}
+            className={cn(
+              "pointer-events-none fixed left-5 bottom-5 sm:left-8 sm:bottom-8 z-40",
+              "max-w-[78vw] sm:max-w-xs"
+            )}
+            aria-live="polite"
+          >
+            <div
+              className={cn(
+                "pointer-events-auto flex items-center gap-3 sm:gap-4",
+                "rounded-3xl bg-white/90 backdrop-blur-md",
+                "ring-1 ring-pink-200/60 shadow-[0_10px_30px_-12px_rgba(255,0,90,0.25)]",
+                "p-3 sm:p-4"
+              )}
+            >
+              <AvatarWidget type="partner" size="md" />
+              <div className="min-w-0">
+                <div className="text-[13px] sm:text-[14px] leading-relaxed text-neutral-800 mt-0.5">
+                  {randomMent?.text} {randomMent?.emoji}
+                </div>
+              </div>
             </div>
-          </div>
+          </motion.aside>
         </div>
-      </motion.aside>
+      </div>
     </main>
   );
 }

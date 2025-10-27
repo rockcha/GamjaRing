@@ -1,4 +1,6 @@
-// src/pages/GloomyPage.tsx  (혹은 네 프로젝트 구조에 맞게)
+// src/pages/GloomyPage.tsx
+"use client";
+
 import GloomyMessageCard from "@/components/widgets/Cards/GloomyMessageCard";
 import GloomyRatingsBoard from "@/components/widgets/Cards/GloomyRatingsBoard";
 import GloomyRatingsCompletedBoard from "@/components/widgets/Cards/GloomyRatingsCompletedBoard";
@@ -6,8 +8,13 @@ import GloomyAccessGateDb from "@/components/widgets/Cards/GloomyAccessGateDb";
 
 export default function GloomyPage() {
   return (
-    <GloomyAccessGateDb>
-      <div className="mx-auto max-w-6xl px-4 md:px-6 lg:px-8">
+    <main
+      className="min-h-[100dvh] w-full bg-fixed bg-cover bg-center"
+      style={{
+        backgroundImage: "url('/gloomypageBackground.png')",
+      }}
+    >
+      <div className="mx-auto max-w-6xl px-4 md:px-6 lg:px-8 py-8 md:py-10">
         {/* 페이지 헤더 자리 */}
 
         {/* 메인 그리드 */}
@@ -28,6 +35,6 @@ export default function GloomyPage() {
 
         <footer className="py-8" />
       </div>
-    </GloomyAccessGateDb>
+    </main>
   );
 }
