@@ -215,7 +215,8 @@ export default function AppHeader({
           <div className="flex items-center gap-2 px-0 py-0">
             <div className="flex items-center gap-1.5 pl-1">
               <NoticeCenterFloatingButton />
-              <NotificationDropdown />
+              <UserMemoEmojiButton />
+
               <KoreanQuoteButton />
               <WeatherCard />
             </div>
@@ -232,9 +233,10 @@ export default function AppHeader({
             {/* 버튼 3종: 배경/테두리 없음, 간격 동일 */}
             <div className="flex items-center gap-1.5 pl-1">
               <PartnerActionButton />
+              <NotificationDropdown />
               <SlotSpinButton />
               <DailyFortuneCard />
-              <UserMemoEmojiButton />
+
               <TimeCapsuleButton />
             </div>
           </div>

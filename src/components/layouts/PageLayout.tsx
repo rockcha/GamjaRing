@@ -105,7 +105,7 @@ export default function PageLayout({
 
       <QuickMenu />
 
-      <HomeFabButton tone="daily" position="bottom-left" autoHideOnScroll />
+      <HomeFabButton tone="daily" position="bottom-right" autoHideOnScroll />
 
       {/* 본문 */}
       <main
