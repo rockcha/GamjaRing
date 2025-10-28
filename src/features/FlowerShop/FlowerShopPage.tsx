@@ -3,7 +3,6 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
 import FlowerShop from "./FlowerShop";
 import GardenBackyard from "./GardenBackyard";
 
@@ -12,11 +11,11 @@ type View = "shop" | "garden";
 export default function FlowerShopPage() {
   const [view, setView] = useState<View>("shop");
 
-  /** ===== 상단 슬라이드 토글 ===== */
+  /** ===== 상단 슬라이드 토글 (이모지 + 컬러 업) ===== */
   const tabs = useMemo(
     () =>
       [
-        { key: "shop", label: "꽃집", icon: "🌸" },
+        { key: "shop", label: "꽃집", icon: "🌼" },
         { key: "garden", label: "뒤뜰", icon: "🪴" },
       ] as const,
     []
@@ -25,15 +24,15 @@ export default function FlowerShopPage() {
 
   const handleSwitch = useCallback((next: View) => setView(next), []);
 
-  /** ===== 콘텐츠 전환 애니메이션(미니멀) ===== */
+  /** ===== 콘텐츠 전환 애니메이션 ===== */
   const variants = {
-    initial: { opacity: 0, y: 6, scale: 0.995 },
+    initial: { opacity: 0, y: 8, scale: 0.995 },
     animate: { opacity: 1, y: 0, scale: 1 },
-    exit: { opacity: 0, y: -6, scale: 0.995 },
+    exit: { opacity: 0, y: -8, scale: 0.995 },
   };
   const transition = { type: "spring", stiffness: 220, damping: 22, mass: 0.9 };
 
-  /** ===== 모바일 스와이프 지원 ===== */
+  /** ===== 모바일 스와이프 ===== */
   const touchStartX = useRef<number | null>(null);
   const onTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
@@ -48,7 +47,7 @@ export default function FlowerShopPage() {
     touchStartX.current = null;
   };
 
-  /** ===== 키보드 내비게이션(접근성) ===== */
+  /** ===== 키보드 내비게이션 ===== */
   const onKeyDownTabs = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === "ArrowRight" || e.key === "End") {
       e.preventDefault();
@@ -61,37 +60,52 @@ export default function FlowerShopPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl p-4 md:p-6">
-      {/* 상단 바 */}
-      <div className="mb-5 flex items-center justify-between">
-        {/* 좌측 타이틀(아이콘은 활성 탭에 맞춰 변경) */}
-        <div className="flex items-center gap-2">
-          <span className="text-xl md:text-2xl">{tabs[activeIndex].icon}</span>
-          <h1 className="text-xl md:text-2xl font-extrabold tracking-tight">
-            {tabs[activeIndex].label}
-          </h1>
+      {/* 상단 바: 이모지 타이틀 + 세그먼트 */}
+      <div className="sticky top-0 z-20 mb-5 flex items-center justify-between rounded-2xl border bg-background/70 p-2 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/50">
+        {/* 좌측 타이틀 (활성 탭 이모지/텍스트) */}
+        <div className="flex items-center gap-3 px-1">
+          <div
+            className="inline-flex size-10 items-center justify-center rounded-xl border
+                       bg-gradient-to-b from-pink-100/70 to-transparent dark:from-pink-900/20"
+          >
+            <span className="text-lg md:text-xl">{tabs[activeIndex].icon}</span>
+          </div>
+          <div className="leading-tight">
+            <h1 className="text-lg md:text-2xl font-extrabold tracking-tight">
+              {tabs[activeIndex].label}
+            </h1>
+            <p className="text-[11px] md:text-xs text-muted-foreground">
+              {activeIndex === 0
+                ? "꽃 인벤토리와 주문을 관리해요"
+                : "씨앗을 심고 가꿔요"}
+            </p>
+          </div>
         </div>
 
-        {/* 우측: 슬라이드 토글(세그먼트) */}
+        {/* 우측: 이모지 세그먼트 토글 */}
         <div
           role="tablist"
           aria-label="꽃집/뒤뜰 전환"
           onKeyDown={onKeyDownTabs}
-          className="relative isolate w-[260px] select-none rounded-2xl border bg-background/60 p-1 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/40"
+          className="relative isolate w-[276px] select-none rounded-2xl border bg-background/60 p-1 shadow-inner backdrop-blur supports-[backdrop-filter]:bg-background/40"
         >
-          {/* 슬라이딩 인디케이터 */}
+          {/* 슬라이딩 인디케이터에 파스텔 색 */}
           <motion.div
             layout
-            className="absolute inset-y-1 w-[calc(50%-0.25rem)] rounded-xl bg-primary/10"
+            className="absolute inset-y-1 w-[calc(50%-0.25rem)] rounded-xl "
             style={{
               left: activeIndex === 0 ? "0.25rem" : "calc(50% + 0.0rem)",
             }}
             transition={{
               type: "spring",
               stiffness: 500,
-              damping: 40,
+              damping: 38,
               mass: 0.6,
             }}
-          />
+          >
+            <div className="h-full w-full rounded-xl bg-gradient-to-r from-pink-200/40 to-violet-200/40 dark:from-pink-900/30 dark:to-violet-900/30 ring-inset ring-pink-300/40" />
+          </motion.div>
+
           <div className="grid grid-cols-2 gap-1">
             {tabs.map((t, idx) => {
               const active = idx === activeIndex;
@@ -102,15 +116,17 @@ export default function FlowerShopPage() {
                   aria-selected={active}
                   aria-controls={`panel-${t.key}`}
                   tabIndex={active ? 0 : -1}
-                  onClick={() => handleSwitch(t.key)}
+                  onClick={() => setView(t.key as View)}
                   className={[
-                    "relative z-10 flex h-10 w-full items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold transition-colors",
+                    "relative z-10 flex h-11 w-full items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold transition-colors",
                     active
-                      ? "text-primary-foreground"
+                      ? "text-foreground"
                       : "text-foreground/80 hover:text-foreground",
                   ].join(" ")}
                 >
-                  <span aria-hidden>{t.icon}</span>
+                  <span aria-hidden className="text-base">
+                    {t.icon}
+                  </span>
                   {t.label}
                 </button>
               );
@@ -119,7 +135,7 @@ export default function FlowerShopPage() {
         </div>
       </div>
 
-      {/* 콘텐츠 영역 — 미니멀: 감싸던 래퍼/절대배치/overflow 제거 */}
+      {/* 콘텐츠 */}
       <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         <AnimatePresence mode="wait" initial={false}>
           {view === "shop" ? (

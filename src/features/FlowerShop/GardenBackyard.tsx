@@ -4,7 +4,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-
 import {
   Dialog,
   DialogContent,
@@ -13,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Card, CardContent } from "@/components/ui/card";
 import { Check } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
@@ -43,11 +43,24 @@ type SeedId = 1 | 2 | 3;
 type Grade = "일반" | "희귀" | "에픽";
 type ClaimedFlower = { id: string; label: string; grade: Grade } | null;
 
-const SEED_META: Record<SeedId, { label: string; img: string }> = {
-  1: { label: "일반 씨앗", img: "/flowers/seeds/일반 씨앗.png" },
-  2: { label: "미스터리 씨앗", img: "/flowers/seeds/미스터리 씨앗.png" },
-  3: { label: "신화 씨앗", img: "/flowers/seeds/신화 씨앗.png" },
-};
+const SEED_META: Record<SeedId, { label: string; img: string; tone: string }> =
+  {
+    1: {
+      label: "일반 씨앗",
+      img: "/flowers/seeds/일반 씨앗.png",
+      tone: "bg-gradient-to-r from-amber-50 to-orange-50 dark:from-zinc-900 dark:to-zinc-900 ring-amber-300",
+    },
+    2: {
+      label: "미스터리 씨앗",
+      img: "/flowers/seeds/미스터리 씨앗.png",
+      tone: "bg-gradient-to-r from-sky-50 to-cyan-50 dark:from-sky-950/20 dark:to-cyan-950/10 ring-sky-300",
+    },
+    3: {
+      label: "신화 씨앗",
+      img: "/flowers/seeds/신화 씨앗.png",
+      tone: "bg-gradient-to-r from-violet-50 to-fuchsia-50 dark:from-violet-950/20 dark:to-fuchsia-950/10 ring-violet-300",
+    },
+  };
 
 const gradeTone: Record<Grade, string> = {
   일반: "ring-1 ring-neutral-200 bg-neutral-50 dark:bg-neutral-950/60 dark:ring-neutral-800",
@@ -153,7 +166,7 @@ export default function GardenBackyard() {
     return () => clearInterval(id);
   }, [coupleId, loadTiles, loadSeeds, refreshStates]);
 
-  // 잔여 시간 표시
+  // 잔여 시간/진행률 표시
   const remainingFor = useCallback((t: Tile) => {
     if (!t.ready_at) return "";
     const ms = new Date(t.ready_at).getTime() - Date.now();
@@ -164,6 +177,18 @@ export default function GardenBackyard() {
     const ss = s % 60;
     const z = (n: number) => n.toString().padStart(2, "0");
     return `${z(h)}:${z(m)}:${z(ss)}`;
+  }, []);
+
+  const progressFor = useCallback((t: Tile) => {
+    if (!t.planted_at || !t.ready_at) return 0;
+    const start = new Date(t.planted_at).getTime();
+    const end = new Date(t.ready_at).getTime();
+    const now = Date.now();
+    const pct = Math.min(
+      100,
+      Math.max(0, ((now - start) / (end - start)) * 100)
+    );
+    return isFinite(pct) ? pct : 0;
   }, []);
 
   // 커플 상대 ID
@@ -370,15 +395,17 @@ export default function GardenBackyard() {
     const isHoverable = isEmptyHoverable || isReadyHoverable;
 
     const base =
-      "aspect-square rounded-lg grid place-items-center shadow-none bg-transparent relative overflow-hidden transition-colors";
+      "aspect-square rounded-xl grid place-items-center relative overflow-hidden transition-colors ring-1 ring-border/50 bg-background/50";
     const ring =
       t.state === "ready"
-        ? "ring-2 ring-emerald-300"
+        ? "ring-emerald-300/70"
         : t.state === "planted"
-        ? "ring-1 ring-amber-200"
+        ? "ring-amber-200/70"
         : selectedSeed
-        ? "ring-1 ring-amber-300/60"
-        : "";
+        ? "ring-amber-300/50"
+        : "ring-border/50";
+
+    const pct = progressFor(t);
 
     return (
       <motion.div
@@ -388,7 +415,7 @@ export default function GardenBackyard() {
             ? {
                 y: -2,
                 scale: 1.02,
-                boxShadow: "0 10px 24px -12px rgba(16,185,129,0.45)",
+                boxShadow: "0 14px 30px -16px rgba(16,185,129,0.45)",
               }
             : undefined
         }
@@ -397,17 +424,19 @@ export default function GardenBackyard() {
         className={cn(
           base,
           ring,
+          "shadow-[inset_0_1px_0_rgba(255,255,255,.04)]",
           isEmptyHoverable &&
-            "hover:bg-amber-50/50 dark:hover:bg-zinc-900/30 hover:ring-2 hover:ring-amber-400/70 cursor-pointer",
+            "hover:bg-amber-50/50 dark:hover:bg-zinc-900/30 cursor-pointer",
           isReadyHoverable &&
-            "hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 hover:ring-2 hover:ring-emerald-400/70 cursor-pointer"
+            "hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 cursor-pointer"
         )}
       >
-        <div className="w-full h-full grid place-items-center p-1.5">
+        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,.06),transparent)]" />
+        <div className="w-full h-full grid place-items-center p-2">
           <img
             src={STATE_IMG[t.state]}
             alt={t.state}
-            className="max-h-[70%] max-w-[70%] object-contain select-none"
+            className="max-h-[72%] max-w-[72%] object-contain select-none"
             draggable={false}
           />
         </div>
@@ -415,12 +444,18 @@ export default function GardenBackyard() {
         {/* 상태 라벨 */}
         <div className="absolute left-1.5 top-1.5">
           {t.state === "planted" && (
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">
+            <Badge
+              variant="secondary"
+              className="text-[10px] px-1.5 py-0.5 bg-amber-100/90 text-amber-900 ring-1 ring-amber-300/60"
+            >
               🌱 {remainingFor(t)}
             </Badge>
           )}
           {t.state === "ready" && (
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">
+            <Badge
+              variant="secondary"
+              className="text-[10px] px-1.5 py-0.5 bg-emerald-100/90 text-emerald-900 ring-1 ring-emerald-300/60"
+            >
               🌸 수확 가능
             </Badge>
           )}
@@ -437,6 +472,17 @@ export default function GardenBackyard() {
             클릭하여 심기
           </div>
         )}
+
+        {/* 성장 진행 바 */}
+        {t.state === "planted" && (
+          <div className="absolute left-0 right-0 bottom-0 h-1.5 rounded-b-xl overflow-hidden">
+            <div className="h-full w-full bg-black/10 dark:bg-white/5" />
+            <div
+              className="absolute left-0 top-0 h-full rounded-r-[6px] bg-gradient-to-r from-amber-300 to-orange-400"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        )}
       </motion.div>
     );
   };
@@ -444,13 +490,13 @@ export default function GardenBackyard() {
   const grid = useMemo(() => {
     const list = tiles ?? [];
     return (
-      <div className="grid grid-cols-3 gap-2 max-w-[420px] sm:max-w-[480px] mx-auto">
+      <div className="grid grid-cols-3 gap-2 max-w-[420px] sm:max-w-[520px] mx-auto">
         {list.map((t) => (
           <div key={t.pos}>{TileCard(t)}</div>
         ))}
       </div>
     );
-  }, [tiles, selectedSeed, seeds]); // selectedSeed, seeds가 바뀌면 타일 hover/hint도 갱신
+  }, [tiles, selectedSeed, seeds]); // selectedSeed, seeds 바뀌면 hover/hint 갱신
 
   // --- 상점 → 텃밭 즉시 반영 콜백 ---
   const handleSeedPurchased = useCallback((delta: Record<number, number>) => {
@@ -484,11 +530,12 @@ export default function GardenBackyard() {
             setSelectedSeed((prev) => (prev === id ? null : id));
           }}
           className={cn(
-            "m-4 relative inline-flex items-center gap-2 rounded-full border px-3 py-1.5 transition-all overflow-visible",
+            "relative inline-flex items-center gap-2 rounded-full border px-3 py-1.5 transition-all overflow-visible",
             "bg-background hover:bg-muted",
+            "ring-1 ring-transparent",
             disabled && "opacity-50 cursor-not-allowed",
             active &&
-              "ring-2 ring-amber-400 shadow-[0_8px_24px_-12px_rgba(245,158,11,0.55)] bg-gradient-to-r from-amber-50 to-orange-50 dark:from-zinc-900 dark:to-zinc-900"
+              `ring-2 shadow-[0_8px_24px_-12px_rgba(245,158,11,0.45)] ${meta.tone}`
           )}
         >
           <span className="inline-block h-6 w-6">
@@ -506,8 +553,7 @@ export default function GardenBackyard() {
             variant="secondary"
             className={cn(
               "ml-1 tabular-nums text-[11px] px-2 py-0.5",
-              active &&
-                "bg-amber-100 text-amber-900 dark:bg-amber-300/20 dark:text-amber-200"
+              active && "bg-black/5 dark:bg-white/10"
             )}
           >
             x{qty}
@@ -522,49 +568,102 @@ export default function GardenBackyard() {
     };
 
     return (
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <Item id={1} />
           <Item id={2} />
           <Item id={3} />
-          {/* ✅ 구매 즉시 반영 + (옵션) 서버 동기화 */}
-          <SeedShopButton
-            onPurchased={handleSeedPurchased}
-            onSync={loadSeeds}
-          />
         </div>
+        {/* ✅ 구매 즉시 반영 + (옵션) 서버 동기화 */}
+        <SeedShopButton onPurchased={handleSeedPurchased} onSync={loadSeeds} />
       </div>
     );
   };
 
+  // 로딩 스켈레톤
+  const GridSkeleton = () => (
+    <div className="grid grid-cols-3 gap-2 max-w-[420px] sm:max-w-[520px] mx-auto">
+      {Array.from({ length: 9 }).map((_, i) => (
+        <div
+          key={i}
+          className="aspect-square rounded-xl bg-muted/60 animate-pulse"
+        />
+      ))}
+    </div>
+  );
+
   return (
     <div className="space-y-4">
-      <SeedToggleBar />
+      {/* 헤더 카드: 뒤뜰 + 씨앗 보유 요약 */}
+      <Card className="border-muted/60">
+        <CardContent className="pt-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="inline-flex size-10 items-center justify-center rounded-xl border bg-gradient-to-b from-green-100/70 to-transparent dark:from-emerald-900/20">
+                <span className="text-lg">🪴</span>
+              </div>
+              <div>
+                <h2 className="text-lg font-extrabold tracking-tight">뒤뜰</h2>
+                <p className="text-xs text-muted-foreground">
+                  씨앗을 심고, 자라면 수확하세요
+                </p>
+              </div>
+            </div>
 
-      {loading ? (
-        <div className="text-sm text-muted-foreground py-8">불러오는 중…</div>
-      ) : (
-        grid
-      )}
-
-      <div className="text-xs text-muted-foreground">
-        {selectedSeed ? (
-          <div className="inline-flex items-center gap-2">
-            <img
-              src={selectedSeed ? SEED_META[selectedSeed].img : ""}
-              className="h-4 w-4"
-              alt=""
-            />
-            선택됨:{" "}
-            <span className="font-medium">
-              {selectedSeed ? SEED_META[selectedSeed].label : ""}
-            </span>{" "}
-            — 빈 칸을 클릭해 심으세요.
+            {/* 씨앗 인벤 요약칩 */}
+            <div className="flex items-center gap-2">
+              {(Object.keys(SEED_META) as Array<unknown> as SeedId[]).map(
+                (id) => (
+                  <Badge
+                    key={id}
+                    variant="secondary"
+                    className="gap-1 text-[11px]"
+                    title={SEED_META[id].label}
+                  >
+                    <img
+                      src={SEED_META[id].img}
+                      alt=""
+                      className="h-3.5 w-3.5"
+                    />
+                    x{seeds[id] ?? 0}
+                  </Badge>
+                )
+              )}
+            </div>
           </div>
-        ) : (
-          <>심을 씨앗을 먼저 선택해주세요.</>
-        )}
-      </div>
+
+          {/* 씨앗 선택 바 */}
+          <div className="mt-3">
+            <SeedToggleBar />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 텃밭 그리드 */}
+      <Card className="border-muted/60">
+        <CardContent className="pt-4">
+          {loading ? <GridSkeleton /> : grid}
+
+          <div className="mt-3 text-xs text-muted-foreground text-center">
+            {selectedSeed ? (
+              <div className="inline-flex items-center gap-2">
+                <img
+                  src={selectedSeed ? SEED_META[selectedSeed].img : ""}
+                  className="h-4 w-4"
+                  alt=""
+                />
+                선택됨:{" "}
+                <span className="font-medium">
+                  {selectedSeed ? SEED_META[selectedSeed].label : ""}
+                </span>{" "}
+                — 빈 칸을 클릭해 심으세요.
+              </div>
+            ) : (
+              <>심을 씨앗을 먼저 선택해주세요.</>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* ======================
           꽃 수확 다이얼로그
