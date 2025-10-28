@@ -126,12 +126,11 @@ export default function TodayQuestionInline({
     return () => window.clearTimeout(t);
   }, [safeQuestionText, loading, task?.completed, loopKey]);
 
-  // 비로그인/미커플이면 표시 안 함
-  if (!user?.id || !isCoupled) return null;
-
+  /** ----------------------------------------------------------------
+   *  ✅ 훅 순서 보장: 아래 훅들은 조건부 return 보다 "항상 먼저" 호출
+   * ---------------------------------------------------------------- */
   const isDone = !!task?.completed;
 
-  // 상태별 스타일(배경/테두리/텍스트/호버 + 왼쪽 강조 라인)
   const tone = useMemo(
     () =>
       isDone
@@ -152,7 +151,6 @@ export default function TodayQuestionInline({
     [isDone]
   );
 
-  // 배지(아이콘+텍스트)
   const StatusChip = () => (
     <span
       className={cn(
@@ -166,6 +164,9 @@ export default function TodayQuestionInline({
     </span>
   );
 
+  // ✅ 훅 호출 이후에 조건부 반환
+  if (!user?.id || !isCoupled) return null;
+
   return (
     <div
       role="button"
@@ -176,13 +177,10 @@ export default function TodayQuestionInline({
       }
       title={isDone ? "작성 열기" : "작성하러가기"}
       className={cn(
-        // 컨테이너: 좌측 강조 라인 + 톤 + 포커스 링
         "group w-full cursor-pointer select-none whitespace-nowrap overflow-hidden",
         "flex items-center gap-2 px-3 py-2 rounded-xl  transition-colors",
-
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-black/20 dark:focus-visible:ring-white/20",
         tone.wrap,
-
         className
       )}
     >
@@ -192,7 +190,7 @@ export default function TodayQuestionInline({
       {/* 구분점 */}
       <span className="mx-2 shrink-0 text-slate-300">·</span>
 
-      {/* 한 줄 타이핑 텍스트 (영역 줄바꿈 방지 + 말줄임) */}
+      {/* 한 줄 타이핑 텍스트 */}
       <span className="min-w-0 overflow-hidden text-ellipsis">
         {loading ? (
           <Skeleton className="h-5 w-48 rounded" />
@@ -233,7 +231,7 @@ export default function TodayQuestionInline({
         )}
       </span>
 
-      {/* 오른쪽 힌트(호버 시만 살짝 노출) */}
+      {/* 오른쪽 힌트 */}
       <span
         className={cn(
           "ml-auto text-[11px] text-slate-500/0 transition-opacity",
