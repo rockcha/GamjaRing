@@ -6,14 +6,7 @@ import supabase from "@/lib/supabase";
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Pencil,
-  Check,
-  X,
-  PlusCircle,
-} from "lucide-react";
+import { PlusCircle, Info, Store, BookOpenText } from "lucide-react";
 
 import AquariumBox from "@/features/aquarium/AquariumBox";
 import ThemeShopButton from "@/features/aquarium/ThemeShopButton";
@@ -51,18 +44,11 @@ function AquariumPage() {
   /** 현재 선택 index (0-based, 항상 첫 탱크부터) */
   const [idx, setIdx] = useState(0);
 
-  const [themeTitle, setThemeTitle] = useState<string>("");
-
-  /** 제목 편집 상태 */
-  const cur = tanks[idx] ?? null;
-  const [editing, setEditing] = useState(false);
-  const [titleInput, setTitleInput] = useState("");
-
   /* 구매 확인 다이얼로그 상태 */
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isBuying, setIsBuying] = useState(false);
 
-  /** ✅ 어항 로딩 마스크(배경) 표시 상태 */
+  /** 어항 로딩 마스크(배경) 표시 상태 */
   const [showBg, setShowBg] = useState(true);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -75,35 +61,8 @@ function AquariumPage() {
     setShowBg(false);
   };
 
-  useEffect(() => {
-    if (!cur) return;
-    setTitleInput(cur.title ?? "");
-  }, [cur?.tank_no]);
-
-  useEffect(() => {
-    // cur가 바뀔 때마다 테마 제목 갱신
-    const loadThemeTitle = async () => {
-      if (!cur?.theme_id) {
-        setThemeTitle(""); // 테마 미지정
-        return;
-      }
-      try {
-        const { data, error } = await supabase
-          .from("aquarium_themes")
-          .select("title")
-          .eq("id", cur.theme_id)
-          .maybeSingle();
-
-        if (error) throw error;
-        setThemeTitle(data?.title ?? "");
-      } catch (e: any) {
-        console.error(e);
-        setThemeTitle(""); // 실패 시 비움
-      }
-    };
-
-    loadThemeTitle();
-  }, [cur?.theme_id]);
+  /** 현재 탱크 */
+  const cur = tanks[idx] ?? null;
 
   /** 탱크 목록 로드 */
   const loadTanks = async () => {
@@ -120,7 +79,6 @@ function AquariumPage() {
       return;
     }
     const rows = (data ?? []) as TankRow[];
-
     setTanks(rows);
     setIdx(0); // 항상 1번부터
   };
@@ -128,26 +86,6 @@ function AquariumPage() {
   useEffect(() => {
     loadTanks();
   }, [coupleId]);
-
-  /** 제목 저장 */
-  const saveTitle = async () => {
-    if (!coupleId || !cur) return;
-    const next = (titleInput ?? "").trim().slice(0, 30);
-    const { error } = await supabase
-      .from("aquarium_tanks")
-      .update({ title: next })
-      .eq("couple_id", coupleId)
-      .eq("tank_no", cur.tank_no);
-    if (error) {
-      toast.error(`이름 변경 실패: ${error.message}`);
-      return;
-    }
-    setTanks((arr) =>
-      arr.map((t) => (t.tank_no === cur.tank_no ? { ...t, title: next } : t))
-    );
-    setEditing(false);
-    toast.success("어항 이름을 저장했어요!");
-  };
 
   /** 어항 구매 (RPC) — 다이얼로그에서 최종 실행 */
   const confirmBuy = async () => {
@@ -183,12 +121,7 @@ function AquariumPage() {
     }
   };
 
-  /** 인덱스 이동 */
-  const prev = () =>
-    setIdx((i) => (tanks.length ? (i - 1 + tanks.length) % tanks.length : 0));
-  const next = () => setIdx((i) => (tanks.length ? (i + 1) % tanks.length : 0));
-
-  /** ✅ 탱크가 바뀌면 배경을 잠깐 다시 보여주고, 폴백 타이머로 자동 숨김 */
+  /** 탱크가 바뀌면 배경을 잠깐 다시 보여주고, 폴백 타이머로 자동 숨김 */
   useEffect(() => {
     setShowBg(true);
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
@@ -205,11 +138,10 @@ function AquariumPage() {
     };
   }, [cur?.tank_no]);
 
-  /** ✅ AquariumBox와 동일 규격 */
+  /** 프레임 규격 */
   const AQUARIUM_HEIGHT_VH = 68;
   const AQUARIUM_WIDTH_CSS = "min(100%, calc(85vw))";
 
-  /** ✅ 프레임(좌표 기준) — overlay와 Box가 같은 좌표계 사용 */
   const frameStyle = useMemo(
     () =>
       ({
@@ -222,7 +154,7 @@ function AquariumPage() {
   return (
     <div className="min-h-[calc(100svh-64px)] w-full flex flex-col">
       <div className="relative mx-2 sm:mx-6 lg:mx-20 mt-2 sm:mt-4">
-        {/* ✅ 상단: 가로 네비게이터 (풀 폭, 미니멀) */}
+        {/* 상단: 가로 네비게이터 */}
         <div className="mb-3 sm:mb-4 sticky top-16 z-40">
           <TankChipsNavigator
             className={cn(
@@ -235,13 +167,13 @@ function AquariumPage() {
           />
         </div>
 
-        {/* ✅ 메인 프레임 컨테이너 */}
+        {/* 메인 프레임 컨테이너 */}
         {cur ? (
           <div
             className="relative mx-auto rounded-2xl overflow-hidden will-change-transform transform-gpu ring-1 ring-white/20 bg-white/5 backdrop-blur-[2px] transition-transform duration-200"
             style={frameStyle}
           >
-            {/* ✅ Glass/Grain/Caustics/Vignette Overlays */}
+            {/* Overlays */}
             <div className="pointer-events-none absolute inset-0 z-[15]">
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0)_0%,rgba(0,0,0,0.22)_75%)] mix-blend-multiply" />
               <div className="absolute -left-1/3 -top-1/3 w-[160%] h-1/2 -rotate-12 bg-white/10 blur-md animate-shine" />
@@ -249,7 +181,7 @@ function AquariumPage() {
               <div className="absolute inset-0 opacity-20 mix-blend-soft-light animate-caustics bg-[url('/textures/caustics.png')] bg-[length:140%_140%]" />
             </div>
 
-            {/* ✅ 로딩용 배경 */}
+            {/* 로딩용 배경 */}
             <div
               aria-hidden
               className={cn(
@@ -260,7 +192,7 @@ function AquariumPage() {
               <div className="h-full w-full bg-[url('/aquarium/aquarium_background.png')] bg-cover bg-center" />
             </div>
 
-            {/* ✅ 본체: AquariumBox */}
+            {/* 본체 */}
             <div className="relative z-10 h-full w-full">
               <AquariumBox
                 tankNo={cur.tank_no}
@@ -269,89 +201,69 @@ function AquariumPage() {
               />
             </div>
 
-            {/* ✅ 상단 중앙: 라벨/타이틀 & 테마 */}
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30">
-              <div className="flex items-center gap-2 pointer-events-auto">
-                <span
-                  className="hidden sm:inline-flex items-center px-2 py-1 text-[11px] rounded-md border bg-white/80 backdrop-blur stamp"
-                  title={
-                    themeTitle ? `현재 테마: ${themeTitle}` : "현재 테마: 기본"
-                  }
-                >
-                  ✦ {themeTitle || "기본 테마"}
-                </span>
-
-                {!editing ? (
-                  <button
-                    className="group ribbon px-4 py-1.5 text-sm font-semibold"
-                    onClick={() => setEditing(true)}
-                    title="어항 이름 수정"
-                  >
-                    {cur?.title || "이름 없는 어항"}
-                  </button>
-                ) : (
-                  <div className="inline-flex items-center gap-1 bg-white/90 border rounded-full px-2 py-1 shadow">
-                    <input
-                      value={titleInput}
-                      onChange={(e) => setTitleInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") saveTitle();
-                        if (e.key === "Escape") setEditing(false);
-                      }}
-                      className="bg-transparent px-1 text-sm outline-none w-40 sm:w-48"
-                      maxLength={30}
-                      autoFocus
-                    />
-                    <button
-                      className="p-1 hover:bg-emerald-50 rounded"
-                      onClick={saveTitle}
-                      title="저장"
-                    >
-                      <Check className="w-4 h-4 text-emerald-600" />
-                    </button>
-                    <button
-                      className="p-1 hover:bg-rose-50 rounded"
-                      onClick={() => setEditing(false)}
-                      title="취소"
-                    >
-                      <X className="w-4 h-4 text-rose-600" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* 좌상단: 추가하기 */}
-            <button
-              onClick={() => setConfirmOpen(true)}
-              className={cn(
-                "absolute right-6 top-2 z-30 inline-flex items-center gap-1 rounded-full",
-                "bg-white/90 border px-3 py-1 text-xs sm:text-sm shadow hover:bg-white pointer-events-auto"
-              )}
-              title={`어항 추가 (🪙${TANK_PRICE.toLocaleString("ko-KR")})`}
-            >
-              <PlusCircle className="w-6 h-6" />
-              추가하기
-            </button>
-
-            {/* 추가하기 아래 세로 버튼 3종 */}
-            {cur && (
+            {/* ▲ 상단 툴바: 좌(아이콘 그룹 + separator) - 중(스페이서) - 우(추가) */}
+            <div className="absolute top-2 left-2 right-2 z-30 pointer-events-none">
               <div
                 className={cn(
-                  "absolute left-6 top-2 z-30 flex flex-col gap-1.5 pointer-events-auto"
+                  "flex items-center gap-2 sm:gap-3",
+                  "rounded-xl border bg-white/80 dark:bg-slate-900/70 backdrop-blur-md",
+                  "px-2.5 py-1.5 sm:px-3 sm:py-2 shadow-sm"
                 )}
               >
-                <div className="inline-flex ">
-                  <AquariumDetailButton tankNo={cur.tank_no} />
+                {/* 좌측 아이콘 그룹 (라벨 제거, separator로 구분) */}
+                <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto">
+                  <AquariumDetailButton tankNo={cur.tank_no} asChild>
+                    <IconButton
+                      icon={<Info className="w-4 h-4" />}
+                      ariaLabel="상세 보기"
+                    />
+                  </AquariumDetailButton>
+
+                  <Divider />
+
+                  <MarineDexModal asChild>
+                    <IconButton
+                      icon={<BookOpenText className="w-4 h-4" />}
+                      ariaLabel="도감"
+                    />
+                  </MarineDexModal>
+
+                  <Divider />
+
+                  <ThemeShopButton tankNo={cur.tank_no} asChild>
+                    <IconButton
+                      icon={<Store className="w-4 h-4" />}
+                      ariaLabel="상점"
+                    />
+                  </ThemeShopButton>
                 </div>
-                <div className="inline-flex">
-                  <MarineDexModal />
-                </div>
-                <div className="inline-flex">
-                  <ThemeShopButton tankNo={cur.tank_no} />
+
+                {/* 가운데 스페이서 (이름 표시/편집 제거) */}
+                <div className="flex-1 min-w-0" />
+
+                {/* 우측: 추가 버튼 */}
+                <div className="flex items-center gap-1 pointer-events-auto">
+                  <button
+                    onClick={() => setConfirmOpen(true)}
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full border",
+                      "bg-white/90 dark:bg-slate-900/70 backdrop-blur",
+                      "px-2.5 py-1 text-xs sm:text-sm shadow hover:bg-white"
+                    )}
+                    title={`어항 추가 (🪙${TANK_PRICE.toLocaleString(
+                      "ko-KR"
+                    )})`}
+                    aria-label="어항 추가"
+                  >
+                    <PlusCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="hidden sm:inline">추가하기</span>
+                    <span className="ml-1 rounded-md border px-1.5 py-0.5 text-[10px] sm:text-[11px] opacity-80">
+                      🪙{TANK_PRICE.toLocaleString("ko-KR")}
+                    </span>
+                  </button>
                 </div>
               </div>
-            )}
+            </div>
 
             {/* 하단 인디케이터 */}
             {tanks.length > 1 && (
@@ -421,3 +333,33 @@ function AquariumPage() {
 }
 
 export { AquariumPage };
+
+/* ────────────── 작은 UI 유틸 컴포넌트 ────────────── */
+
+function IconButton({
+  icon,
+  ariaLabel,
+}: {
+  icon: React.ReactNode;
+  ariaLabel: string;
+}) {
+  return (
+    <button
+      className={cn(
+        "inline-grid place-items-center rounded-md border",
+        "size-8 sm:size-9 bg-white/90 dark:bg-slate-900/70 backdrop-blur",
+        "hover:bg-white transition shadow-sm"
+      )}
+      type="button"
+      aria-label={ariaLabel}
+      title={ariaLabel}
+    >
+      {icon}
+    </button>
+  );
+}
+
+/** 아이콘 사이 구분선 */
+function Divider() {
+  return <div className="h-6 w-px bg-border/70 mx-0.5 sm:mx-1" aria-hidden />;
+}
