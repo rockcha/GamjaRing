@@ -35,6 +35,8 @@ import {
   faCircleCheck,
   faCircleXmark,
   faHeartPulse,
+  faKey,
+  faShieldHalved,
 } from "@fortawesome/free-solid-svg-icons";
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
@@ -50,6 +52,12 @@ function pwScore(pw: string) {
 }
 
 export default function SignupPage() {
+  // 🔐 감자링 키 입력/검증 상태
+  const [keyInput, setKeyInput] = useState("");
+  const [keyVerified, setKeyVerified] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [keyMsg, setKeyMsg] = useState<string | null>(null);
+
   const [email, setEmail] = useState("");
   const [nickname, setNickname] = useState("");
   const [password, setPassword] = useState("");
@@ -67,6 +75,7 @@ export default function SignupPage() {
   const emailRef = useRef<HTMLInputElement | null>(null);
   const pwRef = useRef<HTMLInputElement | null>(null);
   const nickRef = useRef<HTMLInputElement | null>(null);
+  const keyRef = useRef<HTMLInputElement | null>(null);
 
   const { signup, loading } = useUser();
   const navigate = useNavigate();
@@ -77,9 +86,10 @@ export default function SignupPage() {
   const nickOk = nickname.trim().length >= 2 && nickState === "available";
   const strength = pwScore(password);
 
+  // ✅ 키 검증이 통과해야 submit 가능
   const canSubmit = useMemo(
-    () => !loading && emailOk && pwOk && matchOk && nickOk,
-    [loading, emailOk, pwOk, matchOk, nickOk]
+    () => keyVerified && !loading && emailOk && pwOk && matchOk && nickOk,
+    [keyVerified, loading, emailOk, pwOk, matchOk, nickOk]
   );
 
   // CapsLock 감지
@@ -98,8 +108,12 @@ export default function SignupPage() {
     };
   }, []);
 
-  // 닉네임 중복 체크 (디바운스)
+  // 닉네임 중복 체크 (디바운스) — 키 검증 전엔 굳이 조회하지 않음
   useEffect(() => {
+    if (!keyVerified) {
+      setNickState("idle");
+      return;
+    }
     const n = nickname.trim();
     if (n.length < 2) {
       setNickState("idle");
@@ -109,7 +123,7 @@ export default function SignupPage() {
     setNickState("checking");
     const t = setTimeout(async () => {
       try {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from("users")
           .select("id", { count: "exact", head: true })
           .eq("nickname", n);
@@ -132,11 +146,56 @@ export default function SignupPage() {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [nickname]);
+  }, [nickname, keyVerified]);
+
+  // 🔐 감자링 키 검증
+  const handleVerifyKey = async () => {
+    setErrorMsg("");
+    setKeyMsg(null);
+
+    const input = keyInput.trim();
+    if (!input) {
+      setKeyMsg("키 번호를 입력해주세요.");
+      keyRef.current?.focus();
+      return;
+    }
+
+    setVerifying(true);
+    try {
+      // 단일 키 테이블에서 값 조회
+      const { data, error } = await supabase
+        .from("potatoring_key")
+        .select("key_value")
+        .single();
+
+      if (error) {
+        setKeyMsg("키 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+        return;
+      }
+
+      if (data?.key_value === input) {
+        setKeyVerified(true);
+        setKeyMsg("인증되었습니다. 아래 정보를 입력해주세요!");
+      } else {
+        setKeyVerified(false);
+        setKeyMsg("키 번호가 올바르지 않습니다.");
+        keyRef.current?.focus();
+      }
+    } catch {
+      setKeyMsg("인증 중 오류가 발생했습니다.");
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   const handleSignup = async () => {
     setErrorMsg("");
 
+    if (!keyVerified) {
+      setErrorMsg("먼저 운영자에게 받은 감자링 키를 인증해주세요.");
+      keyRef.current?.focus();
+      return;
+    }
     if (!emailOk) {
       setErrorMsg("유효한 이메일 형식이 아닙니다.");
       emailRef.current?.focus();
@@ -204,8 +263,84 @@ export default function SignupPage() {
           noValidate
         >
           <CardContent className="flex flex-col gap-6">
-            {/* 닉네임 */}
+            {/* 🔐 감자링 키 인증 섹션 */}
             <div className="grid gap-2">
+              <div className="flex items-center justify-between">
+                <Label
+                  htmlFor="potatoring-key"
+                  className="inline-flex items-center gap-2"
+                >
+                  <FontAwesomeIcon
+                    icon={faShieldHalved}
+                    className="h-4 w-4 text-[#8a6b50]"
+                  />
+                  감자링 키
+                </Label>
+                <span className="text-[11px] text-[#8a6b50]"></span>
+              </div>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <FontAwesomeIcon
+                    icon={faKey}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8a6b50]"
+                    aria-hidden
+                  />
+                  <Input
+                    ref={keyRef}
+                    id="potatoring-key"
+                    placeholder="운영자에게 키 번호를 받아야 가입이 가능합니다."
+                    value={keyInput}
+                    onChange={(e) => setKeyInput(e.target.value)}
+                    disabled={keyVerified || verifying || loading}
+                    className="pl-9"
+                    autoComplete="off"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  onClick={handleVerifyKey}
+                  disabled={
+                    keyVerified || verifying || loading || !keyInput.trim()
+                  }
+                  className="shrink-0"
+                >
+                  {verifying ? (
+                    <>
+                      <FontAwesomeIcon
+                        icon={faSpinner}
+                        className="mr-2 h-4 w-4 animate-spin"
+                        aria-hidden
+                      />
+                      인증 중...
+                    </>
+                  ) : keyVerified ? (
+                    <>
+                      <FontAwesomeIcon
+                        icon={faCircleCheck}
+                        className="mr-2 h-4 w-4"
+                        aria-hidden
+                      />
+                      인증 완료
+                    </>
+                  ) : (
+                    "인증"
+                  )}
+                </Button>
+              </div>
+              {keyMsg && (
+                <div
+                  className={cn(
+                    "text-xs",
+                    keyVerified ? "text-emerald-700" : "text-red-600"
+                  )}
+                >
+                  {keyMsg}
+                </div>
+              )}
+            </div>
+
+            {/* 닉네임 */}
+            <div className="grid gap-2 opacity-100">
               <Label htmlFor="nickname">닉네임</Label>
               <div className="relative">
                 <FontAwesomeIcon
@@ -221,27 +356,27 @@ export default function SignupPage() {
                   placeholder="닉네임을 입력해주세요 (2자 이상)"
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
-                  disabled={loading}
+                  disabled={!keyVerified || loading}
                   className="pl-9 pr-10"
                   aria-invalid={nickState === "taken"}
                 />
                 {/* 상태 아이콘 */}
                 <span className="absolute right-2 top-1/2 -translate-y-1/2">
-                  {nickState === "checking" && (
+                  {keyVerified && nickState === "checking" && (
                     <FontAwesomeIcon
                       icon={faSpinner}
                       className="h-4 w-4 animate-spin text-[#8a6b50]"
                       aria-hidden
                     />
                   )}
-                  {nickState === "available" && (
+                  {keyVerified && nickState === "available" && (
                     <FontAwesomeIcon
                       icon={faCircleCheck}
                       className="h-4 w-4 text-emerald-600"
                       aria-hidden
                     />
                   )}
-                  {nickState === "taken" && (
+                  {keyVerified && nickState === "taken" && (
                     <FontAwesomeIcon
                       icon={faCircleXmark}
                       className="h-4 w-4 text-red-600"
@@ -275,7 +410,7 @@ export default function SignupPage() {
                   placeholder="이메일을 입력해주세요"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  disabled={loading}
+                  disabled={!keyVerified || loading}
                   className="pl-9"
                   aria-invalid={!!email && !emailOk}
                 />
@@ -299,7 +434,7 @@ export default function SignupPage() {
                   placeholder="비밀번호를 입력해주세요 (6자 이상)"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  disabled={loading}
+                  disabled={!keyVerified || loading}
                   className="pl-9 pr-9"
                   aria-invalid={!!password && !pwOk}
                 />
@@ -360,7 +495,7 @@ export default function SignupPage() {
                   placeholder="비밀번호 확인"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  disabled={loading}
+                  disabled={!keyVerified || loading}
                   className="pl-9 pr-9"
                   aria-invalid={!!confirmPassword && !matchOk}
                 />
