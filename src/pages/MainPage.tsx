@@ -11,9 +11,6 @@ import CoupleMusicCard from "@/components/widgets/Cards/CoupleMusicCard";
 import OneLinerCard from "@/components/widgets/Cards/OneLinerCard";
 import StartEndMemoriesSlider from "@/components/widgets/Cards/StartEndMemoriesSlider";
 
-/* ✅ 시간대 감성 배너 */
-import TimeMoodBanner from "@/features/mainpage/TimeMoodBanner";
-
 export default function MainPage() {
   const { isCoupled, loading } = useUser();
 
@@ -27,7 +24,6 @@ export default function MainPage() {
     return (
       <div className="w-full">
         <div className="mx-auto space-y-2">
-          <TimeMoodBanner />
           <SoloUserCard />
         </div>
       </div>
@@ -37,13 +33,8 @@ export default function MainPage() {
   // ✅ 커플이면 기존 메인 레이아웃 + 상단 감성 배너
   return (
     <div className="w-full">
-      {/* 상단 감성 배너 */}
-      <div className="mb-2">
-        <TimeMoodBanner />
-      </div>
-
       <div
-        className="mt-2 grid gap-2 items-start grid-cols-1
+        className=" grid gap-2 items-start grid-cols-1
         md:[grid-template-columns:minmax(220px,1fr)_minmax(0,0.9fr)]
         lg:[grid-template-columns:minmax(260px,0.9fr)_minmax(0,1.0fr)_minmax(0,1.0fr)]"
       >
