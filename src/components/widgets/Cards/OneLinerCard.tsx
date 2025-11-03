@@ -16,7 +16,7 @@ import { useCoupleContext } from "@/contexts/CoupleContext";
 import supabase from "@/lib/supabase";
 import AvatarWidget from "@/components/widgets/AvatarWidget";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCommentDots, faFaceSmile } from "@fortawesome/free-solid-svg-icons";
+import { faCommentDots } from "@fortawesome/free-solid-svg-icons";
 import {
   Popover,
   PopoverContent,
@@ -246,7 +246,7 @@ function SectionHeader({
 }
 
 /* ─────────────────────────────────────────────
- * “나” 섹션 — 카드 클릭 → 인라인 편집, 자동저장
+ * “나” 섹션 — 카드 클릭 → 인라인 편집, 자동저장 + blur 저장
  * ──────────────────────────────────────────── */
 function SelfSection({
   myId,
@@ -327,15 +327,20 @@ function SelfSection({
   const saveToDb = useCallback(
     async (nextContent: string, nextEmoji: string) => {
       if (!myId) return;
-      const trimmed = nextContent.trim();
+      const trimmed = (nextContent ?? "").trim();
       if (trimmed.length === 0 || trimmed.length > MAX) return;
+
+      // 변경 없으면 스킵
+      if (msg && trimmed === msg.content && (nextEmoji || "🙂") === msg.emoji) {
+        return;
+      }
 
       setSaving("saving");
 
       // 낙관적 업데이트
       setMsg((prev) => {
         const base: OneLiner = prev ?? {
-          id: -1,
+          id: -1, // 로컬 임시 id
           author_id: myId,
           content: trimmed,
           emoji: nextEmoji || "🙂",
@@ -350,16 +355,17 @@ function SelfSection({
         };
       });
 
+      // ✅ 핵심: author_id 기준 upsert (id는 보내지 않음)
       const { error } = await supabase.from("user_message").upsert(
         {
-          id: msg?.id,
           author_id: myId,
           content: trimmed,
           emoji: nextEmoji || "🙂",
           updated_at: new Date().toISOString(),
         },
-        { onConflict: "id" }
+        { onConflict: "author_id" }
       );
+
       if (error) {
         console.error("[SelfSection] save error:", error);
         setSaving("idle");
@@ -368,7 +374,7 @@ function SelfSection({
       setSaving("saved");
       setTimeout(() => setSaving("idle"), 1000);
     },
-    [myId, MAX, msg?.id]
+    [myId, MAX, msg]
   );
 
   // 디바운스 오토세이브
@@ -393,11 +399,13 @@ function SelfSection({
 
   // blur 시 저장 및 읽기 모드 전환 (이모지 팝오버 열림일 때는 종료 금지)
   const onBlurContainer = useCallback(
-    (e: React.FocusEvent<HTMLDivElement>) => {
+    async (e: React.FocusEvent<HTMLDivElement>) => {
       if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-      if (emojiOpen) return; // 🔒 팝오버 열림 중엔 종료 금지
+      if (emojiOpen) return; // 팝오버 열림 중엔 종료 금지
       if (!editing) return;
-      void saveToDb(draft, emoji);
+
+      if (saveTimer.current) clearTimeout(saveTimer.current); // 디바운스 정리
+      await saveToDb(draft, emoji); // ✅ blur 즉시 저장
       setEditing(false);
     },
     [editing, draft, emoji, saveToDb, emojiOpen]
@@ -527,6 +535,7 @@ function EditableBubble({
               align="start"
               sideOffset={6}
               onOpenAutoFocus={() => {}}
+              onInteractOutside={() => setEmojiOpen(false)} // ✅ 바깥 클릭 시 닫힘
             >
               <div className="grid grid-cols-8 gap-1">
                 {EMOJI_CANDIDATES.map((em) => (
