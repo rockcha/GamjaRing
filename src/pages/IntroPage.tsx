@@ -1,5 +1,5 @@
 // src/pages/IntroPage.tsx
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import supabase from "@/lib/supabase";
@@ -39,7 +39,7 @@ function getPhase(date = new Date()): Phase {
   return "night";
 }
 
-/** Phase별 색상 토큰 + 카드 프레임 톤 */
+/** Phase별 색상 토큰 + 카드 프레임 톤 + 그레인 강도 */
 function getPhaseTheme(phase: Phase) {
   switch (phase) {
     case "dawn":
@@ -50,6 +50,7 @@ function getPhaseTheme(phase: Phase) {
           "--accentA": "#b8b6ff",
           "--accentB": "#a0e0ff",
           "--frame": "rgba(255,255,255,0.92)",
+          "--grain": "0.05",
         } as React.CSSProperties,
         vignette:
           "bg-[radial-gradient(75%_55%_at_50%_42%,transparent,rgba(10,14,40,0.18))]",
@@ -61,7 +62,8 @@ function getPhaseTheme(phase: Phase) {
           "--ink-strong": "#563f25",
           "--accentA": "#d2a56f",
           "--accentB": "#b88044",
-          "--frame": "rgba(255,255,255,0.94)",
+          "--frame": "rgba(255,255,255,0.90)", // 살짝 투명도 하향
+          "--grain": "0.03",
         } as React.CSSProperties,
         vignette:
           "bg-[radial-gradient(75%_55%_at_50%_42%,transparent,rgba(0,0,0,0.08))]",
@@ -73,7 +75,8 @@ function getPhaseTheme(phase: Phase) {
           "--ink-strong": "#563f25",
           "--accentA": "#d2a56f",
           "--accentB": "#b88044",
-          "--frame": "rgba(255,255,255,0.92)",
+          "--frame": "rgba(255,255,255,0.90)", // 살짝 투명도 하향
+          "--grain": "0.03",
         } as React.CSSProperties,
         vignette:
           "bg-[radial-gradient(75%_55%_at_50%_42%,transparent,rgba(0,0,0,0.08))]",
@@ -86,6 +89,7 @@ function getPhaseTheme(phase: Phase) {
           "--accentA": "#c99a6b",
           "--accentB": "#a87443",
           "--frame": "rgba(255,255,255,0.90)",
+          "--grain": "0.04",
         } as React.CSSProperties,
         vignette:
           "bg-[radial-gradient(75%_55%_at_50%_42%,transparent,rgba(0,0,0,0.10))]",
@@ -98,7 +102,8 @@ function getPhaseTheme(phase: Phase) {
           "--ink-strong": "#46331e",
           "--accentA": "#b88c5b",
           "--accentB": "#8f6336",
-          "--frame": "rgba(255,255,255,0.88)",
+          "--frame": "rgba(255,255,255,0.86)", // 밤엔 조금 더 투명
+          "--grain": "0.06",
         } as React.CSSProperties,
         vignette:
           "bg-[radial-gradient(75%_55%_at_50%_42%,transparent,rgba(0,0,0,0.12))]",
@@ -106,31 +111,52 @@ function getPhaseTheme(phase: Phase) {
   }
 }
 
+/** Phase별 보조 카피 */
+function getPhaseCopy(phase: Phase) {
+  switch (phase) {
+    case "dawn":
+      return "새벽 공기와 함께, 오늘의 한 줄을 남겨요.";
+    case "morning":
+      return "햇살처럼 가벼운 기록부터 시작해요.";
+    case "noon":
+      return "한낮의 순간들을 담아둘까요?";
+    case "evening":
+      return "저녁 바람처럼 차분히 정리해요.";
+    case "night":
+    default:
+      return "오늘의 마음을 살짝 남겨둘까요?";
+  }
+}
+
 export default function IntroPage() {
   const navigate = useNavigate();
   const phase = useMemo(() => getPhase(), []);
   const theme = useMemo(() => getPhaseTheme(phase), [phase]);
+  const copy = useMemo(() => getPhaseCopy(phase), [phase]);
 
   /** ---- 배경 이미지 소스 ---- */
   const bgSrc = useMemo(() => {
-    switch (phase) {
-      case "dawn":
-        return "/intro/dawn.png";
-      case "morning":
-        return "/intro/morning.png";
-      case "noon":
-        return "/intro/noon.png";
-      case "evening":
-        return "/intro/evening.png";
-      default:
-        return "/intro/night.png";
-    }
+    // 가능하면 avif/webp 우선. 파일 없으면 png로 fallback
+    const base = "/intro";
+    const name =
+      phase === "dawn"
+        ? "dawn"
+        : phase === "morning"
+        ? "morning"
+        : phase === "noon"
+        ? "noon"
+        : phase === "evening"
+        ? "evening"
+        : "night";
+    return `${base}/${name}.png`;
   }, [phase]);
 
-  /** ---- 프리로드 ---- */
+  /** ---- 로딩 페이드 ---- */
+  const [ready, setReady] = useState(false);
   useEffect(() => {
-    const img = new Image();
-    img.src = bgSrc;
+    const i = new Image();
+    i.onload = () => setReady(true);
+    i.src = bgSrc;
   }, [bgSrc]);
 
   /** ---- 아무 키/클릭 시 이동 ---- */
@@ -144,8 +170,17 @@ export default function IntroPage() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      const el = e.target as HTMLElement | null;
+      const tag = el?.tagName;
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        tag === "BUTTON" ||
+        el?.getAttribute("contenteditable") === "true"
+      ) {
+        return;
+      }
       e.preventDefault();
       continueRoute();
     };
@@ -168,16 +203,42 @@ export default function IntroPage() {
     <div
       style={theme.vars}
       className={[
-        "relative min-h-screen w-full overflow-hidden",
+        "relative min-h-[100svh] w-full overflow-hidden", // 반응형 안전 높이
         "bg-center bg-cover",
       ].join(" ")}
     >
       {/* 배경 이미지 */}
       <div
         aria-hidden
-        className="absolute inset-0 -z-10 bg-center bg-cover"
+        className={[
+          "absolute inset-0 -z-10 bg-center bg-cover",
+          "transition-opacity duration-200",
+          ready ? "opacity-100" : "opacity-0",
+        ].join(" ")}
         style={{ backgroundImage: `url(${bgSrc})` }}
       />
+
+      {/* 장식 레이어(가벼운 패럴랙스 느낌, CSS only) */}
+      {!prefersReducedMotion && (
+        <div aria-hidden className="absolute inset-0 -z-10 pointer-events-none">
+          <div
+            className="absolute inset-0 opacity-30 animate-[float_18s_ease-in-out_infinite]"
+            style={{
+              backgroundImage: "url(/intro/particles-1.png)",
+              backgroundSize: 380,
+              mixBlendMode: "soft-light",
+            }}
+          />
+          <div
+            className="absolute inset-0 opacity-20 animate-[float2_28s_ease-in-out_infinite]"
+            style={{
+              backgroundImage: "url(/intro/particles-2.png)",
+              backgroundSize: 520,
+              mixBlendMode: "overlay",
+            }}
+          />
+        </div>
+      )}
 
       {/* 비네트 + 그레인 */}
       <div
@@ -186,8 +247,9 @@ export default function IntroPage() {
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 mix-blend-multiply opacity-[0.04]"
+        className="pointer-events-none absolute inset-0 mix-blend-multiply"
         style={{
+          opacity: `var(--grain, 0.04)`,
           backgroundImage: "url(/images/grain.png)",
           backgroundSize: 280,
         }}
@@ -207,11 +269,11 @@ export default function IntroPage() {
           duration: prefersReducedMotion ? 0 : 0.6,
           ease: "easeOut",
         }}
-        className="relative z-10 flex min-h-screen items-center justify-center px-4"
+        className="relative z-10 flex min-h-[100svh] items-center justify-center px-4"
       >
         <figure
           className={[
-            "w-full max-w-2xl",
+            "relative w-full max-w-2xl",
             "rounded-[32px] p-6 sm:p-8",
             "bg-[var(--frame)] backdrop-blur-xl",
             "ring-1 ring-black/10 shadow-[0_22px_70px_rgba(0,0,0,0.18)]",
@@ -219,6 +281,9 @@ export default function IntroPage() {
           role="group"
           aria-label="인트로 카드"
         >
+          {/* 내부 미세 보더 (고급감) */}
+          <div className="pointer-events-none absolute inset-0 rounded-[30px] ring-1 ring-white/30" />
+
           {/* 상단 브랜드 라인 */}
           <div className="flex items-center gap-2 text-[var(--ink)] drop-shadow-[0_0_8px_rgba(216,165,110,0.35)]">
             <FontAwesomeIcon
@@ -228,6 +293,7 @@ export default function IntroPage() {
                 animation: prefersReducedMotion
                   ? "none"
                   : "pulseMini 1.8s ease-in-out infinite",
+                filter: "drop-shadow(0 0 6px rgba(184,140,91,0.35))",
               }}
               aria-hidden
             />
@@ -237,8 +303,8 @@ export default function IntroPage() {
           {/* 헤드라인 */}
           <div className="mt-4 sm:mt-6 min-h-[3.5rem] sm:min-h-[4.5rem] flex items-center w-full">
             <MorphingText
-              texts={["우리의 기록들이", "자라나는 공간 ", "감자링"]}
-              className="font-bold whitespace-nowrap tracking-[-0.02em] text-[clamp(26px,6vw,56px)] !leading-[0.95] text-[var(--ink-strong)] font-hand"
+              texts={["우리의 기록들이", "자라나는 공간", "감자링"]}
+              className="font-bold whitespace-nowrap break-keep tracking-[-0.02em] text-[clamp(26px,6vw,56px)] !leading-[1.02] text-[var(--ink-strong)] font-hand"
               reducedMotion={!!prefersReducedMotion}
               renderWord={(word: string) =>
                 word.trim() === "감자링" ? (
@@ -252,26 +318,47 @@ export default function IntroPage() {
             />
           </div>
 
-          {/* === 중앙 정렬 안내 문구 (시간대 멘트 제거) === */}
-          <div className="mt-8 sm:mt-10 w-full flex justify-center">
+          {/* 안내 & CTA */}
+          <div className="mt-8 sm:mt-10 w-full flex flex-col items-center justify-center">
             <div className="text-center">
               <div className="inline-flex items-center gap-2 rounded-xl px-4 py-2 bg-white/55 ring-1 ring-black/5">
                 <span className="text-sm sm:text-base font-medium text-[color:var(--ink)]/90">
                   아무 키를 누르거나 화면을 클릭하면 계속합니다
                 </span>
-                <kbd className="rounded-md border border-black/10 bg-white/60 px-1.5 text-[11px] tracking-wide text-[color:var(--ink)]/80">
+                <kbd
+                  className={[
+                    "rounded-md border border-black/10 bg-white/60 px-1.5 text-[11px] tracking-wide",
+                    "text-[color:var(--ink)]/80",
+                    prefersReducedMotion ? "" : "animate-breathe",
+                  ].join(" ")}
+                >
                   Any key
                 </kbd>
               </div>
-              <div className="mt-2 text-[12px] text-[color:var(--ink)]/60">
-                입력창에 포커스가 있으면 키 입력이 동작하지 않을 수 있어요
-              </div>
+
+              {/* 보조 카피 (Phase별) */}
+              <p className="mt-3 text-xs sm:text-[13px] text-[color:var(--ink)]/60">
+                {copy}
+              </p>
+
+              {/* 접근성용 명시 버튼 */}
+              <button
+                onClick={continueRoute}
+                className="mt-4 inline-flex items-center rounded-lg px-3 py-2 text-sm ring-1 ring-black/10 bg-white/60 hover:bg-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accentB)]"
+                aria-label="다음 화면으로 이동"
+              >
+                Continue
+              </button>
             </div>
           </div>
 
           {/* 보조 키프레임 */}
           <style>{`
             @keyframes pulseMini { 0%,100% { transform: scale(1); opacity: .95 } 50% { transform: scale(1.06); opacity: 1 } }
+            @keyframes breathe { 0%,100% { opacity: .7 } 50% { opacity: 1 } }
+            .animate-breathe { animation: breathe 1.8s ease-in-out infinite; }
+            @keyframes float { 0%,100%{ transform: translateY(-1.5%) } 50%{ transform: translateY(1.5%) } }
+            @keyframes float2{ 0%,100%{ transform: translateY(1%) } 50%{ transform: translateY(-1%) } }
           `}</style>
         </figure>
       </motion.section>

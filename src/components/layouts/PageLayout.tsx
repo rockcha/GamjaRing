@@ -4,15 +4,11 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import "@/lib/fontawesome";
 
 import AppHeader from "./AppHeader";
-import FloatingLeftRail from "../widgets/FloatingLeftRail";
 import QuickMenu from "../widgets/QuickMenu";
-import FloatingHomeButton from "../widgets/Cards/FloatingHomeButton";
 import HomeFabButton from "../widgets/HomeFabButton";
 
 type PageLayoutProps = {
-  /** 명시적으로 넘기면 이 값이 최우선. 없으면 현재 경로로 타이틀 계산 */
   title?: string;
-  /** UserGreetingSection에서 저장하는 세션 키 (필요 시 커스터마이즈) */
   sessionHeaderKey?: string;
 };
 
@@ -26,50 +22,144 @@ type ThemeKey =
   | "sunset" // 18–20
   | "evening"; // 21–23
 
-const THEMES: Record<ThemeKey, { bg: string; text: string; desc: string }> = {
+/** 팔레트 톤을 더 차분하게, 대비는 살짝 높이고, 텍스트 가독성 보정 */
+const THEMES: Record<
+  ThemeKey,
+  {
+    /** 기본 그라데이션 */
+    base: string;
+    /** 텍스트 톤 */
+    text: string;
+    /** 메시 블롭(라디얼) 오버레이들 */
+    blobs: Array<{ className: string }>;
+    desc: string;
+  }
+> = {
   deepNight: {
-    bg: "bg-gradient-to-b from-[#0b1020] via-[#121e2b] to-[#1a2a3a]",
+    base:
+      // 딥 네이비 → 그린블루로 아주 미세하게
+      "bg-gradient-to-b from-[#0a0f1f] via-[#0f1b2e] to-[#112235]",
     text: "text-[#EDE9E3]",
+    blobs: [
+      {
+        className:
+          "bg-[radial-gradient(60rem_60rem_at_-10%_-10%,rgba(64,176,255,0.12),transparent_60%)]",
+      },
+      {
+        className:
+          "bg-[radial-gradient(36rem_36rem_at_120%_120%,rgba(124,58,237,0.10),transparent_60%)]",
+      },
+    ],
     desc: "00–02",
   },
   dawn: {
-    bg: "bg-gradient-to-b from-[#1b2845] via-[#3a4e72] to-[#b1c4e7]",
-    text: "text-[#F5F3EF]",
+    base: "bg-gradient-to-b from-[#1a2542] via-[#344c76] to-[#a7bfe8]",
+    text: "text-[#F6F4F0]",
+    blobs: [
+      {
+        className:
+          "bg-[radial-gradient(46rem_46rem_at_10%_10%,rgba(255,214,94,0.18),transparent_55%)]",
+      },
+      {
+        className:
+          "bg-[radial-gradient(36rem_36rem_at_90%_80%,rgba(99,102,241,0.15),transparent_60%)]",
+      },
+    ],
     desc: "03–05",
   },
   earlyMorning: {
-    bg: "bg-gradient-to-b from-[#FDF6E3] via-[#FCE9C9] to-[#F8D9A6]",
-    text: "text-[#3d2b1f]",
+    base: "bg-gradient-to-b from-[#fef7ea] via-[#fde6c9] to-[#f7d4a6]",
+    text: "text-[#2b1f16]",
+    blobs: [
+      {
+        className:
+          "bg-[radial-gradient(42rem_42rem_at_0%_100%,rgba(255,161,90,0.15),transparent_60%)]",
+      },
+      {
+        className:
+          "bg-[radial-gradient(36rem_36rem_at_100%_0%,rgba(255,241,118,0.18),transparent_55%)]",
+      },
+    ],
     desc: "06–08",
   },
   lateMorning: {
-    bg: "bg-gradient-to-b from-[#FFF7E6] via-[#FFE7BA] to-[#FFD591]",
-    text: "text-[#3d2b1f]",
+    base: "bg-gradient-to-b from-[#fff6e8] via-[#ffdcae] to-[#ffc488]",
+    text: "text-[#2b1f16]",
+    blobs: [
+      {
+        className:
+          "bg-[radial-gradient(40rem_40rem_at_15%_15%,rgba(255,183,77,0.18),transparent_60%)]",
+      },
+      {
+        className:
+          "bg-[radial-gradient(36rem_36rem_at_85%_85%,rgba(255,111,97,0.12),transparent_60%)]",
+      },
+    ],
     desc: "09–11",
   },
   noon: {
-    bg: "bg-gradient-to-b from-[#E0F7FF] via-[#B8E6FF] to-[#8FD6FF]",
-    text: "text-[#203045]",
+    base: "bg-gradient-to-b from-[#e6f8ff] via-[#bfe8ff] to-[#90d8ff]",
+    text: "text-[#102034]",
+    blobs: [
+      {
+        className:
+          "bg-[radial-gradient(44rem_44rem_at_10%_90%,rgba(56,189,248,0.18),transparent_55%)]",
+      },
+      {
+        className:
+          "bg-[radial-gradient(32rem_32rem_at_88%_12%,rgba(0,168,255,0.16),transparent_60%)]",
+      },
+    ],
     desc: "12–14",
   },
   afternoon: {
-    bg: "bg-gradient-to-b from-[#FFF1E6] via-[#FFD8B1] to-[#FFB784]",
-    text: "text-[#3d2b1f]",
+    base: "bg-gradient-to-b from-[#fff0e5] via-[#ffd2a6] to-[#ffa974]",
+    text: "text-[#2b1f16]",
+    blobs: [
+      {
+        className:
+          "bg-[radial-gradient(48rem_48rem_at_0%_60%,rgba(255,138,76,0.18),transparent_60%)]",
+      },
+      {
+        className:
+          "bg-[radial-gradient(36rem_36rem_at_100%_40%,rgba(244,114,182,0.12),transparent_60%)]",
+      },
+    ],
     desc: "15–17",
   },
   sunset: {
-    bg: "bg-gradient-to-b from-[#FFDAC1] via-[#FF9A8B] to-[#8351A3]",
+    base: "bg-gradient-to-b from-[#ffd8c5] via-[#ff8fa1] to-[#7446a6]",
     text: "text-[#FEF9F6]",
+    blobs: [
+      {
+        className:
+          "bg-[radial-gradient(46rem_46rem_at_15%_85%,rgba(255,168,0,0.16),transparent_58%)]",
+      },
+      {
+        className:
+          "bg-[radial-gradient(40rem_40rem_at_85%_15%,rgba(168,85,247,0.18),transparent_60%)]",
+      },
+    ],
     desc: "18–20",
   },
   evening: {
-    bg: "bg-gradient-to-b from-[#2E2252] via-[#3B2C6E] to-[#4A3A8C]",
-    text: "text-[#EDE9F6]",
+    base: "bg-gradient-to-b from-[#2a204f] via-[#352a6b] to-[#43388a]",
+    text: "text-[#ECE9F6]",
+    blobs: [
+      {
+        className:
+          "bg-[radial-gradient(42rem_42rem_at_10%_20%,rgba(99,102,241,0.18),transparent_60%)]",
+      },
+      {
+        className:
+          "bg-[radial-gradient(36rem_36rem_at_90%_80%,rgba(217,70,239,0.12),transparent_60%)]",
+      },
+    ],
     desc: "21–23",
   },
 };
 
-/** 24시간을 3시간 단위 8버킷으로 정확 매핑 (빈 시간대 없음) */
+/** 24시간을 3시간 단위 8버킷으로 정확 매핑 */
 const BUCKETS: ThemeKey[] = [
   "deepNight", // 00-02
   "dawn", // 03-05
@@ -82,7 +172,7 @@ const BUCKETS: ThemeKey[] = [
 ];
 
 function themeByHour(h: number): ThemeKey {
-  const safe = ((h % 24) + 24) % 24; // 안전 가드
+  const safe = ((h % 24) + 24) % 24;
   return BUCKETS[Math.floor(safe / 3)];
 }
 
@@ -171,7 +261,6 @@ export default function PageLayout({
     }
   }, [normalizedPath, sessionHeaderKey]);
 
-  // 경로 기반 타이틀이 있으면 우선 사용, 없으면 prop title 사용
   const routeTitle = overrideTitle ?? titleMap[normalizedPath] ?? title;
 
   // <title> 동기화
@@ -182,22 +271,36 @@ export default function PageLayout({
   return (
     <div
       className={[
-        "min-h-[100svh] max-w-screen-2xl mx-auto",
-        activeTheme.bg, // ⬅️ 시간대별 그라데이션
+        "relative min-h-[100svh] max-w-screen-2xl mx-auto overflow-hidden",
+        activeTheme.base, // ⬅️ 새 그라데이션
         activeTheme.text, // ⬅️ 시간대별 텍스트 톤
       ].join(" ")}
     >
+      {/* 메시 블롭 오버레이 (빛 번짐) */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 mix-blend-soft-light"
+      >
+        {activeTheme.blobs.map((b, i) => (
+          <div
+            key={i}
+            className={`absolute inset-0 ${b.className} opacity-90`}
+          />
+        ))}
+        {/* 가장자리 비네트 살짝 */}
+        <div className="absolute inset-0 bg-[radial-gradient(120rem_120rem_at_50%_120%,transparent,rgba(0,0,0,0.12))]" />
+      </div>
+
       {/* 고정 헤더 */}
       <AppHeader routeTitle={routeTitle} />
 
       <QuickMenu />
-
       <HomeFabButton tone="daily" position="bottom-right" />
 
       {/* 본문 */}
       <main
         id="main"
-        className="mx-auto flex min-h-[calc(100vh-9rem)] w-full max-w-screen-2xl items-center justify-center px-2"
+        className="mx-auto flex min-h-[calc(100vh-9rem)] w-full max-w-screen-2xl items-center justify-center px-2 mt-4"
         aria-label={`Theme: ${activeThemeKey}`}
       >
         <Outlet />
