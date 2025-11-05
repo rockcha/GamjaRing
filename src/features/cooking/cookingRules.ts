@@ -1,41 +1,24 @@
-"use client";
-
+/** ===== 기존 import에서 RELATED_DISHES, NAME_PRICE_FALLBACK, BASE_PRICE 등 정리 ===== */
 import supabase from "@/lib/supabase";
-import {
-  RELATED_DISHES,
-  // FAIL_RESULTS 제거! (이제 DB에서 뽑음)
-  INGREDIENTS,
-  type IngredientTitle,
-} from "@/features/cooking/type";
+import { INGREDIENTS, type IngredientTitle } from "@/features/cooking/type";
 
-/** 옵션: 권장 투입량 범위 (UI 라벨/가중치 근거로도 사용) */
 export const COOK_TARGET_MIN = 10;
 export const COOK_TARGET_MAX = 15;
 
-/** 요리 가격을 안전하게 얻는 헬퍼(데이터가 없을 때 기본값 사용) */
-const BASE_PRICE = 60;
-const NAME_PRICE_FALLBACK: Record<string, number> = {
-  // "감자스튜": 80,
-  // "특제감자그라탱": 120,
-};
+const BASE_PRICE = 60; // 가격 누락 시 기본값
 
-/** 총 투입량이 많을수록 '고가 요리'의 가중치를 올려주는 함수 */
 function highPriceBias(total: number) {
-  // 10개부터 보너스 시작, 개당 6%씩, 최댓값 +40% (캡)
   const over = Math.max(0, total - COOK_TARGET_MIN);
   const bonus = Math.min(0.06 * over, 0.4);
-  return 1 + bonus; // 1.0 ~ 1.4
+  return 1 + bonus;
 }
 
-/** (선택) 다양성 보너스: 서로 다른 재료 종류가 많으면 살짝 가산점 */
 function diversityBias(counts: Record<IngredientTitle, number>) {
   const kinds = Object.values(counts).filter((v) => v > 0).length;
-  // 3종 이상부터 2%씩, 최대 +14%
   const bonus = Math.min(Math.max(0, kinds - 2) * 0.02, 0.14);
-  return 1 + bonus; // 1.0 ~ 1.14
+  return 1 + bonus;
 }
 
-/** 가중치 랜덤 선택 */
 function weightedPick<T extends { weight: number }>(items: T[]) {
   const sum = items.reduce((s, i) => s + i.weight, 0);
   let r = Math.random() * sum;
@@ -45,7 +28,33 @@ function weightedPick<T extends { weight: number }>(items: T[]) {
   return items[items.length - 1];
 }
 
-/** 결과 선택 (실패시 DB에서 랜덤 실패물 뽑고, 바로 인벤토리에 +1) */
+/** DB에서 대표재료 기준으로 요리 후보 읽기 (없으면 전체에서) */
+async function fetchDishCandidates(rep: string) {
+  // 1) 대표재료 일치하는 것 우선
+  let { data, error } = await supabase
+    .from("dish")
+    .select("id, 이름, 이모지, 가격, 대표재료")
+    .eq("대표재료", rep);
+
+  if (error) throw new Error(`dish 후보 조회 실패: ${error.message}`);
+
+  // 2) 만약 대표재료 매칭이 하나도 없다면 전체에서 후보기반
+  if (!data || data.length === 0) {
+    const all = await supabase
+      .from("dish")
+      .select("id, 이름, 이모지, 가격, 대표재료");
+    if (all.error) throw new Error(`dish 전체 조회 실패: ${all.error.message}`);
+    data = all.data ?? [];
+  }
+  return data.map((d) => ({
+    id: d.id as number,
+    name: d.이름 as string,
+    emoji: (d.이모지 as string) ?? "🍽️",
+    price: (d.가격 as number) ?? BASE_PRICE,
+  }));
+}
+
+/** 결과 선택 */
 export async function chooseResult({
   order,
   counts,
@@ -55,12 +64,12 @@ export async function chooseResult({
   order: IngredientTitle[];
   counts: Record<IngredientTitle, number>;
   failProb: number;
-  coupleId: string; // 실패 처리 위해 필수
+  coupleId: string;
 }): Promise<
   | { kind: "fail"; id: number; name: string; emoji: string; price: number }
   | { kind: "dish"; name: string; emoji: string; price: number }
 > {
-  // 1) 실패 판정 → DB RPC로 랜덤 실패물 지급
+  // 1) 실패 처리 (기존 그대로)
   if (Math.random() < failProb) {
     const { data, error } = await supabase.rpc(
       "give_random_fail_to_inventory",
@@ -86,7 +95,7 @@ export async function chooseResult({
     };
   }
 
-  // 2) 대표 재료(최다 + 동률 시 먼저 넣은 것) 결정
+  // 2) 대표 재료 산정 (기존 로직 유지)
   const entries = Object.entries(counts) as [IngredientTitle, number][];
   let best: { title: IngredientTitle; cnt: number; firstIndex: number } | null =
     null;
@@ -98,24 +107,22 @@ export async function chooseResult({
   }
   const title = best?.title ?? INGREDIENTS[0].title;
 
-  // 3) 해당 재료의 요리 후보 리스트
-  const rlist = (RELATED_DISHES[title] ?? []) as Array<{
-    name: string;
-    emoji: string;
-    sellPrice?: number; // 있으면 사용, 없으면 기본가
-  }>;
+  // 3) DB에서 후보 읽고 가격 기반 가중치 적용
+  const candidates = await fetchDishCandidates(title);
+  if (candidates.length === 0) {
+    throw new Error(
+      "선택 가능한 요리 후보가 없습니다. dish 테이블을 확인하세요."
+    );
+  }
 
-  // 4) "많이 넣을수록 고가 요리 확률↑" 가중치 부여
   const total = Object.values(counts).reduce((s, v) => s + v, 0);
   const hpb = highPriceBias(total);
   const dvb = diversityBias(counts);
-
-  // 가격 기반 가중치: price^α 를 베이스로 하고 highPriceBias/diversityBias 곱
   const ALPHA = 0.9;
-  const weighted = rlist.map((d) => {
-    const price = d.sellPrice ?? NAME_PRICE_FALLBACK[d.name] ?? BASE_PRICE;
-    const base = Math.pow(price, ALPHA);
-    return { ...d, price, weight: base * hpb * dvb };
+
+  const weighted = candidates.map((d) => {
+    const base = Math.pow(d.price ?? BASE_PRICE, ALPHA);
+    return { ...d, weight: base * hpb * dvb };
   });
 
   const picked = weightedPick(weighted);
@@ -135,10 +142,4 @@ export async function getDishIdByName(name: string): Promise<number | null> {
     .maybeSingle();
   if (error) return null;
   return data?.id ?? null;
-}
-
-/** 호환용: 더 이상 사용하지 않지만, 외부 코드가 import 중이면 유지 */
-export async function getFailIdByName(_name: string): Promise<number | null> {
-  // 이름 기반 조회는 더 이상 쓰지 않음 (DB 랜덤 RPC로 전환)
-  return null;
 }
