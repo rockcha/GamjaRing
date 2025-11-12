@@ -29,6 +29,8 @@ type OrderSlot =
   | { state: "ordered"; flower: Flower }
   | { state: "sold" };
 
+const SLOT_COUNT = 8;
+
 const gradeTone: Record<Grade, string> = {
   일반: "ring-1 ring-neutral-200/70 bg-neutral-50/70 dark:bg-neutral-950/50 dark:ring-neutral-800/60 shadow-[0_8px_30px_-12px_rgba(0,0,0,.25)]",
   희귀: "ring-1 ring-sky-300/60 bg-sky-50/60 dark:bg-sky-950/30 dark:ring-sky-900/50 shadow-[0_10px_32px_-12px_rgba(56,189,248,.45)]",
@@ -44,10 +46,11 @@ export default function FlowerShop() {
   const [flowers, setFlowers] = useState<Flower[]>([]);
   const [owned, setOwned] = useState<OwnedMap>({});
   const [invTab, setInvTab] = useState<"all" | Grade>("all");
-  // ✅ 슬롯 8개
+
   const [slots, setSlots] = useState<OrderSlot[]>(
-    Array.from({ length: 8 }, () => ({ state: "empty" }))
+    Array.from({ length: SLOT_COUNT }, () => ({ state: "empty" }))
   );
+
   const [loading, setLoading] = useState(false);
   const [ordering, setOrdering] = useState(false);
   const [selling, setSelling] = useState<string | null>(null);
@@ -90,7 +93,7 @@ export default function FlowerShop() {
     setLoading(true);
     Promise.all([loadFlowers(), loadOwned()]).finally(() => setLoading(false));
     return () =>
-      setSlots(Array.from({ length: 8 }, () => ({ state: "empty" })));
+      setSlots(Array.from({ length: SLOT_COUNT }, () => ({ state: "empty" })));
   }, [loadFlowers, loadOwned]);
 
   /** ===== 유틸 ===== */
@@ -123,7 +126,7 @@ export default function FlowerShop() {
 
   const makeOrders = () => {
     const list: OrderSlot[] = [];
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < SLOT_COUNT; i++) {
       const f = pickOne();
       if (f) list.push({ state: "ordered", flower: f });
       else list.push({ state: "empty" });
@@ -142,7 +145,7 @@ export default function FlowerShop() {
     try {
       const { error } = await spendGold(20);
       if (error) throw error;
-      setSlots(Array.from({ length: 8 }, () => ({ state: "empty" })));
+      setSlots(Array.from({ length: SLOT_COUNT }, () => ({ state: "empty" })));
       setTimeout(() => {
         makeOrders();
         toast.success("새로운 꽃 주문이 도착했어요! ✉️");
@@ -235,7 +238,6 @@ export default function FlowerShop() {
             onClick={() => setOpen(true)}
             className="h-10 rounded-xl px-4 font-semibold gap-2 shadow-sm"
           >
-            {/* 이모지 표기 */}
             <span aria-hidden>🧾</span>
             주문 받기
           </Button>
@@ -307,12 +309,12 @@ export default function FlowerShop() {
                 <span aria-hidden>🧾</span>
                 주문 목록
               </span>
-              {/* 요청에 따라 안내 문구 제거 */}
               <span className="sr-only">주문 안내</span>
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
+            {/* 주문 슬롯들 */}
             <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
               {slots.map((slot, idx) => {
                 if (slot.state === "empty") {
@@ -346,8 +348,10 @@ export default function FlowerShop() {
                   );
                 }
 
+                // ---- ordered ----
                 const f = slot.flower;
-                const has = (owned[f.id] ?? 0) > 0;
+                const qty = Number(owned[f.id] ?? 0);
+                const has = qty > 0;
 
                 return (
                   <button
@@ -365,6 +369,7 @@ export default function FlowerShop() {
                       await sell(f, idx);
                     }}
                   >
+                    {/* 썸네일 */}
                     <div
                       className="aspect-square w-full grid place-items-center rounded-lg overflow-hidden
                                  bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,.06),transparent)]
@@ -384,16 +389,22 @@ export default function FlowerShop() {
                       {f.label}
                     </div>
 
-                    {/* 가격 + 미보유 배지(좌하단, 붉은 계열) */}
-                    {!has && (
-                      <span
-                        className="pointer-events-none absolute bottom-2 left-2 rounded-full px-2 py-1 text-[10px] font-semibold
-                                   bg-red-600/20 text-red-700 dark:text-red-300 border border-red-600/30"
-                      >
-                        미보유
-                      </span>
-                    )}
-                    <span className="pointer-events-none absolute bottom-2 right-2 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums bg-black/40 text-white border border-white/10 shadow-sm">
+                    {/* ✅ 수량 배지(항상 표시): x n개 (0개는 붉은 톤) */}
+                    <span
+                      className={[
+                        "pointer-events-none absolute bottom-2 right-2 rounded-full px-2 py-1 text-[10px] font-semibold tabular-nums border",
+                        has
+                          ? "bg-black/80 text-white border-white/15"
+                          : "bg-red-600/18 text-red-700 dark:text-red-300 border-red-600/30",
+                      ].join(" ")}
+                      title={has ? `보유 수량: ${qty}` : "미보유"}
+                      aria-label={has ? `보유 수량 ${qty}` : "미보유(0)"}
+                    >
+                      {`x ${qty}`}
+                    </span>
+
+                    {/* 가격 배지() */}
+                    <span className="pointer-events-none absolute bottom-2 left-2 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums bg-black/40 text-white border border-white/10 shadow-sm">
                       🪙 {f.price.toLocaleString()}
                     </span>
                   </button>
@@ -415,7 +426,7 @@ export default function FlowerShop() {
               </span>
             </div>
 
-            {/* ✅ “다시 받기” 제거, 무조건 20 지불 버튼만 */}
+            {/* 무조건 20 지불 버튼 */}
             <Button
               onClick={handleOrder}
               disabled={ordering}

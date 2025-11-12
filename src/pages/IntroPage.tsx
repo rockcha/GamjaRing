@@ -1,5 +1,6 @@
 // src/pages/IntroPage.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import supabase from "@/lib/supabase";
@@ -7,111 +8,129 @@ import { MorphingText } from "@/components/ui/morphing-text";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHeartPulse } from "@fortawesome/free-solid-svg-icons";
 
-/** ===== Phase utils ===== */
+// ===== Pretty one-liners (랜덤 한 줄) =====
+const QUOTES = [
+  "작은 기록이 큰 마음을 지켜줘요.",
+  "오늘의 장면을 살짝 포개어 둘까요?",
+  "빛은 늘 가까운 곳에서 시작돼요.",
+  "소란한 하루에도, 나를 놓지 않기.",
+  "천천히, 그러나 분명하게.",
+  "한 줄의 문장이 마음을 데워요.",
+  "지금 이 순간도 너를 완성해요.",
+  "숨 고르고, 다시 가볍게.",
+  "좋았던 것은 더 오래, 아팠던 것은 더 얕게.",
+  "오늘을 좋아하는 방식으로 살아볼까요?",
+  "잠깐 멈추면 들리는 마음의 목소리.",
+  "하루의 끝에서 내가 나를 토닥여요.",
+  "작은 기쁨을 크게 껴안기.",
+  "빛나는 건 대단함보다 진심이래요.",
+  "기억은 사라져도 마음은 자라나요.",
+  "걱정보다 가능성에 표를 던져요.",
+  "천천히 가도 괜찮아요. 함께니까.",
+  "지금의 나도 충분히 예뻐요.",
+  "어제를 용서하고 오늘을 사랑해요.",
+  "눈을 감으면 떠오르는 고마운 얼굴들.",
+  "별은 어둠 속에서 더 반짝이죠.",
+  "내일의 햇살이 오늘을 안아줄 거예요.",
+  "비 온 뒤엔 흙냄새처럼 평온이 와요.",
+  "작은 변화가 큰 용기가 돼요.",
+  "사소한 친절이 하루를 바꿔요.",
+  "말 대신 마음으로 남기는 편지.",
+  "나는 나의 안전한 집이 될래요.",
+  "괜찮다는 말보다 함께라는 말.",
+  "잊지 말자, 우리는 충분히 잘하고 있어요.",
+  "오늘도, 나답게, 다정하게.",
+] as const;
+
+// ===== Types =====
 type Phase = "dawn" | "morning" | "noon" | "evening" | "night";
 
-/**
- * 시간대 (로컬 시간 기준)
- * - 새벽(dawn):       03:30 ~ 05:00
- * - 아침(morning):    05:01 ~ 11:30
- * - 점심(noon):       11:31 ~ 17:30
- * - 저녁(evening):    17:31 ~ 20:30
- * - 밤(night):        그 외
- */
+/** 시간대 계산 (로컬) */
 function getPhase(date = new Date()): Phase {
   const h = date.getHours();
   const m = date.getMinutes();
   const toMin = h * 60 + m;
-
-  const m0330 = 3 * 60 + 30;
-  const m0500 = 5 * 60 + 0;
-  const m0501 = 5 * 60 + 1;
-  const m1130 = 11 * 60 + 30;
-  const m1131 = 11 * 60 + 31;
-  const m1730 = 17 * 60 + 30;
-  const m1731 = 17 * 60 + 31;
-  const m2030 = 20 * 60 + 30;
-
-  if (toMin >= m0330 && toMin <= m0500) return "dawn";
-  if (toMin >= m0501 && toMin <= m1130) return "morning";
-  if (toMin >= m1131 && toMin <= m1730) return "noon";
-  if (toMin >= m1731 && toMin <= m2030) return "evening";
+  const M = (hh: number, mm: number) => hh * 60 + mm;
+  if (toMin >= M(3, 30) && toMin <= M(5, 0)) return "dawn";
+  if (toMin >= M(5, 1) && toMin <= M(11, 30)) return "morning";
+  if (toMin >= M(11, 31) && toMin <= M(17, 30)) return "noon";
+  if (toMin >= M(17, 31) && toMin <= M(20, 30)) return "evening";
   return "night";
 }
 
-/** Phase별 색상 토큰 + 카드 프레임 톤 + 그레인 강도 */
+/** Phase별 색/톤 + 카드 프레임 투명도/블러 강도 */
 function getPhaseTheme(phase: Phase) {
+  // 배경이 더 보이게: frame 투명도 하향, 대신 backdrop blur/채도 보강
   switch (phase) {
     case "dawn":
       return {
         vars: {
-          "--ink": "#3b3a50",
-          "--ink-strong": "#2e2d42",
-          "--accentA": "#b8b6ff",
-          "--accentB": "#a0e0ff",
-          "--frame": "rgba(255,255,255,0.92)",
-          "--grain": "0.05",
-        } as React.CSSProperties,
+          "--ink": "#2f2e47",
+          "--ink-strong": "#24233a",
+          "--accentA": "#bfc2ff",
+          "--accentB": "#9fd6ff",
+          "--frame": "rgba(255,255,255,0.46)",
+          "--grain": "0.04",
+          "--scrim": "rgba(10,14,40,0.14)", // 비네트 농도
+          "--blur": "10px", // 약하게 (오버레이 느낌)
+          "--saturate": "1.35",
+        } as CSSProperties,
         vignette:
-          "bg-[radial-gradient(75%_55%_at_50%_42%,transparent,rgba(10,14,40,0.18))]",
+          "bg-[radial-gradient(75%_55%_at_50%_42%,transparent,var(--scrim))]",
       };
     case "morning":
-      return {
-        vars: {
-          "--ink": "#6b4e2d",
-          "--ink-strong": "#563f25",
-          "--accentA": "#d2a56f",
-          "--accentB": "#b88044",
-          "--frame": "rgba(255,255,255,0.90)", // 살짝 투명도 하향
-          "--grain": "0.03",
-        } as React.CSSProperties,
-        vignette:
-          "bg-[radial-gradient(75%_55%_at_50%_42%,transparent,rgba(0,0,0,0.08))]",
-      };
     case "noon":
       return {
         vars: {
-          "--ink": "#6b4e2d",
-          "--ink-strong": "#563f25",
-          "--accentA": "#d2a56f",
-          "--accentB": "#b88044",
-          "--frame": "rgba(255,255,255,0.90)", // 살짝 투명도 하향
+          "--ink": "#5b452a",
+          "--ink-strong": "#46351f",
+          "--accentA": "#d7ab74",
+          "--accentB": "#b98243",
+          "--frame": "rgba(255,255,255,0.42)",
           "--grain": "0.03",
-        } as React.CSSProperties,
+          "--scrim": "rgba(0,0,0,0.06)",
+          "--blur": "10px",
+          "--saturate": "1.4",
+        } as CSSProperties,
         vignette:
-          "bg-[radial-gradient(75%_55%_at_50%_42%,transparent,rgba(0,0,0,0.08))]",
+          "bg-[radial-gradient(75%_55%_at_50%_42%,transparent,var(--scrim))]",
       };
     case "evening":
       return {
         vars: {
-          "--ink": "#604529",
-          "--ink-strong": "#4e3821",
+          "--ink": "#553f28",
+          "--ink-strong": "#44321f",
           "--accentA": "#c99a6b",
           "--accentB": "#a87443",
-          "--frame": "rgba(255,255,255,0.90)",
-          "--grain": "0.04",
-        } as React.CSSProperties,
+          "--frame": "rgba(255,255,255,0.44)",
+          "--grain": "0.035",
+          "--scrim": "rgba(0,0,0,0.09)",
+          "--blur": "10px",
+          "--saturate": "1.35",
+        } as CSSProperties,
         vignette:
-          "bg-[radial-gradient(75%_55%_at_50%_42%,transparent,rgba(0,0,0,0.10))]",
+          "bg-[radial-gradient(75%_55%_at_50%_42%,transparent,var(--scrim))]",
       };
     case "night":
     default:
       return {
         vars: {
-          "--ink": "#563f25",
-          "--ink-strong": "#46331e",
-          "--accentA": "#b88c5b",
-          "--accentB": "#8f6336",
-          "--frame": "rgba(255,255,255,0.86)", // 밤엔 조금 더 투명
-          "--grain": "0.06",
-        } as React.CSSProperties,
+          "--ink": "#e9e1d6",
+          "--ink-strong": "#f2eee9",
+          "--accentA": "#f4d2a0",
+          "--accentB": "#be8a55",
+          "--frame": "rgba(30,30,30,0.38)", // 밤엔 유리색 어둡게 → 배경 강조
+          "--grain": "0.05",
+          "--scrim": "rgba(0,0,0,0.14)",
+          "--blur": "12px", // 밤만 약간 더
+          "--saturate": "1.25",
+        } as CSSProperties,
         vignette:
-          "bg-[radial-gradient(75%_55%_at_50%_42%,transparent,rgba(0,0,0,0.12))]",
+          "bg-[radial-gradient(75%_55%_at_50%_42%,transparent,var(--scrim))]",
       };
   }
 }
 
-/** Phase별 보조 카피 */
 function getPhaseCopy(phase: Phase) {
   switch (phase) {
     case "dawn":
@@ -133,10 +152,13 @@ export default function IntroPage() {
   const phase = useMemo(() => getPhase(), []);
   const theme = useMemo(() => getPhaseTheme(phase), [phase]);
   const copy = useMemo(() => getPhaseCopy(phase), [phase]);
+  const quote = useMemo(
+    () => QUOTES[Math.floor(Math.random() * QUOTES.length)],
+    []
+  );
 
-  /** ---- 배경 이미지 소스 ---- */
+  // 배경 이미지 소스 (png 유지)
   const bgSrc = useMemo(() => {
-    // 가능하면 avif/webp 우선. 파일 없으면 png로 fallback
     const base = "/intro";
     const name =
       phase === "dawn"
@@ -151,7 +173,7 @@ export default function IntroPage() {
     return `${base}/${name}.png`;
   }, [phase]);
 
-  /** ---- 로딩 페이드 ---- */
+  // 로딩 페이드
   const [ready, setReady] = useState(false);
   useEffect(() => {
     const i = new Image();
@@ -159,7 +181,7 @@ export default function IntroPage() {
     i.src = bgSrc;
   }, [bgSrc]);
 
-  /** ---- 아무 키/클릭 시 이동 ---- */
+  // 아무 키/클릭 시 이동
   const locked = useRef(false);
   const continueRoute = async () => {
     if (locked.current) return;
@@ -203,42 +225,31 @@ export default function IntroPage() {
     <div
       style={theme.vars}
       className={[
-        "relative min-h-[100svh] w-full overflow-hidden", // 반응형 안전 높이
-        "bg-center bg-cover",
+        "relative min-h-[100svh] w-full overflow-hidden",
+        "bg-center bg-cover bg-fixed",
       ].join(" ")}
     >
       {/* 배경 이미지 */}
       <div
         aria-hidden
         className={[
-          "absolute inset-0 -z-10 bg-center bg-cover",
-          "transition-opacity duration-200",
+          "absolute inset-0 -z-20 bg-center bg-cover bg-no-repeat",
+          "transition-opacity duration-300 will-change-opacity",
           ready ? "opacity-100" : "opacity-0",
         ].join(" ")}
         style={{ backgroundImage: `url(${bgSrc})` }}
       />
 
-      {/* 장식 레이어(가벼운 패럴랙스 느낌, CSS only) */}
-      {!prefersReducedMotion && (
-        <div aria-hidden className="absolute inset-0 -z-10 pointer-events-none">
-          <div
-            className="absolute inset-0 opacity-30 animate-[float_18s_ease-in-out_infinite]"
-            style={{
-              backgroundImage: "url(/intro/particles-1.png)",
-              backgroundSize: 380,
-              mixBlendMode: "soft-light",
-            }}
-          />
-          <div
-            className="absolute inset-0 opacity-20 animate-[float2_28s_ease-in-out_infinite]"
-            style={{
-              backgroundImage: "url(/intro/particles-2.png)",
-              backgroundSize: 520,
-              mixBlendMode: "overlay",
-            }}
-          />
-        </div>
-      )}
+      {/* 얕은 스크림 */}
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-10 pointer-events-none"
+        style={{
+          background:
+            "linear-gradient(to bottom, rgba(255,255,255,0.04), transparent 22%, transparent 78%, rgba(0,0,0,0.06))",
+          mixBlendMode: "normal",
+        }}
+      />
 
       {/* 비네트 + 그레인 */}
       <div
@@ -249,18 +260,40 @@ export default function IntroPage() {
         aria-hidden
         className="pointer-events-none absolute inset-0 mix-blend-multiply"
         style={{
-          opacity: `var(--grain, 0.04)`,
+          opacity: `var(--grain, 0.03)`,
           backgroundImage: "url(/images/grain.png)",
           backgroundSize: 280,
         }}
       />
 
-      {/* 중앙 카드 */}
+      {/* 파티클 */}
+      {!prefersReducedMotion && (
+        <div aria-hidden className="absolute inset-0 pointer-events-none">
+          <div
+            className="absolute inset-0 opacity-20 animate-[float_18s_ease-in-out_infinite]"
+            style={{
+              backgroundImage: "url(/intro/particles-1.png)",
+              backgroundSize: 440,
+              mixBlendMode: "soft-light",
+            }}
+          />
+          <div
+            className="absolute inset-0 opacity-12 animate-[float2_28s_ease-in-out_infinite]"
+            style={{
+              backgroundImage: "url(/intro/particles-2.png)",
+              backgroundSize: 620,
+              mixBlendMode: "overlay",
+            }}
+          />
+        </div>
+      )}
+
+      {/* 카드 */}
       <motion.section
         initial={
           prefersReducedMotion
             ? { opacity: 1 }
-            : { opacity: 0, y: 8, scale: 0.98 }
+            : { opacity: 0, y: 8, scale: 0.985 }
         }
         animate={
           prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }
@@ -274,18 +307,23 @@ export default function IntroPage() {
         <figure
           className={[
             "relative w-full max-w-2xl",
-            "rounded-[32px] p-6 sm:p-8",
-            "bg-[var(--frame)] backdrop-blur-xl",
+            "rounded-[28px] p-6 sm:p-8",
+            "supports-[backdrop-filter]:bg-white/30 bg-white/60",
             "ring-1 ring-black/10 shadow-[0_22px_70px_rgba(0,0,0,0.18)]",
           ].join(" ")}
+          style={{
+            background: "var(--frame)",
+            backdropFilter: `blur(var(--blur)) saturate(var(--saturate))`,
+            WebkitBackdropFilter: `blur(var(--blur)) saturate(var(--saturate))`,
+          }}
           role="group"
           aria-label="인트로 카드"
         >
-          {/* 내부 미세 보더 (고급감) */}
-          <div className="pointer-events-none absolute inset-0 rounded-[30px] ring-1 ring-white/30" />
+          {/* 내부 보더 */}
+          <div className="pointer-events-none absolute inset-0 rounded-[26px] ring-1 ring-white/35" />
 
-          {/* 상단 브랜드 라인 */}
-          <div className="flex items-center gap-2 text-[var(--ink)] drop-shadow-[0_0_8px_rgba(216,165,110,0.35)]">
+          {/* 브랜드 */}
+          <div className="flex items-center gap-2 text-[var(--ink)] drop-shadow-[0_0_8px_rgba(216,165,110,0.28)]">
             <FontAwesomeIcon
               icon={faHeartPulse}
               className="h-5 w-5"
@@ -293,7 +331,7 @@ export default function IntroPage() {
                 animation: prefersReducedMotion
                   ? "none"
                   : "pulseMini 1.8s ease-in-out infinite",
-                filter: "drop-shadow(0 0 6px rgba(184,140,91,0.35))",
+                filter: "drop-shadow(0 0 6px rgba(184,140,91,0.3))",
               }}
               aria-hidden
             />
@@ -318,47 +356,36 @@ export default function IntroPage() {
             />
           </div>
 
-          {/* 안내 & CTA */}
-          <div className="mt-8 sm:mt-10 w-full flex flex-col items-center justify-center">
-            <div className="text-center">
-              <div className="inline-flex items-center gap-2 rounded-xl px-4 py-2 bg-white/55 ring-1 ring-black/5">
-                <span className="text-sm sm:text-base font-medium text-[color:var(--ink)]/90">
-                  아무 키를 누르거나 화면을 클릭하면 계속합니다
-                </span>
-                <kbd
-                  className={[
-                    "rounded-md border border-black/10 bg-white/60 px-1.5 text-[11px] tracking-wide",
-                    "text-[color:var(--ink)]/80",
-                    prefersReducedMotion ? "" : "animate-breathe",
-                  ].join(" ")}
-                >
-                  Any key
-                </kbd>
-              </div>
+          {/* 랜덤 한 줄 (가로 중앙, 예쁜 폰트 톤) */}
+          <p
+            className={[
+              "mt-4",
+              "text-center", // ⬅ 가로 중앙
+              "text-[color:var(--ink)]/80",
+              "text-[clamp(14px,2.6vw,18px)]",
+              "leading-relaxed",
+              "font-serif", // ⬅ 부드러운 서체 톤 (프로젝트 폰트셋에 맞게 조정)
+              "italic", // ⬅ 은은한 이탤릭
+              "tracking-wide",
+              "drop-shadow-[0_1px_6px_rgba(255,255,255,0.35)]",
+            ].join(" ")}
+            style={{
+              // 한글 가독 보강(지원 브라우저에서만 적용)
+              fontFeatureSettings: "'ss01' on, 'liga' on, 'kern' on",
+              // 너무 얇지 않게
+              fontWeight: 500,
+            }}
+          >
+            {quote}
+          </p>
 
-              {/* 보조 카피 (Phase별) */}
-              <p className="mt-3 text-xs sm:text-[13px] text-[color:var(--ink)]/60">
-                {copy}
-              </p>
-
-              {/* 접근성용 명시 버튼 */}
-              <button
-                onClick={continueRoute}
-                className="mt-4 inline-flex items-center rounded-lg px-3 py-2 text-sm ring-1 ring-black/10 bg-white/60 hover:bg-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accentB)]"
-                aria-label="다음 화면으로 이동"
-              >
-                Continue
-              </button>
-            </div>
-          </div>
-
-          {/* 보조 키프레임 */}
+          {/* Keyframes */}
           <style>{`
             @keyframes pulseMini { 0%,100% { transform: scale(1); opacity: .95 } 50% { transform: scale(1.06); opacity: 1 } }
             @keyframes breathe { 0%,100% { opacity: .7 } 50% { opacity: 1 } }
             .animate-breathe { animation: breathe 1.8s ease-in-out infinite; }
-            @keyframes float { 0%,100%{ transform: translateY(-1.5%) } 50%{ transform: translateY(1.5%) } }
-            @keyframes float2{ 0%,100%{ transform: translateY(1%) } 50%{ transform: translateY(-1%) } }
+            @keyframes float { 0%,100%{ transform: translateY(-1.2%) } 50%{ transform: translateY(1.2%) } }
+            @keyframes float2{ 0%,100%{ transform: translateY(0.8%) } 50%{ transform: translateY(-0.8%) } }
           `}</style>
         </figure>
       </motion.section>
