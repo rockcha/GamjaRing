@@ -3,7 +3,7 @@
 
 import { useMemo, useRef, useCallback, useState } from "react";
 import { cn } from "@/lib/utils";
-import { Anchor, ChevronDown, ChevronUp, Info } from "lucide-react";
+import { Anchor, ChevronDown, ChevronUp, Info, Pencil } from "lucide-react";
 
 type Tank = { tank_no: number; title: string; theme_id: number | null };
 
@@ -11,6 +11,8 @@ type Props = {
   tanks: Tank[];
   idx: number;
   onSelect: (index: number) => void;
+  /** ✅ 새로 추가: 어항 이름 변경 콜백 */
+  onRename?: (tankNo: number, newTitle: string) => void;
   className?: string;
   density?: "compact" | "cozy" | "comfortable";
 };
@@ -19,6 +21,7 @@ export default function TankChipsNavigator({
   tanks,
   idx,
   onSelect,
+  onRename,
   className,
   density = "cozy",
 }: Props) {
@@ -34,6 +37,10 @@ export default function TankChipsNavigator({
   /** 검색/점프 (많을 때만) */
   const MANY_COUNT = 16;
   const [query, setQuery] = useState("");
+
+  /** ✅ 이름 편집 상태 */
+  const [editingTankNo, setEditingTankNo] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState("");
 
   const items = useMemo(
     () =>
@@ -114,6 +121,34 @@ export default function TankChipsNavigator({
     if (i >= 0) setIndex(i);
   }, [query, items, setIndex]);
 
+  /** ✅ 이름 편집 시작 */
+  const startEdit = useCallback(
+    (tankNo: number) => {
+      const target = items.find((t) => t.tank_no === tankNo);
+      if (!target) return;
+      setEditingTankNo(tankNo);
+      setEditValue(target._title);
+    },
+    [items]
+  );
+
+  /** ✅ 이름 편집 완료 (저장) */
+  const finishEdit = useCallback(
+    (opts?: { cancel?: boolean }) => {
+      if (editingTankNo === null) return;
+      const trimmed = editValue.trim();
+      const tankNo = editingTankNo;
+
+      if (!opts?.cancel && trimmed && onRename) {
+        onRename(tankNo, trimmed);
+      }
+
+      setEditingTankNo(null);
+      setEditValue("");
+    },
+    [editingTankNo, editValue, onRename]
+  );
+
   /** 밀도 프리셋 (박스형 버튼) */
   const DENSITY = {
     compact: {
@@ -163,7 +198,7 @@ export default function TankChipsNavigator({
       aria-label="아쿠아리움 네비게이터"
       role="navigation"
       onKeyDown={onKeyDown}
-      style={{ WebkitTapHighlightColor: "transparent" }} // 모바일 클릭 하이라이트 제거
+      style={{ WebkitTapHighlightColor: "transparent" }}
     >
       {/* 헤더 */}
       <div className="px-1 pb-2 flex items-center gap-2">
@@ -175,7 +210,7 @@ export default function TankChipsNavigator({
 
       {/* 본문 */}
       {open ? (
-        // ✅ 펼친 상태: 가로 스크롤 없음, 좌우 이동 버튼 제거(요청 2)
+        // ✅ 펼친 상태
         <div
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -238,6 +273,8 @@ export default function TankChipsNavigator({
           >
             {items.map((t, i) => {
               const active = i === idx;
+              const isEditing = editingTankNo === t.tank_no;
+
               return (
                 <button
                   type="button"
@@ -271,17 +308,62 @@ export default function TankChipsNavigator({
                     >
                       #{t.tank_no}
                     </span>
+                    {/* ✅ 이름 변경 버튼 (연필) */}
+                    {onRename && (
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center rounded-md px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity text-[11px]"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          startEdit(t.tank_no);
+                        }}
+                        aria-label="어항 이름 변경"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                    )}
                     <span className="sr-only">{active ? "선택됨" : ""}</span>
                   </div>
-                  <div
-                    className={cn(
-                      "line-clamp-2 leading-5",
-                      DENSITY.title,
-                      active ? "font-semibold" : "font-medium"
-                    )}
-                  >
-                    {t._title}
-                  </div>
+
+                  {/* ✅ 이름 영역: 보기 vs 편집 */}
+                  {isEditing ? (
+                    <div
+                      className="mt-0.5"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        autoFocus
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={() => finishEdit()}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            finishEdit();
+                          }
+                          if (e.key === "Escape") {
+                            e.preventDefault();
+                            finishEdit({ cancel: true });
+                          }
+                        }}
+                        className={cn(
+                          "w-full rounded-md border px-1.5 py-0.5 text-xs",
+                          "bg-white/90 dark:bg-slate-900/80 outline-none"
+                        )}
+                        placeholder={`${t.tank_no}번 어항`}
+                      />
+                    </div>
+                  ) : (
+                    <div
+                      className={cn(
+                        "line-clamp-2 leading-5",
+                        DENSITY.title,
+                        active ? "font-semibold" : "font-medium"
+                      )}
+                    >
+                      {t._title}
+                    </div>
+                  )}
                 </button>
               );
             })}
@@ -294,23 +376,31 @@ export default function TankChipsNavigator({
             {/* 현재 탱크 라벨 */}
             <div
               className={cn(
-                "inline-flex items-center gap-2   px-3 py-1.5",
-                "bg-white/90 dark:bg-slate-900/70 "
+                "inline-flex items-center gap-2 px-3 py-1.5",
+                "bg-white/90 dark:bg-slate-900/70"
               )}
               title={`현재 탱크: #${current?.tank_no ?? "-"} ${
                 current?._title ?? ""
               }`}
             >
-              <span className="text-lg  font-semibold ">현재 어항 :</span>
+              <span className="text-lg font-semibold">현재 어항 :</span>
               <span className="text-2xl text-blue-500 font-semibold max-w-[60vw] sm:max-w-[40vw] truncate">
                 #{current?.tank_no} {current?._title ?? "이름 없는 어항"}
+              </span>
+            </div>
+
+            {/* ✅ 작은 안내 텍스트 */}
+            <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+              <Info className="h-3.5 w-3.5" />
+              <span>
+                아래 버튼을 눌러 어항 목록을 펼치고 이름을 수정할 수 있어요.
               </span>
             </div>
           </div>
         </div>
       )}
 
-      {/* ✅ 단일 토글 버튼(아래쪽, 큼직하고 직관적) — “펼치기 버튼이 두 개” 문제 해결 */}
+      {/* ✅ 단일 토글 버튼(아래쪽) */}
       <div className="mt-3 flex justify-center">
         <button
           type="button"

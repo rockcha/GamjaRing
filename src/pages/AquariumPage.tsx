@@ -1,7 +1,7 @@
 // src/pages/AquariumPage.tsx
 "use client";
 
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import supabase from "@/lib/supabase";
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { toast } from "sonner";
@@ -33,7 +33,11 @@ const TANK_PRICE = 200;
 /** 배경 숨김 폴백 지연(ms) — AquariumBox가 onReady를 못 보낼 경우 대비 */
 const BG_FALLBACK_HIDE_MS = 1200;
 
-type TankRow = { tank_no: number; title: string; theme_id: number | null };
+type TankRow = {
+  tank_no: number;
+  title: string | null;
+  theme_id: number | null;
+};
 
 function AquariumPage() {
   const { couple, fetchCoupleData } = useCoupleContext();
@@ -65,7 +69,7 @@ function AquariumPage() {
   const cur = tanks[idx] ?? null;
 
   /** 탱크 목록 로드 */
-  const loadTanks = async () => {
+  const loadTanks = useCallback(async () => {
     if (!coupleId) return;
     const { data, error } = await supabase
       .from("aquarium_tanks")
@@ -81,11 +85,56 @@ function AquariumPage() {
     const rows = (data ?? []) as TankRow[];
     setTanks(rows);
     setIdx(0); // 항상 1번부터
-  };
+  }, [coupleId]);
 
   useEffect(() => {
     loadTanks();
-  }, [coupleId]);
+  }, [loadTanks]);
+
+  /** ✅ 어항 이름 변경 핸들러 (TankChipsNavigator → Supabase 반영) */
+  const handleRenameTank = useCallback(
+    async (tankNo: number, newTitle: string) => {
+      if (!coupleId) {
+        toast.error("커플 정보가 없어 어항 이름을 변경할 수 없어요.");
+        return;
+      }
+
+      const trimmed = newTitle.trim();
+      if (!trimmed) {
+        toast.warning("어항 이름은 비울 수 없어요.");
+        return;
+      }
+
+      // 기존 제목 백업 (롤백용)
+      const prevTitle = tanks.find((t) => t.tank_no === tankNo)?.title ?? null;
+
+      // 1) 낙관적 업데이트 (UI 먼저 바꾸기)
+      setTanks((prev) =>
+        prev.map((t) => (t.tank_no === tankNo ? { ...t, title: trimmed } : t))
+      );
+
+      // 2) Supabase 반영
+      const { error } = await supabase
+        .from("aquarium_tanks")
+        .update({ title: trimmed })
+        .eq("couple_id", coupleId)
+        .eq("tank_no", tankNo);
+
+      if (error) {
+        // 실패 시 롤백
+        setTanks((prev) =>
+          prev.map((t) =>
+            t.tank_no === tankNo ? { ...t, title: prevTitle } : t
+          )
+        );
+        toast.error(`어항 이름을 저장하지 못했어요: ${error.message}`);
+        return;
+      }
+
+      toast.success("어항 이름이 저장되었어요!");
+    },
+    [coupleId, tanks]
+  );
 
   /** 어항 구매 (RPC) — 다이얼로그에서 최종 실행 */
   const confirmBuy = async () => {
@@ -164,6 +213,8 @@ function AquariumPage() {
             tanks={tanks}
             idx={idx}
             onSelect={(i) => setIdx(i)}
+            /** ✅ 이름 변경 콜백 연결 */
+            onRename={handleRenameTank}
           />
         </div>
 
@@ -210,7 +261,7 @@ function AquariumPage() {
                   "px-2.5 py-1.5 sm:px-3 sm:py-2 shadow-sm"
                 )}
               >
-                {/* 좌측 아이콘 그룹 (라벨 제거, separator로 구분) */}
+                {/* 좌측 아이콘 그룹 */}
                 <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto">
                   <AquariumDetailButton tankNo={cur.tank_no} asChild>
                     <IconButton
@@ -238,7 +289,7 @@ function AquariumPage() {
                   </ThemeShopButton>
                 </div>
 
-                {/* 가운데 스페이서 (이름 표시/편집 제거) */}
+                {/* 가운데 스페이서 */}
                 <div className="flex-1 min-w-0" />
 
                 {/* 우측: 추가 버튼 */}
