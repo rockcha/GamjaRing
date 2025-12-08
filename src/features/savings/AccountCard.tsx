@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { Account, Product } from "./api";
-import { getProgress, isDepositWindowOpen, isTodayDue } from "./time";
+import { getProgress, isDepositWindowOpen } from "./time";
 
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { toast } from "sonner";
@@ -115,11 +115,12 @@ export default function AccountCard({ acc, product, onDeposit }: Props) {
 
   const isMatured = acc.status === "matured";
   const isClosed = acc.status === "closed";
+
+  // ✅ 날짜 조건(isTodayDue) 제거: 윈도우만 열려 있으면 term_days 전까지는 계속 납입 가능
   const canDeposit =
     !isMatured &&
     !isClosed &&
     isDepositWindowOpen() &&
-    isTodayDue(acc) &&
     acc.paid_days < product.term_days;
 
   const dailyCost = acc.daily_amount;

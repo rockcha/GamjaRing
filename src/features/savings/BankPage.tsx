@@ -41,6 +41,11 @@ export default function BankPage() {
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("term_asc");
 
+  // 진행 중 / 완료 필터 (내 적금 탭 안에서만 사용)
+  const [statusFilter, setStatusFilter] = useState<"active" | "completed">(
+    "active"
+  );
+
   const MAX_OPEN = 4;
 
   const loadAll = useCallback(async () => {
@@ -224,27 +229,80 @@ export default function BankPage() {
             </Card>
           ) : (
             <>
-              {myActive.length > 0 && (
-                <section>
-                  <h2 className="text-sm font-semibold mb-2">나의 적금</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {myActive.map((acc) => (
-                      <AccountCard
-                        key={acc.id}
-                        acc={acc}
-                        product={
-                          acc.product ?? productsById.get(acc.product_id)!
-                        }
-                        onDeposit={() => handleDeposit(acc)}
-                      />
-                    ))}
-                  </div>
-                </section>
-              )}
+              {/* ✅ 진행 중 / 완료 필터 토글 (기본: 진행 중) */}
+              <div className="flex items-center justify-between">
+                <div className="inline-flex items-center gap-1 rounded-full bg-muted p-1 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter("active")}
+                    className={`px-3 py-1 rounded-full transition text-xs md:text-sm ${
+                      statusFilter === "active"
+                        ? "bg-background shadow-sm font-medium"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    진행 중 ({myActive.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter("completed")}
+                    className={`px-3 py-1 rounded-full transition text-xs md:text-sm ${
+                      statusFilter === "completed"
+                        ? "bg-background shadow-sm font-medium"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    완료·종료 ({myOther.length})
+                  </button>
+                </div>
+              </div>
 
-              {myOther.length > 0 && (
+              {/* ✅ 필터에 따른 리스트 */}
+              {statusFilter === "active" ? (
+                myActive.length === 0 ? (
+                  <Card className="min-h-[140px]">
+                    <CardContent className="py-8 text-center space-y-2">
+                      <p className="text-sm text-muted-foreground">
+                        진행 중인 적금이 없어요.
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        &quot;상품 둘러보기&quot; 탭에서 새 적금을 시작해보세요.
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <section>
+                    <h2 className="text-sm font-semibold mb-2">나의 적금</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {myActive.map((acc) => (
+                        <AccountCard
+                          key={acc.id}
+                          acc={acc}
+                          product={
+                            acc.product ?? productsById.get(acc.product_id)!
+                          }
+                          onDeposit={() => handleDeposit(acc)}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                )
+              ) : myOther.length === 0 ? (
+                <Card className="min-h-[140px]">
+                  <CardContent className="py-8 text-center space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      완료·종료된 적금이 아직 없어요.
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      적금을 완주하면 이곳에서 기록을 확인할 수 있어요.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
                 <section>
-                  <h2 className="text-sm font-semibold mt-6 mb-2">완료/종료</h2>
+                  <h2 className="text-sm font-semibold mb-2">
+                    완료/종료된 적금
+                  </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {myOther.map((acc) => (
                       <AccountCard
@@ -264,7 +322,6 @@ export default function BankPage() {
         </TabsContent>
 
         {/* 상품 둘러보기 */}
-
         <TabsContent
           value="browse"
           className="mt-4 space-y-4 data-[state=active]:animate-in data-[state=active]:fade-in-50 data-[state=active]:slide-in-from-right-6"
