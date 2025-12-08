@@ -25,6 +25,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { Skeleton } from "@/components/ui/skeleton";
+import { isDepositWindowOpen } from "./time";
+
 import SeedShopButton from "../FlowerShop/SeedShopButton";
 import FlowerDexButton from "../FlowerShop/FlowerDexButton";
 import GardenBackyard from "../FlowerShop/GardenBackyard";
@@ -32,12 +35,13 @@ import GardenBackyard from "../FlowerShop/GardenBackyard";
 type SortKey = "term_asc" | "min_daily_asc" | "apy_desc" | "bonus_desc";
 
 export default function BankPage() {
-  const { couple } = useCoupleContext();
+  const { couple, gold, spendGold } = useCoupleContext();
   const coupleId = couple?.id as string | undefined;
 
   const [products, setProducts] = useState<Product[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
+  const [bulkLoading, setBulkLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("term_asc");
 
@@ -101,6 +105,7 @@ export default function BankPage() {
     return list;
   }, [products, sortKey]);
 
+  // ✅ 개별 납입
   async function handleDeposit(acc: Account) {
     try {
       await depositToday({
@@ -112,6 +117,91 @@ export default function BankPage() {
       await loadAll();
     } catch (e: any) {
       alert(e?.message ?? "납입 실패");
+    }
+  }
+
+  // ✅ 한 번에 납입 (진행 중인 적금 중 "오늘 납입 가능"한 것들만)
+  async function handleDepositAllToday() {
+    if (!coupleId) return;
+    if (!isDepositWindowOpen()) {
+      alert("지금은 납입 가능 시간이 아닙니다. (09:00~18:00)");
+      return;
+    }
+    if (!myActive.length) {
+      alert("진행 중인 적금이 없습니다.");
+      return;
+    }
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    // 오늘 납입 가능한 계좌만 필터링
+    const depositable = myActive.filter((acc) => {
+      const lastPaidStr = acc.last_paid_at
+        ? acc.last_paid_at.slice(0, 10)
+        : null;
+      const alreadyPaidToday = lastPaidStr === todayStr;
+
+      const product = acc.product ?? productsById.get(acc.product_id) ?? null;
+      const termDays = product?.term_days ?? 0;
+
+      return (
+        acc.status === "active" && !alreadyPaidToday && acc.paid_days < termDays
+      );
+    });
+
+    if (!depositable.length) {
+      alert("오늘 납입할 수 있는 적금이 없습니다.");
+      return;
+    }
+
+    if (
+      !confirm(
+        `오늘 납입 가능 적금 ${depositable.length}개를 한 번에 납입할까요?`
+      )
+    ) {
+      return;
+    }
+
+    setBulkLoading(true);
+    try {
+      let remainingGold = gold ?? 0;
+      let successCount = 0;
+
+      for (const acc of depositable) {
+        if (remainingGold < acc.daily_amount) {
+          // 더 이상 골드 부족하면 중단
+          break;
+        }
+
+        // 골드 차감
+        const { error } = await spendGold(acc.daily_amount);
+        if (error) {
+          // 이 계좌는 스킵, 다음으로
+          continue;
+        }
+        remainingGold -= acc.daily_amount;
+
+        // 납입 트랜잭션
+        await depositToday({
+          account_id: acc.id,
+          couple_id: acc.couple_id,
+          amount: acc.daily_amount,
+        });
+
+        successCount += 1;
+      }
+
+      if (successCount === 0) {
+        alert("골드가 부족하거나 오늘 납입 가능한 적금이 없습니다.");
+      } else {
+        alert(`총 ${successCount}개의 적금을 오늘 납입했습니다.`);
+        await loadAll();
+      }
+    } catch (e: any) {
+      console.error("[BankPage] bulk deposit error:", e);
+      alert(e?.message ?? "한 번에 납입 처리 중 오류가 발생했습니다.");
+    } finally {
+      setBulkLoading(false);
     }
   }
 
@@ -145,7 +235,6 @@ export default function BankPage() {
   return (
     <div className="mx-auto max-w-6xl p-4 space-y-6">
       {/* 헤더 */}
-
       {!coupleId && (
         <Alert>
           <AlertTitle>커플 정보 없음</AlertTitle>
@@ -162,14 +251,12 @@ export default function BankPage() {
 
       {/* 상단 상태 바 */}
       <div className="rounded-xl border bg-card/60 p-4">
-        {/* 1줄: 제목 (가운데) */}
         <header className="flex items-center justify-center">
-          <h1 className="text-xl md:text-2xl font-bold tracking-tight">
+          <h1 className="text-xl md:text-2xl font-semibold tracking-tight">
             감자링 중앙은행
           </h1>
         </header>
 
-        {/* 2줄: 현재 활성 개수 + 배지 (가운데) */}
         <div className="mt-2 flex items-center justify-center gap-3">
           <div className="text-sm md:text-base">
             현재 활성 적금: <b className="tabular-nums">{activeSavingCount}</b>{" "}
@@ -187,7 +274,7 @@ export default function BankPage() {
         </div>
 
         {/* 규칙 섹션 */}
-        <div className="mt-3 ">
+        <div className="mt-3">
           <RulesSection />
         </div>
       </div>
@@ -215,8 +302,19 @@ export default function BankPage() {
           className="mt-4 space-y-4 data-[state=active]:animate-in data-[state=active]:fade-in-50 data-[state=active]:slide-in-from-left-6"
         >
           {loading ? (
-            <div className="flex items-center justify-center py-12 text-muted-foreground">
-              <Loader2 className="h-5 w-5 mr-2 animate-spin" /> 로딩 중…
+            // ✅ Skeleton 로딩: 부모 width 기준 w-full
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[1, 2, 3, 4].map((i) => (
+                <Card key={i} className="min-h-[260px]">
+                  <CardContent className="p-4 space-y-4">
+                    <Skeleton className="h-5 w-1/3" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-2 w-full" />
+                    <Skeleton className="h-2 w-3/4" />
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           ) : myActive.length === 0 && myOther.length === 0 ? (
             <Card className="min-h-[160px]">
@@ -255,6 +353,19 @@ export default function BankPage() {
                     완료·종료 ({myOther.length})
                   </button>
                 </div>
+
+                {/* ✅ 오늘 한 번에 납입 버튼 (진행 중 탭일 때만) */}
+                {statusFilter === "active" && myActive.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs md:text-sm"
+                    onClick={handleDepositAllToday}
+                    disabled={bulkLoading}
+                  >
+                    {bulkLoading ? "한 번에 납입 중..." : "오늘 한 번에 납입"}
+                  </Button>
+                )}
               </div>
 
               {/* ✅ 필터에 따른 리스트 */}

@@ -60,7 +60,7 @@ function getPhase(date = new Date()): Phase {
 
 /** Phase별 색/톤 + 카드 프레임 투명도/블러 강도 */
 function getPhaseTheme(phase: Phase) {
-  // 배경이 더 보이게: frame 투명도 하향, 대신 backdrop blur/채도 보강
+  // 👉 전반적으로 아주 살짝만 불투명하게
   switch (phase) {
     case "dawn":
       return {
@@ -69,11 +69,11 @@ function getPhaseTheme(phase: Phase) {
           "--ink-strong": "#24233a",
           "--accentA": "#bfc2ff",
           "--accentB": "#9fd6ff",
-          "--frame": "rgba(255,255,255,0.46)",
-          "--grain": "0.04",
-          "--scrim": "rgba(10,14,40,0.14)", // 비네트 농도
-          "--blur": "10px", // 약하게 (오버레이 느낌)
-          "--saturate": "1.35",
+          "--frame": "rgba(255,255,255,0.10)", // 거의 투명
+          "--grain": "0.03",
+          "--scrim": "rgba(10,14,40,0.035)",
+          "--blur": "2px",
+          "--saturate": "1.3",
         } as CSSProperties,
         vignette:
           "bg-[radial-gradient(75%_55%_at_50%_42%,transparent,var(--scrim))]",
@@ -86,11 +86,11 @@ function getPhaseTheme(phase: Phase) {
           "--ink-strong": "#46351f",
           "--accentA": "#d7ab74",
           "--accentB": "#b98243",
-          "--frame": "rgba(255,255,255,0.42)",
-          "--grain": "0.03",
-          "--scrim": "rgba(0,0,0,0.06)",
-          "--blur": "10px",
-          "--saturate": "1.4",
+          "--frame": "rgba(255,255,255,0.10)",
+          "--grain": "0.025",
+          "--scrim": "rgba(0,0,0,0.02)",
+          "--blur": "8px",
+          "--saturate": "1.3",
         } as CSSProperties,
         vignette:
           "bg-[radial-gradient(75%_55%_at_50%_42%,transparent,var(--scrim))]",
@@ -102,11 +102,11 @@ function getPhaseTheme(phase: Phase) {
           "--ink-strong": "#44321f",
           "--accentA": "#c99a6b",
           "--accentB": "#a87443",
-          "--frame": "rgba(255,255,255,0.44)",
-          "--grain": "0.035",
-          "--scrim": "rgba(0,0,0,0.09)",
-          "--blur": "10px",
-          "--saturate": "1.35",
+          "--frame": "rgba(255,255,255,0.11)",
+          "--grain": "0.025",
+          "--scrim": "rgba(0,0,0,0.025)",
+          "--blur": "8px",
+          "--saturate": "1.28",
         } as CSSProperties,
         vignette:
           "bg-[radial-gradient(75%_55%_at_50%_42%,transparent,var(--scrim))]",
@@ -119,11 +119,11 @@ function getPhaseTheme(phase: Phase) {
           "--ink-strong": "#f2eee9",
           "--accentA": "#f4d2a0",
           "--accentB": "#be8a55",
-          "--frame": "rgba(30,30,30,0.38)", // 밤엔 유리색 어둡게 → 배경 강조
-          "--grain": "0.05",
-          "--scrim": "rgba(0,0,0,0.14)",
-          "--blur": "12px", // 밤만 약간 더
-          "--saturate": "1.25",
+          "--frame": "rgba(20,20,20,0.12)", // 밤은 살짝만 더 진하게
+          "--grain": "0.04",
+          "--scrim": "rgba(0,0,0,0.03)",
+          "--blur": "10px",
+          "--saturate": "1.18",
         } as CSSProperties,
         vignette:
           "bg-[radial-gradient(75%_55%_at_50%_42%,transparent,var(--scrim))]",
@@ -240,13 +240,13 @@ export default function IntroPage() {
         style={{ backgroundImage: `url(${bgSrc})` }}
       />
 
-      {/* 얕은 스크림 */}
+      {/* 스크림: 아주 약간만 */}
       <div
         aria-hidden
         className="absolute inset-0 -z-10 pointer-events-none"
         style={{
           background:
-            "linear-gradient(to bottom, rgba(255,255,255,0.04), transparent 22%, transparent 78%, rgba(0,0,0,0.06))",
+            "linear-gradient(to bottom, rgba(255,255,255,0.008), transparent 20%, transparent 80%, rgba(0,0,0,0.02))",
           mixBlendMode: "normal",
         }}
       />
@@ -308,8 +308,9 @@ export default function IntroPage() {
           className={[
             "relative w-full max-w-2xl",
             "rounded-[28px] p-6 sm:p-8",
-            "supports-[backdrop-filter]:bg-white/30 bg-white/60",
-            "ring-1 ring-black/10 shadow-[0_22px_70px_rgba(0,0,0,0.18)]",
+            // 카드도 아주 살짝만 불투명
+            "supports-[backdrop-filter]:bg-white/5 bg-white/8",
+            "ring-1 ring-black/5 shadow-[0_22px_70px_rgba(0,0,0,0.14)]",
           ].join(" ")}
           style={{
             background: "var(--frame)",
@@ -319,11 +320,11 @@ export default function IntroPage() {
           role="group"
           aria-label="인트로 카드"
         >
-          {/* 내부 보더 */}
-          <div className="pointer-events-none absolute inset-0 rounded-[26px] ring-1 ring-white/35" />
+          {/* 내부 보더도 살짝만 */}
+          <div className="pointer-events-none absolute inset-0 rounded-[26px] ring-1 ring-white/25" />
 
           {/* 브랜드 */}
-          <div className="flex items-center gap-2 text-[var(--ink)] drop-shadow-[0_0_8px_rgba(216,165,110,0.28)]">
+          <div className="flex items-center gap-2 text-[var(--ink)] drop-shadow-[0_0_6px_rgba(216,165,110,0.24)]">
             <FontAwesomeIcon
               icon={faHeartPulse}
               className="h-5 w-5"
@@ -331,7 +332,7 @@ export default function IntroPage() {
                 animation: prefersReducedMotion
                   ? "none"
                   : "pulseMini 1.8s ease-in-out infinite",
-                filter: "drop-shadow(0 0 6px rgba(184,140,91,0.3))",
+                filter: "drop-shadow(0 0 5px rgba(184,140,91,0.28))",
               }}
               aria-hidden
             />
@@ -356,23 +357,21 @@ export default function IntroPage() {
             />
           </div>
 
-          {/* 랜덤 한 줄 (가로 중앙, 예쁜 폰트 톤) */}
+          {/* 랜덤 한 줄 */}
           <p
             className={[
               "mt-4",
-              "text-center", // ⬅ 가로 중앙
+              "text-center",
               "text-[color:var(--ink)]/80",
               "text-[clamp(14px,2.6vw,18px)]",
               "leading-relaxed",
-              "font-serif", // ⬅ 부드러운 서체 톤 (프로젝트 폰트셋에 맞게 조정)
-              "italic", // ⬅ 은은한 이탤릭
+              "font-serif",
+              "italic",
               "tracking-wide",
-              "drop-shadow-[0_1px_6px_rgba(255,255,255,0.35)]",
+              "drop-shadow-[0_1px_4px_rgba(255,255,255,0.25)]",
             ].join(" ")}
             style={{
-              // 한글 가독 보강(지원 브라우저에서만 적용)
               fontFeatureSettings: "'ss01' on, 'liga' on, 'kern' on",
-              // 너무 얇지 않게
               fontWeight: 500,
             }}
           >
@@ -381,11 +380,23 @@ export default function IntroPage() {
 
           {/* Keyframes */}
           <style>{`
-            @keyframes pulseMini { 0%,100% { transform: scale(1); opacity: .95 } 50% { transform: scale(1.06); opacity: 1 } }
-            @keyframes breathe { 0%,100% { opacity: .7 } 50% { opacity: 1 } }
+            @keyframes pulseMini {
+              0%, 100% { transform: scale(1); opacity: .95 }
+              50% { transform: scale(1.06); opacity: 1 }
+            }
+            @keyframes breathe {
+              0%, 100% { opacity: .7 }
+              50% { opacity: 1 }
+            }
             .animate-breathe { animation: breathe 1.8s ease-in-out infinite; }
-            @keyframes float { 0%,100%{ transform: translateY(-1.2%) } 50%{ transform: translateY(1.2%) } }
-            @keyframes float2{ 0%,100%{ transform: translateY(0.8%) } 50%{ transform: translateY(-0.8%) } }
+            @keyframes float {
+              0%,100%{ transform: translateY(-1.2%) }
+              50%{ transform: translateY(1.2%) }
+            }
+            @keyframes float2{
+              0%,100%{ transform: translateY(0.8%) }
+              50%{ transform: translateY(-0.8%) }
+            }
           `}</style>
         </figure>
       </motion.section>

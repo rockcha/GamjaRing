@@ -40,9 +40,6 @@ function todayAt(hour: number, min = 0, sec = 0, ms = 0, from = new Date()) {
 
 /**
  * 감자링 적금의 납입 윈도우(로컬 09:00 ~ 18:00 가정)
- * - now가 윈도우 이전:   start=today 09:00, end=today 18:00, isOpen=false
- * - now가 윈도우 사이:   start=today 09:00, end=today 18:00, isOpen=true
- * - now가 윈도우 이후:   start=tomorrow 09:00, end=tomorrow 18:00, isOpen=false
  */
 function getDepositWindow(now = new Date()) {
   const startToday = todayAt(9, 0, 0, 0, now);
@@ -116,12 +113,18 @@ export default function AccountCard({ acc, product, onDeposit }: Props) {
   const isMatured = acc.status === "matured";
   const isClosed = acc.status === "closed";
 
-  // ✅ 날짜 조건(isTodayDue) 제거: 윈도우만 열려 있으면 term_days 전까지는 계속 납입 가능
+  // ✅ 오늘 날짜 / 마지막 납입 날짜 비교해서 "오늘 이미 납입했는지" 체크
+  const todayStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const lastPaidStr = acc.last_paid_at ? acc.last_paid_at.slice(0, 10) : null;
+  const alreadyPaidToday = lastPaidStr === todayStr;
+
+  // ✅ 날짜 조건(isTodayDue) 제거 + 오늘 이미 납입했으면 불가
   const canDeposit =
     !isMatured &&
     !isClosed &&
     isDepositWindowOpen() &&
-    acc.paid_days < product.term_days;
+    acc.paid_days < product.term_days &&
+    !alreadyPaidToday;
 
   const dailyCost = acc.daily_amount;
   const lacksGold = (gold ?? 0) < dailyCost;
@@ -222,25 +225,14 @@ export default function AccountCard({ acc, product, onDeposit }: Props) {
     }
   };
 
-  // 납입 가능 시 버튼을 빛나게(펄스 + 글로우)
-  const payBtnGlow =
-    canDeposit && !submitting && !lacksGold
-      ? "animate-pulse ring-2 ring-amber-400/70 shadow-[0_0_24px_rgba(245,158,11,0.35)]"
-      : "";
+  // 납입 가능 시 버튼을 살짝 강조
+  const payBtnGlow = canDeposit && !submitting && !lacksGold ? "shadow-md" : "";
 
   return (
-    <Card
-      className="
-        min-h-[260px]
-        bg-gradient-to-br from-amber-50 via-rose-50 to-sky-50
-        dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-900/70
-        shadow-[0_6px_24px_-12px_rgba(0,0,0,0.08)]
-        border-0 ring-1 ring-border
-      "
-    >
+    <Card className="min-h-[260px] bg-card border rounded-xl shadow-sm">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg md:text-xl font-extrabold tracking-tight">
+          <CardTitle className="text-lg md:text-xl font-semibold tracking-tight">
             {product.name}
           </CardTitle>
           {statusBadge}
@@ -250,9 +242,8 @@ export default function AccountCard({ acc, product, onDeposit }: Props) {
       <CardContent className="space-y-5">
         {/* 📋 계좌/상품 정보 */}
         <section>
-          <div className="mb-2 flex items-center gap-2">
-            <span className="text-base">📋</span>
-            <h3 className="text-sm font-semibold">적금 정보</h3>
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-foreground">적금 정보</h3>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -279,9 +270,8 @@ export default function AccountCard({ acc, product, onDeposit }: Props) {
 
         {/* 🧮 진행률 */}
         <section>
-          <div className="mb-2 flex items-center gap-2">
-            <span className="text-base">🧮</span>
-            <h3 className="text-sm font-semibold">진행률</h3>
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-foreground">진행률</h3>
           </div>
 
           <div className="space-y-2">
@@ -309,13 +299,14 @@ export default function AccountCard({ acc, product, onDeposit }: Props) {
         {!isMatured && !isClosed && (
           <>
             <section>
-              <div className="mb-2 flex items-center gap-2">
-                <span className="text-base">⏰</span>
-                <h3 className="text-sm font-semibold">납입 안내</h3>
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-foreground">
+                  납입 안내
+                </h3>
               </div>
 
               {acc.status === "active" && (
-                <div className="mt-2 rounded-lg border bg-background/70 px-3 py-2 flex items-center justify-between">
+                <div className="mt-2 rounded-lg border bg-muted/40 px-3 py-2 flex items-center justify-between">
                   <span className="text-[12px] text-muted-foreground">
                     {windowOpen ? "납입 마감까지" : "다음 납입 시작까지"}
                   </span>
@@ -337,7 +328,7 @@ export default function AccountCard({ acc, product, onDeposit }: Props) {
             </section>
 
             {/* 💳 결제(골드) 안내 */}
-            <div className="rounded-lg border bg-background px-3 py-2 text-[12px] flex items-center justify-between">
+            <div className="rounded-lg border bg-muted/20 px-3 py-2 text-[12px] flex items-center justify-between">
               <span className="text-muted-foreground">납입 금액</span>
               <span className="tabular-nums font-semibold">
                 🪙{fmt(acc.daily_amount)}
@@ -349,9 +340,10 @@ export default function AccountCard({ acc, product, onDeposit }: Props) {
         {/* 💵 만기 예상/지급 섹션 */}
         {(isMatured || isClosed) && (
           <section>
-            <div className="mb-2 flex items-center gap-2">
-              <span className="text-base">💵</span>
-              <h3 className="text-sm font-semibold">만기 지급</h3>
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">
+                만기 지급
+              </h3>
             </div>
 
             <div className="grid grid-cols-2 gap-2 text-sm">
@@ -361,7 +353,7 @@ export default function AccountCard({ acc, product, onDeposit }: Props) {
                 value={fmt(principal)}
               />
               <InfoTile emoji="📈" title="이자" value={fmt(interest)} />
-              <InfoTile emoji="🎁" title=" 보너스" value={fmt(bonus)} />
+              <InfoTile emoji="🎁" title="보너스" value={fmt(bonus)} />
               <InfoTile
                 emoji="✅"
                 title="지급액 합계"
@@ -393,7 +385,9 @@ export default function AccountCard({ acc, product, onDeposit }: Props) {
               onClick={handleDeposit}
             >
               {!canDeposit
-                ? "지금은 납입 불가"
+                ? alreadyPaidToday
+                  ? "오늘 납입 완료"
+                  : "지금은 납입 불가"
                 : lacksGold
                 ? "골드 부족"
                 : submitting
@@ -401,6 +395,12 @@ export default function AccountCard({ acc, product, onDeposit }: Props) {
                 : "납입하기"}
             </Button>
           </div>
+        )}
+
+        {acc.status === "active" && alreadyPaidToday && (
+          <p className="mt-1 text-[11.5px] text-emerald-600">
+            오늘 납입을 이미 완료했어요. 내일 다시 납입할 수 있어요.
+          </p>
         )}
 
         {acc.status === "active" && !acc.is_perfect && (
@@ -425,12 +425,12 @@ function InfoTile({
   value: string | number;
 }) {
   return (
-    <div className="rounded-xl ring-1 ring-border bg-background/60 backdrop-blur-[2px] p-3 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
+    <div className="rounded-lg border bg-background/60 px-3 py-2">
       <div className="flex items-center gap-2 text-muted-foreground">
-        <span className="text-base">{emoji}</span>
-        <span className="text-[12px] font-semibold">{title}</span>
+        <span className="text-sm">{emoji}</span>
+        <span className="text-[12px] font-medium">{title}</span>
       </div>
-      <div className="mt-1 tabular-nums text-base font-bold">{value}</div>
+      <div className="mt-1 tabular-nums text-base font-semibold">{value}</div>
     </div>
   );
 }
