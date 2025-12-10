@@ -85,6 +85,9 @@ export default function StartEndMemoriesSlider() {
   const hasSlides = slides.length > 0;
   const cur = hasSlides ? slides[idx] : null;
 
+  const prev = () => setIdx((v) => (v - 1 + slides.length) % slides.length);
+  const next = () => setIdx((v) => (v + 1) % slides.length);
+
   // 키보드 네비
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -129,9 +132,6 @@ export default function StartEndMemoriesSlider() {
       el.removeEventListener("touchend", onTouchEnd);
     };
   }, [idx, slides.length]);
-
-  const prev = () => setIdx((v) => (v - 1 + slides.length) % slides.length);
-  const next = () => setIdx((v) => (v + 1) % slides.length);
 
   if (loading) {
     return (
@@ -213,22 +213,23 @@ export default function StartEndMemoriesSlider() {
         </div>
       </header>
 
-      {/* 바디: 이미지 전체 표시 (✔ 액자 테두리만) */}
+      {/* 바디: 사진 영역 1:1 + cover */}
       <div className="relative z-10">
         <div ref={dragRef} className="mx-auto max-w-[900px]">
           <div
             className={cn(
               "relative w-full overflow-hidden rounded-2xl",
-              // ✅ 액자 느낌: 얇은 테두리 + 안쪽 여백
               "border border-border/80 bg-transparent p-2 sm:p-3 shadow-sm"
             )}
-            style={{ aspectRatio: "16 / 9" }}
+            // ✅ 1:1 정사각형 비율
+            style={{ aspectRatio: "1 / 1" }}
           >
             {cur?.src ? (
               <img
                 src={cur.src}
                 alt={cur.title}
-                className="absolute inset-0 m-auto h-full w-full object-contain"
+                // ✅ 박스를 꽉 채우면서 crop되는 느낌
+                className="absolute inset-0 h-full w-full object-cover"
                 draggable={false}
               />
             ) : (

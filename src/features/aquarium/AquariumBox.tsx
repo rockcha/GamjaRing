@@ -126,6 +126,7 @@ function normalizeBand(
   const src = v ?? fb;
   let a = Math.max(0, Math.min(100, Number(src[0])));
   let b = Math.max(0, Math.min(100, Number(src[1])));
+
   if (!Number.isFinite(a) || !Number.isFinite(b)) return fb;
   if (a > b) [a, b] = [b, a];
   if (a === b) b = Math.min(100, a + 1);
@@ -218,7 +219,12 @@ export default function AquariumBox({
       setBgUrl(null);
       setNoTank(false);
       try {
-        if (!coupleId || !tankNo) return;
+        // 커플/탱크 정보 없으면 그냥 스켈레톤 끄고 종료
+        if (!coupleId || !tankNo) {
+          setThemeLoading(false);
+          setBgReady(true);
+          return;
+        }
 
         const { data: tank, error: tErr } = await supabase
           .from("aquarium_tanks")
@@ -230,6 +236,7 @@ export default function AquariumBox({
 
         if (!tank) {
           setNoTank(true);
+          setBgReady(true);
           return;
         }
 
@@ -252,8 +259,9 @@ export default function AquariumBox({
           .maybeSingle();
         if (thErr) throw thErr;
 
-        if (th?.title) setBgUrl(themeImageUrl(th.title));
-        else {
+        if (th?.title) {
+          setBgUrl(themeImageUrl(th.title));
+        } else {
           setBgUrl(
             "data:image/svg+xml;utf8," +
               encodeURIComponent(
@@ -306,7 +314,9 @@ export default function AquariumBox({
         .from("aquarium_entities")
         .select(
           "id, name_ko, rarity, size, swim_y, is_movable, price, glow_color"
-        );
+        )
+        .in("id", ids); // ✅ 인벤토리에 있는 엔티티만 가져오기
+
       if (entErr) throw entErr;
 
       const map: Record<string, EntityRow> = {};
@@ -571,7 +581,7 @@ export default function AquariumBox({
   };
 
   /* ======== render ======== */
-  const showBgSkeleton = themeLoading || !bgUrl || !bgReady;
+  const showBgSkeleton = themeLoading || !bgReady;
 
   return (
     <Card className="rounded-2xl bg-transparent shadow-none border-none">
@@ -611,7 +621,11 @@ export default function AquariumBox({
             <img
               src={bgUrl}
               alt=""
-              className="absolute inset-0 w-full h-full object-cover z-0 select-none pointer-events-none"
+              loading="lazy"
+              className={cn(
+                "absolute inset-0 w-full h-full object-cover z-0 select-none pointer-events-none transition-opacity duration-300",
+                bgReady ? "opacity-100" : "opacity-0"
+              )}
               onLoad={() => setBgReady(true)}
               onError={(e) => {
                 const el = e.currentTarget as HTMLImageElement;

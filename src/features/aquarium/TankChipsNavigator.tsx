@@ -3,7 +3,8 @@
 
 import { useMemo, useRef, useCallback, useState } from "react";
 import { cn } from "@/lib/utils";
-import { Anchor, ChevronDown, ChevronUp, Info, Pencil } from "lucide-react";
+import { Pencil } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type Tank = { tank_no: number; title: string; theme_id: number | null };
 
@@ -11,7 +12,7 @@ type Props = {
   tanks: Tank[];
   idx: number;
   onSelect: (index: number) => void;
-  /** ✅ 새로 추가: 어항 이름 변경 콜백 */
+  /** 어항 이름 변경 콜백 */
   onRename?: (tankNo: number, newTitle: string) => void;
   className?: string;
   density?: "compact" | "cozy" | "comfortable";
@@ -23,12 +24,9 @@ export default function TankChipsNavigator({
   onSelect,
   onRename,
   className,
-  density = "cozy",
+  density = "compact", // ✅ 기본을 compact로
 }: Props) {
-  /** 기본 접힘 */
-  const [open, setOpen] = useState(false);
-
-  /** 스와이프(펼친 상태에서만 인덱스 전환) */
+  /** 스와이프 */
   const [dragging, setDragging] = useState(false);
   const swipeRef = useRef<{ startX: number; lastX: number } | null>(null);
   const [dragDx, setDragDx] = useState(0);
@@ -38,7 +36,7 @@ export default function TankChipsNavigator({
   const MANY_COUNT = 16;
   const [query, setQuery] = useState("");
 
-  /** ✅ 이름 편집 상태 */
+  /** 이름 편집 상태 */
   const [editingTankNo, setEditingTankNo] = useState<number | null>(null);
   const [editValue, setEditValue] = useState("");
 
@@ -63,10 +61,10 @@ export default function TankChipsNavigator({
     [idx, items.length, onSelect]
   );
 
-  /** 키보드 내비 — 펼친 상태에서만 */
+  /** 키보드 내비 */
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
-      if (!open || !items.length) return;
+      if (!items.length) return;
       if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key))
         e.preventDefault();
       if (e.key === "ArrowLeft" && canPrev) setIndex(idx - 1);
@@ -74,23 +72,21 @@ export default function TankChipsNavigator({
       if (e.key === "Home") setIndex(0);
       if (e.key === "End") setIndex(items.length - 1);
     },
-    [open, items.length, idx, canPrev, canNext, setIndex]
+    [items.length, idx, canPrev, canNext, setIndex]
   );
 
-  /** 스와이프 — 펼친 상태에서만 */
+  /** 스와이프 */
   const onPointerDown = (e: React.PointerEvent) => {
-    if (!open) return;
     swipeRef.current = { startX: e.clientX, lastX: e.clientX };
     setDragging(true);
     setDragDx(0);
   };
   const onPointerMove = (e: React.PointerEvent) => {
-    if (!open || !swipeRef.current) return;
+    if (!swipeRef.current) return;
     swipeRef.current.lastX = e.clientX;
     setDragDx(e.clientX - swipeRef.current.startX);
   };
   const endSwipe = () => {
-    if (!open) return;
     if (!swipeRef.current) {
       setDragging(false);
       setDragDx(0);
@@ -121,7 +117,7 @@ export default function TankChipsNavigator({
     if (i >= 0) setIndex(i);
   }, [query, items, setIndex]);
 
-  /** ✅ 이름 편집 시작 */
+  /** 이름 편집 시작 */
   const startEdit = useCallback(
     (tankNo: number) => {
       const target = items.find((t) => t.tank_no === tankNo);
@@ -132,7 +128,7 @@ export default function TankChipsNavigator({
     [items]
   );
 
-  /** ✅ 이름 편집 완료 (저장) */
+  /** 이름 편집 완료 (저장) */
   const finishEdit = useCallback(
     (opts?: { cancel?: boolean }) => {
       if (editingTankNo === null) return;
@@ -149,47 +145,43 @@ export default function TankChipsNavigator({
     [editingTankNo, editValue, onRename]
   );
 
-  /** 밀도 프리셋 (박스형 버튼) */
+  /** 밀도 프리셋 */
   const DENSITY = {
     compact: {
+      boxH: "h-14",
+      boxPx: "px-2.5",
+      boxPy: "py-1.5",
+      title: "text-[11px] sm:text-[12px]",
+      number: "text-[11px]",
+      minW: "min-w-[96px]",
+    },
+    cozy: {
       boxH: "h-16",
       boxPx: "px-3",
       boxPy: "py-2",
-      title: "text-[12px]",
+      title: "text-[12px] sm:text-[13px]",
       number: "text-[11px]",
-      minW: "min-w-[108px]",
+      minW: "min-w-[112px]",
     },
-    cozy: {
-      boxH: "h-18",
+    comfortable: {
+      boxH: "h-16", // ⬅️ h-18 → h-16 로 정리
       boxPx: "px-3.5",
       boxPy: "py-2.5",
       title: "text-[13px] sm:text-[14px]",
       number: "text-[12px]",
       minW: "min-w-[128px]",
     },
-    comfortable: {
-      boxH: "h-20",
-      boxPx: "px-4",
-      boxPy: "py-3",
-      title: "text-[14px] sm:text-[15px]",
-      number: "text-[13px]",
-      minW: "min-w-[148px]",
-    },
   }[density];
 
-  /** 통일된(은은한) 박스 색감 — 전체 동일 팔레트 */
   const BOX_BASE =
     "bg-slate-50/80 dark:bg-slate-900/50 border-slate-200/70 dark:border-white/10 hover:bg-white/90 dark:hover:bg-white/10";
   const BOX_ACTIVE_RING =
     "ring-2 ring-slate-400/40 ring-offset-1 ring-offset-white dark:ring-offset-slate-900";
 
-  /** 접힘 상태에서 보여줄 현재 탱크 정보 */
-  const current = items[idx];
-
   return (
     <div
       className={cn(
-        "w-full rounded-2xl border bg-white/70 backdrop-blur-md",
+        "w-full rounded-2xl bg-white/70 backdrop-blur-md",
         "dark:bg-slate-900/60 dark:border-white/10",
         "shadow-[0_6px_20px_rgba(15,23,42,0.06)]",
         "px-3 pb-3 pt-2",
@@ -200,66 +192,56 @@ export default function TankChipsNavigator({
       onKeyDown={onKeyDown}
       style={{ WebkitTapHighlightColor: "transparent" }}
     >
-      {/* 헤더 */}
-      <div className="px-1 pb-2 flex items-center gap-2">
-        <span className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-slate-200/70 dark:border-white/10">
-          <Anchor className="h-[14px] w-[14px] text-slate-600 dark:text-slate-300" />
-        </span>
-        <h3 className="font-semibold text-sm leading-5">탱크 선택</h3>
-      </div>
+      <div
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endSwipe}
+        onPointerCancel={onPointerCancel}
+        className={cn(
+          "rounded-xl border bg-white/60 dark:bg-slate-900/50 px-2 py-2",
+          dragging && "select-none"
+        )}
+        style={{
+          transform: `translateX(${dragging ? dragDx * 0.06 : 0}px)`,
+          transition: dragging ? "none" : "transform 160ms ease",
+          touchAction: "pan-y",
+        }}
+      >
+        {/* 검색/점프: 많을 때만 */}
+        {items.length >= MANY_COUNT && (
+          <div className="mb-2 flex flex-wrap gap-2 items-center px-1">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && jumpToMatch()}
+              placeholder="검색: 이름 또는 #번호"
+              className="h-8 w-40 rounded-md border px-2 text-xs bg-white/80 dark:bg-slate-900/70 outline-none"
+            />
+            <select
+              className="h-8 rounded-md border px-2 text-xs bg-white/80 dark:bg-slate-900/70 outline-none"
+              value={idx}
+              onChange={(e) => setIndex(Number(e.target.value))}
+              title="탱크로 점프"
+            >
+              {items.map((t, i) => (
+                <option key={t.tank_no} value={i}>
+                  #{t.tank_no} · {t._title}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={jumpToMatch}
+              className="h-8 rounded-md border bg-white/85 hover:bg-white px-2 text-xs active:scale-95 transition"
+              aria-label="검색 이동"
+            >
+              이동
+            </button>
+          </div>
+        )}
 
-      {/* 본문 */}
-      {open ? (
-        // ✅ 펼친 상태
-        <div
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={endSwipe}
-          onPointerCancel={onPointerCancel}
-          className={cn(
-            "rounded-xl border bg-white/60 dark:bg-slate-900/50 px-2 py-2",
-            dragging && "select-none"
-          )}
-          style={{
-            transform: `translateX(${dragging ? dragDx * 0.06 : 0}px)`,
-            transition: dragging ? "none" : "transform 160ms ease",
-            touchAction: "pan-y",
-          }}
-        >
-          {/* 검색/점프: 펼친 상태 + 많을 때만 */}
-          {items.length >= MANY_COUNT && (
-            <div className="mb-2 hidden md:flex items-center gap-2 px-1">
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && jumpToMatch()}
-                placeholder="검색: 이름 또는 #번호"
-                className="h-8 w-44 rounded-md border px-2 text-sm bg-white/80 dark:bg-slate-900/70 outline-none"
-              />
-              <select
-                className="h-8 rounded-md border px-2 text-sm bg-white/80 dark:bg-slate-900/70 outline-none"
-                value={idx}
-                onChange={(e) => setIndex(Number(e.target.value))}
-                title="탱크로 점프"
-              >
-                {items.map((t, i) => (
-                  <option key={t.tank_no} value={i}>
-                    #{t.tank_no} · {t._title}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={jumpToMatch}
-                className="h-8 rounded-md border bg-white/85 hover:bg-white px-2 text-sm active:scale-95 transition"
-                aria-label="검색 이동"
-              >
-                이동
-              </button>
-            </div>
-          )}
-
-          {/* 어항 목록 그리드 */}
+        {/* ✅ 스크롤 영역: 요소 넘치면 세로 스크롤 */}
+        <ScrollArea className="mt-1 h-[280px] pr-1">
           <div
             role="tablist"
             aria-label="어항 목록"
@@ -267,8 +249,8 @@ export default function TankChipsNavigator({
               items[idx]?.tank_no ? `tank-${items[idx].tank_no}` : undefined
             }
             className={cn(
-              "grid gap-2",
-              "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+              "grid gap-1.5 sm:gap-2",
+              "grid-cols-2 sm:grid-cols-3 md:grid-cols-4"
             )}
           >
             {items.map((t, i) => {
@@ -296,23 +278,22 @@ export default function TankChipsNavigator({
                     "outline-none focus-visible:outline-none ring-0 focus:ring-0 active:ring-0",
                     active &&
                       cn(
-                        "shadow-[0_6px_16px_rgba(15,23,42,0.06)]",
+                        "shadow-[0_4px_10px_rgba(15,23,42,0.06)]",
                         BOX_ACTIVE_RING
                       )
                   )}
                   style={{ WebkitTapHighlightColor: "transparent" }}
                 >
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center justify-between mb-0.5">
                     <span
                       className={cn("font-medium tabular-nums", DENSITY.number)}
                     >
                       #{t.tank_no}
                     </span>
-                    {/* ✅ 이름 변경 버튼 (연필) */}
                     {onRename && (
                       <button
                         type="button"
-                        className="inline-flex items-center justify-center rounded-md px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity text-[11px]"
+                        className="inline-flex items-center justify-center rounded-md px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity text-[10px]"
                         onClick={(e) => {
                           e.stopPropagation();
                           startEdit(t.tank_no);
@@ -325,7 +306,7 @@ export default function TankChipsNavigator({
                     <span className="sr-only">{active ? "선택됨" : ""}</span>
                   </div>
 
-                  {/* ✅ 이름 영역: 보기 vs 편집 */}
+                  {/* 이름 영역: 보기 vs 편집 */}
                   {isEditing ? (
                     <div
                       className="mt-0.5"
@@ -347,7 +328,7 @@ export default function TankChipsNavigator({
                           }
                         }}
                         className={cn(
-                          "w-full rounded-md border px-1.5 py-0.5 text-xs",
+                          "w-full rounded-md border px-1.5 py-0.5 text-[11px]",
                           "bg-white/90 dark:bg-slate-900/80 outline-none"
                         )}
                         placeholder={`${t.tank_no}번 어항`}
@@ -356,7 +337,7 @@ export default function TankChipsNavigator({
                   ) : (
                     <div
                       className={cn(
-                        "line-clamp-2 leading-5",
+                        "line-clamp-2 leading-4",
                         DENSITY.title,
                         active ? "font-semibold" : "font-medium"
                       )}
@@ -368,61 +349,7 @@ export default function TankChipsNavigator({
               );
             })}
           </div>
-        </div>
-      ) : (
-        // ✅ 접힌 상태: 현재 탱크 정보를 예쁘게 표시 + Tip
-        <div className="rounded-xl border bg-white/60 dark:bg-slate-900/50 px-4 py-5">
-          <div className="flex flex-col items-center gap-3 text-center">
-            {/* 현재 탱크 라벨 */}
-            <div
-              className={cn(
-                "inline-flex items-center gap-2 px-3 py-1.5",
-                "bg-white/90 dark:bg-slate-900/70"
-              )}
-              title={`현재 탱크: #${current?.tank_no ?? "-"} ${
-                current?._title ?? ""
-              }`}
-            >
-              <span className="text-lg font-semibold">현재 어항 :</span>
-              <span className="text-2xl text-blue-500 font-semibold max-w-[60vw] sm:max-w-[40vw] truncate">
-                #{current?.tank_no} {current?._title ?? "이름 없는 어항"}
-              </span>
-            </div>
-
-            {/* ✅ 작은 안내 텍스트 */}
-            <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-              <Info className="h-3.5 w-3.5" />
-              <span>
-                아래 버튼을 눌러 어항 목록을 펼치고 이름을 수정할 수 있어요.
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ✅ 단일 토글 버튼(아래쪽) */}
-      <div className="mt-3 flex justify-center">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className={cn(
-            "group inline-flex items-center justify-center gap-2 rounded-full border px-5 h-11",
-            "bg-gradient-to-b from-white/95 to-white/85 dark:from-slate-900/80 dark:to-slate-900/70",
-            "hover:from-white hover:to-white dark:hover:from-slate-900 dark:hover:to-slate-900",
-            "shadow-[0_6px_16px_rgba(0,0,0,0.06)] active:scale-[0.98]",
-            "transition-colors"
-          )}
-          aria-expanded={open}
-        >
-          {open ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : (
-            <ChevronDown className="h-4 w-4" />
-          )}
-          <span className="text-sm font-medium">
-            {open ? "접기" : "어항 목록 펼치기"}
-          </span>
-        </button>
+        </ScrollArea>
       </div>
     </div>
   );

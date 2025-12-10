@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import supabase from "@/lib/supabase";
 import { useCoupleContext } from "@/contexts/CoupleContext";
-import { Anchor, Info } from "lucide-react";
+import { Anchor, Info, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   TooltipProvider,
   Tooltip,
@@ -44,6 +45,10 @@ type DbEntity = {
   description: string | null;
 };
 
+type RarityFilter = "전체" | FishRarity;
+
+type ImageLoadedMap = Record<string, boolean>;
+
 /* ─ Helpers ─ */
 const RARITY_CAPTURE: Record<FishRarity, number> = {
   일반: 0.26,
@@ -61,19 +66,40 @@ function rarityDir(r: FishRarity) {
     ? "epic"
     : "legend";
 }
-function parseInt4Range(lit: string | null | undefined): [number, number] {
-  if (!lit) return [30, 70];
-  const m = lit.match(/(-?\d+)\s*[,]\s*(-?\d+)/);
-  return m ? [parseInt(m[1], 10), parseInt(m[2], 10)] : [30, 70];
-}
+
 function buildImageSrc(id: string, rarity: FishRarity) {
   return `/aquarium/${rarityDir(rarity)}/${id}.png`;
 }
+
 const fmt = (n: number | null | undefined) =>
   typeof n === "number" && isFinite(n) ? n.toLocaleString("ko-KR") : "—";
 
-type RarityFilter = "전체" | FishRarity;
+const rarityRank: Record<FishRarity, number> = {
+  일반: 0,
+  희귀: 1,
+  에픽: 2,
+  전설: 3,
+};
 
+const rarityBadgeCls = (r: FishRarity) =>
+  r === "일반"
+    ? "bg-neutral-100 text-neutral-900 border border-neutral-200"
+    : r === "희귀"
+    ? "bg-sky-100 text-sky-900 border border-sky-200"
+    : r === "에픽"
+    ? "bg-violet-100 text-violet-900 border border-violet-200"
+    : "bg-amber-100 text-amber-900 border border-amber-200";
+
+const rarityCardBg = (r: FishRarity) =>
+  r === "일반"
+    ? "bg-neutral-50 border-neutral-200"
+    : r === "희귀"
+    ? "bg-sky-50 border-sky-200"
+    : r === "에픽"
+    ? "bg-violet-50 border-violet-200"
+    : "bg-amber-50 border-amber-200";
+
+/* ─ Component ─ */
 export default function MarineDexModal() {
   const { couple } = useCoupleContext();
   const coupleId = couple?.id ?? null;
@@ -87,6 +113,22 @@ export default function MarineDexModal() {
   const [caughtCountMap, setCaughtCountMap] = useState<Map<string, number>>(
     new Map()
   );
+
+  // 개별 이미지 로딩 상태
+  const [imageLoadedMap, setImageLoadedMap] = useState<ImageLoadedMap>({});
+
+  const handleImageLoaded = (id: string) => {
+    setImageLoadedMap((prev) => ({
+      ...prev,
+      [id]: true,
+    }));
+  };
+
+  const handleImageError = (ev: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = ev.currentTarget;
+    img.onerror = null;
+    img.src = "/aquarium/placeholder.png";
+  };
 
   // 1) 도감 전체 목록 (처음 열 때 1회 로드)
   useEffect(() => {
@@ -136,16 +178,11 @@ export default function MarineDexModal() {
     })();
   }, [open, coupleId]);
 
-  // 정렬/필터
+  // 정렬/필터된 리스트
   const list = useMemo(() => {
     const filtered =
       rarity === "전체" ? rows : rows.filter((f) => f.rarity === rarity);
-    const rarityRank: Record<FishRarity, number> = {
-      일반: 0,
-      희귀: 1,
-      에픽: 2,
-      전설: 3,
-    };
+
     const priceNum = (n: number | null | undefined) =>
       typeof n === "number" && isFinite(n) ? n : Number.POSITIVE_INFINITY;
 
@@ -153,9 +190,11 @@ export default function MarineDexModal() {
       const pa = priceNum(a.price);
       const pb = priceNum(b.price);
       if (pa !== pb) return pa - pb;
-      const ra = rarityRank[a.rarity],
-        rb = rarityRank[b.rarity];
+
+      const ra = rarityRank[a.rarity];
+      const rb = rarityRank[b.rarity];
       if (ra !== rb) return ra - rb;
+
       const an = a.name_ko ?? a.id;
       const bn = b.name_ko ?? b.id;
       return an.localeCompare(bn, "ko");
@@ -175,24 +214,6 @@ export default function MarineDexModal() {
     return { caughtCount: caught, totalCount: total, labelForStat: label };
   }, [rows, rarity, caughtCountMap]);
 
-  const rarityBadgeCls = (r: FishRarity) =>
-    r === "일반"
-      ? "bg-neutral-100 text-neutral-900 border border-neutral-200"
-      : r === "희귀"
-      ? "bg-sky-100 text-sky-900 border border-sky-200"
-      : r === "에픽"
-      ? "bg-violet-100 text-violet-900 border border-violet-200"
-      : "bg-amber-100 text-amber-900 border border-amber-200";
-
-  const rarityCardBg = (r: FishRarity) =>
-    r === "일반"
-      ? "bg-neutral-50 border-neutral-200"
-      : r === "희귀"
-      ? "bg-sky-50 border-sky-200"
-      : r === "에픽"
-      ? "bg-violet-50 border-violet-200"
-      : "bg-amber-50 border-amber-200";
-
   const filters: RarityFilter[] = ["전체", "일반", "희귀", "에픽", "전설"];
 
   const captureHeader =
@@ -205,6 +226,8 @@ export default function MarineDexModal() {
         </b>
       </div>
     );
+
+  const isInitialLoading = loading && rows.length === 0;
 
   return (
     <>
@@ -230,7 +253,7 @@ export default function MarineDexModal() {
                   모든 어종을 한눈에 보고, 등급별로 탐색해 보세요.
                 </p>
               </div>
-              {/* 상단 X 버튼 제거 */}
+              {/* 상단 X 버튼 제거 (Dialog 자체 onOpenChange 사용) */}
             </div>
           </DialogHeader>
 
@@ -258,9 +281,11 @@ export default function MarineDexModal() {
               </ToggleGroup>
 
               <div className="flex items-center">{captureHeader}</div>
+
               {loading && (
-                <div className="text-xs text-muted-foreground">
-                  불러오는 중…
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <span>불러오는 중…</span>
                 </div>
               )}
               {err && (
@@ -273,105 +298,141 @@ export default function MarineDexModal() {
             {/* List */}
             <TooltipProvider delayDuration={120}>
               <ScrollArea className="h-[64vh] rounded-lg border">
-                <div className="p-3 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-                  {list.map((f) => {
-                    const imgSrc = buildImageSrc(f.id, f.rarity);
-                    const [_y1, _y2] = parseInt4Range(f.swim_y);
-                    const caughtCount = caughtCountMap.get(f.id) ?? 0;
-                    const isCaught = caughtCount > 0;
-
-                    const imgDimCls = isCaught
-                      ? ""
-                      : "grayscale brightness-50 contrast-150 opacity-25";
-
-                    const CardBody = (
+                {/* 초기 데이터 로딩 시 Skeleton 카드 */}
+                {isInitialLoading ? (
+                  <div className="p-3 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+                    {Array.from({ length: 8 }).map((_, idx) => (
                       <Card
-                        key={f.id}
-                        className={`overflow-hidden border-2 ${rarityCardBg(
-                          f.rarity
-                        )}`}
+                        key={idx}
+                        className="overflow-hidden border-2 bg-neutral-50 border-neutral-200"
                       >
-                        <div className="relative">
-                          <AspectRatio ratio={1}>
-                            <img
-                              src={imgSrc}
-                              alt={f.name_ko ?? f.id}
-                              className={`absolute inset-0 h-full w-full object-contain ${imgDimCls}`}
-                              draggable={false}
-                              loading="lazy"
-                              // 기본 브라우저 title 툴팁 제거
-                              onError={(ev) => {
-                                (ev.currentTarget as HTMLImageElement).onerror =
-                                  null;
-                                (ev.currentTarget as HTMLImageElement).src =
-                                  "/aquarium/placeholder.png";
-                              }}
-                            />
-                          </AspectRatio>
-
-                          {/* 좌상단 희귀도 배지 */}
-                          <div className="absolute left-2 top-2">
-                            <Badge
-                              className={`rounded-full text-[11px] font-semibold ${rarityBadgeCls(
-                                f.rarity
-                              )}`}
-                            >
-                              {f.rarity}
-                            </Badge>
-                          </div>
-
-                          {/* 우상단 가격(골드) 고정 */}
-                          <div className="absolute right-2 top-2">
-                            <Badge
-                              variant="secondary"
-                              className="rounded-full px-2.5 py-1 text-[11px] bg-white/85 backdrop-blur border border-white/60 shadow-sm"
-                              title="가격"
-                            >
-                              <span
-                                role="img"
-                                aria-label="gold"
-                                className="mr-1"
-                              >
-                                🪙
-                              </span>
-                              <span className="tabular-nums">
-                                {fmt(f.price)}
-                              </span>
-                            </Badge>
-                          </div>
-                        </div>
-
+                        <AspectRatio ratio={1}>
+                          <Skeleton className="h-full w-full" />
+                        </AspectRatio>
                         <CardContent className="p-3">
-                          {/* 이름: 하단 중앙 정렬 */}
-                          <div className="flex items-center justify-center">
-                            <span className="text-sm font-medium tracking-wide text-zinc-900">
-                              {f.name_ko ?? f.id}
-                            </span>
-                          </div>
+                          <Skeleton className="h-4 w-3/4 mx-auto" />
                         </CardContent>
                       </Card>
-                    );
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-3 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+                    {list.map((f) => {
+                      const imgSrc = buildImageSrc(f.id, f.rarity);
+                      const caughtCount = caughtCountMap.get(f.id) ?? 0;
+                      const isCaught = caughtCount > 0;
 
-                    // 설명이 있으면 카드 전체를 TooltipTrigger로 감싸기
-                    return f.description ? (
-                      <Tooltip key={f.id}>
-                        <TooltipTrigger asChild>
-                          <div className="cursor-help">{CardBody}</div>
-                        </TooltipTrigger>
-                        <TooltipContent
-                          side="top"
-                          align="center"
-                          sideOffset={10}
-                          className="max-w-80 whitespace-pre-wrap break-words leading-relaxed text-[12px]"
+                      const imgDimCls = isCaught
+                        ? ""
+                        : "grayscale brightness-50 contrast-150 opacity-25";
+
+                      const isImageLoaded = !!imageLoadedMap[f.id];
+
+                      const CardBody = (
+                        <Card
+                          className={`overflow-hidden border-2 ${rarityCardBg(
+                            f.rarity
+                          )}`}
                         >
-                          {f.description}
-                        </TooltipContent>
-                      </Tooltip>
-                    ) : (
-                      CardBody
-                    );
-                  })}
-                </div>
+                          <div className="relative">
+                            <AspectRatio ratio={1}>
+                              {/* 이미지 로딩 중일 때 보여줄 Skeleton + 스피너 */}
+                              {!isImageLoaded && (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 backdrop-blur-sm animate-pulse">
+                                  <Loader2 className="h-5 w-5 animate-spin text-zinc-400 mb-1" />
+                                  <span className="text-[10px] text-zinc-500">
+                                    사진 가져오는 중...
+                                  </span>
+                                </div>
+                              )}
+
+                              <img
+                                src={imgSrc}
+                                alt={f.name_ko ?? f.id}
+                                className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-300 ${
+                                  isImageLoaded ? "opacity-100" : "opacity-0"
+                                } ${imgDimCls}`}
+                                draggable={false}
+                                loading="lazy"
+                                onLoad={() => handleImageLoaded(f.id)}
+                                onError={(ev) => {
+                                  handleImageLoaded(f.id);
+                                  handleImageError(ev);
+                                }}
+                              />
+                            </AspectRatio>
+
+                            {/* 좌상단 희귀도 배지 */}
+                            <div className="absolute left-2 top-2">
+                              <Badge
+                                className={`rounded-full text-[11px] font-semibold ${rarityBadgeCls(
+                                  f.rarity
+                                )}`}
+                              >
+                                {f.rarity}
+                              </Badge>
+                            </div>
+
+                            {/* 우상단 가격(골드) 고정 */}
+                            <div className="absolute right-2 top-2">
+                              <Badge
+                                variant="secondary"
+                                className="rounded-full px-2.5 py-1 text-[11px] bg-white/85 backdrop-blur border border-white/60 shadow-sm"
+                                title="가격"
+                              >
+                                <span
+                                  role="img"
+                                  aria-label="gold"
+                                  className="mr-1"
+                                >
+                                  🪙
+                                </span>
+                                <span className="tabular-nums">
+                                  {fmt(f.price)}
+                                </span>
+                              </Badge>
+                            </div>
+                          </div>
+
+                          <CardContent className="p-3">
+                            {/* 이름: 하단 중앙 정렬 */}
+                            <div className="flex items-center justify-center">
+                              <span className="text-sm font-medium tracking-wide text-zinc-900">
+                                {f.name_ko ?? f.id}
+                              </span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+
+                      // 설명이 있으면 카드 전체를 TooltipTrigger로 감싸기
+                      return f.description ? (
+                        <Tooltip key={f.id}>
+                          <TooltipTrigger asChild>
+                            <div className="cursor-help">{CardBody}</div>
+                          </TooltipTrigger>
+                          <TooltipContent
+                            side="top"
+                            align="center"
+                            sideOffset={10}
+                            className="max-w-80 whitespace-pre-wrap break-words leading-relaxed text-[12px]"
+                          >
+                            {f.description}
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <div key={f.id}>{CardBody}</div>
+                      );
+                    })}
+
+                    {/* 리스트가 비어 있을 때 안내 */}
+                    {!isInitialLoading && list.length === 0 && (
+                      <div className="col-span-full py-8 text-center text-sm text-muted-foreground">
+                        표시할 해양 생물이 없어요.
+                      </div>
+                    )}
+                  </div>
+                )}
               </ScrollArea>
             </TooltipProvider>
 
