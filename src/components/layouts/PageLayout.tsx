@@ -1,6 +1,6 @@
-// src/layouts/PageLayout.tsx
+// src/components/layouts/PageLayout.tsx
 import * as React from "react";
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import "@/lib/fontawesome";
 
 import AppHeader from "./AppHeader";
@@ -14,11 +14,8 @@ type PageLayoutProps = {
 
 /** ✅ 고정 베이지톤 테마 (시간/쿼리 영향 X) */
 const THEME = {
-  // 크리미 베이지 → 소프트 코랄로 부드럽게 떨어지는 그라데이션
   base: "bg-gradient-to-b from-[#FFF7ED] via-[#FFE7CC] to-[#FFD7B3]", // almond → peach → apricot
-  // 텍스트는 따뜻한 다크브라운
   text: "text-[#2B1F16]",
-  // 메시 블롭(라디얼) 오버레이: 밝은 크림 + 코랄 살짝
   blobs: [
     {
       className:
@@ -39,10 +36,9 @@ export default function PageLayout({
   title = "감자링",
   sessionHeaderKey = "app:nextHeader",
 }: PageLayoutProps) {
-  const navigate = useNavigate();
   const { pathname } = useLocation();
 
-  // ✅ 경로 → 타이틀 매핑 (그대로 유지)
+  // ✅ 경로 → 타이틀 매핑
   const titleMap: Record<string, string> = {
     "/main": "감자링",
     "/info": "감자링이란?",
@@ -109,42 +105,44 @@ export default function PageLayout({
   }, [routeTitle]);
 
   return (
-    <div
-      className={[
-        "relative min-h-[100svh] max-w-screen-2xl mx-auto overflow-hidden",
-        THEME.base,
-        THEME.text,
-      ].join(" ")}
-    >
-      {/* 메시 블롭 오버레이 (빛 번짐) */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 mix-blend-soft-light"
-      >
-        {THEME.blobs.map((b, i) => (
-          <div
-            key={i}
-            className={`absolute inset-0 ${b.className} opacity-95`}
-          />
-        ))}
-        {/* 가장자리 비네트 살짝 (가독 보정) */}
-        <div className="absolute inset-0 bg-[radial-gradient(120rem_120rem_at_50%_120%,transparent,rgba(0,0,0,0.08))]" />
-      </div>
-
-      {/* 고정 헤더 */}
+    // ✅ 전체 배경은 최상단 div에서 처리 (헤더 포함)
+    <div className={["min-h-[100svh]", THEME.base, THEME.text].join(" ")}>
+      {/* ✅ fixed 헤더 */}
       <AppHeader routeTitle={routeTitle} />
 
-      <QuickMenu />
-      <HomeFabButton tone="daily" position="bottom-right" />
+      {/* ✅ 실제 콘텐츠 래퍼 (max-width / overflow는 여기서만) */}
+      <div className="relative max-w-screen-2xl mx-auto overflow-hidden">
+        {/* 메시 블롭 오버레이 (빛 번짐) */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 mix-blend-soft-light"
+        >
+          {THEME.blobs.map((b, i) => (
+            <div
+              key={i}
+              className={`absolute inset-0 ${b.className} opacity-95`}
+            />
+          ))}
+          {/* 가장자리 비네트 살짝 (가독 보정) */}
+          <div className="absolute inset-0 bg-[radial-gradient(120rem_120rem_at_50%_120%,transparent,rgba(0,0,0,0.08))]" />
+        </div>
 
-      {/* 본문 */}
-      <main
-        id="main"
-        className="mx-auto flex min-h-[calc(100vh-9rem)] w-full max-w-screen-2xl items-center justify-center px-2 mt-4"
-        aria-label="Theme: beige-fixed"
-      >
-        <Outlet />
-      </main>
+        <QuickMenu />
+        <HomeFabButton tone="daily" position="bottom-right" />
+
+        {/* ✅ 헤더 바로 밑에서부터 콘텐츠 시작 (헤더 높이만큼만 padding-top) */}
+        <main
+          id="main"
+          className="relative mx-auto w-full max-w-screen-2xl px-3 sm:px-4 pb-8"
+          style={{
+            // AppHeader에서 --app-header-height를 갱신해 줌
+            paddingTop: "calc(var(--app-header-height, 260px) + 1rem)",
+          }}
+          aria-label="Theme: beige-fixed"
+        >
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

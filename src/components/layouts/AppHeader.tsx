@@ -1,7 +1,14 @@
 // src/components/layouts/AppHeader.tsx
 "use client";
 
-import React, { memo, Suspense, useEffect, useState } from "react";
+import React, {
+  memo,
+  Suspense,
+  useEffect,
+  useState,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/contexts/UserContext";
 import { useCoupleContext } from "@/contexts/CoupleContext";
@@ -32,13 +39,19 @@ import SlotSpinButton from "../widgets/SlotSpinButton";
 const container = "mx-auto w-full max-w-screen-2xl px-3 sm:px-4";
 const railGap = "gap-2 md:gap-3";
 const iconBtn =
-  "inline-flex items-center justify-center h-8 w-8 rounded-lg ring-1 ring-transparent hover:ring-neutral-200/80 hover:bg-white/60 transition " +
-  "outline-none focus-visible:ring-2 focus-visible:ring-rose-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-white " +
-  "dark:focus-visible:ring-offset-neutral-900 motion-safe:active:scale-[0.98] motion-safe:hover:scale-[1.03]";
+  "inline-flex items-center justify-center h-8 w-8 rounded-lg " +
+  "ring-1 ring-transparent hover:ring-neutral-200/80 hover:bg-white/60 transition " +
+  "outline-none focus-visible:ring-2 focus-visible:ring-rose-400/70 focus-visible:ring-offset-2 " +
+  "focus-visible:ring-offset-white dark:focus-visible:ring-offset-neutral-900 " +
+  "motion-safe:active:scale-[0.98] motion-safe:hover:scale-[1.03]";
+
+const dividerVertical =
+  "h-6 w-px bg-gradient-to-b from-transparent via-neutral-300/60 to-transparent";
 
 /* ───────────────────────── 스크롤 시 컴팩트 헤더 ───────────────────────── */
 function useCompactHeader(threshold = 10) {
   const [compact, setCompact] = useState(false);
+
   useEffect(() => {
     const onScroll = () => {
       setCompact(window.scrollY > threshold);
@@ -47,6 +60,7 @@ function useCompactHeader(threshold = 10) {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, [threshold]);
+
   return compact;
 }
 
@@ -217,21 +231,46 @@ export default function AppHeader({
   useCoupleContext();
 
   const isCompact = useCompactHeader(12);
+  const headerRef = useRef<HTMLElement | null>(null);
+
+  // ✅ 헤더 실제 높이를 CSS 변수로 반영 → PageLayout의 paddingTop과 동기화
+  useLayoutEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+
+    const updateHeight = () => {
+      const h = el.offsetHeight;
+      document.documentElement.style.setProperty(
+        "--app-header-height",
+        `${h}px`
+      );
+    };
+
+    updateHeight();
+
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(el);
+
+    window.addEventListener("resize", updateHeight);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateHeight);
+    };
+  }, []);
 
   return (
     <header
+      ref={headerRef}
       data-compact={isCompact ? "y" : "n"}
       className={cn(
-        "sticky top-0 z-40 transition-[padding,box-shadow,backdrop-filter] duration-300",
-        // 배경/블러/그라데이션 헤어라인
+        "app-header-root", // ✅ 전용 클래스 (CSS에서 fixed !important 처리)
+        "fixed inset-x-0 top-0 z-40",
         "bg-white/55 dark:bg-neutral-900/55",
         "backdrop-blur-md supports-[backdrop-filter]:bg-white/45",
-        // 라인/그림자
         "ring-1 ring-neutral-200/70 dark:ring-neutral-800/70",
         "shadow-[0_8px_30px_-12px_rgba(0,0,0,0.18)]",
-        // 라운딩·세이프에어리어
         "rounded-b-2xl pt-[env(safe-area-inset-top)]",
-        // 컴팩트 높이
+        "transition-[padding,box-shadow,backdrop-filter] duration-300",
         "data-[compact=y]:py-1 data-[compact=n]:py-2",
         "overflow-x-hidden relative",
         className
@@ -264,7 +303,7 @@ export default function AppHeader({
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px" />
         <div className={cn(container, "py-2")}>
           <div className={cn("flex items-center", "gap-2 px-0 py-0")}>
-            {/* 좌측 버튼들(배경 없음, hover에서 약한 테두리) */}
+            {/* 좌측 버튼들 */}
             <div className="flex items-center gap-1.5 pl-1">
               <div className={iconBtn}>
                 <NoticeCenterFloatingButton />
@@ -280,14 +319,14 @@ export default function AppHeader({
               </div>
             </div>
 
-            <div className="h-6 w-px bg-gradient-to-b from-transparent via-neutral-300/60 to-transparent" />
+            <div className={dividerVertical} />
 
             {/* Question pill만 흰 배경 */}
-            <div className="min-w-0 flex-1 border rounded-lg">
+            <div className="min-w-0 flex-1 border rounded-lg bg-white/80 dark:bg-neutral-900/80">
               <TodayQuestionInline />
             </div>
 
-            <div className="h-6 w-px bg-gradient-to-b from-transparent via-neutral-300/60 to-transparent" />
+            <div className={dividerVertical} />
 
             {/* 우측 버튼들 */}
             <div className="flex items-center gap-1.5 pl-1">

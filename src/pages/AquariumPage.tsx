@@ -6,7 +6,7 @@ import supabase from "@/lib/supabase";
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { PlusCircle, Info, Store, BookOpenText } from "lucide-react";
+import { PlusCircle, Info, Store, BookOpenText, Settings2 } from "lucide-react";
 
 import AquariumBox from "@/features/aquarium/AquariumBox";
 import ThemeShopButton from "@/features/aquarium/ThemeShopButton";
@@ -24,8 +24,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-/* 상단 가로 네비게이터(스와이프 칩) */
-import TankChipsNavigator from "@/components/widgets/TankChipsNavigator";
+/* 모달용 탱크 네비게이터 (Dialog까지 포함된 버전) */
+import TankChipsNavigatorDialog from "@/features/aquarium/TankChipsNavigatorDialog";
 
 /** 어항 가격 (RPC 파라미터로 전달) */
 const TANK_PRICE = 200;
@@ -56,7 +56,7 @@ function AquariumPage() {
   const [showBg, setShowBg] = useState(true);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /** AquariumBox에서 준비 완료 시 호출 (옵션) */
+  /** AquariumBox에서 준비 완료 시 호출 (옵션) — 지금은 폴백 위주로 사용 중 */
   const handleAquariumReady = () => {
     if (hideTimerRef.current) {
       clearTimeout(hideTimerRef.current);
@@ -187,8 +187,8 @@ function AquariumPage() {
     };
   }, [cur?.tank_no]);
 
-  /** 프레임 규격 */
-  const AQUARIUM_HEIGHT_VH = 68;
+  /** 프레임 규격 (높이 보장) */
+  const AQUARIUM_HEIGHT_VH = 80; // ⬆️ 기존보다 높이만 늘림
   const AQUARIUM_WIDTH_CSS = "min(100%, calc(85vw))";
 
   const frameStyle = useMemo(
@@ -200,28 +200,30 @@ function AquariumPage() {
     []
   );
 
+  /** 네비게이터용 탱크 리스트 (title fallback 포함) */
+  const tankNavItems = useMemo(
+    () =>
+      tanks.map((t) => ({
+        tank_no: t.tank_no,
+        title: t.title ?? `${t.tank_no}번 어항`,
+        theme_id: t.theme_id,
+      })),
+    [tanks]
+  );
+
   return (
     <div className="min-h-[calc(100svh-64px)] w-full flex flex-col">
-      <div className="relative mx-2 sm:mx-6 lg:mx-20 mt-2 sm:mt-4">
-        {/* 상단: 가로 네비게이터 */}
-        <div className="mb-3 sm:mb-4 sticky top-16 z-40">
-          <TankChipsNavigator
-            className={cn(
-              "rounded-2xl border bg-white/70 dark:bg-slate-900/60 backdrop-blur",
-              "px-3 py-2"
-            )}
-            tanks={tanks}
-            idx={idx}
-            onSelect={(i) => setIdx(i)}
-            /** ✅ 이름 변경 콜백 연결 */
-            onRename={handleRenameTank}
-          />
-        </div>
-
+      <div className="relative mx-2 sm:mx-6 lg:mx-20 mt-2 sm:mt-4 space-y-3 sm:space-y-4">
         {/* 메인 프레임 컨테이너 */}
         {cur ? (
           <div
-            className="relative mx-auto rounded-2xl overflow-hidden will-change-transform transform-gpu ring-1 ring-white/20 bg-white/5 backdrop-blur-[2px] transition-transform duration-200"
+            className={cn(
+              "relative mx-auto rounded-2xl overflow-hidden",
+              "will-change-transform transform-gpu ring-1 ring-white/20",
+              "bg-white/5 backdrop-blur-[2px]",
+              // ⬆️ 최소 높이도 살짝 키움
+              "min-h-[520px] sm:min-h-[580px]"
+            )}
             style={frameStyle}
           >
             {/* Overlays */}
@@ -243,11 +245,11 @@ function AquariumPage() {
               <div className="h-full w-full bg-[url('/aquarium/aquarium_background.png')] bg-cover bg-center" />
             </div>
 
-            {/* 본체 */}
+            {/* 본체 (부모가 사이즈를 잡고, 내부는 100% 채우도록) */}
             <div className="relative z-10 h-full w-full">
               <AquariumBox
                 tankNo={cur.tank_no}
-                heightVh={AQUARIUM_HEIGHT_VH}
+                fitToContainer // 내부에서 object-cover처럼 꽉 채우도록 사용하는 플래그
                 // onReady={handleAquariumReady}
               />
             </div>
@@ -263,15 +265,29 @@ function AquariumPage() {
               >
                 {/* 좌측 아이콘 그룹 */}
                 <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto">
+                  {/* 아쿠아리움 관리하기(상세 보기) */}
                   <AquariumDetailButton tankNo={cur.tank_no} asChild>
                     <IconButton
                       icon={<Info className="w-4 h-4" />}
-                      ariaLabel="상세 보기"
+                      ariaLabel="아쿠아리움 관리하기"
                     />
                   </AquariumDetailButton>
 
                   <Divider />
 
+                  {/* 🔹 NEW: 아쿠아리움 변경하기 (텍스트 버튼 + 모달) */}
+                  <TankChipsNavigatorDialog
+                    icon={Settings2}
+                    label="아쿠아리움 변경하기"
+                    tanks={tankNavItems}
+                    idx={idx}
+                    onSelect={setIdx}
+                    onRename={handleRenameTank}
+                  />
+
+                  <Divider />
+
+                  {/* 도감 */}
                   <MarineDexModal asChild>
                     <IconButton
                       icon={<BookOpenText className="w-4 h-4" />}
@@ -281,6 +297,7 @@ function AquariumPage() {
 
                   <Divider />
 
+                  {/* 상점 */}
                   <ThemeShopButton tankNo={cur.tank_no} asChild>
                     <IconButton
                       icon={<Store className="w-4 h-4" />}
@@ -326,7 +343,7 @@ function AquariumPage() {
                       <span
                         key={t.tank_no}
                         className={cn(
-                          "h-1.5 w-1.5 rounded-full bg-white/70 border pointer-events-auto",
+                          "h-1.5 w-1.5 rounded-full bg-white/70 border pointer-events-auto cursor-pointer",
                           active ? "scale-110 bg-amber-400" : "opacity-70"
                         )}
                         onClick={() => setIdx(i)}
@@ -343,7 +360,11 @@ function AquariumPage() {
         ) : (
           // 탱크 목록 자체가 아직 없을 때의 플레이스홀더
           <div
-            className="relative rounded-2xl overflow-hidden mx-auto grid place-items-center ring-1 ring-white/20 bg-white/5 backdrop-blur-[2px]"
+            className={cn(
+              "relative rounded-2xl overflow-hidden mx-auto grid place-items-center",
+              "ring-1 ring-white/20 bg-white/5 backdrop-blur-[2px]",
+              "min-h-[520px] sm:min-h-[580px]"
+            )}
             style={frameStyle}
           >
             <div className="px-3 py-1.5 rounded-md bg-white/80 border shadow text-sm">
@@ -357,7 +378,7 @@ function AquariumPage() {
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>
-            <DialogTitle>아쿠아리움을 한 칸 추가하시겠습니까?</DialogTitle>
+            <DialogTitle>Α쿠아리움을 한 칸 추가하시겠습니까?</DialogTitle>
             <DialogDescription>
               새 어항을 구매하면 골드가 차감돼요. 가격:{" "}
               <b className="tabular-nums">
@@ -390,9 +411,11 @@ export { AquariumPage };
 function IconButton({
   icon,
   ariaLabel,
+  onClick,
 }: {
   icon: React.ReactNode;
   ariaLabel: string;
+  onClick?: React.ButtonHTMLAttributes<HTMLButtonElement>["onClick"];
 }) {
   return (
     <button
@@ -404,6 +427,7 @@ function IconButton({
       type="button"
       aria-label={ariaLabel}
       title={ariaLabel}
+      onClick={onClick}
     >
       {icon}
     </button>
