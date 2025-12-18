@@ -26,7 +26,7 @@ import { toast } from "sonner";
 // icons
 import { Loader2, Smile } from "lucide-react";
 // animation
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 const EMOJIS_5x6 = [
   "😀",
@@ -93,7 +93,7 @@ const getDisplayId = (currentId: number | null, completed: boolean) => {
   return prev >= 0 ? prev : null;
 };
 
-/* ─────────────── 스탬프: 반대 방향(+10deg) ─────────────── */
+/* ─────────────── 스탬프 ─────────────── */
 function CornerStamp({ submitted }: { submitted: boolean }) {
   const label = submitted ? "작성 완료" : "미작성";
   const tone = submitted
@@ -134,6 +134,10 @@ export default function QuestionPage() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const saveTimerRef = useRef<number | null>(null);
 
+  // ✅ 저장 성공 순간 스탬프 “툭” 모션 1번
+  const [stampPulse, setStampPulse] = useState(false);
+  const stampTimerRef = useRef<number | null>(null);
+
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // 이모지
@@ -149,6 +153,7 @@ export default function QuestionPage() {
   useEffect(
     () => () => {
       if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+      if (stampTimerRef.current) window.clearTimeout(stampTimerRef.current);
     },
     []
   );
@@ -247,6 +252,12 @@ export default function QuestionPage() {
     };
   }, [emojiOpen]);
 
+  const pulseStampOnce = useCallback(() => {
+    setStampPulse(true);
+    if (stampTimerRef.current) window.clearTimeout(stampTimerRef.current);
+    stampTimerRef.current = window.setTimeout(() => setStampPulse(false), 650);
+  }, []);
+
   // 저장(버튼)
   const persistAnswer = useCallback(
     async (content: string, isEdit = false) => {
@@ -259,14 +270,16 @@ export default function QuestionPage() {
           .from("answer")
           .upsert(
             [{ user_id: user.id, question_id: displayQuestionId, content }],
-            {
-              onConflict: "user_id,question_id",
-            }
+            { onConflict: "user_id,question_id" }
           );
+
         if (error) throw error;
 
         setSaveStatus("saved");
-        toast.info(isEdit ? "수정했습니다." : "저장했습니다.");
+        pulseStampOnce();
+
+        toast.info(isEdit ? "오늘의 답변을 수정했어요 ✍️" : "오늘의 답변을 남겼어요 ✉️");
+
         if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
         saveTimerRef.current = window.setTimeout(
           () => setSaveStatus("idle"),
@@ -275,6 +288,8 @@ export default function QuestionPage() {
         return true;
       } catch {
         setSaveStatus("error");
+        toast.error("저장에 실패했어요. 잠시 후 다시 시도해줘 🙏");
+
         if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
         saveTimerRef.current = window.setTimeout(
           () => setSaveStatus("idle"),
@@ -283,7 +298,7 @@ export default function QuestionPage() {
         return false;
       }
     },
-    [user, displayQuestionId]
+    [user, displayQuestionId, pulseStampOnce]
   );
 
   // 단일 버튼
@@ -310,6 +325,7 @@ export default function QuestionPage() {
           isRequest: false,
         }).catch(() => {});
       }
+
       await completeTask().catch(() => {});
       setSubmitted(true);
       setEditing(false);
@@ -349,6 +365,9 @@ export default function QuestionPage() {
 
   const BODY_FIXED_H = "h-[260px] md:h-[320px]";
 
+  const isViewMode = submitted && !editing;
+  const isSaving = saveStatus === "saving";
+
   return (
     <main
       className={cn("min-h-[100dvh] w-full bg-fixed bg-cover bg-center")}
@@ -356,7 +375,6 @@ export default function QuestionPage() {
     >
       <div className="min-h-[100dvh]">
         <div className="mx-auto w-full max-w-screen-lg px-4 md:px-6 py-6 md:py-10">
-          {/* 편지 컨테이너: 완전 불투명 + 따뜻한 톤 */}
           <Card
             className={cn(
               "relative mx-auto max-w-3xl border-0 rounded-2xl",
@@ -369,10 +387,25 @@ export default function QuestionPage() {
             <div className="pointer-events-none absolute -top-3 left-10 rotate-[-4deg] h-6 w-24 bg-sky-200/80 rounded-[4px] shadow-sm" />
             <div className="pointer-events-none absolute -top-2 right-12 rotate-[6deg] h-6 w-20 bg-pink-200/80 rounded-[4px] shadow-sm" />
 
-            {/* 스탬프 */}
-            <CornerStamp submitted={submitted} />
+            {/* ✅ 스탬프: 저장 성공 순간 “툭” */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8, rotate: 0 }}
+              animate={{
+                opacity: 1,
+                scale: stampPulse ? 1.08 : 1,
+                rotate: 10,
+                y: stampPulse ? -2 : 0,
+              }}
+              transition={{
+                type: "spring",
+                stiffness: 320,
+                damping: 18,
+              }}
+            >
+              <CornerStamp submitted={submitted} />
+            </motion.div>
 
-            {/* 헤더: 오늘의 질문 - 가운데 가로 배치 */}
+            {/* 헤더 */}
             <CardHeader className="pt-10">
               <div className="flex items-center justify-center gap-2">
                 <span className="text-xl">✉️</span>
@@ -395,9 +428,7 @@ export default function QuestionPage() {
                     </div>
                   </div>
                   <div className="mx-auto w-full md:w-[90%] lg:w-[70%]">
-                    <Skeleton
-                      className={cn("w-full rounded-2xl", BODY_FIXED_H)}
-                    />
+                    <Skeleton className={cn("w-full rounded-2xl", BODY_FIXED_H)} />
                   </div>
                 </CardContent>
                 <CardFooter className="pb-8" />
@@ -412,104 +443,123 @@ export default function QuestionPage() {
 
                   <Separator className="bg-amber-200/60" />
 
-                  {/* 답변 영역 */}
-                  {submitted && !editing ? (
-                    <div className="mx-auto w-full md:w-[80%] lg:w-[70%]">
-                      <div
-                        className={cn(
-                          "rounded-2xl border border-amber-300/80 bg-white p-4 md:p-5 ring-1 ring-amber-300/70",
-                          "whitespace-pre-wrap break-words text-[15px] md:text-base leading-relaxed",
-                          BODY_FIXED_H,
-                          "overflow-y-auto shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]"
-                        )}
-                      >
-                        {answer || "작성 내용이 없습니다."}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mx-auto w-full md:w-[90%] lg:w-[80%] space-y-2 text-center relative">
-                      <div className="relative">
-                        <Textarea
-                          ref={textareaRef}
-                          value={answer}
-                          onChange={(e) => setAnswer(e.target.value)}
-                          readOnly={saveStatus === "saving"}
-                          className={cn(
-                            "mx-auto resize-none rounded-2xl bg-white",
-                            "bg-[linear-gradient(transparent_29px,rgba(0,0,0,0.035)_30px)] bg-[length:100%_30px]",
-                            "border ring-1 ring-neutral-200 focus-visible:ring-neutral-400",
-                            "px-4 py-3 text-[15px] md:text-[16px] leading-[30px] text-neutral-800",
-                            BODY_FIXED_H,
-                            "overflow-y-auto shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]"
-                          )}
-                          placeholder={
-                            submitted
-                              ? "수정 중입니다. 저장하기를 눌러 반영합니다."
-                              : "이곳에 답변을 입력해주세요..."
-                          }
-                        />
-
-                        {/* 이모지 플로팅 버튼(우상단) */}
-                        <div className="absolute right-3 top-3">
-                          <Button
-                            ref={emojiBtnRef}
-                            type="button"
-                            size="icon"
-                            variant="secondary"
+                  {/* ✅ 저장 성공 시: 작성 → 읽기 전환 애니메이션 */}
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={isViewMode ? "view" : "edit"}
+                      initial={{ opacity: 0.55, scale: 0.985, y: 6 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.99, y: -4 }}
+                      transition={{ duration: 0.22 }}
+                    >
+                      {isViewMode ? (
+                        <div className="mx-auto w-full md:w-[80%] lg:w-[70%]">
+                          <div
                             className={cn(
-                              "rounded-full shadow-sm border bg-white hover:bg-amber-50",
-                              canEdit
-                                ? "opacity-100"
-                                : "pointer-events-none opacity-60"
+                              "rounded-2xl border border-amber-300/80 bg-white p-4 md:p-5 ring-1 ring-amber-300/70",
+                              "whitespace-pre-wrap break-words text-[15px] md:text-base leading-relaxed",
+                              BODY_FIXED_H,
+                              "overflow-y-auto shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]"
                             )}
-                            onClick={() => canEdit && setEmojiOpen((o) => !o)}
-                            aria-label="이모지 추가"
                           >
-                            <Smile className="h-5 w-5" />
-                          </Button>
-
-                          {emojiOpen && (
-                            <div
-                              ref={emojiMenuRef}
-                              role="grid"
-                              aria-label="이모지 선택"
-                              className="absolute z-50 mt-2 right-0 w-[300px] rounded-xl bg-white/95 backdrop-blur-sm p-2 shadow-xl ring-1 ring-amber-200/60"
-                            >
-                              <div className="grid grid-cols-6 gap-2">
-                                {EMOJIS_5x6.map((e) => (
-                                  <button
-                                    key={e}
-                                    role="gridcell"
-                                    onClick={() => {
-                                      insertAtCursor(e);
-                                      setEmojiOpen(false);
-                                    }}
-                                    className="h-9 w-9 flex items-center justify-center rounded-lg border bg-white hover:bg-amber-100 active:scale-95 shadow-sm text-[18px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
-                                    aria-label={`${e} 삽입`}
-                                    tabIndex={0}
-                                  >
-                                    {e}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                            {answer || "작성 내용이 없습니다."}
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="mx-auto w-full md:w-[90%] lg:w-[80%] space-y-2 text-center relative">
+                          <div className="relative">
+                            {/* ✅ Textarea 상단 저장 중 인디케이터 */}
+                            {isSaving && (
+                              <div
+                                aria-hidden
+                                className="absolute inset-x-0 top-0 h-1 rounded-t-2xl bg-gradient-to-r from-pink-400 via-rose-400 to-pink-400 animate-pulse"
+                              />
+                            )}
 
-                      <div className="mx-auto w-full md:w-[90%] lg:w-[80%] -mt-1 text-right text-[11px] text-amber-900/60">
-                        {answer.length.toLocaleString("ko-KR")} 자
-                      </div>
-                    </div>
-                  )}
+                            <Textarea
+                              ref={textareaRef}
+                              value={answer}
+                              onChange={(e) => setAnswer(e.target.value)}
+                              readOnly={isSaving}
+                              className={cn(
+                                "mx-auto resize-none rounded-2xl bg-white",
+                                "bg-[linear-gradient(transparent_29px,rgba(0,0,0,0.035)_30px)] bg-[length:100%_30px]",
+                                "border ring-1 ring-neutral-200 focus-visible:ring-neutral-400",
+                                "px-4 py-3 text-[15px] md:text-[16px] leading-[30px] text-neutral-800",
+                                BODY_FIXED_H,
+                                "overflow-y-auto shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]",
+                                isSaving && "opacity-95"
+                              )}
+                              placeholder={
+                                submitted
+                                  ? "수정 중입니다. 저장하기를 눌러 반영합니다."
+                                  : "이곳에 답변을 입력해주세요..."
+                              }
+                            />
+
+                            {/* 이모지 플로팅 버튼(우상단) */}
+                            <div className="absolute right-3 top-3">
+                              <Button
+                                ref={emojiBtnRef}
+                                type="button"
+                                size="icon"
+                                variant="secondary"
+                                className={cn(
+                                  "rounded-full shadow-sm border bg-white hover:bg-amber-50",
+                                  canEdit
+                                    ? "opacity-100"
+                                    : "pointer-events-none opacity-60"
+                                )}
+                                onClick={() => canEdit && setEmojiOpen((o) => !o)}
+                                aria-label="이모지 추가"
+                              >
+                                <Smile className="h-5 w-5" />
+                              </Button>
+
+                              {emojiOpen && (
+                                <div
+                                  ref={emojiMenuRef}
+                                  role="grid"
+                                  aria-label="이모지 선택"
+                                  className="absolute z-50 mt-2 right-0 w-[300px] rounded-xl bg-white/95 backdrop-blur-sm p-2 shadow-xl ring-1 ring-amber-200/60"
+                                >
+                                  <div className="grid grid-cols-6 gap-2">
+                                    {EMOJIS_5x6.map((e) => (
+                                      <button
+                                        key={e}
+                                        role="gridcell"
+                                        onClick={() => {
+                                          insertAtCursor(e);
+                                          setEmojiOpen(false);
+                                        }}
+                                        className="h-9 w-9 flex items-center justify-center rounded-lg border bg-white hover:bg-amber-100 active:scale-95 shadow-sm text-[18px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
+                                        aria-label={`${e} 삽입`}
+                                        tabIndex={0}
+                                      >
+                                        {e}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="mx-auto w-full md:w-[90%] lg:w-[80%] -mt-1 text-right text-[11px] text-amber-900/60">
+                            {answer.length.toLocaleString("ko-KR")} 자
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
+                  </AnimatePresence>
                 </CardContent>
 
-                {/* 버튼을 텍스트 영역 '아래' 중앙에 배치 */}
+                {/* 버튼 */}
                 <CardFooter className="pt-0 pb-6">
                   <div className="w-full flex items-center justify-center">
                     <Button
                       onClick={onPrimaryClick}
-                      disabled={saveStatus === "saving"}
+                      disabled={isSaving}
                       className={cn(
                         "rounded-xl min-w-[150px] font-semibold",
                         submitted && !editing
@@ -518,7 +568,7 @@ export default function QuestionPage() {
                         "shadow-[0_14px_28px_-14px_rgba(244,114,182,0.55)]"
                       )}
                     >
-                      {saveStatus === "saving" ? (
+                      {isSaving ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           저장 중…
