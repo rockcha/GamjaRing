@@ -219,7 +219,7 @@ const FishSpriteImpl = forwardRef<HTMLDivElement, Props>(function FishSprite(
   }, [flipEveryX, rand, isMovable]);
 
   /** 크기 */
-  const sizeMul = (fish.size ?? 1) * 1.2;
+  const sizeMul = (fish.size ?? 1) * 1.2 * 0.5;
   const base = 62 * sizeMul * containerScale;
   const widthPx = Math.max(
     26 * sizeMul * containerScale,
