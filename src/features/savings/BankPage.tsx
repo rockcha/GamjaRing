@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Info, SlidersHorizontal } from "lucide-react";
+import { Info, SlidersHorizontal } from "lucide-react";
 
 import type { Account, Product } from "./api";
 import { depositToday, fetchAccounts, fetchProducts, openAccount } from "./api";
@@ -26,22 +26,16 @@ import {
 } from "@/components/ui/select";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { isDepositWindowOpen } from "./time";
-
-import SeedShopButton from "../FlowerShop/SeedShopButton";
-import FlowerDexButton from "../FlowerShop/FlowerDexButton";
-import GardenBackyard from "../FlowerShop/GardenBackyard";
 
 type SortKey = "term_asc" | "min_daily_asc" | "apy_desc" | "bonus_desc";
 
 export default function BankPage() {
-  const { couple, gold, spendGold } = useCoupleContext();
+  const { couple } = useCoupleContext();
   const coupleId = couple?.id as string | undefined;
 
   const [products, setProducts] = useState<Product[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
-  const [bulkLoading, setBulkLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("term_asc");
 
@@ -117,91 +111,6 @@ export default function BankPage() {
       await loadAll();
     } catch (e: any) {
       alert(e?.message ?? "납입 실패");
-    }
-  }
-
-  // ✅ 한 번에 납입 (진행 중인 적금 중 "오늘 납입 가능"한 것들만)
-  async function handleDepositAllToday() {
-    if (!coupleId) return;
-    if (!isDepositWindowOpen()) {
-      alert("지금은 납입 가능 시간이 아닙니다. (09:00~18:00)");
-      return;
-    }
-    if (!myActive.length) {
-      alert("진행 중인 적금이 없습니다.");
-      return;
-    }
-
-    const todayStr = new Date().toISOString().slice(0, 10);
-
-    // 오늘 납입 가능한 계좌만 필터링
-    const depositable = myActive.filter((acc) => {
-      const lastPaidStr = acc.last_paid_at
-        ? acc.last_paid_at.slice(0, 10)
-        : null;
-      const alreadyPaidToday = lastPaidStr === todayStr;
-
-      const product = acc.product ?? productsById.get(acc.product_id) ?? null;
-      const termDays = product?.term_days ?? 0;
-
-      return (
-        acc.status === "active" && !alreadyPaidToday && acc.paid_days < termDays
-      );
-    });
-
-    if (!depositable.length) {
-      alert("오늘 납입할 수 있는 적금이 없습니다.");
-      return;
-    }
-
-    if (
-      !confirm(
-        `오늘 납입 가능 적금 ${depositable.length}개를 한 번에 납입할까요?`
-      )
-    ) {
-      return;
-    }
-
-    setBulkLoading(true);
-    try {
-      let remainingGold = gold ?? 0;
-      let successCount = 0;
-
-      for (const acc of depositable) {
-        if (remainingGold < acc.daily_amount) {
-          // 더 이상 골드 부족하면 중단
-          break;
-        }
-
-        // 골드 차감
-        const { error } = await spendGold(acc.daily_amount);
-        if (error) {
-          // 이 계좌는 스킵, 다음으로
-          continue;
-        }
-        remainingGold -= acc.daily_amount;
-
-        // 납입 트랜잭션
-        await depositToday({
-          account_id: acc.id,
-          couple_id: acc.couple_id,
-          amount: acc.daily_amount,
-        });
-
-        successCount += 1;
-      }
-
-      if (successCount === 0) {
-        alert("골드가 부족하거나 오늘 납입 가능한 적금이 없습니다.");
-      } else {
-        alert(`총 ${successCount}개의 적금을 오늘 납입했습니다.`);
-        await loadAll();
-      }
-    } catch (e: any) {
-      console.error("[BankPage] bulk deposit error:", e);
-      alert(e?.message ?? "한 번에 납입 처리 중 오류가 발생했습니다.");
-    } finally {
-      setBulkLoading(false);
     }
   }
 
@@ -354,18 +263,7 @@ export default function BankPage() {
                   </button>
                 </div>
 
-                {/* ✅ 오늘 한 번에 납입 버튼 (진행 중 탭일 때만) */}
-                {statusFilter === "active" && myActive.length > 0 && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-xs md:text-sm"
-                    onClick={handleDepositAllToday}
-                    disabled={bulkLoading}
-                  >
-                    {bulkLoading ? "한 번에 납입 중..." : "오늘 한 번에 납입"}
-                  </Button>
-                )}
+                {/* ✅ (삭제) 오늘 한 번에 납입 버튼 */}
               </div>
 
               {/* ✅ 필터에 따른 리스트 */}
@@ -481,8 +379,8 @@ export default function BankPage() {
               <ProductCard
                 key={p.id}
                 p={p}
-                onOpen={(pp, amt) => handleOpen(pp, amt)} // 금액까지 전달
-                activeSavingCount={activeSavingCount} // 프론트 차단 정보 전달
+                onOpen={(pp, amt) => handleOpen(pp, amt)}
+                activeSavingCount={activeSavingCount}
                 maxOpen={MAX_OPEN}
               />
             ))}

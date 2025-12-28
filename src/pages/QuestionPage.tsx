@@ -278,7 +278,9 @@ export default function QuestionPage() {
         setSaveStatus("saved");
         pulseStampOnce();
 
-        toast.info(isEdit ? "오늘의 답변을 수정했어요 ✍️" : "오늘의 답변을 남겼어요 ✉️");
+        toast.info(
+          isEdit ? "오늘의 답변을 수정했어요 ✍️" : "오늘의 답변을 남겼어요 ✉️"
+        );
 
         if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
         saveTimerRef.current = window.setTimeout(
@@ -428,7 +430,9 @@ export default function QuestionPage() {
                     </div>
                   </div>
                   <div className="mx-auto w-full md:w-[90%] lg:w-[70%]">
-                    <Skeleton className={cn("w-full rounded-2xl", BODY_FIXED_H)} />
+                    <Skeleton
+                      className={cn("w-full rounded-2xl", BODY_FIXED_H)}
+                    />
                   </div>
                 </CardContent>
                 <CardFooter className="pb-8" />
@@ -510,7 +514,9 @@ export default function QuestionPage() {
                                     ? "opacity-100"
                                     : "pointer-events-none opacity-60"
                                 )}
-                                onClick={() => canEdit && setEmojiOpen((o) => !o)}
+                                onClick={() =>
+                                  canEdit && setEmojiOpen((o) => !o)
+                                }
                                 aria-label="이모지 추가"
                               >
                                 <Smile className="h-5 w-5" />
@@ -589,7 +595,7 @@ export default function QuestionPage() {
             )}
           </Card>
 
-          {/* 우하단 파트너 멘트 */}
+          {/* ✅ 좌하단(파트너 멘트) 카드: 모바일에서는 숨김 */}
           <motion.aside
             initial={{ opacity: 0, y: 12, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -600,6 +606,7 @@ export default function QuestionPage() {
               delay: 0.05,
             }}
             className={cn(
+              "hidden sm:block", // ✅ 모바일 숨김, sm 이상에서만 노출
               "pointer-events-none fixed left-5 bottom-5 sm:left-8 sm:bottom-8 z-40",
               "max-w-[78vw] sm:max-w-xs"
             )}

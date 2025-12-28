@@ -98,6 +98,7 @@ const CenterCluster = memo(function CenterCluster() {
   return (
     <div className="relative self-center order-last md:order-none">
       <div className="flex items-center gap-3 md:justify-center overflow-x-visible">
+        {/* ✅ 데스크톱에서만 보이게 유지 */}
         <DaysTogetherBadge />
         <div className="md:hidden h-px w-3 shrink-0 bg-gradient-to-r from-transparent via-neutral-300/60 to-transparent" />
       </div>
@@ -181,7 +182,8 @@ const MobileLinearRail = memo(function MobileLinearRail() {
   );
 });
 
-/* ------------------------------ 모바일: 1행(타이틀/밸런스/아바타), 2행(DaysTogether), 3행(레일) ------------------------------ */
+/* ------------------------------ 모바일: 1행(타이틀/밸런스/아바타), 2행(레일) ------------------------------ */
+/* ✅ 변경: 모바일에서는 DaysTogetherBadge 안 보이게 (2행 제거) */
 const MobileRows = memo(function MobileRows({
   routeTitle,
 }: {
@@ -206,14 +208,9 @@ const MobileRows = memo(function MobileRows({
             </Suspense>
           </div>
         </div>
-
-        {/* 2행: DaysTogether */}
-        <div className="pb-2">
-          <DaysTogetherBadge />
-        </div>
       </div>
 
-      {/* 3행: 데스크탑 순서(좌→질문→우) 그대로 가로 스크롤 레일 */}
+      {/* 2행: 데스크탑 순서(좌→질문→우) 그대로 가로 스크롤 레일 */}
       <MobileLinearRail />
     </>
   );
@@ -263,7 +260,7 @@ export default function AppHeader({
       ref={headerRef}
       data-compact={isCompact ? "y" : "n"}
       className={cn(
-        "app-header-root", // ✅ 전용 클래스 (CSS에서 fixed !important 처리)
+        "app-header-root",
         "fixed inset-x-0 top-0 z-40",
         "bg-white/55 dark:bg-neutral-900/55",
         "backdrop-blur-md supports-[backdrop-filter]:bg-white/45",
