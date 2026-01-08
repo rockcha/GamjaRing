@@ -1,191 +1,51 @@
 // src/pages/IntroPage.tsx
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import supabase from "@/lib/supabase";
-import { MorphingText } from "@/components/ui/morphing-text";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faHeartPulse } from "@fortawesome/free-solid-svg-icons";
-
-import { Card, CardContent } from "@/components/ui/card";
 
 // ===== Types =====
-type Phase = "dawn" | "morning" | "noon" | "evening" | "night";
+type IntroMsgRow = { text: string; created_at?: string | null };
 
-/** 시간대 계산 (로컬) */
-function getPhase(date = new Date()): Phase {
-  const h = date.getHours();
-  const m = date.getMinutes();
-  const toMin = h * 60 + m;
-  const M = (hh: number, mm: number) => hh * 60 + mm;
-  if (toMin >= M(3, 30) && toMin <= M(5, 0)) return "dawn";
-  if (toMin >= M(5, 1) && toMin <= M(11, 30)) return "morning";
-  if (toMin >= M(11, 31) && toMin <= M(17, 30)) return "noon";
-  if (toMin >= M(17, 31) && toMin <= M(20, 30)) return "evening";
-  return "night";
-}
-
-/** Phase별 색/톤 + 카드 프레임 투명도/블러 강도 + 배경 그라디언트 */
-function getPhaseTheme(phase: Phase) {
-  switch (phase) {
-    case "dawn":
-      return {
-        vars: {
-          "--ink": "#2f2e47",
-          "--ink-strong": "#24233a",
-          "--accentA": "#bfc2ff",
-          "--accentB": "#9fd6ff",
-          "--frame": "#ffffff",
-          "--grain": "0.03",
-          "--scrim": "rgba(10,14,40,0.04)",
-          "--blur": "10px",
-          "--saturate": "1.15",
-          "--bg-from": "#101226",
-          "--bg-to": "#445a82",
-          "--halo": "rgba(255,214,165,0.55)",
-        } as CSSProperties,
-      };
-    case "morning":
-      return {
-        vars: {
-          "--ink": "#5b452a",
-          "--ink-strong": "#46351f",
-          "--accentA": "#f1c58d",
-          "--accentB": "#d7ab74",
-          "--frame": "#ffffff",
-          "--grain": "0.02",
-          "--scrim": "rgba(255,255,255,0.12)",
-          "--blur": "10px",
-          "--saturate": "1.12",
-          "--bg-from": "#fff7ea",
-          "--bg-to": "#e0f0ff",
-          "--halo": "rgba(255,230,190,0.8)",
-        } as CSSProperties,
-      };
-    case "noon":
-      return {
-        vars: {
-          "--ink": "#5b452a",
-          "--ink-strong": "#46351f",
-          "--accentA": "#f2c58b",
-          "--accentB": "#b98243",
-          "--frame": "#ffffff",
-          "--grain": "0.02",
-          "--scrim": "rgba(0,0,0,0.02)",
-          "--blur": "10px",
-          "--saturate": "1.1",
-          "--bg-from": "#fef7eb",
-          "--bg-to": "#f3f7ff",
-          "--halo": "rgba(255,215,170,0.7)",
-        } as CSSProperties,
-      };
-    case "evening":
-      return {
-        vars: {
-          "--ink": "#553f28",
-          "--ink-strong": "#44321f",
-          "--accentA": "#e0b18c",
-          "--accentB": "#c99a6b",
-          "--frame": "#ffffff",
-          "--grain": "0.025",
-          "--scrim": "rgba(0,0,0,0.03)",
-          "--blur": "12px",
-          "--saturate": "1.14",
-          "--bg-from": "#241621",
-          "--bg-to": "#664058",
-          "--halo": "rgba(255,189,150,0.6)",
-        } as CSSProperties,
-      };
-    case "night":
-    default:
-      return {
-        vars: {
-          "--ink": "#2b2430",
-          "--ink-strong": "#18111b",
-          "--accentA": "#f4c58c",
-          "--accentB": "#c98557",
-          "--frame": "#ffffff",
-          "--grain": "0.03",
-          "--scrim": "rgba(0,0,0,0.05)",
-          "--blur": "12px",
-          "--saturate": "1.12",
-          "--bg-from": "#0b1020",
-          "--bg-to": "#332648",
-          "--halo": "rgba(255,214,165,0.55)",
-        } as CSSProperties,
-      };
-  }
-}
-
-const PHASE_EMOJI: Record<Phase, string> = {
-  dawn: "🌅",
-  morning: "☀️",
-  noon: "🌤️",
-  evening: "🌇",
-  night: "🌙",
+/** ✅ noon 색/톤으로 고정 */
+const FIXED_THEME = {
+  vars: {
+    "--ink": "#2b1f16",
+    "--ink-strong": "#1f160f",
+    "--accentA": "#f2c58b",
+    "--accentB": "#b98243",
+    "--grain": "0.02",
+    "--scrim": "rgba(0,0,0,0.05)",
+    "--saturate": "1.06",
+    "--bg-from": "#fef7eb",
+    "--bg-to": "#f3f7ff",
+    "--halo": "rgba(255,215,170,0.68)",
+  } as CSSProperties,
 };
-
-function phaseFooterLine(phase: Phase) {
-  switch (phase) {
-    case "dawn":
-      return "작은 마음 하나만 적어도 충분해요.";
-    case "morning":
-      return "오늘의 첫 문장을 가볍게 열어볼까요?";
-    case "noon":
-      return "빠른 하루 속에서도, 한 줄은 남길 수 있어요.";
-    case "evening":
-      return "오늘의 온도를 조용히 모아둘 시간이에요.";
-    case "night":
-    default:
-      return "마무리의 문장 하나가 내일을 편하게 해줘요.";
-  }
-}
 
 export default function IntroPage() {
   const navigate = useNavigate();
 
-  const phase = useMemo(() => getPhase(), []);
-  const theme = useMemo(() => getPhaseTheme(phase), [phase]);
-
-  const phaseEmoji = PHASE_EMOJI[phase];
-
-  const bgSrc = useMemo(() => {
-    const base = "/intro";
-    const name =
-      phase === "dawn"
-        ? "dawn"
-        : phase === "morning"
-        ? "morning"
-        : phase === "noon"
-        ? "noon"
-        : phase === "evening"
-        ? "evening"
-        : "night";
-    return `${base}/${name}.png`;
-  }, [phase]);
-
-  const [ready, setReady] = useState(false);
-  useEffect(() => {
-    const i = new Image();
-    i.onload = () => setReady(true);
-    i.src = bgSrc;
-  }, [bgSrc]);
+  const prefersReducedMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
 
   const [leaving, setLeaving] = useState(false);
   const locked = useRef(false);
 
-  const continueRoute = async () => {
+  // ✅ server section data
+  const [introText, setIntroText] = useState<string>(""); // 최신 멘트
+  const [introImgUrl, setIntroImgUrl] = useState<string>(""); // storage intro.png
+  const [introLoading, setIntroLoading] = useState(true);
+
+  const continueRoute = () => {
     if (locked.current) return;
     locked.current = true;
 
     setLeaving(true);
-
-    const { data } = await supabase.auth.getSession();
-    const next = data.session ? "/main" : "/login";
-
     window.setTimeout(() => {
-      navigate(next, { replace: true });
+      navigate("/main", { replace: true });
     }, 220);
   };
 
@@ -221,26 +81,68 @@ export default function IntroPage() {
       window.removeEventListener("mousedown", onClick);
       window.removeEventListener("touchstart", onClick);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const prefersReducedMotion =
-    typeof window !== "undefined" &&
-    window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  // ✅ Intro: 이미지(storage) + 최신 텍스트(table) 가져오기
+  useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      try {
+        setIntroLoading(true);
+
+        // 1) image: storage intro/intro.png (public bucket 가정)
+        const { data: imgData } = supabase.storage
+          .from("intro")
+          .getPublicUrl("intro.png");
+
+        const url = imgData?.publicUrl
+          ? `${imgData.publicUrl}?v=${Date.now()}`
+          : "";
+
+        // 2) text: 최신 1개
+        const { data: msg, error } = await supabase
+          .from("intro_msg")
+          .select("text, created_at")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle<IntroMsgRow>();
+
+        if (error) throw error;
+        if (!alive) return;
+
+        setIntroImgUrl(url);
+        setIntroText(msg?.text ?? "");
+      } catch {
+        if (!alive) return;
+        setIntroImgUrl("");
+        setIntroText("");
+      } finally {
+        if (!alive) return;
+        setIntroLoading(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   return (
     <div
       style={{
-        ...theme.vars,
+        ...FIXED_THEME.vars,
         backgroundColor: "var(--bg-from, #0b1020)",
         backgroundImage: `
           radial-gradient(circle at 0% 0%, var(--halo, rgba(255,255,255,0.18)), transparent 55%),
-          radial-gradient(circle at 100% 100%, rgba(146, 182, 255, 0.3), transparent 55%),
+          radial-gradient(circle at 100% 100%, rgba(146, 182, 255, 0.26), transparent 55%),
           linear-gradient(145deg, var(--bg-from, #1f2933), var(--bg-to, #0b1020))
         `,
         backgroundAttachment: "fixed",
         backgroundSize: "cover",
       }}
-      className="relative min-h-[100svh] w-full overflow-hidden px-4 sm:px-6"
+      className="relative min-h-[100svh] w-full overflow-hidden px-5 sm:px-10"
     >
       {/* 그레인 */}
       <div
@@ -253,20 +155,121 @@ export default function IntroPage() {
         }}
       />
 
+      {/* 스크림(대비 안정) */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{ background: "var(--scrim, rgba(0,0,0,0.12))" }}
+      />
+
+      {/* ✅ LEFT TOP: 감자링 로고 고정 */}
+      <div className="absolute left-4 top-4 z-30 select-none">
+        <div
+          className="inline-flex items-center gap-2"
+          style={{ textShadow: "0 12px 40px rgba(0,0,0,0.18)" }}
+        >
+          <span className="text-[22px] sm:text-[26px]">🥔</span>
+          <span
+            className={[
+              "text-[18px] sm:text-[22px] font-semibold",
+              "tracking-[0.14em]",
+              "text-amber-600",
+            ].join(" ")}
+          >
+            감자링
+          </span>
+        </div>
+      </div>
+
+      {/* ✅ RIGHT TOP: 이미지 + 텍스트 깔끔 카드 (absolute) */}
+      <aside
+        aria-label="인트로 이미지와 멘트"
+        className={[
+          "absolute right-4 top-4 z-20",
+          "w-[min(420px,calc(100vw-2rem))]",
+          "hidden sm:block",
+        ].join(" ")}
+      >
+        <section className="w-full">
+          <div className="relative overflow-hidden rounded-[28px] border border-white/20 bg-white/10 backdrop-blur-sm">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -inset-16 opacity-55 blur-3xl"
+              style={{
+                background:
+                  "radial-gradient(circle at 30% 25%, rgba(255,255,255,0.18), transparent 60%)",
+              }}
+            />
+
+            <div className="relative">
+              <div className="aspect-[16/9] w-full overflow-hidden">
+                {introImgUrl ? (
+                  <img
+                    src={introImgUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                    loading="eager"
+                  />
+                ) : (
+                  <div className="h-full w-full bg-white/10" />
+                )}
+              </div>
+
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0"
+                style={{
+                  background:
+                    "linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.22))",
+                }}
+              />
+            </div>
+
+            <div className="relative px-5 py-4">
+              {introLoading ? (
+                <div className="space-y-2">
+                  <div className="h-4 w-24 rounded-full bg-white/15" />
+                  <div className="h-4 w-full rounded-full bg-white/15" />
+                  <div className="h-4 w-2/3 rounded-full bg-white/15" />
+                </div>
+              ) : introText ? (
+                <p className="text-[14px] leading-relaxed text-[color:var(--ink-strong)]/90 font-sans break-keep">
+                  {introText}
+                </p>
+              ) : (
+                <p className="text-[13px] text-[color:var(--ink)]/65 font-sans">
+                  (멘트를 추가하면 여기에 표시돼요)
+                </p>
+              )}
+            </div>
+
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 opacity-60"
+              style={{
+                backgroundImage:
+                  "linear-gradient(135deg, rgba(255,255,255,0.14), transparent 45%, rgba(255,255,255,0.05))",
+              }}
+            />
+          </div>
+        </section>
+      </aside>
+
       <motion.section
         initial={
           prefersReducedMotion
             ? { opacity: 1 }
-            : { opacity: 0, y: 8, scale: 0.985 }
+            : { opacity: 0, y: 10, scale: 0.99 }
         }
         animate={
           prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }
         }
         transition={{
-          duration: prefersReducedMotion ? 0 : 0.6,
+          duration: prefersReducedMotion ? 0 : 0.65,
           ease: "easeOut",
         }}
         className="relative z-10 flex min-h-[100svh] items-center justify-center"
+        onClick={continueRoute}
       >
         <motion.div
           animate={
@@ -280,251 +283,58 @@ export default function IntroPage() {
             duration: prefersReducedMotion ? 0 : leaving ? 0.22 : 0.35,
             ease: "easeOut",
           }}
-          className="w-full max-w-5xl"
+          className="w-full max-w-3xl"
         >
-          <Card
-            role="group"
-            aria-label="감자링 인트로 카드"
-            className={[
-              "relative w-full",
-              "h-[90svh]",
-              "p-2",
-              "rounded-[32px] border border-black/5",
-              "bg-[rgba(255,252,247,0.92)]",
-              "shadow-[0_24px_70px_rgba(15,23,42,0.18)]",
-              "backdrop-blur-[var(--blur)]",
-              "overflow-hidden",
-            ].join(" ")}
-            style={{
-              backdropFilter: `blur(var(--blur)) saturate(var(--saturate))`,
-              WebkitBackdropFilter: `blur(var(--blur)) saturate(var(--saturate))`,
-            }}
-          >
-            {/* 종이 테두리 */}
-            <div className="pointer-events-none absolute inset-[3px] rounded-[28px] border border-white/60" />
+          <div className="flex flex-col items-center text-center">
+            <div className="mt-2 relative">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -inset-12 opacity-50 blur-3xl"
+                style={{
+                  background:
+                    "radial-gradient(circle at 50% 40%, rgba(255,255,255,0.22), transparent 62%)",
+                }}
+              />
 
-            {/* 귀퉁이 테이프 느낌 */}
-            <div className="pointer-events-none absolute -left-2 top-6 h-8 w-10 rotate-[-8deg] bg-gradient-to-br from-white/80 to-white/30 shadow-md" />
-            <div className="pointer-events-none absolute -right-3 top-10 h-7 w-9 rotate-[6deg] bg-gradient-to-br from-white/75 to-white/20 shadow-md" />
+              <h1
+                className={[
+                  "relative break-keep",
+                  "tracking-[-0.02em]",
+                  "text-[clamp(34px,6.2vw,60px)]",
+                  "leading-[1.05]",
+                  "text-[var(--ink-strong)]",
+                ].join(" ")}
+              >
+                <span className="block opacity-90 font-medium text-[clamp(18px,3.2vw,22px)] text-[color:var(--ink)]/80 tracking-[-0.01em]">
+                  우리의 순간이,
+                </span>
+                <span className="block mt-2">
+                  감자처럼{" "}
+                  <span className="bg-gradient-to-br from-[var(--accentA)] to-[var(--accentB)] bg-clip-text text-transparent drop-shadow-sm">
+                    따뜻
+                  </span>
+                  하기를
+                </span>
+              </h1>
 
-            {/* 우 상단 마이크로 카피 */}
-            <div className="pointer-events-none absolute right-10 top-8 text-right">
-              <p className="text-[10px] sm:text-[11px] text-[color:var(--ink)]/70">
-                지금 이 순간이, 감자처럼 따뜻하기를
-              </p>
+              <div
+                aria-hidden
+                className="pointer-events-none mt-5 mx-auto h-[7px] w-28 rounded-full blur-sm opacity-35"
+                style={{
+                  background:
+                    "linear-gradient(90deg, var(--accentA), transparent)",
+                }}
+              />
             </div>
 
-            {/* ✅ 카드 내부를 꽉 채우는 레이아웃 */}
-            <CardContent className="relative h-full px-6 py-6 sm:px-9 sm:py-8">
-              <div className="flex h-full flex-col">
-                {/* ===== 메인 영역 ===== */}
-                <div className="flex-1">
-                  <div className="relative grid gap-8 md:grid-cols-[minmax(0,1.05fr)_minmax(0,1.3fr)] md:gap-10">
-                    {/* 왼쪽: 액자 */}
-                    <figure className="relative mx-auto flex w-full max-w-[420px] flex-col items-center">
-                      <div className="relative w-full">
-                        <div className="absolute inset-0 translate-y-[7px] rounded-[30px] bg-black/10 blur-xl" />
-                        <div className="relative aspect-[3/4] w-full rounded-[28px] border border-black/10 bg-white/85 shadow-[0_16px_40px_rgba(15,23,42,0.16)] overflow-hidden">
-                          <div className="absolute inset-[10px] rounded-[22px] overflow-hidden">
-                            <img
-                              src={bgSrc}
-                              alt=""
-                              className={[
-                                "h-full w-full object-cover",
-                                "transition-opacity duration-500",
-                                ready ? "opacity-100" : "opacity-0",
-                              ].join(" ")}
-                            />
-
-                            {/* 유리 반사 */}
-                            <div
-                              className="pointer-events-none absolute inset-0"
-                              style={{
-                                backgroundImage:
-                                  "linear-gradient(135deg, rgba(255,255,255,0.22), transparent 45%, rgba(255,255,255,0.08))",
-                                opacity: 0.9,
-                              }}
-                            />
-
-                            {!prefersReducedMotion && (
-                              <>
-                                <div
-                                  className="pointer-events-none absolute inset-0 opacity-25 mix-blend-soft-light animate-[float_18s_ease-in-out_infinite]"
-                                  style={{
-                                    backgroundImage:
-                                      "url(/intro/particles-1.png)",
-                                    backgroundSize: 420,
-                                  }}
-                                />
-                                <div
-                                  className="pointer-events-none absolute inset-0 opacity-[0.18] mix-blend-overlay animate-[float2_26s_ease-in-out_infinite]"
-                                  style={{
-                                    backgroundImage:
-                                      "url(/intro/particles-2.png)",
-                                    backgroundSize: 580,
-                                  }}
-                                />
-                                <div
-                                  className="pointer-events-none absolute -inset-10 opacity-[0.18] mix-blend-screen animate-[float_14s_ease-in-out_infinite]"
-                                  style={{
-                                    backgroundImage: `
-                                      radial-gradient(circle at 0% 0%, rgba(255,255,255,0.5), transparent 55%),
-                                      radial-gradient(circle at 100% 100%, rgba(255,255,255,0.35), transparent 55%)
-                                    `,
-                                  }}
-                                />
-                              </>
-                            )}
-                          </div>
-                          <div className="pointer-events-none absolute inset-[10px] rounded-[22px] ring-1 ring-white/70" />
-                        </div>
-                      </div>
-                    </figure>
-
-                    {/* 오른쪽: 텍스트 */}
-                    <div className="flex flex-col justify-center">
-                      <div className="flex flex-col gap-3">
-                        <div className="inline-flex items-center gap-2 text-[color:var(--ink)] drop-shadow-[0_0_6px_rgba(255,255,255,0.5)]">
-                          <FontAwesomeIcon
-                            icon={faHeartPulse}
-                            className="h-5 w-5"
-                            style={{
-                              animation: prefersReducedMotion
-                                ? "none"
-                                : phase === "morning"
-                                ? "pulseMini 1.45s ease-in-out infinite"
-                                : phase === "night"
-                                ? "pulseMini 2.15s ease-in-out infinite"
-                                : "pulseMini 1.8s ease-in-out infinite",
-                              filter:
-                                "drop-shadow(0 0 4px rgba(255,184,120,0.4))",
-                            }}
-                            aria-hidden
-                          />
-                          <span className="text-xl font-semibold tracking-[0.26em] uppercase text-[color:var(--ink)]/80">
-                            GAMJARING
-                          </span>
-                        </div>
-
-                        <p className="text-[13px] sm:text-sm text-[color:var(--ink)]/85 leading-relaxed">
-                          우리의 기록이{" "}
-                          <span className="font-semibold text-[color:var(--ink-strong)]">
-                            감자처럼 자라나는 공간
-                          </span>
-                          이에요.
-                        </p>
-                      </div>
-
-                      <div className="mt-5 min-h-[3.2rem] sm:min-h-[4.2rem] flex items-center w-full">
-                        <div className="relative w-full">
-                          <div
-                            className="pointer-events-none absolute -inset-6 opacity-40 blur-2xl"
-                            style={{
-                              background:
-                                "radial-gradient(circle at 25% 50%, rgba(255,255,255,0.55), transparent 60%)",
-                            }}
-                          />
-                          <MorphingText
-                            texts={[
-                              "우리의 기록들이",
-                              "조용히 자라나는 곳",
-                              "감자링",
-                            ]}
-                            className="relative font-bold break-keep tracking-[-0.02em] text-[clamp(26px,6vw,46px)] !leading-[1.02] text-[var(--ink-strong)] font-hand text-left"
-                            reducedMotion={!!prefersReducedMotion}
-                            renderWord={(word: string) =>
-                              word.trim() === "감자링" ? (
-                                <span className="bg-gradient-to-br from-[var(--accentA)] to-[var(--accentB)] bg-clip-text text-transparent drop-shadow-sm">
-                                  {word}
-                                </span>
-                              ) : (
-                                word
-                              )
-                            }
-                          />
-                          <div
-                            aria-hidden
-                            className="pointer-events-none mt-2 h-[6px] w-24 rounded-full blur-sm opacity-35"
-                            style={{
-                              background:
-                                "linear-gradient(90deg, var(--accentA), transparent)",
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* ===== 하단 푸터 (비는 공간 “깔끔하게” 활용) ===== */}
-                <div className="mt-6">
-                  <div className="rounded-[22px] border border-black/5 bg-white/55 px-5 py-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)] backdrop-blur-sm">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      {/* 왼쪽: 오늘의 한 줄 */}
-                      <div className="flex items-start gap-2">
-                        <span className="mt-[2px] inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/5 text-[12px]">
-                          {phaseEmoji}
-                        </span>
-                        <div>
-                          <p className="mt-1 text-[11px] text-[color:var(--ink)]/60">
-                            눌러서 바로 시작해요.
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* 오른쪽: CTA 힌트 */}
-                      <div
-                        className={[
-                          "flex items-center justify-end gap-2 text-[11px] sm:text-xs text-[color:var(--ink)]/65",
-                          prefersReducedMotion
-                            ? ""
-                            : "animate-[nudge_2.2s_ease-in-out_infinite]",
-                        ].join(" ")}
-                      >
-                        {!prefersReducedMotion && (
-                          <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--ink)]/35 animate-breathe" />
-                        )}
-                        <span className="inline-flex items-center gap-1 rounded-full bg-black/5 px-2 py-[3px]">
-                          <span className="rounded-md border border-black/10 bg-white px-[6px] py-[2px] text-[10px] font-medium shadow-sm">
-                            SPACE
-                          </span>
-                          <span className="text-[10px]">또는 클릭</span>
-                        </span>
-                        <span className="whitespace-nowrap">다음 장으로</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Keyframes */}
-              <style>{`
-                @keyframes pulseMini {
-                  0%, 100% { transform: scale(1); opacity: .95 }
-                  50% { transform: scale(1.06); opacity: 1 }
-                }
-                @keyframes breathe {
-                  0%, 100% { opacity: .55 }
-                  50% { opacity: .95 }
-                }
-                .animate-breathe { animation: breathe 1.8s ease-in-out infinite; }
-
-                @keyframes float {
-                  0%,100%{ transform: translateY(-1.2%) }
-                  50%{ transform: translateY(1.2%) }
-                }
-                @keyframes float2{
-                  0%,100%{ transform: translateY(0.8%) }
-                  50%{ transform: translateY(-0.8%) }
-                }
-
-                @keyframes nudge {
-                  0%,100% { transform: translateY(0); opacity: .68 }
-                  50% { transform: translateY(-2px); opacity: .92 }
-                }
-              `}</style>
-            </CardContent>
-          </Card>
+            <p
+              className="mt-7 text-[13px] sm:text-sm text-[color:var(--ink)]/80 leading-relaxed font-sans"
+              style={{ textShadow: "0 10px 34px rgba(0,0,0,0.16)" }}
+            >
+              클릭하거나 <span className="font-medium">SPACE</span>를 누르면
+              시작해요.
+            </p>
+          </div>
         </motion.div>
       </motion.section>
 
