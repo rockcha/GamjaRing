@@ -1,4 +1,4 @@
-export const AVATAR_COUNT = 25;
+export const AVATAR_COUNT = 40;
 export const AVATAR_IDS = Array.from({ length: AVATAR_COUNT }, (_, i) => i + 1);
 
 export function avatarSrc(id?: number | null) {

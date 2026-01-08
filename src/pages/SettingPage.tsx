@@ -531,7 +531,7 @@ export default function SettingPage() {
           </CardContent>
 
           <CardFooter className="justify-end gap-2">
-            <UnlinkButton />
+            {/* <UnlinkButton /> */}
           </CardFooter>
         </Card>
       </div>
