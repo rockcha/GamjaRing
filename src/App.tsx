@@ -20,7 +20,7 @@ import QuestionPage from "./pages/QuestionPage";
 import CoupleSchedulerPage from "./pages/CoupleSchedulerPage";
 
 import PotatoFieldPage from "./pages/PotatoFieldPage";
-import KitchenPage from "./pages/KitchenPage";
+
 import FishingPage from "./pages/FishingPage";
 import OddEvenGamesPage from "./features/mini_games/OddEvenGamesPage";
 import StickerBoardPage from "./features/sticker_board/StickerBoardPage";
@@ -34,7 +34,7 @@ import FragmentFormPage from "./features/memories/FragmentFormPage";
 import FragmentDetailPage from "./features/memories/FragmentDetailPage";
 import CookingPage from "./features/cooking/CookingPage";
 import BucketListPage from "./features/bucketlist/BucketListPage";
-import SavingProductPage from "./pages/SavingProductPage";
+
 import BankPage from "./features/savings/BankPage";
 import FlowerShopPage from "./features/FlowerShop/FlowerShopPage";
 import RecyclingStation from "./features/recycle/RecyclingStation";

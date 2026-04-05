@@ -30,7 +30,7 @@ type ViewKey = "timeline" | "list";
 function seededRandom(seed: string) {
   // xorshift32
   let x = 0;
-  for (let i = 0; i < seed.length; i++) x ^= seed.charCodeAt(i) << i % 24;
+  for (let i = 0; i < seed.length; i++) x ^= seed.charCodeAt(i) << (i % 24);
   return () => {
     x ^= x << 13;
     x ^= x >>> 17;
@@ -209,7 +209,7 @@ function CorkboardBackdrop() {
       `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160">
         <filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="2" stitchTiles="stitch"/></filter>
         <rect width="160" height="160" filter="url(#n)" opacity="0.18"/>
-      </svg>`
+      </svg>`,
     ) +
     "')";
   return (
@@ -279,7 +279,7 @@ function PolaroidOnCork({
   return (
     <div
       className={cn(
-        "relative w-full origin-top transition-transform will-change-transform"
+        "relative w-full origin-top transition-transform will-change-transform",
       )}
       style={{ transform: `rotate(${tilt}deg)` }}
     >
@@ -297,7 +297,7 @@ function PolaroidOnCork({
       <div
         className={cn(
           "relative rounded-[14px] p-2 bg-[linear-gradient(180deg,#fefefe_0%,#faf9f7_60%,#f6f3ee_100%)]",
-          "ring-1 ring-stone-300/50 shadow-[0_14px_30px_-14px_rgba(70,50,20,0.32)]"
+          "ring-1 ring-stone-300/50 shadow-[0_14px_30px_-14px_rgba(70,50,20,0.32)]",
         )}
       >
         <div className="relative rounded-[10px] overflow-hidden bg-neutral-200">
@@ -349,8 +349,8 @@ function useImageAspect(src?: string | null) {
 function ImageBox({
   src,
   alt,
-  minHeight = 180,
-  maxHeight = 640,
+  minHeight = 150,
+  maxHeight = 420,
   onOpen,
   hearts = 0,
   idSeed,
@@ -382,7 +382,7 @@ function ImageBox({
           "group relative block w-full h-full rounded-[10px]",
           "p-0 m-0 border-0 overflow-hidden",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-          "leading-none align-top"
+          "leading-none align-top",
         )}
         style={clampStyle}
       >
@@ -398,7 +398,7 @@ function ImageBox({
               className={cn(
                 "absolute inset-0 h-full w-full object-contain pointer-events-none",
                 "transition-transform duration-500 will-change-transform",
-                "group-hover:scale-[1.012]"
+                "group-hover:scale-[1.012]",
               )}
               loading="lazy"
               decoding="async"
@@ -434,15 +434,17 @@ function ListViewMasonry({
   onOpen: (id: string | number) => void;
 }) {
   return (
-    <div className="columns-1 sm:columns-2 lg:columns-3 gap-7 [column-fill:balance]">
+    <div className="columns-1 sm:columns-2 xl:columns-3 gap-5 [column-fill:balance]">
       {items.map((f) => (
-        <div key={f.id} className="mb-7 break-inside-avoid">
+        <div key={f.id} className="mb-5 break-inside-avoid">
           <ImageBox
             idSeed={f.id}
             src={f.cover_photo_path ? publicUrl(f.cover_photo_path) : undefined}
             alt={f.title ?? ""}
             onOpen={() => onOpen(f.id)}
             hearts={f.hearts ?? 0}
+            minHeight={136}
+            maxHeight={340}
           />
         </div>
       ))}
@@ -578,8 +580,8 @@ function MemoPad({
   return (
     <div
       className={cn(
-        "absolute top-1/2 -translate-y-1/2 w-[min(58ch,42vw)] md:w-[min(62ch,40vw)]",
-        "flex flex-col gap-3"
+        "absolute top-1/2 -translate-y-1/2 w-[min(48ch,35vw)] md:w-[min(52ch,33vw)]",
+        "flex flex-col gap-2.5",
       )}
       style={{ ...(outerSide === "left" ? { left: 0 } : { right: 0 }) }}
     >
@@ -590,13 +592,13 @@ function MemoPad({
 
       {/* 날짜/제목/본문 - 배경 없이 텍스트만 */}
       <div className={cn("mb-2", placeClass)}>
-        <div className="text-[14px] md:text-[16px] tabular-nums text-stone-700 tracking-[0.02em]">
+        <div className="text-[13px] md:text-[14px] tabular-nums text-stone-700 tracking-[0.02em]">
           {dateStr}
         </div>
         <div
           className={cn(
             "mt-1 font-extrabold text-stone-950 font-hand",
-            "text-[28px] sm:text-[32px] md:text-[36px] leading-snug"
+            "text-[23px] sm:text-[27px] md:text-[30px] leading-snug",
           )}
           style={{ textShadow: "0 0 1px rgba(0,0,0,0.04)" }}
         >
@@ -611,10 +613,10 @@ function MemoPad({
             onChange={(e) => setVal(e.target.value)}
             placeholder="그날의 감정, 소소한 메모를 남겨보자…"
             className={cn(
-              "w-full min-h-[170px] md:min-h-[190px] resize-y rounded-xl border",
+              "w-full min-h-[140px] md:min-h-[156px] resize-y rounded-xl border",
               "bg-white/80 focus:bg-white focus:outline-none",
-              "p-3 text-[15.5px] md:text-[17px] leading-relaxed",
-              "font-hand"
+              "p-3 text-[14px] md:text-[15px] leading-relaxed",
+              "font-hand",
             )}
           />
           <div
@@ -667,8 +669,8 @@ function MemoPad({
         <>
           <div
             className={cn(
-              "whitespace-pre-wrap text-[15.5px] md:text-[17px] leading-relaxed",
-              "text-stone-900/95 font-hand"
+              "whitespace-pre-wrap text-[14px] md:text-[15px] leading-relaxed",
+              "text-stone-900/95 font-hand",
             )}
           >
             {val || "아직 메모가 없어요. ‘메모 수정’으로 기록해볼까요?"}
@@ -777,7 +779,7 @@ function MonthSection({
       </div>
 
       {/* 카드 + 메모 (양옆 배치) */}
-      <div className="space-y-16">
+      <div className="space-y-12 md:space-y-14">
         {rows.map((f, i) => {
           const isLeftCard = i % 2 === 0;
           const outerSide: "left" | "right" = isLeftCard ? "right" : "left";
@@ -785,10 +787,10 @@ function MonthSection({
             <article key={f.id} className="relative">
               <div
                 className={cn(
-                  "md:w-[calc(50%-1.25rem)]",
+                  "md:w-[calc(44%-1rem)]",
                   isLeftCard
-                    ? "md:pr-10 md:ml-0 md:mr-auto"
-                    : "md:pl-10 md:ml-auto md:mr-0"
+                    ? "md:pr-8 md:ml-0 md:mr-auto"
+                    : "md:pl-8 md:ml-auto md:mr-0",
                 )}
               >
                 <ImageBox
@@ -801,6 +803,8 @@ function MonthSection({
                   alt={f.title ?? ""}
                   onOpen={() => onOpen(f.id)}
                   hearts={f.hearts ?? 0}
+                  minHeight={150}
+                  maxHeight={360}
                 />
               </div>
 
@@ -833,27 +837,54 @@ function MonthNavigatorPanel({ months }: { months: string[] }) {
           id: ymToId(ym),
         };
       }),
-    [months]
+    [months],
   );
   const ids = parsed.map((p) => p.id);
   const [active, setActive] = useState<string | null>(ids[0] ?? null);
+  const listRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const obs = new IntersectionObserver(
-      (entries) => {
-        const top = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (top?.target?.id) setActive(top.target.id);
-      },
-      { rootMargin: "-40% 0px -50% 0px", threshold: [0, 0.25, 0.5, 0.75, 1] }
-    );
-    ids.forEach((id) => {
-      const el = document.getElementById(id);
-      if (el) obs.observe(el);
-    });
-    return () => obs.disconnect();
+    if (ids.length === 0) return;
+
+    const syncActive = () => {
+      const viewportAnchor = window.innerHeight * 0.28;
+      let candidateId: string | null = null;
+      let bestTop = -Infinity;
+
+      ids.forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const top = el.getBoundingClientRect().top;
+        if (top <= viewportAnchor && top > bestTop) {
+          bestTop = top;
+          candidateId = id;
+        }
+      });
+
+      if (!candidateId) {
+        candidateId = ids.find((id) => !!document.getElementById(id)) ?? ids[0];
+      }
+
+      setActive(candidateId);
+    };
+
+    syncActive();
+    window.addEventListener("scroll", syncActive, { passive: true });
+    window.addEventListener("resize", syncActive);
+
+    return () => {
+      window.removeEventListener("scroll", syncActive);
+      window.removeEventListener("resize", syncActive);
+    };
   }, [ids]);
+
+  useEffect(() => {
+    if (!active || !listRef.current) return;
+    const target = listRef.current.querySelector<HTMLButtonElement>(
+      `[data-month-id="${active}"]`,
+    );
+    target?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [active]);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     const idx = ids.findIndex((id) => id === active);
@@ -871,11 +902,18 @@ function MonthNavigatorPanel({ months }: { months: string[] }) {
 
   if (parsed.length === 0) return null;
 
+  const today = new Date();
+  const todayYm = `${today.getFullYear()}년 ${String(
+    today.getMonth() + 1,
+  ).padStart(2, "0")}월`;
+  const todayId = parsed.find((p) => p.ym === todayYm)?.id;
+
   return (
     <TooltipProvider delayDuration={150}>
       <div
+        ref={listRef}
         className={cn(
-          "flex flex-col items-center gap-2 max-h-[70vh] overflow-y-auto"
+          "flex flex-col items-center gap-1.5 max-h-[64vh] overflow-y-auto px-1",
         )}
         tabIndex={0}
         role="navigation"
@@ -896,6 +934,7 @@ function MonthNavigatorPanel({ months }: { months: string[] }) {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
+                    data-month-id={p.id}
                     aria-label={`${p.ym}로 이동`}
                     aria-current={isActive ? "date" : undefined}
                     onClick={() =>
@@ -904,11 +943,11 @@ function MonthNavigatorPanel({ months }: { months: string[] }) {
                         ?.scrollIntoView({ behavior: "smooth", block: "start" })
                     }
                     className={cn(
-                      "min-w-[52px] rounded-full px-3 py-1 text-xs tabular-nums ring-1 transition",
-                      "hover:ring-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                      "min-w-[56px] rounded-xl px-3 py-1.5 text-xs tabular-nums ring-1 transition-colors",
+                      "hover:ring-primary/40 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                       isActive
-                        ? "bg-rose-100 text-rose-700 ring-rose-200"
-                        : "bg-background text-muted-foreground ring-border"
+                        ? "bg-amber-100 text-amber-800 ring-amber-300 shadow-sm"
+                        : "bg-white/85 text-stone-600 ring-stone-200",
                     )}
                   >
                     {Number(p.month)}월
@@ -925,17 +964,32 @@ function MonthNavigatorPanel({ months }: { months: string[] }) {
           );
         })}
 
-        <button
-          onClick={() => {
-            const last = ids[ids.length - 1];
-            document
-              .getElementById(last)
-              ?.scrollIntoView({ behavior: "smooth", block: "start" });
-          }}
-          className="mt-1 rounded-full px-3 py-1 text-xs bg-background ring-1 ring-border hover:ring-primary/50 shadow-sm"
-        >
-          현재 달
-        </button>
+        <div className="mt-2 flex w-full flex-col gap-1">
+          <button
+            onClick={() => {
+              const target = todayId ?? active ?? ids[ids.length - 1];
+              if (!target) return;
+              document
+                .getElementById(target)
+                ?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+            className="rounded-lg px-2.5 py-1.5 text-[11px] font-medium bg-white/90 ring-1 ring-stone-200 text-stone-700 hover:bg-white"
+          >
+            이번 달
+          </button>
+          <button
+            onClick={() => {
+              const last = ids[ids.length - 1];
+              if (!last) return;
+              document
+                .getElementById(last)
+                ?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+            className="rounded-lg px-2.5 py-1.5 text-[11px] font-medium bg-white/90 ring-1 ring-stone-200 text-stone-700 hover:bg-white"
+          >
+            최신 달
+          </button>
+        </div>
       </div>
     </TooltipProvider>
   );
@@ -954,14 +1008,14 @@ function MonthNavigatorFixedPortal({
   if (typeof document === "undefined" || !show) return null;
   return createPortal(
     <div
-      className="hidden lg:flex fixed right-6 top-1/2 -translate-y-1/2 z-50
-                 rounded-2xl bg-white/85 px-2 py-3 shadow-md ring-1 ring-border backdrop-blur pointer-events-auto"
+      className="hidden lg:flex fixed right-5 top-[56%] -translate-y-1/2 z-50
+                 rounded-2xl bg-white/84 px-2 py-3 shadow-[0_12px_34px_-20px_rgba(41,37,36,0.65)] ring-1 ring-amber-200/80 backdrop-blur pointer-events-auto"
       role="navigation"
       aria-label="월 타임라인 내비게이션"
     >
       <MonthNavigatorPanel months={months} />
     </div>,
-    document.body
+    document.body,
   );
 }
 
@@ -1108,7 +1162,7 @@ export default function FragmentListPage() {
     () =>
       (typeof window !== "undefined"
         ? (localStorage.getItem("mem:view") as ViewKey)
-        : null) || "timeline"
+        : null) || "timeline",
   );
 
   const [scrolled, setScrolled] = useState(false);
@@ -1140,7 +1194,7 @@ export default function FragmentListPage() {
   const filtered = useMemo(() => {
     return [...items].sort(
       (a, b) =>
-        new Date(a.event_date).getTime() - new Date(b.event_date).getTime()
+        new Date(a.event_date).getTime() - new Date(b.event_date).getTime(),
     );
   }, [items]);
 
@@ -1162,27 +1216,27 @@ export default function FragmentListPage() {
       {/* 종이 래퍼 */}
       <div
         className={cn(
-          "relative z-[2] w-full sm:w-[92%] lg:w-[86%] mx-auto max-w-7xl p-4 sm:p-6 space-y-6",
+          "relative z-[2] w-full sm:w-[92%] lg:w-[86%] mx-auto max-w-7xl p-4 pt-24 sm:p-6 sm:pt-24 space-y-6",
           "rounded-3xl ring-1 ring-amber-300/50",
           "shadow-[0_24px_60px_-24px_rgba(80,60,25,0.45)]",
-          "backdrop-blur-[2px]"
+          "backdrop-blur-[2px]",
         )}
         style={{
           background:
             "linear-gradient(180deg, rgba(252,244,230,0.92) 0%, rgba(244,229,206,0.92) 60%, rgba(238,220,194,0.92) 100%)",
         }}
       >
-        {/* Sticky Toolbar */}
+        {/* Fixed Toolbar */}
         <div
           data-scrolled={scrolled ? "y" : "n"}
           className={[
-            "sticky top-40 z-20 transition-all",
-            "backdrop-blur supports-[backdrop-filter]:bg-white/65",
-            "data-[scrolled=y]:shadow-md data-[scrolled=y]:ring-1 data-[scrolled=y]:ring-border",
-            "rounded-2xl",
+            "fixed left-1/2 top-[9.75rem] z-40 w-[min(1100px,calc(100%-1.5rem))] -translate-x-1/2 transition-all",
+            "backdrop-blur supports-[backdrop-filter]:bg-white/70",
+            "data-[scrolled=y]:shadow-lg data-[scrolled=y]:ring-1 data-[scrolled=y]:ring-amber-200/80",
+            "rounded-2xl pointer-events-auto",
           ].join(" ")}
         >
-          <div className="flex items-center justify-between rounded-2xl bg-white/70 px-3 py-3 sm:px-4">
+          <div className="flex items-center justify-between rounded-2xl bg-white/82 px-3 py-3 sm:px-4">
             <div className="flex items-center gap-3">
               <span
                 className={[
@@ -1209,13 +1263,15 @@ export default function FragmentListPage() {
 
             <Button
               onClick={() => nav("/memories/new")}
-              className="gap-2 rounded-full"
+              className="gap-2 rounded-full bg-stone-900 hover:bg-stone-800"
             >
               <Plus className="size-4" />
               추억 조각 추가
             </Button>
           </div>
         </div>
+
+        <div className="h-16" />
 
         {/* Content */}
         {loading ? (
@@ -1231,12 +1287,12 @@ export default function FragmentListPage() {
                   onOpen={(id) => nav(`/memories/${id}`)}
                   onSaveMemo={(id, memo) => {
                     setItems((prev) =>
-                      prev.map((it) => (it.id === id ? { ...it, memo } : it))
+                      prev.map((it) => (it.id === id ? { ...it, memo } : it)),
                     );
                   }}
                   onHeartsChange={(id, hearts) =>
                     setItems((prev) =>
-                      prev.map((it) => (it.id === id ? { ...it, hearts } : it))
+                      prev.map((it) => (it.id === id ? { ...it, hearts } : it)),
                     )
                   }
                 />

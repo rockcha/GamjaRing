@@ -250,7 +250,7 @@ export default function FragmentDetailPage() {
 
   const currentUid = useMemo(
     () => (user?.id ?? user?.authId) || null,
-    [user?.id, user?.authId]
+    [user?.id, user?.authId],
   );
 
   const myName = useMemo(() => user?.nickname ?? "나", [user?.nickname]);
@@ -626,17 +626,10 @@ export default function FragmentDetailPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[960px] px-4 sm:px-6 md:px-8 py-6 space-y-8">
+    <div className="mx-auto w-full max-w-[960px] px-4 sm:px-6 md:px-8 py-6 pb-28 md:pb-32 space-y-8">
       {frag && (
         <>
-          {/* ✅ Sticky 헤더 : 1행(제목+날짜) / 2행(버튼들) */}
-          <div
-            className={`sticky ${STICKY_TOP} z-40
-  mx-auto w-full max-w-[720px]    /* 💡 헤더 자체 폭도 제한 */
-  px-3 sm:px-4 md:px-5            /* 💡 모바일 패딩 축소 */
-  bg-white/90 md:bg-white/80 supports-[backdrop-filter]:bg-white/70 backdrop-blur
-  rounded-2xl border shadow-[0_1px_0_rgba(0,0,0,0.03)]`}
-          >
+          <div>
             <TooltipProvider delayDuration={80}>
               {/* Row 1: 제목(좌) + 날짜 버튼(우) */}
               <div className="h-14 grid grid-cols-[1fr_auto] items-center gap-3">
@@ -678,92 +671,6 @@ export default function FragmentDetailPage() {
                   <TooltipContent>날짜 선택</TooltipContent>
                 </Tooltip>
               </div>
-
-              <Separator />
-
-              {/* Row 2: 좌→우 (뒤로가기 / 사진 추가 / 저장 / 삭제) */}
-              <div className="h-16 grid grid-cols-4 items-center gap-3">
-                {/* 뒤로가기 */}
-                <div className="justify-self-start">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        type="button"
-                        onClick={() => nav("/memories")}
-                        variant="ghost"
-                        className="h-11 rounded-lg px-5 bg-white/80 hover:bg-white shadow-sm ring-1 ring-black/5"
-                        aria-label="뒤로가기"
-                      >
-                        <FontAwesomeIcon icon={faBackward} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>목록으로</TooltipContent>
-                  </Tooltip>
-                </div>
-
-                {/* 사진 추가 */}
-                <div className="justify-self-center">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        type="button"
-                        onClick={() => fileRef.current?.click()}
-                        variant="secondary"
-                        className="h-11 rounded-lg px-6 shadow-sm"
-                        aria-label="사진 추가"
-                      >
-                        <FontAwesomeIcon icon={faCamera} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>새 사진 카드 추가</TooltipContent>
-                  </Tooltip>
-                </div>
-                {/* 삭제(맨 오른쪽) */}
-                <div className="justify-self-end">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        className="h-11 rounded-lg px-5 "
-                        onClick={() => setConfirmOpen({ type: "fragment" })}
-                        aria-label="삭제하기"
-                      >
-                        <Trash2 className=" size-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>이 추억 조각 삭제</TooltipContent>
-                  </Tooltip>
-                </div>
-                {/* 저장 */}
-                <div className="justify-self-end">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        onClick={handleSaveAll}
-                        disabled={saving}
-                        className="h-11 rounded-lg px-6 shadow-sm"
-                        aria-label="저장하기"
-                        type="button"
-                      >
-                        {saving ? (
-                          <>
-                            <FontAwesomeIcon
-                              icon={faSpinner}
-                              className="mr-2"
-                              spin
-                            />
-                            저장중…
-                          </>
-                        ) : (
-                          <>저장</>
-                        )}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>변경 사항 저장</TooltipContent>
-                  </Tooltip>
-                </div>
-              </div>
             </TooltipProvider>
           </div>
 
@@ -793,6 +700,100 @@ export default function FragmentDetailPage() {
           if (fileRef.current) fileRef.current.value = "";
         }}
       />
+
+      {frag && (
+        <div className="fixed inset-x-0 bottom-3 z-50 px-4 sm:px-6">
+          <div className="pointer-events-none mx-auto w-full max-w-[720px]">
+            <div className="pointer-events-auto rounded-2xl border border-slate-200/80 bg-white/88 p-2.5 shadow-[0_10px_30px_rgba(15,23,42,0.14)] backdrop-blur">
+              <TooltipProvider delayDuration={80}>
+                <div className="grid grid-cols-4 gap-2">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        onClick={() => nav("/memories")}
+                        variant="ghost"
+                        className="h-11 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        aria-label="뒤로가기"
+                      >
+                        <FontAwesomeIcon
+                          icon={faBackward}
+                          className="mr-2 text-[13px]"
+                        />
+                        <span className="text-[13px]">뒤로가기</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>목록으로</TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        onClick={() => fileRef.current?.click()}
+                        variant="ghost"
+                        className="h-11 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        aria-label="사진 추가"
+                      >
+                        <FontAwesomeIcon
+                          icon={faCamera}
+                          className="mr-2 text-[13px]"
+                        />
+                        <span className="text-[13px]">사진 추가</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>새 사진 카드 추가</TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-11 rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
+                        onClick={() => setConfirmOpen({ type: "fragment" })}
+                        aria-label="삭제하기"
+                      >
+                        <Trash2 className="mr-2 size-4" />
+                        <span className="text-[13px]">삭제</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>이 추억 조각 삭제</TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={handleSaveAll}
+                        disabled={saving}
+                        className="h-11 rounded-xl bg-slate-900 px-4 text-white hover:bg-slate-800"
+                        aria-label="저장하기"
+                        type="button"
+                      >
+                        {saving ? (
+                          <>
+                            <FontAwesomeIcon
+                              icon={faSpinner}
+                              className="mr-2"
+                              spin
+                            />
+                            저장중…
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-[13px]">저장</span>
+                          </>
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>변경 사항 저장</TooltipContent>
+                  </Tooltip>
+                </div>
+              </TooltipProvider>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 카드 리스트 */}
       <div className="grid gap-5">

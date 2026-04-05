@@ -186,7 +186,7 @@ export default function IntroPage() {
         aria-label="인트로 이미지와 멘트"
         className={[
           "absolute right-4 top-4 z-20",
-          "w-[min(420px,calc(100vw-2rem))]",
+          "w-[min(460px,calc(100vw-2rem))] lg:w-[min(560px,calc(100vw-2.5rem))]",
           "hidden sm:block",
         ].join(" ")}
       >
@@ -202,7 +202,7 @@ export default function IntroPage() {
             />
 
             <div className="relative">
-              <div className="aspect-[16/9] w-full overflow-hidden">
+              <div className="aspect-[4/3] w-full overflow-hidden">
                 {introImgUrl ? (
                   <img
                     src={introImgUrl}
@@ -276,8 +276,8 @@ export default function IntroPage() {
             prefersReducedMotion
               ? { opacity: 1 }
               : leaving
-              ? { opacity: 0, scale: 0.985, y: 6, filter: "blur(2px)" }
-              : { opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }
+                ? { opacity: 0, scale: 0.985, y: 6, filter: "blur(2px)" }
+                : { opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }
           }
           transition={{
             duration: prefersReducedMotion ? 0 : leaving ? 0.22 : 0.35,

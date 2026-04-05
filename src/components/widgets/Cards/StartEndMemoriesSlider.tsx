@@ -49,7 +49,7 @@ export default function StartEndMemoriesSlider() {
         }
         const sorted = [...rows].sort(
           (a: Frag, b: Frag) =>
-            new Date(a.event_date).getTime() - new Date(b.event_date).getTime()
+            new Date(a.event_date).getTime() - new Date(b.event_date).getTime(),
         );
         setOldest(sorted[0] ?? null);
         setLatest(sorted[sorted.length - 1] ?? null);
@@ -74,8 +74,8 @@ export default function StartEndMemoriesSlider() {
           }
         : null;
 
-    return [toSlide(oldest, "first"), toSlide(latest, "last")].filter(
-      Boolean
+    return [toSlide(latest, "last"), toSlide(oldest, "first")].filter(
+      Boolean,
     ) as Slide[];
   }, [oldest, latest]);
 
@@ -108,12 +108,16 @@ export default function StartEndMemoriesSlider() {
     let dragging = false;
 
     const onTouchStart = (e: TouchEvent) => {
-      startX = e.touches[0].clientX;
+      const touch = e.touches[0];
+      if (!touch) return;
+      startX = touch.clientX;
       dragging = true;
     };
     const onTouchMove = (e: TouchEvent) => {
       if (!dragging) return;
-      const dx = e.touches[0].clientX - startX;
+      const touch = e.touches[0];
+      if (!touch) return;
+      const dx = touch.clientX - startX;
       if (Math.abs(dx) > 40) {
         dragging = false;
         dx > 0 ? prev() : next();
@@ -172,7 +176,7 @@ export default function StartEndMemoriesSlider() {
         "relative overflow-hidden rounded-3xl border-none shadow-lg",
         "bg-gradient-to-br from-rose-50/70 via-white/85 to-sky-50/70",
         "dark:from-neutral-900/80 dark:via-neutral-900/70 dark:to-neutral-900/85",
-        "p-3 sm:p-5"
+        "p-3 sm:p-5",
       )}
     >
       <SoftGlows />
@@ -185,7 +189,7 @@ export default function StartEndMemoriesSlider() {
               "font-hand font-extrabold text-[18px] sm:text-[20px] md:text-[22px] lg:text-[24px]",
               "tracking-[-0.01em] leading-tight",
               "bg-gradient-to-br from-neutral-800 to-neutral-700 dark:from-neutral-200 dark:to-neutral-50",
-              "bg-clip-text text-transparent"
+              "bg-clip-text text-transparent",
             )}
           >
             {titleNode}
@@ -202,7 +206,7 @@ export default function StartEndMemoriesSlider() {
                 "flex-1 sm:flex-none rounded-lg px-3 py-2 text-xs font-medium transition",
                 i === idx
                   ? "bg-background shadow-sm"
-                  : "opacity-70 hover:opacity-100"
+                  : "opacity-70 hover:opacity-100",
               )}
               onClick={() => setIdx(i)}
               aria-pressed={i === idx}
@@ -219,7 +223,7 @@ export default function StartEndMemoriesSlider() {
           <div
             className={cn(
               "relative w-full overflow-hidden rounded-2xl",
-              "border border-border/80 bg-transparent p-2 sm:p-3 shadow-sm"
+              "border border-border/80 bg-transparent p-2 sm:p-3 shadow-sm",
             )}
             // ✅ 1:1 정사각형 비율
             style={{ aspectRatio: "1 / 1" }}
@@ -270,7 +274,7 @@ export default function StartEndMemoriesSlider() {
                       "h-2.5 w-2.5 rounded-full transition",
                       i === idx
                         ? "bg-foreground"
-                        : "bg-muted-foreground/30 hover:bg-muted-foreground/70"
+                        : "bg-muted-foreground/30 hover:bg-muted-foreground/70",
                     )}
                   />
                 ))}

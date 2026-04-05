@@ -105,29 +105,44 @@ export default function OneLinerCard() {
   const myNickname = getMyNickname(user);
   const partnerId = useMemo(
     () => couplePartnerId ?? user?.partner_id ?? null,
-    [couplePartnerId, user?.partner_id]
+    [couplePartnerId, user?.partner_id],
   );
 
   return (
     <Card
       className={cn(
-        "relative overflow-hidden rounded-2xl",
-        "bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-none shadow-lg",
-        "px-5 sm:px-7 py-5"
+        "relative overflow-hidden rounded-3xl border border-neutral-200/70",
+        "bg-[linear-gradient(155deg,rgba(255,255,255,0.96),rgba(250,250,250,0.94))]",
+        "shadow-[0_20px_45px_-26px_rgba(15,23,42,0.35)]",
+        "px-5 sm:px-7 py-5 sm:py-6",
       )}
       role="region"
       aria-label="오늘의 한마디 카드"
     >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-16 -right-16 h-44 w-44 rounded-full bg-emerald-100/60 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -bottom-20 -left-16 h-52 w-52 rounded-full bg-rose-100/55 blur-3xl"
+      />
+
       {/* 상단 헤더 */}
-      <header className="mb-4 flex items-center gap-2">
-        <FontAwesomeIcon
-          icon={faCommentDots}
-          className="text-neutral-700"
-          aria-hidden
-        />
-        <h3 className="text-lg sm:text-xl font-bold tracking-tight text-neutral-900">
-          오늘의 한마디
-        </h3>
+      <header className="relative z-10 mb-5 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <FontAwesomeIcon
+            icon={faCommentDots}
+            className="text-neutral-700/80"
+            aria-hidden
+          />
+          <h3 className="text-lg sm:text-xl font-bold tracking-tight text-neutral-900">
+            오늘의 한마디
+          </h3>
+        </div>
+        <span className="rounded-full border border-neutral-200 bg-white/85 px-2.5 py-1 text-[11px] font-medium text-neutral-600">
+          Auto Save
+        </span>
       </header>
 
       {/* 내 한마디 → 파트너 한마디 */}
@@ -157,9 +172,9 @@ function Bubble({
     <div className="relative">
       <div
         className={cn(
-          "rounded-2xl border border-neutral-200/80 bg-white/95",
+          "rounded-3xl border border-neutral-200/80 bg-white/96",
           "px-5 sm:px-6 py-5 sm:py-6",
-          "shadow-[0_1px_0_rgba(0,0,0,0.02)]"
+          "shadow-[0_10px_24px_-20px_rgba(15,23,42,0.45)]",
         )}
       >
         {loading ? (
@@ -171,9 +186,9 @@ function Bubble({
         ) : (
           <p
             className={cn(
-              "text-[17px] sm:text-[18px] leading-relaxed text-neutral-800 whitespace-pre-wrap",
+              "text-[16px] sm:text-[17px] leading-relaxed text-neutral-800 whitespace-pre-wrap",
               "break-words",
-              "line-clamp-[var(--clamp)] font-hand"
+              "line-clamp-[var(--clamp)] font-hand",
             )}
             style={{ ["--clamp" as any]: String(clamp) }}
           >
@@ -186,16 +201,16 @@ function Bubble({
       <span
         aria-hidden
         className={cn(
-          "absolute left-8 -bottom-1.5 h-[14px] w-[14px] rotate-45",
-          "bg-white/95 border-l border-b border-neutral-200/80"
+          "absolute left-9 -bottom-1.5 h-[14px] w-[14px] rotate-45",
+          "bg-white/95 border-l border-b border-neutral-200/80",
         )}
       />
       {/* 이모지 배지 */}
       {!loading && (
         <span
           className={cn(
-            "absolute -top-3 right-3",
-            "rounded-full border border-neutral-200/70 bg-white/90 px-2 py-0.5 text-base"
+            "absolute -top-3 right-4",
+            "rounded-full border border-neutral-200/70 bg-white/95 px-2.5 py-0.5 text-base shadow-sm",
           )}
           title={`오늘의 기분: ${emoji}`}
           aria-label={`오늘의 기분: ${emoji}`}
@@ -222,15 +237,29 @@ function SectionHeader({
   avatar: React.ReactNode;
 }) {
   const toneClass = tone === "emerald" ? "text-emerald-800" : "text-rose-800";
+  const badgeClass =
+    tone === "emerald"
+      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+      : "bg-rose-50 text-rose-700 border-rose-200";
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-3">
-        {avatar}
-        <div className="flex items-baseline gap-2">
+        <div className="shrink-0 rounded-2xl border border-neutral-200 bg-white p-1.5 shadow-sm">
+          {avatar}
+        </div>
+        <div className="flex items-center gap-2">
+          <span
+            className={cn(
+              "rounded-full border px-2 py-0.5 text-[11px] font-semibold",
+              badgeClass,
+            )}
+          >
+            {tone === "emerald" ? "ME" : "PARTNER"}
+          </span>
           <span
             className={cn(
               "text-[15px] sm:text-[16px] font-semibold",
-              toneClass
+              toneClass,
             )}
           >
             {nickname}
@@ -296,7 +325,7 @@ function SelfSection({
   // realtime
   const channelName = useMemo(
     () => (myId ? `one_liner_live:${myId}` : "one_liner_live"),
-    [myId]
+    [myId],
   );
   useEffect(() => {
     if (!myId) return;
@@ -315,7 +344,7 @@ function SelfSection({
           if (editing) return;
           if (payload?.new) setMsg(payload.new as OneLiner);
           else if (payload?.eventType === "DELETE") setMsg(null);
-        }
+        },
       )
       .subscribe();
     return () => {
@@ -363,7 +392,7 @@ function SelfSection({
           emoji: nextEmoji || "🙂",
           updated_at: new Date().toISOString(),
         },
-        { onConflict: "author_id" }
+        { onConflict: "author_id" },
       );
 
       if (error) {
@@ -374,7 +403,7 @@ function SelfSection({
       setSaving("saved");
       setTimeout(() => setSaving("idle"), 1000);
     },
-    [myId, MAX, msg]
+    [myId, MAX, msg],
   );
 
   // 디바운스 오토세이브
@@ -408,7 +437,7 @@ function SelfSection({
       await saveToDb(draft, emoji); // ✅ blur 즉시 저장
       setEditing(false);
     },
-    [editing, draft, emoji, saveToDb, emojiOpen]
+    [editing, draft, emoji, saveToDb, emojiOpen],
   );
 
   const content = msg?.content ?? "오늘 한마디를 남겨보세요.";
@@ -418,15 +447,15 @@ function SelfSection({
   return (
     <section
       className={cn(
-        "rounded-2xl p-4 sm:p-5",
-        "bg-gradient-to-b from-emerald-50/50 to-transparent",
-        "transition-colors"
+        "rounded-3xl border border-emerald-100/80 p-4 sm:p-5",
+        "bg-gradient-to-b from-emerald-50/70 to-white/50",
+        "transition-colors",
       )}
     >
       <SectionHeader
         nickname={myNickname}
         tone="emerald"
-        avatar={<AvatarWidget type="user" size="md" enableMenu={false} />}
+        avatar={<AvatarWidget type="user" size="lg" enableMenu={false} />}
         rightAddon={
           <span
             aria-live="polite"
@@ -435,8 +464,8 @@ function SelfSection({
               saving === "saving"
                 ? "text-neutral-500"
                 : saving === "saved"
-                ? "text-emerald-600"
-                : "text-transparent"
+                  ? "text-emerald-600"
+                  : "text-transparent",
             )}
           >
             {statusText}
@@ -449,7 +478,7 @@ function SelfSection({
         <button
           type="button"
           onClick={startEdit}
-          className="mt-3 block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 rounded-2xl"
+          className="mt-3 block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 rounded-3xl"
           aria-label="오늘의 한마디 편집 모드로 전환"
         >
           <Bubble
@@ -506,9 +535,9 @@ function EditableBubble({
     <div className={cn("relative", className)} onBlur={onBlurContainer}>
       <div
         className={cn(
-          "rounded-2xl border border-neutral-200/80 bg-white/95",
+          "rounded-3xl border border-neutral-200/80 bg-white/96",
           "px-5 sm:px-6 py-5 sm:py-6",
-          "shadow-[0_1px_0_rgba(0,0,0,0.02)]"
+          "shadow-[0_10px_24px_-20px_rgba(15,23,42,0.45)]",
         )}
       >
         <div className="flex items-start gap-3">
@@ -519,9 +548,9 @@ function EditableBubble({
                 type="button"
                 className={cn(
                   "h-10 w-12 shrink-0 rounded-xl ring-1 ring-neutral-200/70",
-                  "bg-white text-center text-xl",
+                  "bg-white text-center text-xl shadow-sm",
                   "outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70",
-                  "flex items-center justify-center gap-1"
+                  "flex items-center justify-center gap-1",
                 )}
                 // 클릭 직전 blur로 편집 종료되는 것 방지
                 onMouseDownCapture={(e) => e.stopPropagation()}
@@ -561,8 +590,8 @@ function EditableBubble({
               aria-label="오늘의 한마디 입력"
               className={cn(
                 "w-full resize-none bg-transparent",
-                "text-[17px] sm:text-[18px] leading-relaxed text-neutral-800",
-                "outline-none placeholder:text-neutral-400"
+                "text-[16px] sm:text-[17px] leading-relaxed text-neutral-800",
+                "outline-none placeholder:text-neutral-400",
               )}
               rows={3}
               placeholder="오늘 한마디를 남겨보세요…"
@@ -578,7 +607,7 @@ function EditableBubble({
               <span
                 className={cn(
                   "text-[12px]",
-                  tooLong ? "text-rose-600 font-semibold" : "text-neutral-500"
+                  tooLong ? "text-rose-600 font-semibold" : "text-neutral-500",
                 )}
                 aria-live="polite"
               >
@@ -593,8 +622,8 @@ function EditableBubble({
       <span
         aria-hidden
         className={cn(
-          "absolute left-8 -bottom-1.5 h-[14px] w-[14px] rotate-45",
-          "bg-white/95 border-l border-b border-neutral-200/80"
+          "absolute left-9 -bottom-1.5 h-[14px] w-[14px] rotate-45",
+          "bg-white/95 border-l border-b border-neutral-200/80",
         )}
       />
     </div>
@@ -653,7 +682,7 @@ function PartnerSection({ partnerId }: { partnerId: string }) {
         (payload: any) => {
           if (payload?.new) setMsg(payload.new as OneLiner);
           else if (payload?.eventType === "DELETE") setMsg(null);
-        }
+        },
       )
       .subscribe();
     return () => {
@@ -667,14 +696,14 @@ function PartnerSection({ partnerId }: { partnerId: string }) {
   return (
     <section
       className={cn(
-        "rounded-2xl p-4 sm:p-5",
-        "bg-gradient-to-b from-rose-50/50 to-transparent"
+        "rounded-3xl border border-rose-100/80 p-4 sm:p-5",
+        "bg-gradient-to-b from-rose-50/70 to-white/50",
       )}
     >
       <SectionHeader
         nickname={nickname}
         tone="rose"
-        avatar={<AvatarWidget type="partner" size="md" enableMenu={false} />}
+        avatar={<AvatarWidget type="partner" size="lg" enableMenu={false} />}
       />
       <div className="mt-3">
         <Bubble loading={loading} content={content} emoji={emoji} />
