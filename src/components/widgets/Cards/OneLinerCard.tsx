@@ -140,9 +140,6 @@ export default function OneLinerCard() {
             오늘의 한마디
           </h3>
         </div>
-        <span className="rounded-full border border-neutral-200 bg-white/85 px-2.5 py-1 text-[11px] font-medium text-neutral-600">
-          Auto Save
-        </span>
       </header>
 
       {/* 내 한마디 → 파트너 한마디 */}
@@ -244,18 +241,9 @@ function SectionHeader({
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <div className="shrink-0 rounded-2xl border border-neutral-200 bg-white p-1.5 shadow-sm">
-          {avatar}
-        </div>
+        {avatar}
+
         <div className="flex items-center gap-2">
-          <span
-            className={cn(
-              "rounded-full border px-2 py-0.5 text-[11px] font-semibold",
-              badgeClass,
-            )}
-          >
-            {tone === "emerald" ? "ME" : "PARTNER"}
-          </span>
           <span
             className={cn(
               "text-[15px] sm:text-[16px] font-semibold",

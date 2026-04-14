@@ -269,26 +269,23 @@ export default function FlowerShop() {
                     }`}
                   >
                     <Badge
-                      className="absolute right-2 top-2 shadow-sm border border-black/20 bg-black/80 text-white px-2.5 py-1 font-mono font-bold"
+                      className="absolute right-2 top-2 z-20 shadow-sm border border-black/20 bg-black/80 text-white px-2.5 py-1 font-mono font-bold"
                       variant="secondary"
                     >
                       x{owned[f.id] ?? 0}
                     </Badge>
-                    <CardContent className="p-3 flex flex-col gap-2">
-                      <div
-                        className="w-full aspect-square rounded-xl overflow-hidden grid place-items-center
-                                   bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,.06),transparent)]
-                                   border border-white/10"
-                      >
+                    <CardContent className="flex aspect-[4/5] flex-col overflow-hidden p-0">
+                      <div className="relative min-h-0 flex-1 overflow-hidden bg-[radial-gradient(circle_at_50%_35%,rgba(255,255,255,0.42),rgba(0,0,0,0.08)_72%)]">
                         <img
                           src={imgSrc(f.label)}
                           alt={f.label}
-                          className="max-h-[85%] max-w-[85%] object-contain"
+                          className="h-full w-full object-cover"
                           loading="lazy"
                           decoding="async"
                         />
+                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/18 via-transparent to-white/10" />
                       </div>
-                      <div className="text-sm font-semibold break-words tracking-tight text-center">
+                      <div className="flex min-h-[44px] items-center justify-center border-t border-black/10 bg-white/92 px-3 py-2.5 text-center text-sm font-semibold tracking-tight text-neutral-950 shadow-[0_-8px_18px_-16px_rgba(0,0,0,0.65)]">
                         {f.label}
                       </div>
                     </CardContent>
@@ -370,22 +367,19 @@ export default function FlowerShop() {
                     }}
                   >
                     {/* 썸네일 */}
-                    <div
-                      className="aspect-square w-full grid place-items-center rounded-lg overflow-hidden
-                                 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,.06),transparent)]
-                                 border border-white/10"
-                    >
+                    <div className="relative aspect-square w-full overflow-hidden rounded-lg border border-white/10 bg-[radial-gradient(circle_at_50%_35%,rgba(255,255,255,0.42),rgba(0,0,0,0.08)_72%)]">
                       <img
                         src={imgSrc(f.label)}
                         alt={f.label}
-                        className="max-h-[75%] max-w-[75%] object-contain"
+                        className="h-full w-full object-cover"
                         loading="lazy"
                         decoding="async"
                       />
+                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-white/10" />
                     </div>
 
                     {/* 이름 */}
-                    <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-2 text-[11px] font-semibold px-2 py-1 rounded-full bg-black/35 text-white border border-white/10">
+                    <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-2 max-w-[calc(100%-1rem)] truncate text-[11px] font-semibold px-2 py-1 rounded-full border border-black/10 bg-white/92 text-neutral-950 shadow-sm backdrop-blur-[2px]">
                       {f.label}
                     </div>
 

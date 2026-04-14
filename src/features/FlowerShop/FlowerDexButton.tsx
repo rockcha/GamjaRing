@@ -195,29 +195,30 @@ export default function FlowerDexButton({ className }: { className?: string }) {
                     >
                       {has && (
                         <Badge
-                          className="absolute right-2 top-2 shadow-sm"
+                          className="absolute right-2 top-2 z-20 border border-black/20 bg-black/75 text-white shadow-sm"
                           variant="secondary"
                         >
                           x{qty}
                         </Badge>
                       )}
-                      <CardContent className="p-3 flex flex-col gap-2">
-                        <div className="w-full aspect-square rounded-xl bg-transparent grid place-items-center overflow-hidden">
+                      <CardContent className="flex aspect-[4/5] flex-col overflow-hidden p-0">
+                        <div className="relative min-h-0 flex-1 overflow-hidden bg-[radial-gradient(circle_at_50%_35%,rgba(255,255,255,0.42),rgba(0,0,0,0.08)_72%)]">
                           <img
                             src={imgSrc(f.label)}
                             alt={f.label}
-                            className="max-h-[85%] max-w-[85%] object-contain"
+                            className="h-full w-full object-cover"
                             loading="lazy"
                             decoding="async"
                           />
+                          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/18 via-transparent to-white/10" />
                         </div>
-                        <div className="flex items-center justify-between">
+                        <div className="flex min-h-[48px] items-center justify-between gap-2 border-t border-black/10 bg-white/92 p-3 text-neutral-950 shadow-[0_-8px_18px_-16px_rgba(0,0,0,0.65)]">
                           <div className="min-w-0">
-                            <div className="text-sm font-semibold truncate">
+                            <div className="truncate text-sm font-semibold">
                               {f.label}
                             </div>
                           </div>
-                          <div className="text-sm font-bold tabular-nums">
+                          <div className="shrink-0 text-sm font-bold tabular-nums text-amber-700">
                             🪙 {f.price.toLocaleString()}
                           </div>
                         </div>

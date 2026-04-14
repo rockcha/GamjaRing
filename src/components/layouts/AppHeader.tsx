@@ -19,10 +19,6 @@ import DaysTogetherBadge from "../DaysTogetherBadge";
 import TodayQuestionInline from "../widgets/Cards/TodayQuestionCard";
 import AvatarWidget from "../widgets/AvatarWidget";
 
-/* Font Awesome */
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faHeartPulse } from "@fortawesome/free-solid-svg-icons";
-
 /* ✅ Notice & 기타 위젯 */
 import NoticeCenterFloatingButton from "@/features/dev-note/NoticeFloatingButton";
 import UserMemoEmojiButton from "@/features/memo/UserMemoEmojiButton";
@@ -36,10 +32,10 @@ import WeatherCard from "../widgets/WeatherCard";
 import SlotSpinButton from "../widgets/SlotSpinButton";
 
 /* ───────────────────────── 유틸/토큰 ───────────────────────── */
-const container = "mx-auto w-full max-w-screen-2xl px-3 sm:px-4";
-const railGap = "gap-2 md:gap-3";
+const container = "mx-auto w-full max-w-none px-3 sm:px-5 lg:px-8 2xl:px-10";
+const railGap = "gap-1.5 md:gap-2";
 const iconBtn =
-  "inline-flex items-center justify-center h-8 w-8 rounded-lg " +
+  "inline-flex items-center justify-center h-9 w-9 rounded-lg " +
   "ring-1 ring-transparent hover:ring-neutral-200/80 hover:bg-white/60 transition " +
   "outline-none focus-visible:ring-2 focus-visible:ring-rose-400/70 focus-visible:ring-offset-2 " +
   "focus-visible:ring-offset-white dark:focus-visible:ring-offset-neutral-900 " +
@@ -71,21 +67,15 @@ const TitleCluster = memo(function TitleCluster({
   routeTitle: string;
 }) {
   return (
-    <div className="pl-2 flex flex-col md:grid md:grid-rows-[auto_auto]">
-      <div className="flex items-center">
-        <FontAwesomeIcon
-          icon={faHeartPulse}
-          className="mr-2 shrink-0 text-rose-500/80"
-        />
-        <h1 className="truncate text-[clamp(20px,2.2vw,24px)] leading-tight font-extrabold tracking-tight">
+    <div className="min-w-0 flex items-center">
+      <div className="min-w-0 flex flex-col">
+        <h1 className="truncate text-[21px] font-extrabold leading-tight tracking-normal md:text-[26px]">
           {routeTitle}
         </h1>
-      </div>
-      {/* ✅ 모바일에서는 감춤 */}
-      <div className="min-h-[38px] hidden md:flex items-center">
-        <p className="text-[11px] md:text-[12px] font-medium text-neutral-600/90 dark:text-neutral-300 truncate">
+        {/* ✅ 모바일에서는 감춤 */}
+        <p className="hidden truncate text-[12px] font-medium leading-5 text-neutral-500 dark:text-neutral-300 md:block">
           우리의 기록이 자라나는 공간,{" "}
-          <span className="font-semibold text-[13px] md:text-[15px] text-rose-500/80">
+          <span className="text-[13px] font-semibold text-rose-500/80">
             감자링
           </span>
         </p>
@@ -108,7 +98,7 @@ const CenterCluster = memo(function CenterCluster() {
 
 const RightClusterDesktop = memo(function RightClusterDesktop() {
   return (
-    <div className="hidden md:flex items-center justify-end gap-2 [--h:40px]">
+    <div className="hidden md:flex items-center justify-end gap-1.5 [--h:38px]">
       <CoupleBalanceCard showDelta dense className="h-[var(--h)]" />
       <Suspense
         fallback={
@@ -124,16 +114,16 @@ const RightClusterDesktop = memo(function RightClusterDesktop() {
 /* ------------------------------ 모바일: 데스크탑 순서(좌→질문→우) 레일 ------------------------------ */
 const MobileLinearRail = memo(function MobileLinearRail() {
   return (
-    <div className={cn("md:hidden", container, "pb-2")}>
+    <div className={cn("md:hidden", container, "pb-1.5")}>
       <div
         className={cn(
           "flex items-stretch",
           railGap,
-          "overflow-x-auto overscroll-x-contain no-scrollbar snap-x snap-mandatory px-2 py-2"
+          "overflow-x-auto overscroll-x-contain no-scrollbar snap-x snap-mandatory px-1.5 py-1.5"
         )}
       >
         {/* ── Left group (데스크탑 좌측 버튼들) ────────────────── */}
-        <div className="flex items-center gap-2 shrink-0 snap-start pr-1">
+        <div className="flex items-center gap-1.5 shrink-0 snap-start pr-1">
           <div className={iconBtn}>
             <NoticeCenterFloatingButton iconSize={16} />
           </div>
@@ -152,7 +142,7 @@ const MobileLinearRail = memo(function MobileLinearRail() {
         <div className="shrink-0 self-stretch w-px bg-gradient-to-b from-transparent via-neutral-300/60 to-transparent" />
 
         {/* ── Question pill (가운데 질문) ─────────────────────── */}
-        <div className="min-w-[76%] max-w-[92%] shrink-0 snap-start">
+        <div className="min-w-[72%] max-w-[90%] shrink-0 snap-start">
           <TodayQuestionInline />
         </div>
 
@@ -160,7 +150,7 @@ const MobileLinearRail = memo(function MobileLinearRail() {
         <div className="shrink-0 self-stretch w-px bg-gradient-to-b from-transparent via-neutral-300/60 to-transparent" />
 
         {/* ── Right group (데스크탑 우측 버튼들) ───────────────── */}
-        <div className="flex items-center gap-2 shrink-0 snap-start pl-1">
+        <div className="flex items-center gap-1.5 shrink-0 snap-start pl-1">
           <div className={iconBtn}>
             <PartnerActionButton />
           </div>
@@ -193,11 +183,11 @@ const MobileRows = memo(function MobileRows({
     <>
       <div className={cn("md:hidden", container)}>
         {/* 1행: 타이틀(좌) + 밸런스/아바타(우) */}
-        <div className="flex items-center justify-between py-2 gap-3">
+        <div className="flex items-center justify-between py-1.5 gap-2">
           <div className="min-w-0 flex-1">
             <TitleCluster routeTitle={routeTitle} />
           </div>
-          <div className="shrink-0 flex items-center gap-2">
+          <div className="shrink-0 flex items-center gap-1.5">
             <CoupleBalanceCard showDelta dense />
             <Suspense
               fallback={
@@ -262,13 +252,13 @@ export default function AppHeader({
       className={cn(
         "app-header-root",
         "fixed inset-x-0 top-0 z-40",
-        "bg-white/55 dark:bg-neutral-900/55",
-        "backdrop-blur-md supports-[backdrop-filter]:bg-white/45",
+        "bg-white/72 dark:bg-neutral-900/72",
+        "backdrop-blur-xl supports-[backdrop-filter]:bg-white/62 dark:supports-[backdrop-filter]:bg-neutral-900/62",
         "ring-1 ring-neutral-200/70 dark:ring-neutral-800/70",
-        "shadow-[0_8px_30px_-12px_rgba(0,0,0,0.18)]",
-        "rounded-b-2xl pt-[env(safe-area-inset-top)]",
+        "shadow-[0_10px_28px_-18px_rgba(0,0,0,0.28)]",
+        "rounded-b-xl pt-[env(safe-area-inset-top)]",
         "transition-[padding,box-shadow,backdrop-filter] duration-300",
-        "data-[compact=y]:py-1 data-[compact=n]:py-2",
+        "data-[compact=y]:py-0 data-[compact=n]:py-1",
         "overflow-x-hidden relative",
         className
       )}
@@ -283,9 +273,9 @@ export default function AppHeader({
       <div className={cn("hidden md:block", container)}>
         <div
           className={cn(
-            "grid items-center gap-4 py-3",
+            "grid items-center gap-4 py-2.5",
             "grid-cols-1",
-            "md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_minmax(240px,0.7fr)]"
+            "md:grid-cols-[minmax(280px,0.9fr)_auto_minmax(0,0.8fr)_minmax(220px,0.7fr)]"
           )}
         >
           <TitleCluster routeTitle={routeTitle} />
@@ -298,10 +288,10 @@ export default function AppHeader({
       {/* ✅ 데스크톱 프리뷰 바: Question만 흰색 카드, 버튼은 배경 없음 */}
       <div className="hidden md:block relative">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px" />
-        <div className={cn(container, "py-2")}>
-          <div className={cn("flex items-center", "gap-2 px-0 py-0")}>
+        <div className={cn(container, "py-1.5")}>
+          <div className={cn("flex items-center", "gap-1.5 px-0 py-0")}>
             {/* 좌측 버튼들 */}
-            <div className="flex items-center gap-1.5 pl-1">
+            <div className="flex items-center gap-1 pl-0.5">
               <div className={iconBtn}>
                 <NoticeCenterFloatingButton />
               </div>
@@ -319,14 +309,14 @@ export default function AppHeader({
             <div className={dividerVertical} />
 
             {/* Question pill만 흰 배경 */}
-            <div className="min-w-0 flex-1 border rounded-lg bg-white/80 dark:bg-neutral-900/80">
+            <div className="min-w-0 flex-1 rounded-lg border border-neutral-200/70 bg-white/72 shadow-sm dark:border-neutral-800/70 dark:bg-neutral-900/72">
               <TodayQuestionInline />
             </div>
 
             <div className={dividerVertical} />
 
             {/* 우측 버튼들 */}
-            <div className="flex items-center gap-1.5 pl-1">
+            <div className="flex items-center gap-1 pl-0.5">
               <div className={iconBtn}>
                 <PartnerActionButton />
               </div>

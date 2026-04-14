@@ -19,7 +19,7 @@ import { useCoupleContext } from "@/contexts/CoupleContext";
 import { useUser } from "@/contexts/UserContext";
 import supabase from "@/lib/supabase";
 import type { NotificationType } from "@/utils/notification/sendUserNotification";
-import { sendUserNotification } from "@/utils/notification/sendUserNotification";
+import { usePartnerNotification } from "@/utils/notification/usePartnerNotification";
 
 /* shadcn/ui Tooltip */
 import {
@@ -56,6 +56,18 @@ type ActionKey = Extract<
   | "음침한 말 하기"
   | "째려보기"
   | "우울해하기"
+  | "볼콕 찌르기"
+  | "감자하트 보내기"
+  | "이불 덮어주기"
+  | "볼따구 말랑하기"
+  | "행운 감자 보내기"
+  | "꼬옥 충전하기"
+  | "손 꼭 잡기"
+  | "이마 뽀뽀하기"
+  | "간식 몰래주기"
+  | "포근하게 쓰다듬기"
+  | "감자담요 말아주기"
+  | "눈맞춤 보내기"
 >;
 
 /** 액션 아이템 — desc 제거, label만 Tooltip에 노출 */
@@ -81,6 +93,19 @@ const ACTION_ITEMS: { key: ActionKey; label: string; emoji: string }[] = [
   { key: "하트날리기", label: "하트 날리기", emoji: "🫰" },
 
   { key: "노래 불러주기", label: "노래 불러주기", emoji: "🎤" },
+  { key: "볼콕 찌르기", label: "볼콕 찌르기", emoji: "☝️" },
+  { key: "감자하트 보내기", label: "감자하트 보내기", emoji: "🥔" },
+  { key: "이불 덮어주기", label: "이불 덮어주기", emoji: "🛌" },
+  { key: "볼따구 말랑하기", label: "볼따구 말랑하기", emoji: "🍡" },
+  { key: "행운 감자 보내기", label: "행운 감자 보내기", emoji: "🍀" },
+  { key: "꼬옥 충전하기", label: "꼬옥 충전하기", emoji: "🔋" },
+  { key: "손 꼭 잡기", label: "손 꼭 잡기", emoji: "🤝" },
+  { key: "이마 뽀뽀하기", label: "이마 뽀뽀하기", emoji: "😚" },
+  { key: "간식 몰래주기", label: "간식 몰래주기", emoji: "🍪" },
+  { key: "포근하게 쓰다듬기", label: "포근하게 쓰다듬기", emoji: "🧸" },
+  { key: "감자담요 말아주기", label: "감자담요 말아주기", emoji: "🥔" },
+  { key: "눈맞춤 보내기", label: "눈맞춤 보내기", emoji: "✨" },
+
   { key: "음침한 말 하기", label: "음침한 말 하기", emoji: "🌚" },
   { key: "째려보기", label: "째려보기", emoji: "😒" },
   { key: "우울해하기", label: "우울해하기", emoji: "😔" },
@@ -104,6 +129,7 @@ export default function PartnerActionButton({
 }) {
   const { couple, partnerId } = useCoupleContext();
   const { user } = useUser();
+  const { sendToPartner } = usePartnerNotification();
   const senderId = (user as any)?.id ?? null;
 
   const [receiverLabel, setReceiverLabel] = useState<string>("상대");
@@ -152,57 +178,40 @@ export default function PartnerActionButton({
   );
 
   async function handleSend(type: ActionKey, emoji: string) {
-    if (!senderId || !partnerId) {
-      toast.error("로그인/파트너 정보를 확인해주세요.");
-      return;
-    }
+    setSending(type);
     try {
-      setSending(type);
-      const { error } = await sendUserNotification({
-        senderId,
-        receiverId: partnerId,
-        type,
-      });
-      if (error) {
-        toast.error("알림 전송에 실패했어요. 잠시 후 다시 시도해주세요.");
-      } else {
-        toast.success(
-          `‘${receiverLabel}’에게 ${emoji} ${type} 알림을 보냈어요!`
-        );
-      }
-    } catch {
-      toast.error("알림 전송 중 오류가 발생했어요.");
+      await sendToPartner(
+        { type },
+        {
+          showSuccess: true,
+          successMessage: `‘${receiverLabel}’에게 ${emoji} ${type} 알림을 보냈어요!`,
+        }
+      );
     } finally {
       setSending(null);
     }
   }
 
   async function handleSendCustom() {
-    if (!senderId || !partnerId) {
-      toast.error("로그인/파트너 정보를 확인해주세요.");
-      return;
-    }
     const trimmed = customText.trim();
     if (!trimmed) {
       toast.error("보낼 내용을 입력해주세요.");
       return;
     }
-    try {
-      const desc = `${trimmed} 💕`;
-      const { error } = await sendUserNotification({
-        senderId,
-        receiverId: partnerId,
+
+    const { error } = await sendToPartner(
+      {
         type: "커스텀 액션",
-        description: desc,
-      });
-      if (error) {
-        toast.error("알림 전송에 실패했어요. 잠시 후 다시 시도해주세요.");
-      } else {
-        toast.success(`‘${receiverLabel}’에게 커스텀 액션을 보냈어요!`);
-        setCustomText("");
+        description: `${trimmed} 💕`,
+      },
+      {
+        showSuccess: true,
+        successMessage: `‘${receiverLabel}’에게 커스텀 액션을 보냈어요!`,
       }
-    } catch {
-      toast.error("알림 전송 중 오류가 발생했어요.");
+    );
+
+    if (!error) {
+      setCustomText("");
     }
   }
 
@@ -268,8 +277,7 @@ export default function PartnerActionButton({
             "w-[calc(100vw-2rem)] sm:max-w-[520px] rounded-2xl",
             // 패딩: 모바일은 조금 작게
             "p-4 sm:p-6",
-            // 세로 제한 + 스크롤
-            "max-h-[85vh] overflow-y-auto",
+            "flex max-h-[min(640px,85vh)] flex-col overflow-hidden",
             // iOS 사파리 안전영역 약간 고려
             "sm:mx-0"
           )}
@@ -288,7 +296,7 @@ export default function PartnerActionButton({
           </DialogClose>
 
           {/* 헤더: 스티키로 상단 고정 (모바일에서 스크롤 시 헤더 유지) */}
-          <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-3 px-4 pt-4 pb-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-t-2xl">
+          <div className="-mx-4 -mt-4 mb-3 shrink-0 px-4 pt-4 pb-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-t-2xl">
             <DialogHeader className="space-y-1">
               <DialogTitle className="text-base sm:text-lg">
                 {receiverLabel}에게 액션 보내기
@@ -301,7 +309,8 @@ export default function PartnerActionButton({
 
           {/* 액션 그리드 */}
           <TooltipProvider delayDuration={120}>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {ACTION_ITEMS.map((a) => (
                 <Tooltip key={a.key}>
                   <TooltipTrigger asChild>
@@ -336,11 +345,12 @@ export default function PartnerActionButton({
                   </TooltipContent>
                 </Tooltip>
               ))}
+              </div>
             </div>
           </TooltipProvider>
 
           {/* 커스텀 액션 입력 */}
-          <div className="mt-4 space-y-2">
+          <div className="mt-4 shrink-0 space-y-2">
             <label className="text-sm font-medium text-muted-foreground">
               직접 보내기
             </label>
@@ -368,7 +378,7 @@ export default function PartnerActionButton({
           </div>
 
           {/* 푸터: 스크롤 시 하단 고정 */}
-          <div className="sticky bottom-0 mt-4 -mx-4 px-4 py-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-b-2xl">
+          <div className="mt-4 -mx-4 shrink-0 px-4 py-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-b-2xl">
             <DialogFooter className="sm:justify-end">
               <DialogClose asChild>
                 <Button variant="ghost" className="h-10">

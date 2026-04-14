@@ -11,12 +11,12 @@ type IntroMsgRow = { text: string; created_at?: string | null };
 /** ✅ noon 색/톤으로 고정 */
 const FIXED_THEME = {
   vars: {
-    "--ink": "#2b1f16",
-    "--ink-strong": "#1f160f",
-    "--accentA": "#f2c58b",
-    "--accentB": "#b98243",
-    "--grain": "0.02",
-    "--scrim": "rgba(0,0,0,0.05)",
+    "--ink": "rgba(255,255,255,0.84)",
+    "--ink-strong": "#ffffff",
+    "--accentA": "#ffe3a7",
+    "--accentB": "#ff9fb6",
+    "--grain": "0.035",
+    "--scrim": "rgba(0,0,0,0.26)",
     "--saturate": "1.06",
     "--bg-from": "#fef7eb",
     "--bg-to": "#f3f7ff",
@@ -133,7 +133,7 @@ export default function IntroPage() {
     <div
       style={{
         ...FIXED_THEME.vars,
-        backgroundColor: "var(--bg-from, #0b1020)",
+        backgroundColor: "#0f0d0b",
         backgroundImage: `
           radial-gradient(circle at 0% 0%, var(--halo, rgba(255,255,255,0.18)), transparent 55%),
           radial-gradient(circle at 100% 100%, rgba(146, 182, 255, 0.26), transparent 55%),
@@ -144,6 +144,37 @@ export default function IntroPage() {
       }}
       className="relative min-h-[100svh] w-full overflow-hidden px-5 sm:px-10"
     >
+      <div aria-hidden className="absolute inset-0">
+        <img
+          src={introImgUrl || "/intro/noon.png"}
+          alt=""
+          className={[
+            "h-full w-full object-cover",
+            "scale-[1.02]",
+            "transition-opacity duration-700",
+            introLoading && !introImgUrl ? "opacity-70" : "opacity-100",
+          ].join(" ")}
+          loading="eager"
+        />
+      </div>
+
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(180deg, rgba(0,0,0,0.34) 0%, rgba(0,0,0,0.16) 28%, rgba(0,0,0,0.44) 100%)",
+        }}
+      />
+
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(circle at 50% 50%, rgba(0,0,0,0.02), rgba(0,0,0,0.45) 78%)",
+        }}
+      />
       {/* 그레인 */}
       <div
         aria-hidden
@@ -187,7 +218,7 @@ export default function IntroPage() {
         className={[
           "absolute right-4 top-4 z-20",
           "w-[min(460px,calc(100vw-2rem))] lg:w-[min(560px,calc(100vw-2.5rem))]",
-          "hidden sm:block",
+          "hidden",
         ].join(" ")}
       >
         <section className="w-full">
@@ -289,7 +320,7 @@ export default function IntroPage() {
             <div className="mt-2 relative">
               <div
                 aria-hidden
-                className="pointer-events-none absolute -inset-12 opacity-50 blur-3xl"
+                className="hidden"
                 style={{
                   background:
                     "radial-gradient(circle at 50% 40%, rgba(255,255,255,0.22), transparent 62%)",
@@ -299,13 +330,17 @@ export default function IntroPage() {
               <h1
                 className={[
                   "relative break-keep",
-                  "tracking-[-0.02em]",
+                  "tracking-normal",
                   "text-[clamp(34px,6.2vw,60px)]",
                   "leading-[1.05]",
                   "text-[var(--ink-strong)]",
                 ].join(" ")}
+                style={{
+                  textShadow:
+                    "0 4px 18px rgba(0,0,0,0.58), 0 18px 56px rgba(0,0,0,0.48)",
+                }}
               >
-                <span className="block opacity-90 font-medium text-[clamp(18px,3.2vw,22px)] text-[color:var(--ink)]/80 tracking-[-0.01em]">
+                <span className="block opacity-95 font-medium text-[clamp(18px,3.2vw,22px)] text-[color:var(--ink)] tracking-normal">
                   우리의 순간이,
                 </span>
                 <span className="block mt-2">
@@ -327,9 +362,24 @@ export default function IntroPage() {
               />
             </div>
 
+            {!introLoading && introText && (
+              <p
+                className="mt-6 max-w-[min(36rem,88vw)] break-keep text-[15px] leading-7 text-white/90 sm:text-[17px] sm:leading-8"
+                style={{
+                  textShadow:
+                    "0 3px 14px rgba(0,0,0,0.62), 0 12px 34px rgba(0,0,0,0.42)",
+                }}
+              >
+                {introText}
+              </p>
+            )}
+
             <p
-              className="mt-7 text-[13px] sm:text-sm text-[color:var(--ink)]/80 leading-relaxed font-sans"
-              style={{ textShadow: "0 10px 34px rgba(0,0,0,0.16)" }}
+              className="mt-8 text-[13px] sm:text-sm text-white/80 leading-relaxed font-sans"
+              style={{
+                textShadow:
+                  "0 3px 12px rgba(0,0,0,0.6), 0 10px 34px rgba(0,0,0,0.28)",
+              }}
             >
               클릭하거나 <span className="font-medium">SPACE</span>를 누르면
               시작해요.

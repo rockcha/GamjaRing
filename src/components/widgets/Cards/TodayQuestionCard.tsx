@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { TypingAnimation } from "@/components/magicui/typing-animation";
 import { motion } from "motion/react";
+import { useDailyAnswerStatusStore } from "@/stores/useDailyAnswerStatusStore";
 
 type DailyTaskRow = {
   user_id: string;
@@ -28,6 +29,15 @@ export default function TodayQuestionInline({
 }) {
   const { user, isCoupled } = useUser();
   const navigate = useNavigate();
+  const storedUserId = useDailyAnswerStatusStore((state) => state.userId);
+  const storedQuestionId = useDailyAnswerStatusStore(
+    (state) => state.questionId
+  );
+  const storedCompleted = useDailyAnswerStatusStore(
+    (state) => state.completed
+  );
+  const setAnswerStatus = useDailyAnswerStatusStore((state) => state.setStatus);
+  const resetAnswerStatus = useDailyAnswerStatusStore((state) => state.reset);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +63,7 @@ export default function TodayQuestionInline({
       setQuestion(null);
       setLoading(false);
       setError(null);
+      resetAnswerStatus();
       return;
     }
 
@@ -70,10 +81,24 @@ export default function TodayQuestionInline({
       if (!t) {
         setTask(null);
         setQuestion(null);
+        setAnswerStatus({
+          userId: user.id,
+          questionId: null,
+          completed: false,
+          loading: false,
+          error: null,
+        });
         setLoading(false);
         return;
       }
       setTask(t);
+      setAnswerStatus({
+        userId: user.id,
+        questionId: t.question_id,
+        completed: t.completed,
+        loading: false,
+        error: null,
+      });
 
       // 2) 표시할 질문 id
       const displayId = computeDisplayId(t.question_id, t.completed);
@@ -102,7 +127,13 @@ export default function TodayQuestionInline({
     } finally {
       setLoading(false);
     }
-  }, [user?.id, isCoupled, computeDisplayId]);
+  }, [
+    user?.id,
+    isCoupled,
+    computeDisplayId,
+    resetAnswerStatus,
+    setAnswerStatus,
+  ]);
 
   useEffect(() => {
     fetchData();
@@ -129,7 +160,8 @@ export default function TodayQuestionInline({
   /** ----------------------------------------------------------------
    *  ✅ 훅 순서 보장: 아래 훅들은 조건부 return 보다 "항상 먼저" 호출
    * ---------------------------------------------------------------- */
-  const isDone = !!task?.completed;
+  const hasStoredStatus = storedUserId === user?.id && storedQuestionId !== null;
+  const isDone = hasStoredStatus ? storedCompleted : !!task?.completed;
 
   const tone = useMemo(
     () =>

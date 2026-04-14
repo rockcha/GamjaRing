@@ -6,8 +6,9 @@ import { GetQuestionById } from "@/utils/GetQuestionById";
 import { useUser } from "@/contexts/UserContext";
 import { useCompleteTask } from "@/utils/tasks/CompleteTask";
 import { cn } from "@/lib/utils";
-import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 import supabase from "@/lib/supabase";
+import { useDailyAnswerStatusStore } from "@/stores/useDailyAnswerStatusStore";
+import { usePartnerNotification } from "@/utils/notification/usePartnerNotification";
 
 // shadcn/ui
 import {
@@ -97,19 +98,25 @@ const getDisplayId = (currentId: number | null, completed: boolean) => {
 function CornerStamp({ submitted }: { submitted: boolean }) {
   const label = submitted ? "작성 완료" : "미작성";
   const tone = submitted
-    ? "from-emerald-600/95 to-emerald-400/95 ring-emerald-700/50 text-white"
-    : "from-rose-600/95 to-rose-400/95 ring-rose-700/50 text-white";
+    ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+    : "bg-rose-50 text-rose-700 ring-rose-200";
   return (
     <div
       aria-label={`상태: ${label}`}
       className={cn(
-        "pointer-events-none absolute right-6 top-6 rotate-[10deg] select-none",
-        "px-3.5 py-1.5 rounded-xl font-extrabold tracking-[0.12em]",
-        "bg-gradient-to-br shadow-[0_10px_24px_-12px_rgba(0,0,0,0.35)] ring-2",
+        "pointer-events-none absolute right-5 top-5 select-none",
+        "inline-flex items-center rounded-full px-3 py-1 text-xs font-bold",
+        "shadow-sm ring-1",
         tone
       )}
-      style={{ WebkitTextStroke: "0.3px rgba(0,0,0,0.15)" }}
     >
+      <span
+        aria-hidden
+        className={cn(
+          "mr-1.5 h-1.5 w-1.5 rounded-full",
+          submitted ? "bg-emerald-500" : "bg-rose-500"
+        )}
+      />
       {label}
     </div>
   );
@@ -118,6 +125,8 @@ function CornerStamp({ submitted }: { submitted: boolean }) {
 export default function QuestionPage() {
   const { user } = useUser();
   const { completeTask } = useCompleteTask();
+  const setAnswerStatus = useDailyAnswerStatusStore((state) => state.setStatus);
+  const { sendToPartner } = usePartnerNotification();
 
   const [question, setQuestion] = useState<string | null>(null);
   const [questionId, setQuestionId] = useState<number | null>(null);
@@ -208,6 +217,13 @@ export default function QuestionPage() {
       }
       setQuestionId(data.question_id);
       setSubmitted(data.completed);
+      setAnswerStatus({
+        userId: user.id,
+        questionId: data.question_id,
+        completed: data.completed,
+        loading: false,
+        error: null,
+      });
       setEditing(false);
 
       const displayId = getDisplayId(data.question_id, data.completed);
@@ -227,7 +243,7 @@ export default function QuestionPage() {
       setLoading(false);
     };
     fetchQuestion();
-  }, [user, loadQuestionText, loadMyAnswer]);
+  }, [user, loadQuestionText, loadMyAnswer, setAnswerStatus]);
 
   // 드롭다운 외부 클릭/ESC
   useEffect(() => {
@@ -318,15 +334,13 @@ export default function QuestionPage() {
     if (!ok) return;
 
     if (!submitted) {
-      if (user?.partner_id) {
-        await sendUserNotification({
-          senderId: user.id,
-          receiverId: user.partner_id,
+      await sendToPartner(
+        {
           type: "답변등록",
-          description: `${user.nickname}님이 답변을 등록했어요! `,
           isRequest: false,
-        }).catch(() => {});
-      }
+        },
+        { showError: false }
+      );
 
       await completeTask().catch(() => {});
       setSubmitted(true);
@@ -341,7 +355,7 @@ export default function QuestionPage() {
     editing,
     answer,
     persistAnswer,
-    user,
+    sendToPartner,
     completeTask,
     refreshDisplayContent,
   ]);
@@ -372,30 +386,42 @@ export default function QuestionPage() {
 
   return (
     <main
-      className={cn("min-h-[100dvh] w-full bg-fixed bg-cover bg-center")}
+      className={cn(
+        "relative isolate min-h-[100dvh] w-full overflow-hidden bg-fixed bg-cover bg-center"
+      )}
       style={{ backgroundImage: "url('/questionpageBackground.png')" }}
     >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-white/70 via-white/45 to-rose-50/70"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.72),transparent_42%)]"
+      />
       <div className="min-h-[100dvh]">
-        <div className="mx-auto w-full max-w-screen-lg px-4 md:px-6 py-6 md:py-10">
+        <div className="mx-auto w-full max-w-screen-lg px-4 py-6 md:px-6 md:py-10">
           <Card
             className={cn(
-              "relative mx-auto max-w-3xl border-0 rounded-2xl",
-              "bg-[#FFF7EE] text-neutral-800",
-              "ring-1 ring-amber-200/60",
-              "shadow-[0_24px_70px_-30px_rgba(120,85,40,0.35)]"
+              "relative mx-auto max-w-3xl overflow-hidden rounded-2xl border border-white/70",
+              "bg-white/88 text-neutral-800 backdrop-blur-md",
+              "shadow-[0_24px_70px_-34px_rgba(80,48,32,0.32)]"
             )}
           >
             {/* 와시테이프 */}
-            <div className="pointer-events-none absolute -top-3 left-10 rotate-[-4deg] h-6 w-24 bg-sky-200/80 rounded-[4px] shadow-sm" />
-            <div className="pointer-events-none absolute -top-2 right-12 rotate-[6deg] h-6 w-20 bg-pink-200/80 rounded-[4px] shadow-sm" />
+            <div className="hidden" />
+            <div className="hidden" />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-rose-300 via-amber-200 to-sky-200"
+            />
 
             {/* ✅ 스탬프: 저장 성공 순간 “툭” */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.8, rotate: 0 }}
+              initial={{ opacity: 0, scale: 0.96 }}
               animate={{
                 opacity: 1,
-                scale: stampPulse ? 1.08 : 1,
-                rotate: 10,
+                scale: stampPulse ? 1.04 : 1,
                 y: stampPulse ? -2 : 0,
               }}
               transition={{
@@ -408,20 +434,25 @@ export default function QuestionPage() {
             </motion.div>
 
             {/* 헤더 */}
-            <CardHeader className="pt-10">
-              <div className="flex items-center justify-center gap-2">
-                <span className="text-xl">✉️</span>
-                <h1 className="text-lg md:text-2xl font-extrabold tracking-tight">
+            <CardHeader className="px-5 pt-9 pb-4 md:px-8 md:pt-10">
+              <div className="flex flex-col items-center justify-center gap-2 text-center">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-rose-50 text-xl ring-1 ring-rose-100">
+                  ✉️
+                </span>
+                <h1 className="text-xl font-extrabold tracking-normal md:text-2xl">
                   오늘의 질문
                 </h1>
+                <p className="text-sm leading-6 text-neutral-500">
+                  오늘 마음에 남은 말을 천천히 적어보세요.
+                </p>
               </div>
             </CardHeader>
 
             {loading ? (
               <>
-                <CardContent className="space-y-6">
-                  <Separator />
-                  <div className="mx-auto w-full md:w-[80%] lg:w-[70%]">
+                <CardContent className="space-y-5 px-5 md:px-8">
+                  <Separator className="bg-neutral-200/70" />
+                  <div className="mx-auto w-full md:w-[82%]">
                     <div className="mb-2 text-center">
                       <Skeleton className="h-4 w-72 mx-auto rounded-md" />
                     </div>
@@ -429,9 +460,9 @@ export default function QuestionPage() {
                       <Skeleton className="h-10 w-[150px] rounded-full mr-2" />
                     </div>
                   </div>
-                  <div className="mx-auto w-full md:w-[90%] lg:w-[70%]">
+                  <div className="mx-auto w-full md:w-[86%]">
                     <Skeleton
-                      className={cn("w-full rounded-2xl", BODY_FIXED_H)}
+                      className={cn("w-full rounded-xl", BODY_FIXED_H)}
                     />
                   </div>
                 </CardContent>
@@ -439,13 +470,18 @@ export default function QuestionPage() {
               </>
             ) : (
               <>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-5 px-5 md:px-8">
                   {/* 질문 본문 */}
-                  <p className="text-lg md:text-[22px] text-[#5b3d1d] whitespace-pre-line text-center leading-relaxed italic tracking-wide">
-                    {question ? `"${question}"` : "표시할 질문이 없습니다."}
-                  </p>
+                  <section className="rounded-xl border border-rose-100/80 bg-rose-50/55 px-4 py-5 text-center shadow-sm md:px-6">
+                    <p className="text-[11px] font-bold uppercase tracking-normal text-rose-400">
+                      Question
+                    </p>
+                    <p className="mt-2 whitespace-pre-line break-keep text-lg leading-8 text-neutral-800 md:text-[22px] md:leading-9">
+                      {question ? `"${question}"` : "표시할 질문이 없습니다."}
+                    </p>
+                  </section>
 
-                  <Separator className="bg-amber-200/60" />
+                  <Separator className="bg-neutral-200/70" />
 
                   {/* ✅ 저장 성공 시: 작성 → 읽기 전환 애니메이션 */}
                   <AnimatePresence mode="wait">
@@ -457,26 +493,26 @@ export default function QuestionPage() {
                       transition={{ duration: 0.22 }}
                     >
                       {isViewMode ? (
-                        <div className="mx-auto w-full md:w-[80%] lg:w-[70%]">
+                        <div className="mx-auto w-full md:w-[86%]">
                           <div
                             className={cn(
-                              "rounded-2xl border border-amber-300/80 bg-white p-4 md:p-5 ring-1 ring-amber-300/70",
+                              "rounded-xl border border-neutral-200 bg-white/95 p-4 md:p-5 ring-1 ring-white/80",
                               "whitespace-pre-wrap break-words text-[15px] md:text-base leading-relaxed",
                               BODY_FIXED_H,
-                              "overflow-y-auto shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]"
+                              "overflow-y-auto shadow-[0_14px_34px_-28px_rgba(0,0,0,0.36)]"
                             )}
                           >
                             {answer || "작성 내용이 없습니다."}
                           </div>
                         </div>
                       ) : (
-                        <div className="mx-auto w-full md:w-[90%] lg:w-[80%] space-y-2 text-center relative">
+                        <div className="mx-auto w-full space-y-2 text-center relative md:w-[88%]">
                           <div className="relative">
                             {/* ✅ Textarea 상단 저장 중 인디케이터 */}
                             {isSaving && (
                               <div
                                 aria-hidden
-                                className="absolute inset-x-0 top-0 h-1 rounded-t-2xl bg-gradient-to-r from-pink-400 via-rose-400 to-pink-400 animate-pulse"
+                                className="absolute inset-x-0 top-0 h-1 rounded-t-xl bg-gradient-to-r from-rose-300 via-amber-200 to-sky-200 animate-pulse"
                               />
                             )}
 
@@ -486,12 +522,11 @@ export default function QuestionPage() {
                               onChange={(e) => setAnswer(e.target.value)}
                               readOnly={isSaving}
                               className={cn(
-                                "mx-auto resize-none rounded-2xl bg-white",
-                                "bg-[linear-gradient(transparent_29px,rgba(0,0,0,0.035)_30px)] bg-[length:100%_30px]",
-                                "border ring-1 ring-neutral-200 focus-visible:ring-neutral-400",
+                                "mx-auto resize-none rounded-xl bg-white/95",
+                                "border border-neutral-200 ring-1 ring-white/80 focus-visible:ring-2 focus-visible:ring-rose-200",
                                 "px-4 py-3 text-[15px] md:text-[16px] leading-[30px] text-neutral-800",
                                 BODY_FIXED_H,
-                                "overflow-y-auto shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]",
+                                "overflow-y-auto shadow-[0_14px_34px_-28px_rgba(0,0,0,0.36)]",
                                 isSaving && "opacity-95"
                               )}
                               placeholder={
@@ -509,7 +544,7 @@ export default function QuestionPage() {
                                 size="icon"
                                 variant="secondary"
                                 className={cn(
-                                  "rounded-full shadow-sm border bg-white hover:bg-amber-50",
+                                  "rounded-full border bg-white shadow-sm hover:bg-rose-50",
                                   canEdit
                                     ? "opacity-100"
                                     : "pointer-events-none opacity-60"
@@ -527,7 +562,7 @@ export default function QuestionPage() {
                                   ref={emojiMenuRef}
                                   role="grid"
                                   aria-label="이모지 선택"
-                                  className="absolute z-50 mt-2 right-0 w-[300px] rounded-xl bg-white/95 backdrop-blur-sm p-2 shadow-xl ring-1 ring-amber-200/60"
+                                  className="absolute z-50 mt-2 right-0 w-[300px] rounded-xl bg-white/95 backdrop-blur-sm p-2 shadow-xl ring-1 ring-neutral-200"
                                 >
                                   <div className="grid grid-cols-6 gap-2">
                                     {EMOJIS_5x6.map((e) => (
@@ -538,7 +573,7 @@ export default function QuestionPage() {
                                           insertAtCursor(e);
                                           setEmojiOpen(false);
                                         }}
-                                        className="h-9 w-9 flex items-center justify-center rounded-lg border bg-white hover:bg-amber-100 active:scale-95 shadow-sm text-[18px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
+                                        className="h-9 w-9 flex items-center justify-center rounded-lg border bg-white hover:bg-rose-50 active:scale-95 shadow-sm text-[18px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200"
                                         aria-label={`${e} 삽입`}
                                         tabIndex={0}
                                       >
@@ -551,7 +586,7 @@ export default function QuestionPage() {
                             </div>
                           </div>
 
-                          <div className="mx-auto w-full md:w-[90%] lg:w-[80%] -mt-1 text-right text-[11px] text-amber-900/60">
+                          <div className="mx-auto w-full -mt-1 text-right text-[11px] text-neutral-500 md:w-[88%]">
                             {answer.length.toLocaleString("ko-KR")} 자
                           </div>
                         </div>
@@ -561,17 +596,17 @@ export default function QuestionPage() {
                 </CardContent>
 
                 {/* 버튼 */}
-                <CardFooter className="pt-0 pb-6">
+                <CardFooter className="px-5 pt-0 pb-7 md:px-8">
                   <div className="w-full flex items-center justify-center">
                     <Button
                       onClick={onPrimaryClick}
                       disabled={isSaving}
                       className={cn(
-                        "rounded-xl min-w-[150px] font-semibold",
+                        "min-w-[150px] rounded-lg font-semibold",
                         submitted && !editing
-                          ? "bg-rose-400 hover:bg-rose-500 text-white"
-                          : "bg-pink-500 hover:bg-pink-600 text-white",
-                        "shadow-[0_14px_28px_-14px_rgba(244,114,182,0.55)]"
+                          ? "bg-neutral-800 text-white hover:bg-neutral-700"
+                          : "bg-rose-500 text-white hover:bg-rose-600",
+                        "shadow-[0_14px_28px_-18px_rgba(244,63,94,0.62)]"
                       )}
                     >
                       {isSaving ? (

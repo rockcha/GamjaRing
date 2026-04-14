@@ -432,14 +432,15 @@ export default function GardenBackyard() {
         )}
       >
         <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,.06),transparent)]" />
-        <div className="w-full h-full grid place-items-center p-2">
+        <div className="absolute inset-0 overflow-hidden rounded-xl">
           <img
             src={STATE_IMG[t.state]}
             alt={t.state}
-            className="max-h-[72%] max-w-[72%] object-contain select-none"
+            className="h-full w-full object-cover select-none"
             draggable={false}
           />
         </div>
+        <div className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-t from-black/32 via-transparent to-white/8" />
 
         {/* 상태 라벨 */}
         <div className="absolute left-1.5 top-1.5">
@@ -463,7 +464,7 @@ export default function GardenBackyard() {
 
         {/* 선택 힌트 */}
         {t.state === "empty" && selectedSeed && (
-          <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 text-[10px] text-muted-foreground">
+          <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 rounded-full bg-black/45 px-2 py-1 text-[10px] font-medium text-white shadow-sm">
             <img
               src={SEED_META[selectedSeed].img}
               alt=""
@@ -691,7 +692,7 @@ export default function GardenBackyard() {
             )}
 
             {/* 이미지 영역 */}
-            <div className="relative w-full aspect-square grid place-items-center rounded-lg bg-background/60 overflow-hidden">
+            <div className="relative w-full aspect-square overflow-hidden rounded-lg bg-background/60">
               {claimed ? (
                 <>
                   {claimed.grade === "희귀" && <RareEffect />}
@@ -700,10 +701,11 @@ export default function GardenBackyard() {
                   <img
                     src={imgSrc(claimed.label)}
                     alt={claimed.label}
-                    className="relative z-10 max-h-[85%] max-w-[85%] object-contain"
+                    className="h-full w-full object-cover"
                     loading="eager"
                     decoding="sync"
                   />
+                  <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
                 </>
               ) : (
                 <div className="text-sm text-muted-foreground">로딩 중…</div>
