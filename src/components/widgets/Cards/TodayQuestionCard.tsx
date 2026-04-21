@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { TypingAnimation } from "@/components/magicui/typing-animation";
 import { motion } from "motion/react";
 import { useDailyAnswerStatusStore } from "@/stores/useDailyAnswerStatusStore";
+import { getDisplayQuestionId } from "@/utils/questions/questionFlow";
 
 type DailyTaskRow = {
   user_id: string;
@@ -46,16 +47,6 @@ export default function TodayQuestionInline({
 
   // 🔁 Typing 반복 제어
   const [loopKey, setLoopKey] = useState(0);
-
-  const computeDisplayId = useCallback(
-    (currentId: number | null, completed: boolean) => {
-      if (currentId == null) return null;
-      if (!completed) return currentId;
-      const prev = currentId - 1;
-      return prev >= 0 ? prev : null;
-    },
-    []
-  );
 
   const fetchData = useCallback(async () => {
     if (!user?.id || !isCoupled) {
@@ -101,7 +92,7 @@ export default function TodayQuestionInline({
       });
 
       // 2) 표시할 질문 id
-      const displayId = computeDisplayId(t.question_id, t.completed);
+      const displayId = getDisplayQuestionId(t.question_id, t.completed);
       if (displayId == null) {
         setQuestion({
           id: -1,
@@ -130,7 +121,6 @@ export default function TodayQuestionInline({
   }, [
     user?.id,
     isCoupled,
-    computeDisplayId,
     resetAnswerStatus,
     setAnswerStatus,
   ]);

@@ -3,6 +3,7 @@ import { useUser } from "@/contexts/UserContext";
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { increaseCouplePoint } from "./IncreaseCouplePoint";
 import { useDailyAnswerStatusStore } from "@/stores/useDailyAnswerStatusStore";
+import { getNextQuestionId } from "@/utils/questions/questionFlow";
 
 export function useCompleteTask() {
   const { user } = useUser();
@@ -46,7 +47,7 @@ export function useCompleteTask() {
       };
     }
 
-    const nextQuestionId = ((task.question_id ?? 0) + 1) % 400;
+    const nextQuestionId = getNextQuestionId(task.question_id);
 
     const { error: updateError } = await supabase
       .from("daily_task")

@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import supabase from "@/lib/supabase";
 import { useDailyAnswerStatusStore } from "@/stores/useDailyAnswerStatusStore";
 import { usePartnerNotification } from "@/utils/notification/usePartnerNotification";
+import { getDisplayQuestionId } from "@/utils/questions/questionFlow";
 
 // shadcn/ui
 import {
@@ -86,13 +87,6 @@ const PARTNER_MENTIONS: { emoji: string; text: string }[] = [
   { emoji: "🧁", text: "한 숟갈 달콤함도 곁들여줘." },
   { emoji: "💘", text: "사랑 한 줄, 너 한 줄." },
 ];
-
-const getDisplayId = (currentId: number | null, completed: boolean) => {
-  if (currentId == null) return null;
-  if (!completed) return currentId;
-  const prev = currentId - 1;
-  return prev >= 0 ? prev : null;
-};
 
 /* ─────────────── 스탬프 ─────────────── */
 function CornerStamp({ submitted }: { submitted: boolean }) {
@@ -188,7 +182,7 @@ export default function QuestionPage() {
   );
 
   const refreshDisplayContent = useCallback(async () => {
-    const displayId = getDisplayId(questionId, submitted);
+    const displayId = getDisplayQuestionId(questionId, submitted);
     setDisplayQuestionId(displayId);
     if (displayId == null) {
       setQuestion("표시할 이전 질문이 없습니다.");
@@ -226,7 +220,7 @@ export default function QuestionPage() {
       });
       setEditing(false);
 
-      const displayId = getDisplayId(data.question_id, data.completed);
+      const displayId = getDisplayQuestionId(data.question_id, data.completed);
       setDisplayQuestionId(displayId);
       if (displayId == null) {
         setQuestion("표시할 이전 질문이 없습니다.");
