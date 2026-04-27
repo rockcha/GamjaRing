@@ -1,7 +1,7 @@
 // src/utils/maintenance/dataintegritycheck.ts
 import supabase from "@/lib/supabase";
 import { CreateTaskTable } from "@/utils/tasks/CreateTaskTable";
-import { QUESTION_ID_START } from "@/utils/questions/questionFlow";
+import { QUESTION_ID_MIN } from "@/utils/questions/questionFlow";
 
 /**
  * 데이터 무결성 검진
@@ -281,14 +281,13 @@ export async function runDataIntegrityCheck(userId: string) {
           } else {
             const needsQuestionReset =
               typeof myTask.question_id !== "number" ||
-              myTask.question_id < QUESTION_ID_START ||
-              myTask.question_id % 2 === 0;
+              myTask.question_id < QUESTION_ID_MIN;
 
             if (needsQuestionReset) {
               const { error: normalizeErr } = await supabase
                 .from("daily_task")
                 .update({
-                  question_id: QUESTION_ID_START,
+                  question_id: QUESTION_ID_MIN,
                   completed: false,
                   date: today,
                 })
@@ -303,9 +302,9 @@ export async function runDataIntegrityCheck(userId: string) {
               } else {
                 fix(
                   DSEC,
-                  `question_id를 ${QUESTION_ID_START}로 보정하고 completed를 false로 초기화`
+                  `question_id를 ${QUESTION_ID_MIN}로 보정하고 completed를 false로 초기화`
                 );
-                myTask.question_id = QUESTION_ID_START;
+                myTask.question_id = QUESTION_ID_MIN;
                 myTask.completed = false;
                 (myTask as any).date = today;
               }

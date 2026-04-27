@@ -10,7 +10,6 @@ import { cn } from "@/lib/utils";
 import { TypingAnimation } from "@/components/magicui/typing-animation";
 import { motion } from "motion/react";
 import { useDailyAnswerStatusStore } from "@/stores/useDailyAnswerStatusStore";
-import { getDisplayQuestionId } from "@/utils/questions/questionFlow";
 
 type DailyTaskRow = {
   user_id: string;
@@ -92,7 +91,7 @@ export default function TodayQuestionInline({
       });
 
       // 2) 표시할 질문 id
-      const displayId = getDisplayQuestionId(t.question_id, t.completed);
+      const displayId = t.question_id;
       if (displayId == null) {
         setQuestion({
           id: -1,
