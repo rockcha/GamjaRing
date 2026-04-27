@@ -9,7 +9,6 @@ import { cn } from "@/lib/utils";
 import supabase from "@/lib/supabase";
 import { useDailyAnswerStatusStore } from "@/stores/useDailyAnswerStatusStore";
 import { usePartnerNotification } from "@/utils/notification/usePartnerNotification";
-import { getDisplayQuestionId } from "@/utils/questions/questionFlow";
 
 // shadcn/ui
 import {
@@ -181,21 +180,24 @@ export default function QuestionPage() {
     [user?.id]
   );
 
-  const refreshDisplayContent = useCallback(async () => {
-    const displayId = getDisplayQuestionId(questionId, submitted);
-    setDisplayQuestionId(displayId);
-    if (displayId == null) {
-      setQuestion("표시할 이전 질문이 없습니다.");
-      setAnswer("");
-      return;
-    }
-    const [qText, myAns] = await Promise.all([
-      loadQuestionText(displayId),
-      loadMyAnswer(displayId),
-    ]);
-    setQuestion(qText ?? "");
-    setAnswer(myAns ?? "");
-  }, [questionId, submitted, loadQuestionText, loadMyAnswer]);
+  const refreshDisplayContent = useCallback(
+    async (nextQuestionId: number | null = questionId) => {
+      const displayId = nextQuestionId;
+      setDisplayQuestionId(displayId);
+      if (displayId == null) {
+        setQuestion("표시할 질문이 없습니다.");
+        setAnswer("");
+        return;
+      }
+      const [qText, myAns] = await Promise.all([
+        loadQuestionText(displayId),
+        loadMyAnswer(displayId),
+      ]);
+      setQuestion(qText ?? "");
+      setAnswer(myAns ?? "");
+    },
+    [questionId, loadQuestionText, loadMyAnswer]
+  );
 
   useEffect(() => {
     const fetchQuestion = async () => {
@@ -220,10 +222,10 @@ export default function QuestionPage() {
       });
       setEditing(false);
 
-      const displayId = getDisplayQuestionId(data.question_id, data.completed);
+      const displayId = data.question_id;
       setDisplayQuestionId(displayId);
       if (displayId == null) {
-        setQuestion("표시할 이전 질문이 없습니다.");
+        setQuestion("표시할 질문이 없습니다.");
         setAnswer("");
         setLoading(false);
         return;
@@ -336,10 +338,12 @@ export default function QuestionPage() {
         { showError: false }
       );
 
-      await completeTask().catch(() => {});
+      const result = await completeTask().catch(() => null);
+      const nextQuestionId = result?.question_id ?? questionId;
+      setQuestionId(nextQuestionId);
       setSubmitted(true);
       setEditing(false);
-      await refreshDisplayContent();
+      await refreshDisplayContent(nextQuestionId);
     } else {
       setEditing(false);
       await refreshDisplayContent();
@@ -351,6 +355,7 @@ export default function QuestionPage() {
     persistAnswer,
     sendToPartner,
     completeTask,
+    questionId,
     refreshDisplayContent,
   ]);
 

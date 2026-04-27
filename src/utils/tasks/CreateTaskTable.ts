@@ -1,6 +1,6 @@
 // src/utils/tasks/CreateTaskTable.ts
 import supabase from "@/lib/supabase";
-import { QUESTION_ID_START } from "@/utils/questions/questionFlow";
+import { QUESTION_ID_MIN } from "@/utils/questions/questionFlow";
 
 export async function CreateTaskTable({
   userId,
@@ -25,7 +25,7 @@ export async function CreateTaskTable({
       couple_id: coupleId,
       date: today,
       completed: false,
-      question_id: QUESTION_ID_START,
+      question_id: QUESTION_ID_MIN,
     });
 
     if (insertError) {
