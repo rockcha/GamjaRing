@@ -60,15 +60,6 @@ export async function getFragment(fragmentId: string) {
   return data as Fragment;
 }
 
-/** 하트 +1 (원자적, SQL RPC: inc_fragment_hearts 사용) */
-export async function heartPlus(fragmentId: string) {
-  const { data, error } = await supabase.rpc("inc_fragment_hearts", {
-    frag_id: fragmentId,
-  });
-  if (error) throw error;
-  return data as number; // 최신 hearts 값
-}
-
 /* ---------- Cards ---------- */
 
 export async function listCards(fragmentId: string, limit = 20, offset = 0) {

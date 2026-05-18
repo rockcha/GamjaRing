@@ -5,7 +5,6 @@ export type Fragment = {
   title: string;
   event_date: string; // yyyy-mm-dd
   cover_photo_path: string | null; // storage path (memories/<...>)
-  hearts: number;
   created_at: string;
   updated_at: string;
 };

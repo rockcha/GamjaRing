@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import supabase from "@/lib/supabase";
 import { useDailyAnswerStatusStore } from "@/stores/useDailyAnswerStatusStore";
 import { usePartnerNotification } from "@/utils/notification/usePartnerNotification";
+import { getPreviousQuestionId } from "@/utils/questions/questionFlow";
 
 // shadcn/ui
 import {
@@ -181,8 +182,14 @@ export default function QuestionPage() {
   );
 
   const refreshDisplayContent = useCallback(
-    async (nextQuestionId: number | null = questionId) => {
-      const displayId = nextQuestionId;
+    async (
+      storedQuestionId: number | null = questionId,
+      isSubmitted = submitted
+    ) => {
+      const displayId =
+        storedQuestionId != null && isSubmitted
+          ? getPreviousQuestionId(storedQuestionId)
+          : storedQuestionId;
       setDisplayQuestionId(displayId);
       if (displayId == null) {
         setQuestion("표시할 질문이 없습니다.");
@@ -196,7 +203,7 @@ export default function QuestionPage() {
       setQuestion(qText ?? "");
       setAnswer(myAns ?? "");
     },
-    [questionId, loadQuestionText, loadMyAnswer]
+    [questionId, submitted, loadQuestionText, loadMyAnswer]
   );
 
   useEffect(() => {
@@ -211,6 +218,7 @@ export default function QuestionPage() {
         setLoading(false);
         return;
       }
+
       setQuestionId(data.question_id);
       setSubmitted(data.completed);
       setAnswerStatus({
@@ -222,7 +230,9 @@ export default function QuestionPage() {
       });
       setEditing(false);
 
-      const displayId = data.question_id;
+      const displayId = data.completed
+        ? getPreviousQuestionId(data.question_id)
+        : data.question_id;
       setDisplayQuestionId(displayId);
       if (displayId == null) {
         setQuestion("표시할 질문이 없습니다.");
@@ -343,7 +353,7 @@ export default function QuestionPage() {
       setQuestionId(nextQuestionId);
       setSubmitted(true);
       setEditing(false);
-      await refreshDisplayContent(nextQuestionId);
+      await refreshDisplayContent(nextQuestionId, true);
     } else {
       setEditing(false);
       await refreshDisplayContent();

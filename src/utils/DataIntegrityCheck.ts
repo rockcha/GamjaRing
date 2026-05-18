@@ -320,7 +320,10 @@ export async function runDataIntegrityCheck(userId: string) {
 
                 const { error: resetErr } = await supabase
                   .from("daily_task")
-                  .update({ completed: false })
+                  .update({
+                    completed: false,
+                    date: today,
+                  })
                   .eq("user_id", me.id)
                   .eq("date", taskDate);
 
