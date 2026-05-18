@@ -1,336 +1,193 @@
-// src/components/memories/StartEndMemoriesSlider.tsx
+// src/components/widgets/Cards/StartEndMemoriesSlider.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { CalendarDays, Plus } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useCoupleContext } from "@/contexts/CoupleContext";
 import { listFragments } from "@/features/memories/api";
 import { publicUrl } from "@/features/memories/storage";
-import { ChevronLeft, ChevronRight, Plus, Clock } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-type Frag = {
-  id: string | number;
-  title?: string | null;
-  event_date: string | number | Date;
-  cover_photo_path?: string | null;
-};
-
-type Slide = {
-  id: string | number;
-  src: string;
+type MemoryItem = {
+  id: string;
   title: string;
   date: string;
-  kind: "first" | "last";
+  imageUrl: string | null;
 };
 
-export default function StartEndMemoriesSlider() {
+export default function StartEndMemoriesSlider({
+  className,
+}: {
+  className?: string;
+}) {
   const nav = useNavigate();
   const { couple } = useCoupleContext();
 
   const [loading, setLoading] = useState(true);
-  const [oldest, setOldest] = useState<Frag | null>(null);
-  const [latest, setLatest] = useState<Frag | null>(null);
+  const [items, setItems] = useState<MemoryItem[]>([]);
+  const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    (async () => {
+
+    async function loadMemories() {
+      if (!couple?.id) {
+        setItems([]);
+        setLoading(false);
+        return;
+      }
+
       try {
-        if (!couple?.id) return;
         setLoading(true);
         const rows = await listFragments(couple.id, 1000, 0);
         if (!alive) return;
-        if (!rows?.length) {
-          setOldest(null);
-          setLatest(null);
-          return;
-        }
-        const sorted = [...rows].sort(
-          (a: Frag, b: Frag) =>
-            new Date(a.event_date).getTime() - new Date(b.event_date).getTime(),
-        );
-        setOldest(sorted[0] ?? null);
-        setLatest(sorted[sorted.length - 1] ?? null);
+
+        const nextItems = [...rows]
+          .sort(
+            (a, b) =>
+              new Date(a.event_date).getTime() -
+              new Date(b.event_date).getTime(),
+          )
+          .map((fragment) => ({
+            id: fragment.id,
+            title: fragment.title || "제목 없는 기억",
+            date: formatDate(fragment.event_date),
+            imageUrl: fragment.cover_photo_path
+              ? publicUrl(fragment.cover_photo_path)
+              : null,
+          }));
+
+        setItems(nextItems);
       } finally {
         if (alive) setLoading(false);
       }
-    })();
+    }
+
+    loadMemories();
     return () => {
       alive = false;
     };
   }, [couple?.id]);
 
-  const slides = useMemo<Slide[]>(() => {
-    const toSlide = (f: Frag | null | undefined, kind: "first" | "last") =>
-      f
-        ? {
-            id: f.id,
-            src: f.cover_photo_path ? publicUrl(f.cover_photo_path) : "",
-            title: f.title || "무제",
-            date: fmtDate(f.event_date),
-            kind,
-          }
-        : null;
+  const itemIds = useMemo(() => items.map((item) => item.id).join("|"), [items]);
 
-    return [toSlide(latest, "last"), toSlide(oldest, "first")].filter(
-      Boolean,
-    ) as Slide[];
-  }, [oldest, latest]);
-
-  const [idx, setIdx] = useState(0);
-  useEffect(() => setIdx(0), [slides.map((s) => s.id).join("|")]);
-
-  const hasSlides = slides.length > 0;
-  const cur = hasSlides ? slides[idx] : null;
-
-  const prev = () => setIdx((v) => (v - 1 + slides.length) % slides.length);
-  const next = () => setIdx((v) => (v + 1) % slides.length);
-
-  // 키보드 네비
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!hasSlides) return;
-      if (e.key === "ArrowLeft") prev();
-      if (e.key === "ArrowRight") next();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [idx, hasSlides, slides.length]);
+    setIndex(0);
+  }, [itemIds]);
 
-  // 터치 스와이프
-  const dragRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    const el = dragRef.current;
-    if (!el) return;
-    let startX = 0;
-    let dragging = false;
+    if (paused || items.length <= 1) return;
 
-    const onTouchStart = (e: TouchEvent) => {
-      const touch = e.touches[0];
-      if (!touch) return;
-      startX = touch.clientX;
-      dragging = true;
-    };
-    const onTouchMove = (e: TouchEvent) => {
-      if (!dragging) return;
-      const touch = e.touches[0];
-      if (!touch) return;
-      const dx = touch.clientX - startX;
-      if (Math.abs(dx) > 40) {
-        dragging = false;
-        dx > 0 ? prev() : next();
-      }
-    };
-    const onTouchEnd = () => {
-      dragging = false;
-    };
-    el.addEventListener("touchstart", onTouchStart, { passive: true });
-    el.addEventListener("touchmove", onTouchMove, { passive: true });
-    el.addEventListener("touchend", onTouchEnd);
+    const timer = window.setInterval(() => {
+      setIndex((current) => (current + 1) % items.length);
+    }, 4000);
 
-    return () => {
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchmove", onTouchMove);
-      el.removeEventListener("touchend", onTouchEnd);
-    };
-  }, [idx, slides.length]);
+    return () => window.clearInterval(timer);
+  }, [items.length, paused]);
+
+  const current = items[index] ?? null;
 
   if (loading) {
     return (
-      <Card className="relative overflow-hidden rounded-3xl p-6 ring-1 ring-border">
-        <div className="h-[360px] animate-pulse rounded-2xl bg-muted" />
+      <Card className={cn("overflow-hidden rounded-xl shadow-sm", className)}>
+        <Skeleton className="h-full min-h-[420px] w-full rounded-none" />
       </Card>
     );
   }
 
-  if (!hasSlides) {
+  if (!current) {
     return (
-      <Card className="rounded-3xl p-6 ring-1 ring-border text-center">
-        <p className="text-sm text-muted-foreground">
-          아직 보여줄 기억이 없어요.
+      <Card className={cn("rounded-xl p-6 text-center shadow-sm", className)}>
+        <div className="text-sm font-medium">아직 기억이 없습니다</div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          사진과 날짜를 추가해서 첫 기억을 남겨보세요.
         </p>
-        <Button className="mt-4" size="sm" onClick={() => nav("/memories")}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          기억 조각 추가하러 가기
+        <Button className="mt-4 gap-2" size="sm" onClick={() => nav("/memories/new")}>
+          <Plus className="size-4" />
+          추가하기
         </Button>
       </Card>
     );
   }
 
-  // ---- 헤더 타이틀 (최근에는 아이콘) ----
-  const titleNode =
-    cur?.kind === "first" ? (
-      <span>우리의 첫 기억</span>
-    ) : (
-      <span className="inline-flex items-center gap-1.5">
-        <Clock className="h-[18px] w-[18px]" />
-        우리의 최근 기억
-      </span>
-    );
-
   return (
     <Card
-      className={cn(
-        "relative overflow-hidden rounded-3xl border-none shadow-lg",
-        "bg-gradient-to-br from-rose-50/70 via-white/85 to-sky-50/70",
-        "dark:from-neutral-900/80 dark:via-neutral-900/70 dark:to-neutral-900/85",
-        "p-3 sm:p-5",
-      )}
+      className={cn("group overflow-hidden rounded-xl shadow-sm", className)}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      role="region"
+      aria-label="우리의 최근 기억"
     >
-      <SoftGlows />
+      <div className="relative h-full min-h-[420px] w-full overflow-hidden bg-muted">
+        {items.map((item, itemIndex) => (
+          <MemorySlide
+            key={item.id}
+            item={item}
+            active={itemIndex === index}
+          />
+        ))}
 
-      {/* 헤더 */}
-      <header className="relative z-10 mb-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="px-1">
-          <h2
-            className={cn(
-              "font-hand font-extrabold text-[18px] sm:text-[20px] md:text-[22px] lg:text-[24px]",
-              "tracking-[-0.01em] leading-tight",
-              "bg-gradient-to-br from-neutral-800 to-neutral-700 dark:from-neutral-200 dark:to-neutral-50",
-              "bg-clip-text text-transparent",
-            )}
-          >
-            {titleNode}
+        <div className="absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/75 via-black/35 to-transparent p-5 text-white">
+          <div className="flex items-center gap-2 text-xs text-white/80">
+            <CalendarDays className="size-3.5" />
+            {current.date}
+          </div>
+          <h2 className="mt-2 line-clamp-2 text-xl font-semibold leading-tight">
+            {current.title}
           </h2>
-          <p className="mt-1 text-xs text-muted-foreground">{cur?.date}</p>
         </div>
 
-        {/* 세그먼트 전환 */}
-        <div className="inline-flex w-full sm:w-auto items-center rounded-xl bg-muted/60 p-1 backdrop-blur">
-          {slides.map((s, i) => (
-            <button
-              key={s.kind}
-              className={cn(
-                "flex-1 sm:flex-none rounded-lg px-3 py-2 text-xs font-medium transition",
-                i === idx
-                  ? "bg-background shadow-sm"
-                  : "opacity-70 hover:opacity-100",
-              )}
-              onClick={() => setIdx(i)}
-              aria-pressed={i === idx}
-            >
-              {s.kind === "first" ? "첫 기억" : "최근 기억"}
-            </button>
-          ))}
-        </div>
-      </header>
-
-      {/* 바디: 사진 영역 1:1 + cover */}
-      <div className="relative z-10">
-        <div ref={dragRef} className="mx-auto max-w-[900px]">
-          <div
-            className={cn(
-              "relative w-full overflow-hidden rounded-2xl",
-              "border border-border/80 bg-transparent p-2 sm:p-3 shadow-sm",
-            )}
-            // ✅ 1:1 정사각형 비율
-            style={{ aspectRatio: "1 / 1" }}
-          >
-            {cur?.src ? (
-              <img
-                src={cur.src}
-                alt={cur.title}
-                // ✅ 박스를 꽉 채우면서 crop되는 느낌
-                className="absolute inset-0 h-full w-full object-cover"
-                draggable={false}
-              />
-            ) : (
-              <EmptyCover />
-            )}
+        {items.length > 1 && (
+          <div className="absolute right-4 top-4 z-10 rounded-full bg-black/45 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
+            {index + 1}/{items.length}
           </div>
-
-          {/* 컨트롤 (이미지 아래) */}
-          {slides.length > 1 && (
-            <div className="mt-3 flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={prev}
-                  aria-label="이전"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={next}
-                  aria-label="다음"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-
-              {/* 점 네비 */}
-              <div className="flex items-center justify-center gap-2">
-                {slides.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setIdx(i)}
-                    aria-label={`슬라이드 ${i + 1}`}
-                    className={cn(
-                      "h-2.5 w-2.5 rounded-full transition",
-                      i === idx
-                        ? "bg-foreground"
-                        : "bg-muted-foreground/30 hover:bg-muted-foreground/70",
-                    )}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* 하단 텍스트 */}
-        <div className="mt-4 flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
-          <div className="mx-auto max-w-[60ch] px-2 text-center text-balance text-sm sm:text-base font-medium sm:text-left">
-            {cur?.title}
-          </div>
-          <Button variant="outline" onClick={() => nav("/memories")}>
-            기억 추가하기
-          </Button>
-        </div>
+        )}
       </div>
     </Card>
   );
 }
 
-/* ---------- 부품 ---------- */
-
-function EmptyCover() {
-  return (
-    <div className="flex h-full w-full items-center justify-center">
-      <div className="rounded-xl border border-dashed border-muted-foreground/30 px-4 py-3 text-xs text-muted-foreground">
-        커버 이미지가 없어요
-      </div>
-    </div>
-  );
-}
-
-function SoftGlows() {
+function MemorySlide({
+  item,
+  active,
+}: {
+  item: MemoryItem;
+  active: boolean;
+}) {
   return (
     <div
-      aria-hidden
-      className="pointer-events-none absolute inset-0 overflow-hidden"
+      className={cn(
+        "absolute inset-0 transition-opacity duration-500",
+        active ? "opacity-100" : "opacity-0",
+      )}
+      aria-hidden={!active}
     >
-      <div className="absolute -top-28 -left-28 h-64 w-64 rounded-full bg-rose-200/25 blur-3xl" />
-      <div className="absolute -bottom-32 -right-32 h-72 w-72 rounded-full bg-sky-200/25 blur-3xl" />
-      <div
-        className="absolute inset-0 opacity-[0.06]"
-        style={{
-          backgroundImage:
-            "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22120%22 height=%22120%22><filter id=%22n%22 x=%220%22 y=%220%22><feTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%222%22 stitchTiles=%22stitch%22/></filter><rect width=%22120%22 height=%22120%22 filter=%22url(%23n)%22 opacity=%220.4%22/></svg>')",
-        }}
-      />
+      {item.imageUrl ? (
+        <img
+          src={item.imageUrl}
+          alt=""
+          className="h-full w-full object-cover"
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center bg-muted text-sm text-muted-foreground">
+          사진 없음
+        </div>
+      )}
     </div>
   );
 }
 
-/* ---------- 유틸 ---------- */
-function fmtDate(d: string | number | Date) {
-  const date = new Date(d);
+function formatDate(value: string | number | Date) {
+  const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
   return date.toLocaleDateString("ko-KR", {
     year: "numeric",

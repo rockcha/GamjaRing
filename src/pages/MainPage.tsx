@@ -38,20 +38,23 @@ export default function MainPage() {
         md:[grid-template-columns:minmax(220px,1fr)_minmax(0,0.9fr)]
         lg:[grid-template-columns:minmax(260px,0.9fr)_minmax(0,1.0fr)_minmax(0,1.0fr)]"
       >
-        {/* 왼쪽: 일정 프리뷰 + 음악 카드 */}
+        {/* 왼쪽: 일정 프리뷰 */}
         <div className="flex flex-col gap-2 min-w-0">
-          <CoupleSchedulePreview limit={5} className="w-full h-fit" />
-          <CoupleMusicCard />
+          <CoupleSchedulePreview
+            className="h-[560px] w-full lg:h-[620px]"
+            maxHeight="100%"
+          />
         </div>
 
         {/* 가운데: 기억 슬라이더 */}
         <div className="flex flex-col gap-2 min-w-0">
-          <StartEndMemoriesSlider />
+          <StartEndMemoriesSlider className="h-[560px] lg:h-[620px]" />
         </div>
 
-        {/* 오른쪽: 한줄 기록 */}
+        {/* 오른쪽: 한줄 기록 + 음악 */}
         <div className="flex flex-col gap-2 min-w-0">
           <OneLinerCard />
+          <CoupleMusicCard />
         </div>
       </div>
     </div>

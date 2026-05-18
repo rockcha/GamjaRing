@@ -11,3 +11,13 @@ export function getNextQuestionId(currentId?: number | null): number {
 
   return nextId > QUESTION_ID_MAX ? QUESTION_ID_MIN : nextId;
 }
+
+export function getPreviousQuestionId(currentId?: number | null): number {
+  const baseId =
+    typeof currentId === "number"
+      ? currentId
+      : QUESTION_ID_MIN + QUESTION_ID_STEP;
+  const previousId = baseId - QUESTION_ID_STEP;
+
+  return previousId < QUESTION_ID_MIN ? QUESTION_ID_MAX : previousId;
+}

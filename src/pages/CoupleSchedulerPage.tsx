@@ -1,9 +1,49 @@
 // src/pages/CoupleSchedulerPage.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useUser } from "@/contexts/UserContext";
+import { useEffect, useMemo, useState } from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  PencilLine,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import { toast } from "sonner";
+
+import AvatarWidget from "@/components/widgets/AvatarWidget";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useCoupleContext } from "@/contexts/CoupleContext";
+import { useUser } from "@/contexts/UserContext";
+import { cn } from "@/lib/utils";
 import {
   createCoupleSchedule,
   deleteCoupleSchedule,
@@ -14,766 +54,522 @@ import {
 } from "@/utils/coupleScheduler";
 import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 
-// shadcn
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogClose,
-} from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-
-// icons
-import {
-  ChevronLeft,
-  ChevronRight,
-  Loader2,
-  PencilLine,
-  Trash2,
-  CalendarDays,
-  Plus,
-} from "lucide-react";
-
-// 작성자 표시
-import AvatarWidget from "@/components/widgets/AvatarWidget";
-
-// utils
-import { cn } from "@/lib/utils";
-import { toast } from "sonner";
-
-/*────────────────────────────────────────────────────────┐
- | Config
- └────────────────────────────────────────────────────────*/
 const TYPE_OPTIONS: ScheduleType[] = ["데이트", "기념일", "기타 일정"];
 
-const TYPE_STYLE: Record<ScheduleType, string> = {
-  데이트: "bg-pink-50  text-pink-900/80",
-  기념일: "bg-amber-50  text-amber-900/80",
-  "기타 일정": "bg-blue-50  text-blue-900/80",
-};
-
-const DOT_BG: Record<ScheduleType, string> = {
-  데이트: "bg-pink-500",
-  기념일: "bg-amber-500",
-  "기타 일정": "bg-blue-500",
-};
-
-const TYPE_TONES = {
-  데이트: { ring: "ring-pink-200", text: "text-pink-900/80", bg: "bg-pink-50" },
+const TYPE_META: Record<
+  ScheduleType,
+  { dot: string; badge: string; soft: string; label: string }
+> = {
+  데이트: {
+    dot: "bg-rose-500",
+    badge: "bg-rose-50 text-rose-700 border-rose-200",
+    soft: "bg-rose-50/70 hover:bg-rose-50",
+    label: "데이트",
+  },
   기념일: {
-    ring: "ring-amber-200",
-    text: "text-amber-900/80",
-    bg: "bg-amber-50",
+    dot: "bg-amber-500",
+    badge: "bg-amber-50 text-amber-700 border-amber-200",
+    soft: "bg-amber-50/70 hover:bg-amber-50",
+    label: "기념일",
   },
   "기타 일정": {
-    ring: "ring-blue-200",
-    text: "text-blue-900/80",
-    bg: "bg-blue-50",
+    dot: "bg-sky-500",
+    badge: "bg-sky-50 text-sky-700 border-sky-200",
+    soft: "bg-sky-50/70 hover:bg-sky-50",
+    label: "기타 일정",
   },
-} as const;
+};
 
-// YYYY-MM-DD
-function formatYMD(d: Date) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+type CoupleLike = {
+  id: string;
+  user1_id?: string | null;
+  user2_id?: string | null;
+};
+
+type FormState = {
+  title: string;
+  type: ScheduleType;
+  date: string;
+  description: string;
+};
+
+function formatYMD(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
-// random temp id for optimistic UI
-const tempId = () => `temp_${Math.random().toString(36).slice(2, 10)}`;
-
-/*────────────────────────────────────────────────────────┐
- | Month-Pill Navigator (중앙 고정)
- | - 모바일: 하단 중앙(FAB)
- | - 데스크톱: 상단 중앙
- └────────────────────────────────────────────────────────*/
-function MonthPillNav({
-  cursor,
-  onPrev,
-  onNext,
-  onPick,
-  onToday,
-}: {
-  cursor: Date;
-  onPrev: () => void;
-  onNext: () => void;
-  onPick: (yy: number, mm0: number) => void;
-  onToday: () => void;
-}) {
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const y = cursor.getFullYear();
-  const m0 = cursor.getMonth();
-
-  // 모바일 스와이프
-  useEffect(() => {
-    const el = wrapperRef.current;
-    if (!el) return;
-    let startX = 0;
-    let isDown = false;
-    const down = (e: PointerEvent) => {
-      isDown = true;
-      startX = e.clientX;
-    };
-    const up = (e: PointerEvent) => {
-      if (!isDown) return;
-      const dx = e.clientX - startX;
-      if (dx > 60) onPrev();
-      if (dx < -60) onNext();
-      isDown = false;
-    };
-    el.addEventListener("pointerdown", down);
-    el.addEventListener("pointerup", up);
-    el.addEventListener("pointercancel", () => (isDown = false));
-    return () => {
-      el.removeEventListener("pointerdown", down);
-      el.removeEventListener("pointerup", up);
-      el.removeEventListener("pointercancel", () => (isDown = false));
-    };
-  }, [onPrev, onNext]);
-
-  const YEARS = Array.from({ length: 9 }, (_, i) => y - 4 + i);
-  const MONTHS = Array.from({ length: 12 }, (_, i) => i);
-
-  return (
-    <div
-      className={cn(
-        "fixed inset-x-0 z-50 flex justify-center pointer-events-none",
-        "top-[calc(env(safe-area-inset-top)+0.75rem)]"
-      )}
-      aria-label="월 네비게이션 영역"
-    >
-      <div
-        ref={wrapperRef}
-        className="pointer-events-auto rounded-full border bg-white/95
-                   backdrop-blur supports-[backdrop-filter]:bg-white/70
-                   shadow-[0_10px_30px_-20px_rgba(0,0,0,.35)]
-                   flex items-center gap-1 p-1"
-      >
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="이전 달"
-          onClick={onPrev}
-          className="rounded-full min-h-10 min-w-10"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </Button>
-
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              title="월/연도 선택"
-              className="rounded-full gap-2 min-h-10 px-4 border-dashed"
-            >
-              <CalendarDays className="h-4 w-4" />
-              <span className="tabular-nums font-medium">
-                {y}.{String(m0 + 1).padStart(2, "0")}
-              </span>
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[300px]" sideOffset={8}>
-            <div className="grid grid-cols-3 gap-2">
-              <div className="col-span-3 text-xs text-muted-foreground">
-                연도
-              </div>
-              <div className="col-span-3 grid grid-cols-3 gap-2">
-                {YEARS.map((yy) => (
-                  <Button
-                    key={yy}
-                    variant={yy === y ? "default" : "outline"}
-                    className="h-9"
-                    onClick={() => onPick(yy, m0)}
-                  >
-                    {yy}
-                  </Button>
-                ))}
-              </div>
-              <div className="col-span-3 mt-2 text-xs text-muted-foreground">
-                월
-              </div>
-              <div className="col-span-3 grid grid-cols-6 gap-1">
-                {MONTHS.map((mm) => (
-                  <Button
-                    key={mm}
-                    variant={mm === m0 ? "default" : "outline"}
-                    className="h-9"
-                    onClick={() => onPick(y, mm)}
-                  >
-                    {mm + 1}
-                  </Button>
-                ))}
-              </div>
-              <div className="col-span-3 mt-2">
-                <Button
-                  variant="secondary"
-                  className="w-full h-9"
-                  onClick={onToday}
-                >
-                  오늘로
-                </Button>
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="다음 달"
-          onClick={onNext}
-          className="rounded-full min-h-10 min-w-10"
-        >
-          <ChevronRight className="h-5 w-5" />
-        </Button>
-      </div>
-    </div>
-  );
+function formatMonth(date: Date) {
+  return date.toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "long",
+  });
 }
 
-/*────────────────────────────────────────────────────────┐
- | Page
- └────────────────────────────────────────────────────────*/
+function formatDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+  });
+}
 
-type CoupleLike = { id: string; user1_id: string; user2_id: string };
+function makeEmptyForm(date = formatYMD(new Date())): FormState {
+  return {
+    title: "",
+    type: "데이트",
+    date,
+    description: "",
+  };
+}
+
+function formFromSchedule(schedule: CoupleSchedule): FormState {
+  return {
+    title: schedule.title ?? "",
+    type: schedule.type,
+    date: schedule.schedule_date,
+    description: schedule.description ?? "",
+  };
+}
 
 export default function CoupleSchedulerPage() {
   const { user } = useUser();
   const { couple } = useCoupleContext();
+
   const coupleId =
-    (couple as CoupleLike | null)?.id ?? user?.partner_id ?? null;
+    (couple as CoupleLike | null)?.id ?? user?.couple_id ?? null;
+  const currentUid = user?.authId ?? user?.id ?? null;
+  const currentNickname = user?.nickname ?? "나";
 
   const partnerUserId = useMemo(() => {
     const c = couple as CoupleLike | null;
-    if (!c || !user) return null;
-    return c.user1_id === user.id ? c.user2_id : c.user1_id;
-  }, [couple, user]);
+    if (!c || !currentUid) return null;
+    if (c.user1_id === currentUid) return c.user2_id ?? null;
+    if (c.user2_id === currentUid) return c.user1_id ?? null;
+    return null;
+  }, [couple, currentUid]);
 
-  const today = new Date();
+  const today = useMemo(() => new Date(), []);
+  const todayYmd = formatYMD(today);
+
   const [cursor, setCursor] = useState(
-    new Date(today.getFullYear(), today.getMonth(), 1)
+    () => new Date(today.getFullYear(), today.getMonth(), 1),
   );
+  const [mobileSelectedDate, setMobileSelectedDate] = useState(todayYmd);
   const [items, setItems] = useState<CoupleSchedule[]>([]);
   const [loading, setLoading] = useState(false);
-
-  // Create dialog
-  const [openCreate, setOpenCreate] = useState(false);
-  const [newTitle, setNewTitle] = useState("");
-  const [newType, setNewType] = useState<ScheduleType>("데이트");
-  const [newDate, setNewDate] = useState(formatYMD(today));
-  const [newDesc, setNewDesc] = useState("");
-
-  // Detail dialog
-  const [openDetail, setOpenDetail] = useState(false);
-  const [selected, setSelected] = useState<CoupleSchedule | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [editTitle, setEditTitle] = useState("");
-  const [editType, setEditType] = useState<ScheduleType>("데이트");
-  const [editDate, setEditDate] = useState(formatYMD(today));
-  const [editDesc, setEditDesc] = useState("");
+  const [selected, setSelected] = useState<CoupleSchedule | null>(null);
+  const [createForm, setCreateForm] = useState<FormState>(() =>
+    makeEmptyForm(todayYmd),
+  );
+  const [editForm, setEditForm] = useState<FormState>(() =>
+    makeEmptyForm(todayYmd),
+  );
 
-  // fetch
-  useEffect(() => {
+  async function reloadSchedules(month = cursor) {
     if (!coupleId) return;
-    (async () => {
-      setLoading(true);
+
+    setLoading(true);
+    try {
       const { data, error } = await getSchedulesByMonth(
         coupleId,
-        cursor.getFullYear(),
-        cursor.getMonth()
+        month.getFullYear(),
+        month.getMonth(),
       );
-      if (!error) setItems(data);
+      if (error) throw error;
+      setItems(data);
+    } catch (error: any) {
+      console.error("[scheduler] load error:", error);
+      toast.error(error?.message || "일정을 불러오지 못했어요.");
+    } finally {
       setLoading(false);
-    })();
+    }
+  }
+
+  useEffect(() => {
+    reloadSchedules(cursor);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [coupleId, cursor]);
 
-  const daysInMonth = useMemo(() => {
-    const year = cursor.getFullYear();
-    const month = cursor.getMonth();
-    const firstDay = new Date(year, month, 1).getDay();
-    const lastDate = new Date(year, month + 1, 0).getDate();
+  useEffect(() => {
+    const sameMonth =
+      cursor.getFullYear() === today.getFullYear() &&
+      cursor.getMonth() === today.getMonth();
+    setMobileSelectedDate(sameMonth ? todayYmd : formatYMD(cursor));
+  }, [cursor, today, todayYmd]);
 
-    const cells: Array<{ date: Date | null }> = [];
-    for (let i = 0; i < firstDay; i++) cells.push({ date: null });
-    for (let d = 1; d <= lastDate; d++)
-      cells.push({ date: new Date(year, month, d) });
-    while (cells.length % 7 !== 0) cells.push({ date: null });
-    return cells;
-  }, [cursor]);
-
+  const days = useMemo(() => buildMonthCells(cursor), [cursor]);
   const itemsByDate = useMemo(() => {
     const map = new Map<string, CoupleSchedule[]>();
-    for (const it of items) {
-      const k = it.schedule_date;
-      if (!map.has(k)) map.set(k, []);
-      map.get(k)!.push(it);
-    }
+    items.forEach((item) => {
+      const rows = map.get(item.schedule_date) ?? [];
+      rows.push(item);
+      map.set(item.schedule_date, rows);
+    });
     return map;
   }, [items]);
+  const mobileSelectedItems = itemsByDate.get(mobileSelectedDate) ?? [];
 
-  const goPrevMonth = () =>
-    setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1));
-  const goNextMonth = () =>
-    setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1));
+  function openCreate(date = todayYmd) {
+    setCreateForm(makeEmptyForm(date));
+    setCreateOpen(true);
+  }
 
-  const handleOpenCreate = (date?: string) => {
-    const base = date ?? formatYMD(today);
-    setNewTitle("");
-    setNewType("데이트");
-    setNewDate(base);
-    setNewDesc("");
-    setOpenCreate(true);
-  };
+  function openDetail(schedule: CoupleSchedule) {
+    setSelected(schedule);
+    setEditForm(formFromSchedule(schedule));
+    setEditMode(false);
+    setDetailOpen(true);
+  }
 
-  /*──────────────── Optimistic Create ────────────────*/
-  const handleSubmitCreate = async () => {
-    if (!user || !coupleId) return;
+  function goMonth(offset: number) {
+    setCursor((current) => {
+      const next = new Date(current.getFullYear(), current.getMonth() + offset, 1);
+      return next;
+    });
+  }
 
-    const optimistic: CoupleSchedule = {
-      id: tempId(),
-      couple_id: coupleId,
-      writer_id: user.id,
-      writer_nickname: user.nickname,
-      title: newTitle.trim() || "(제목 없음)",
-      type: newType,
-      description: newDesc.trim(),
-      schedule_date: newDate,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    } as any;
+  function goToday() {
+    setCursor(new Date(today.getFullYear(), today.getMonth(), 1));
+  }
 
-    setItems((prev) => [optimistic, ...prev]);
-    setOpenCreate(false);
-    toast.success("일정 임시 등록 완료");
+  async function handleCreate() {
+    if (!coupleId || !currentUid) return;
+    const title = createForm.title.trim();
+    if (!title) {
+      toast.error("제목을 입력해주세요.");
+      return;
+    }
 
+    setSaving(true);
     try {
-      const { error, data } = await createCoupleSchedule({
+      const { data, error } = await createCoupleSchedule({
         coupleId,
-        writerId: user.id,
-        writerNickname: user.nickname,
-        title: optimistic.title,
-        type: optimistic.type,
-        description: optimistic.description,
-        scheduleDate: optimistic.schedule_date,
+        writerId: currentUid,
+        writerNickname: currentNickname,
+        title,
+        type: createForm.type,
+        description: createForm.description.trim(),
+        scheduleDate: createForm.date,
       });
       if (error) throw error;
-
-      setItems((prev) =>
-        prev.map((x) => (x.id === optimistic.id ? (data as CoupleSchedule) : x))
-      );
-
-      if (partnerUserId) {
-        await sendUserNotification({
-          senderId: user.id,
-          receiverId: partnerUserId,
-          type: "일정등록",
-          description: `${user.nickname}님이 '${optimistic.title}' 일정을 등록했어요. (${optimistic.schedule_date}, ${optimistic.type})`,
-        });
-      }
 
       if (data) {
-        setSelected(data as CoupleSchedule);
-        setEditMode(false);
-        setOpenDetail(true);
+        setItems((prev) =>
+          [...prev, data].sort((a, b) =>
+            a.schedule_date.localeCompare(b.schedule_date),
+          ),
+        );
+        setSelected(data);
+        setEditForm(formFromSchedule(data));
+        setDetailOpen(true);
       }
-    } catch (e: any) {
-      setItems((prev) => prev.filter((x) => x.id !== optimistic.id));
-      toast.error(e?.message || "등록 실패");
+
+      if (partnerUserId) {
+        sendUserNotification({
+          senderId: currentUid,
+          receiverId: partnerUserId,
+          type: "일정등록",
+          description: `${currentNickname}님이 '${title}' 일정을 등록했어요.`,
+        }).catch((error) => console.warn("schedule notification failed:", error));
+      }
+
+      setCreateOpen(false);
+      toast.success("일정을 등록했어요.");
+    } catch (error: any) {
+      console.error("[scheduler] create error:", error);
+      toast.error(error?.message || "일정을 등록하지 못했어요.");
+    } finally {
+      setSaving(false);
     }
-  };
+  }
 
-  const handleOpenDetail = (it: CoupleSchedule) => {
-    setSelected(it);
-    setEditMode(false);
-    setEditTitle(it.title);
-    setEditType(it.type);
-    setEditDate(it.schedule_date);
-    setEditDesc(it.description);
-    setOpenDetail(true);
-  };
+  async function handleUpdate() {
+    if (!selected || !currentUid) return;
+    const title = editForm.title.trim();
+    if (!title) {
+      toast.error("제목을 입력해주세요.");
+      return;
+    }
 
-  /*──────────────── Optimistic Update ────────────────*/
-  const handleSaveEdit = async () => {
-    if (!selected || !user) return;
-
-    const before = selected;
-    const nextLocal: CoupleSchedule = {
-      ...before,
-      title: editTitle.trim(),
-      type: editType,
-      description: editDesc.trim(),
-      schedule_date: editDate,
-    } as CoupleSchedule;
-
-    setItems((prev) => prev.map((x) => (x.id === before.id ? nextLocal : x)));
-    setSelected(nextLocal);
-    setEditMode(false);
-    toast.success("수정 반영");
-
+    setSaving(true);
     try {
-      const { error, data } = await updateCoupleSchedule({
-        id: before.id,
-        title: nextLocal.title,
-        type: nextLocal.type,
-        description: nextLocal.description,
-        scheduleDate: nextLocal.schedule_date,
+      const { data, error } = await updateCoupleSchedule({
+        id: selected.id,
+        title,
+        type: editForm.type,
+        description: editForm.description.trim(),
+        scheduleDate: editForm.date,
       });
       if (error) throw error;
 
-      setItems((prev) =>
-        prev.map((x) => (x.id === before.id ? (data as CoupleSchedule) : x))
-      );
-      setSelected(data as CoupleSchedule);
+      if (data) {
+        setItems((prev) =>
+          prev
+            .map((item) => (item.id === data.id ? data : item))
+            .sort((a, b) => a.schedule_date.localeCompare(b.schedule_date)),
+        );
+        setSelected(data);
+        setEditForm(formFromSchedule(data));
+      }
 
       if (partnerUserId) {
-        await sendUserNotification({
-          senderId: user.id,
+        sendUserNotification({
+          senderId: currentUid,
           receiverId: partnerUserId,
           type: "일정수정",
-          description: `${user.nickname}님이 '${nextLocal.title}' 일정을 수정했어요. (${nextLocal.schedule_date}, ${nextLocal.type})`,
-        });
+          description: `${currentNickname}님이 '${title}' 일정을 수정했어요.`,
+        }).catch((error) => console.warn("schedule notification failed:", error));
       }
-    } catch (e: any) {
-      setItems((prev) => prev.map((x) => (x.id === before.id ? before : x)));
-      setSelected(before);
-      setEditMode(true);
-      toast.error(e?.message || "수정 실패, 되돌렸습니다");
+
+      setEditMode(false);
+      toast.success("일정을 수정했어요.");
+    } catch (error: any) {
+      console.error("[scheduler] update error:", error);
+      toast.error(error?.message || "일정을 수정하지 못했어요.");
+    } finally {
+      setSaving(false);
     }
-  };
+  }
 
-  /*──────────────── Optimistic Delete ────────────────*/
-  const handleDelete = async () => {
-    if (!selected || !user) return;
+  async function handleDelete() {
+    if (!selected || !currentUid) return;
     const target = selected;
-    const keep = items;
 
-    setItems((prev) => prev.filter((x) => x.id !== target.id));
-    setOpenDetail(false);
-    toast.message("삭제 반영", { description: "네트워크 확인 중" });
-
+    setSaving(true);
     try {
       const { error } = await deleteCoupleSchedule(target.id);
       if (error) throw error;
 
+      setItems((prev) => prev.filter((item) => item.id !== target.id));
+      setDetailOpen(false);
+      setSelected(null);
+
       if (partnerUserId) {
-        await sendUserNotification({
-          senderId: user.id,
+        sendUserNotification({
+          senderId: currentUid,
           receiverId: partnerUserId,
           type: "일정삭제",
-          description: `${user.nickname}님이 '${target.title}' 일정을 삭제했어요. (${target.schedule_date})`,
-        });
+          description: `${currentNickname}님이 '${target.title}' 일정을 삭제했어요.`,
+        }).catch((error) => console.warn("schedule notification failed:", error));
       }
-    } catch (e: any) {
-      setItems(keep);
-      toast.error(e?.message || "삭제 실패, 되돌렸습니다");
-    }
-  };
 
-  const isToday = (date?: Date | null) =>
-    !!date &&
-    date.getFullYear() === today.getFullYear() &&
-    date.getMonth() === today.getMonth() &&
-    date.getDate() === today.getDate();
+      toast.success("일정을 삭제했어요.");
+    } catch (error: any) {
+      console.error("[scheduler] delete error:", error);
+      toast.error(error?.message || "일정을 삭제하지 못했어요.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
-    <main className="mx-auto w-full max-w-screen-2xl px-3 md:px-8 pb-20 md:pb-8">
-      {/* 중앙 Month-Pill 네비 (반응형 위치) */}
-      <MonthPillNav
-        cursor={cursor}
-        onPrev={goPrevMonth}
-        onNext={goNextMonth}
-        onToday={() =>
-          setCursor(
-            new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-          )
-        }
-        onPick={(yy, mm0) => setCursor(new Date(yy, mm0, 1))}
-      />
-
-      <Card className="relative bg-transparent border-0 shadow-none pt-3 md:pt-4">
-        {/* 페이지 타이틀 영역 (센터) */}
-        <div className="flex items-center justify-center px-4">
-          <CardTitle className="text-base md:text-lg py-1">
-            {cursor.getFullYear()}년 {cursor.getMonth() + 1}월
-          </CardTitle>
-        </div>
-
-        <CardContent className="p-2 md:p-4">
-          {/* 요일 헤더 */}
-          <div className="mb-2 md:mb-3 grid grid-cols-7 text-center text-xs md:text-sm font-medium text-muted-foreground">
-            {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
-              <div key={d} className="py-1.5 md:py-2">
-                {d}
+    <main className="min-h-[100dvh] bg-background">
+      <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+        <Card className="shadow-sm">
+          <CardHeader className="gap-4">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-2xl">커플 스케줄러</CardTitle>
+                  <Badge variant="secondary">
+                    {items.length.toLocaleString("ko-KR")}
+                  </Badge>
+                </div>
+                <CardDescription>
+                  함께 챙길 데이트, 기념일, 중요한 일정을 한 달 단위로 정리합니다.
+                </CardDescription>
               </div>
-            ))}
-          </div>
 
-          {/* 큰 달력: 7열 × 6행 — 고정 높이(화면별) */}
-          <div
-            className={cn(
-              "grid grid-cols-7 gap-1 md:gap-2",
-              "[grid-template-rows:repeat(6,118px)]",
-              "sm:[grid-template-rows:repeat(6,132px)]",
-              "md:[grid-template-rows:repeat(6,156px)]",
-              "lg:[grid-template-rows:repeat(6,180px)]"
-            )}
-          >
-            {daysInMonth.map(({ date }, idx) => {
-              if (!date) {
-                return (
-                  <div
-                    key={`blank-${idx}`}
-                    className="rounded-lg border bg-stone-50/70 border-dashed"
-                  />
-                );
-              }
-
-              const key = formatYMD(date);
-              const dayItems = itemsByDate.get(key) ?? [];
-
-              return (
-                <DayCell
-                  key={key}
-                  date={date}
-                  isToday={isToday(date)}
-                  items={dayItems}
-                  onAddQuick={handleOpenCreate}
-                  onOpenDetail={handleOpenDetail}
-                />
-              );
-            })}
-          </div>
-
-          {loading && (
-            <div className="mt-3 md:mt-4 flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              불러오는 중…
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" size="icon" onClick={() => goMonth(-1)}>
+                  <ChevronLeft className="size-4" />
+                </Button>
+                <Button variant="outline" onClick={goToday}>
+                  오늘
+                </Button>
+                <div className="min-w-32 text-center text-lg font-semibold">
+                  {formatMonth(cursor)}
+                </div>
+                <Button variant="outline" size="icon" onClick={() => goMonth(1)}>
+                  <ChevronRight className="size-4" />
+                </Button>
+                <Button onClick={() => openCreate(todayYmd)}>
+                  <Plus className="mr-2 size-4" />
+                  일정 추가
+                </Button>
+              </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardHeader>
+        </Card>
 
-      {/* ───────── Create Dialog ───────── */}
-      <Dialog open={openCreate} onOpenChange={setOpenCreate}>
-        <DialogContent className="fixed sm:max-w-xl left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          <DialogHeader>
-            <DialogTitle className="mb-1 leading-snug">일정 등록</DialogTitle>
-          </DialogHeader>
-
-          <div className="grid gap-3">
-            <Input
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              placeholder="제목"
-              className="min-h-10"
-            />
-            <div className="flex gap-3">
-              <Select
-                value={newType}
-                onValueChange={(v) => setNewType(v as ScheduleType)}
-              >
-                <SelectTrigger className="w-40 cursor-pointer min-h-10">
-                  <SelectValue placeholder="유형" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TYPE_OPTIONS.map((t) => (
-                    <SelectItem key={t} value={t} className="cursor-pointer">
-                      {t}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                type="date"
-                value={newDate}
-                onChange={(e) => setNewDate(e.target.value)}
-                className="flex-1 min-h-10"
+        <Card className="shadow-sm">
+          <CardContent className="p-3 sm:p-4">
+            <div className="md:hidden">
+              <MobileScheduleView
+                days={days}
+                selectedDate={mobileSelectedDate}
+                selectedItems={mobileSelectedItems}
+                todayYmd={todayYmd}
+                itemsByDate={itemsByDate}
+                onSelectDate={setMobileSelectedDate}
+                onCreate={() => openCreate(mobileSelectedDate)}
+                onOpen={openDetail}
               />
             </div>
-            <Textarea
-              value={newDesc}
-              onChange={(e) => setNewDesc(e.target.value)}
-              placeholder="설명"
-              rows={5}
-            />
-          </div>
 
-          <DialogFooter className="mt-3">
-            <DialogClose asChild>
-              <Button variant="outline" className="min-h-10 min-w-20">
-                취소
-              </Button>
-            </DialogClose>
-            <Button onClick={handleSubmitCreate} className="min-h-10 min-w-20">
+            <div className="hidden md:block">
+              <div className="mb-3 grid grid-cols-7 text-center text-sm font-medium text-muted-foreground">
+                {["일", "월", "화", "수", "목", "금", "토"].map((day) => (
+                  <div key={day} className="py-2">
+                    {day}
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-7 gap-2">
+                {days.map((cell, index) => {
+                  if (!cell.date) {
+                    return (
+                      <div
+                        key={`empty-${index}`}
+                        className="min-h-36 rounded-md border border-dashed bg-muted/20 lg:min-h-40"
+                      />
+                    );
+                  }
+
+                  const ymd = formatYMD(cell.date);
+                  return (
+                    <DayCell
+                      key={ymd}
+                      date={cell.date}
+                      today={ymd === todayYmd}
+                      items={itemsByDate.get(ymd) ?? []}
+                      onCreate={() => openCreate(ymd)}
+                      onOpen={openDetail}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+
+            {loading && (
+              <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" />
+                일정을 불러오는 중입니다.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-[min(92vw,560px)]">
+          <DialogHeader>
+            <DialogTitle>일정 추가</DialogTitle>
+            <DialogDescription>
+              제목, 날짜, 종류를 입력해서 새 일정을 등록합니다.
+            </DialogDescription>
+          </DialogHeader>
+          <ScheduleForm value={createForm} onChange={setCreateForm} />
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              취소
+            </Button>
+            <Button onClick={handleCreate} disabled={saving}>
+              {saving && <Loader2 className="mr-2 size-4 animate-spin" />}
               등록
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* ───────── Detail/Edit Dialog (깔끔 & 예쁜 카드 스타일) ───────── */}
-      <Dialog open={openDetail} onOpenChange={setOpenDetail}>
-        <DialogContent className="fixed sm:max-w-lg left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 p-0 overflow-hidden rounded-2xl border shadow-2xl">
+      <Dialog
+        open={detailOpen}
+        onOpenChange={(open) => {
+          setDetailOpen(open);
+          if (!open) setEditMode(false);
+        }}
+      >
+        <DialogContent className="max-w-[min(92vw,600px)]">
           {selected && (
-            <div className="relative">
-              {/* 상단 배경 스트립 */}
-              <div className="h-2 w-full bg-gradient-to-r from-amber-200/60 via-stone-200/40 to-amber-200/60" />
-
-              {/* 헤더 */}
-              <div className="px-5 pt-4 pb-3 bg-white">
-                <div className="flex items-center gap-3">
-                  {(() => {
-                    const writerId = (selected as any)?.writer_id as
-                      | string
-                      | undefined;
-                    const authorIsMe = writerId
-                      ? writerId === user?.id
-                      : selected.writer_nickname === user?.nickname;
-                    return (
-                      <AvatarWidget
-                        type={authorIsMe ? "user" : "partner"}
-                        size="sm"
-                      />
-                    );
-                  })()}
-                  <div className="min-w-0">
-                    <DialogTitle className="truncate text-lg font-semibold leading-tight">
-                      {selected.title}
+            <>
+              <DialogHeader>
+                <div className="flex items-start gap-3">
+                  <AvatarWidget
+                    type={
+                      (selected as any).writer === currentUid ? "user" : "partner"
+                    }
+                    size="sm"
+                    enableMenu={false}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <DialogTitle className="truncate">
+                      {editMode ? "일정 수정" : selected.title}
                     </DialogTitle>
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                      <Badge
-                        variant="secondary"
-                        className=" px-2 py-0.5 text-[11px] tabular-nums"
-                      >
-                        {selected.schedule_date}
-                      </Badge>
-                      <Badge
-                        variant="secondary"
-                        className={cn(
-                          " px-2 py-0.5 text-[11px]",
-                          TYPE_TONES[selected.type]?.text
-                        )}
-                      >
-                        {selected.type}
-                      </Badge>
-                    </div>
+                    {!editMode && (
+                      <DialogDescription className="mt-1">
+                        {formatDate(selected.schedule_date)}
+                      </DialogDescription>
+                    )}
                   </div>
+                  {!editMode && <TypeBadge type={selected.type} />}
                 </div>
-              </div>
+              </DialogHeader>
 
-              {/* 본문 */}
-              <div className="px-5 pb-5 pt-2 bg-white">
-                {!editMode ? (
-                  <div className="rounded-xl border border-stone-200 bg-stone-50 p-4">
-                    <p className="whitespace-pre-wrap text-[15px] leading-6 text-stone-800">
-                      {selected.description?.trim() || "메모가 비어 있어요."}
+              {editMode ? (
+                <ScheduleForm value={editForm} onChange={setEditForm} />
+              ) : (
+                <div className="space-y-4">
+                  <div className="rounded-md border bg-muted/30 p-4">
+                    <div className="mb-2 text-sm font-medium">메모</div>
+                    <p className="min-h-20 whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground">
+                      {selected.description?.trim() || "메모가 없습니다."}
                     </p>
                   </div>
-                ) : (
-                  <div className="grid gap-3">
-                    <Input
-                      value={editTitle}
-                      onChange={(e) => setEditTitle(e.target.value)}
-                      placeholder="제목"
-                      className="min-h-11"
-                    />
-                    <div className="flex gap-3">
-                      <Select
-                        value={editType}
-                        onValueChange={(v) => setEditType(v as ScheduleType)}
-                      >
-                        <SelectTrigger className="w-40 min-h-11">
-                          <SelectValue placeholder="유형" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {TYPE_OPTIONS.map((t) => (
-                            <SelectItem key={t} value={t}>
-                              {t}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Input
-                        type="date"
-                        value={editDate}
-                        onChange={(e) => setEditDate(e.target.value)}
-                        className="flex-1 min-h-11"
-                      />
-                    </div>
-                    <Textarea
-                      value={editDesc}
-                      onChange={(e) => setEditDesc(e.target.value)}
-                      rows={6}
-                      placeholder="메모"
-                      className="leading-6"
-                    />
+                  <div className="text-xs text-muted-foreground">
+                    작성자 {selected.writer_nickname || "알 수 없음"}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
-              <div className=" flex justify-end p-2 gap-1">
-                {!editMode ? (
+              <DialogFooter className="gap-2">
+                {editMode ? (
                   <>
-                    <Button
-                      variant="default"
-                      size="icon"
-                      title="수정"
-                      onClick={() => setEditMode(true)}
-                      className="rounded-lg min-h-9 min-w-9"
-                    >
-                      <PencilLine className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      title="삭제"
-                      onClick={handleDelete}
-                      className="rounded-lg min-h-9 min-w-9"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      size="sm"
-                      onClick={handleSaveEdit}
-                      className="rounded-lg h-9 px-4"
-                    >
-                      저장
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setEditMode(false)}
-                      className="rounded-lg h-9 px-4"
-                    >
+                    <Button variant="outline" onClick={() => setEditMode(false)}>
                       취소
                     </Button>
+                    <Button onClick={handleUpdate} disabled={saving}>
+                      {saving && <Loader2 className="mr-2 size-4 animate-spin" />}
+                      저장
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="destructive"
+                      onClick={handleDelete}
+                      disabled={saving}
+                    >
+                      <Trash2 className="mr-2 size-4" />
+                      삭제
+                    </Button>
+                    <Button variant="outline" onClick={() => setEditMode(true)}>
+                      <PencilLine className="mr-2 size-4" />
+                      수정
+                    </Button>
                   </>
                 )}
-              </div>
-            </div>
+              </DialogFooter>
+            </>
           )}
         </DialogContent>
       </Dialog>
@@ -781,103 +577,302 @@ export default function CoupleSchedulerPage() {
   );
 }
 
-/*────────────────────────────────────────────────────────┐
- | DayCell: 달력 칸 내부
- | - 오늘 칸 테두리 글로우
- | - 제목만 표시(설명 숨김)
- | - 빈 문구 제거
- | - 고정 높이 + 내부 스크롤
- └────────────────────────────────────────────────────────*/
+function ScheduleForm({
+  value,
+  onChange,
+}: {
+  value: FormState;
+  onChange: (next: FormState) => void;
+}) {
+  return (
+    <div className="grid gap-4">
+      <div className="space-y-2">
+        <Label htmlFor="schedule-title">제목</Label>
+        <Input
+          id="schedule-title"
+          value={value.title}
+          onChange={(event) =>
+            onChange({ ...value, title: event.target.value })
+          }
+          placeholder="어떤 일정인가요?"
+          className="h-11"
+        />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-[180px_minmax(0,1fr)]">
+        <div className="space-y-2">
+          <Label>종류</Label>
+          <Select
+            value={value.type}
+            onValueChange={(type) =>
+              onChange({ ...value, type: type as ScheduleType })
+            }
+          >
+            <SelectTrigger className="h-11">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {TYPE_OPTIONS.map((type) => (
+                <SelectItem key={type} value={type}>
+                  {TYPE_META[type].label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="schedule-date">날짜</Label>
+          <Input
+            id="schedule-date"
+            type="date"
+            value={value.date}
+            onChange={(event) =>
+              onChange({ ...value, date: event.target.value })
+            }
+            className="h-11"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="schedule-description">메모</Label>
+        <Textarea
+          id="schedule-description"
+          value={value.description}
+          onChange={(event) =>
+            onChange({ ...value, description: event.target.value })
+          }
+          rows={5}
+          placeholder="장소, 준비물, 기억할 내용을 적어보세요."
+          className="resize-y"
+        />
+      </div>
+    </div>
+  );
+}
+
 function DayCell({
   date,
-  isToday,
+  today,
   items,
-  onAddQuick,
-  onOpenDetail,
+  onCreate,
+  onOpen,
 }: {
   date: Date;
-  isToday: boolean;
+  today: boolean;
   items: CoupleSchedule[];
-  onAddQuick: (ymd: string) => void;
-  onOpenDetail: (it: CoupleSchedule) => void;
+  onCreate: () => void;
+  onOpen: (item: CoupleSchedule) => void;
 }) {
-  const ymd = formatYMD(date);
-  const densityDots = Math.min(3, items.length);
-
   return (
     <div
       className={cn(
-        "relative rounded-lg border bg-white overflow-hidden flex flex-col min-h-0",
-        // ✨ 오늘 칸 하이라이트: ring + soft glow shadow
-        isToday
-          ? "ring-2 ring-emerald-400/70 shadow-[0_0_0_3px_rgba(16,185,129,.25)]"
-          : ""
+        "flex min-h-28 flex-col overflow-hidden rounded-md border bg-card sm:min-h-36 lg:min-h-40",
+        today && "ring-2 ring-primary/60",
       )}
     >
-      {/* 날짜 헤더 (클릭시 빠른 추가) */}
       <button
-        onClick={() => onAddQuick(ymd)}
+        type="button"
+        onClick={onCreate}
         className={cn(
-          "group flex items-center justify-between px-2 py-2 border-b",
-          isToday ? "bg-emerald-50" : "bg-muted/20",
-          "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          "flex items-center justify-between border-b px-2 py-2 text-left transition-colors hover:bg-muted",
+          today && "bg-primary/5",
         )}
-        title={`${ymd} 일정 추가`}
-        aria-label={`${ymd} 일정 추가`}
       >
-        <span
-          className={cn(
-            "text-sm font-semibold tabular-nums",
-            isToday ? "text-emerald-800" : "text-foreground"
-          )}
-        >
+        <span className="text-sm font-semibold tabular-nums">
           {date.getDate()}
         </span>
         <div className="flex items-center gap-1">
-          {Array.from({ length: densityDots }).map((_, i) => (
+          {items.slice(0, 3).map((item) => (
             <span
-              key={i}
-              className="inline-block size-1.5 rounded-full bg-amber-500/60"
+              key={item.id}
+              className={cn("size-1.5 rounded-full", TYPE_META[item.type].dot)}
             />
           ))}
           {items.length > 0 && (
-            <span className="text-[11px] md:text-xs text-muted-foreground">
-              {items.length}개
-            </span>
+            <span className="text-xs text-muted-foreground">{items.length}</span>
           )}
-          <span className="ml-1 hidden md:inline-block text-muted-foreground/60 opacity-0 group-hover:opacity-100 transition">
-            <Plus className="h-3.5 w-3.5" />
-          </span>
+          <Plus className="hidden size-3.5 text-muted-foreground sm:block" />
         </div>
       </button>
 
-      {/* 일정 리스트 (칸 내부 스크롤) */}
-      <ScrollArea className="flex-1 p-2">
-        <div className="space-y-1">
-          {/* ⛔ 빈 문구 제거: items.length===0 면 그냥 비워둠 */}
-          {items.map((it) => (
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="space-y-1 p-2">
+          {items.map((item) => (
             <button
-              key={it.id}
-              onClick={() => onOpenDetail(it)}
+              key={item.id}
+              type="button"
+              onClick={() => onOpen(item)}
               className={cn(
-                "w-full text-left px-2 py-2 text-[12px] md:text-xs rounded-md",
-                "hover:brightness-[.98] active:scale-[.99] transition border",
-
-                TYPE_STYLE[it.type]
+                "w-full rounded-md border px-2 py-2 text-left text-xs transition-colors",
+                TYPE_META[item.type].soft,
               )}
-              title={it.title}
-              aria-label={`${it.type} - ${it.title}`}
-              style={{ minHeight: 40 }}
+              title={item.title}
             >
-              <div className="flex items-center justify-center gap-1.5">
-                {/* ✅ 제목만 표시 */}
-                <span className="truncate font-medium">{it.title}</span>
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={cn(
+                    "size-1.5 shrink-0 rounded-full",
+                    TYPE_META[item.type].dot,
+                  )}
+                />
+                <span className="truncate font-medium">{item.title}</span>
               </div>
-              {/* 설명은 숨김 */}
             </button>
           ))}
         </div>
       </ScrollArea>
     </div>
   );
+}
+
+function MobileScheduleView({
+  days,
+  selectedDate,
+  selectedItems,
+  todayYmd,
+  itemsByDate,
+  onSelectDate,
+  onCreate,
+  onOpen,
+}: {
+  days: Array<{ date: Date | null }>;
+  selectedDate: string;
+  selectedItems: CoupleSchedule[];
+  todayYmd: string;
+  itemsByDate: Map<string, CoupleSchedule[]>;
+  onSelectDate: (date: string) => void;
+  onCreate: () => void;
+  onOpen: (item: CoupleSchedule) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-7 text-center text-xs font-medium text-muted-foreground">
+        {["일", "월", "화", "수", "목", "금", "토"].map((day) => (
+          <div key={day} className="py-2">
+            {day}
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1">
+        {days.map((cell, index) => {
+          if (!cell.date) {
+            return <div key={`empty-mobile-${index}`} className="aspect-square" />;
+          }
+
+          const ymd = formatYMD(cell.date);
+          const dayItems = itemsByDate.get(ymd) ?? [];
+          const selected = selectedDate === ymd;
+          const isToday = todayYmd === ymd;
+
+          return (
+            <button
+              key={ymd}
+              type="button"
+              onClick={() => onSelectDate(ymd)}
+              className={cn(
+                "flex aspect-square flex-col items-center justify-center gap-1 rounded-md border text-sm transition-colors",
+                selected
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "bg-background hover:bg-muted",
+                isToday && !selected && "border-primary/60",
+              )}
+              aria-pressed={selected}
+            >
+              <span className="font-medium tabular-nums">{cell.date.getDate()}</span>
+              <span className="flex h-1.5 items-center gap-0.5">
+                {dayItems.slice(0, 3).map((item) => (
+                  <span
+                    key={item.id}
+                    className={cn(
+                      "size-1 rounded-full",
+                      selected ? "bg-primary-foreground" : TYPE_META[item.type].dot,
+                    )}
+                  />
+                ))}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="rounded-md border bg-background">
+        <div className="flex items-center justify-between gap-3 border-b p-3">
+          <div>
+            <div className="font-medium">{formatDate(selectedDate)}</div>
+            <div className="text-xs text-muted-foreground">
+              {selectedItems.length > 0
+                ? `${selectedItems.length}개의 일정`
+                : "등록된 일정이 없습니다"}
+            </div>
+          </div>
+          <Button size="sm" onClick={onCreate}>
+            <Plus className="mr-1.5 size-4" />
+            추가
+          </Button>
+        </div>
+
+        <div className="max-h-[42vh] overflow-y-auto p-3">
+          {selectedItems.length === 0 ? (
+            <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+              이 날짜에 일정을 추가해보세요.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {selectedItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onOpen(item)}
+                  className={cn(
+                    "w-full rounded-md border p-3 text-left transition-colors",
+                    TYPE_META[item.type].soft,
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium">
+                        {item.title}
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {TYPE_META[item.type].label}
+                      </div>
+                    </div>
+                    <TypeBadge type={item.type} />
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TypeBadge({ type }: { type: ScheduleType }) {
+  return (
+    <Badge variant="outline" className={cn("shrink-0", TYPE_META[type].badge)}>
+      {TYPE_META[type].label}
+    </Badge>
+  );
+}
+
+function buildMonthCells(cursor: Date) {
+  const year = cursor.getFullYear();
+  const month = cursor.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const lastDate = new Date(year, month + 1, 0).getDate();
+  const cells: Array<{ date: Date | null }> = [];
+
+  for (let index = 0; index < firstDay; index++) cells.push({ date: null });
+  for (let day = 1; day <= lastDate; day++) {
+    cells.push({ date: new Date(year, month, day) });
+  }
+  while (cells.length % 7 !== 0) cells.push({ date: null });
+  while (cells.length < 42) cells.push({ date: null });
+
+  return cells;
 }

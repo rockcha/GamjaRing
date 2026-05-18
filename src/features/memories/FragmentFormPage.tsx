@@ -3,46 +3,48 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-  TooltipProvider,
-} from "@/components/ui/tooltip";
-
-import { createFragment, addCard, upsertSummary, updateFragment } from "./api";
-import { uploadMemoryImage } from "./storage";
-import { useCoupleContext } from "@/contexts/CoupleContext";
+  ArrowLeft,
+  CalendarDays,
+  ChevronDown,
+  ChevronUp,
+  Crown,
+  ImagePlus,
+  Loader2,
+  Plus,
+  Save,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
-import { useUser } from "@/contexts/UserContext";
-import { sendUserNotification } from "@/utils/notification/sendUserNotification";
 
-/* shadcn/ui */
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import { Calendar } from "@/components/ui/calendar";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { useCoupleContext } from "@/contexts/CoupleContext";
+import { useUser } from "@/contexts/UserContext";
+import { sendUserNotification } from "@/utils/notification/sendUserNotification";
+import { cn } from "@/lib/utils";
 
-/* Icons */
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faImage,
-  faCrown,
-  faTrashCan,
-  faSpinner,
-  faCamera,
-  faBackward,
-} from "@fortawesome/free-solid-svg-icons";
-import { CalendarDays } from "lucide-react";
+import { addCard, createFragment, updateFragment, upsertSummary } from "./api";
+import { uploadMemoryImage } from "./storage";
 
 type PhotoDraft = {
   id: string;
@@ -52,6 +54,19 @@ type PhotoDraft = {
   isCover: boolean;
 };
 
+function createDraft(isCover = false): PhotoDraft {
+  return {
+    id:
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random()}`,
+    file: null,
+    previewUrl: null,
+    caption_author: "",
+    isCover,
+  };
+}
+
 function arrayMove<T>(arr: T[], from: number, to: number) {
   const clone = arr.slice();
   const [item] = clone.splice(from, 1);
@@ -59,46 +74,17 @@ function arrayMove<T>(arr: T[], from: number, to: number) {
   return clone;
 }
 
-function DraggableDraft({
-  children,
-  index,
-  onDragStartIdx,
-  onDragOverIdx,
-  onDropToIdx,
-}: {
-  children: React.ReactNode;
-  index: number;
-  onDragStartIdx: (i: number) => void;
-  onDragOverIdx: (i: number) => void;
-  onDropToIdx: (i: number) => void;
-}) {
-  return (
-    <div
-      draggable
-      onDragStart={() => onDragStartIdx(index)}
-      onDragOver={(e) => {
-        e.preventDefault();
-        onDragOverIdx(index);
-      }}
-      onDrop={() => onDropToIdx(index)}
-      className="group transition-all duration-150"
-    >
-      {children}
-    </div>
-  );
-}
-
-/* ----- date helpers ----- */
 function toYMD(d: Date) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
-function formatKoreanDateStr(ymd: string) {
-  const d = new Date(ymd);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("ko-KR", {
+
+function formatDate(ymd: string) {
+  const date = new Date(ymd);
+  if (Number.isNaN(date.getTime())) return "날짜 선택";
+  return date.toLocaleDateString("ko-KR", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -111,100 +97,63 @@ export default function FragmentFormPage() {
   const { user } = useUser();
 
   const [title, setTitle] = useState("");
-  const [eventDate, setEventDate] = useState(
-    new Date().toISOString().slice(0, 10)
-  );
-
-  // ✅ 기본 카드 1장 미리 생성(대표 지정)
-  const [drafts, setDrafts] = useState<PhotoDraft[]>(() => [
-    {
-      id: crypto.randomUUID(),
-      file: null,
-      previewUrl: null,
-      caption_author: "",
-      isCover: true,
-    },
-  ]);
-
+  const [eventDate, setEventDate] = useState(toYMD(new Date()));
+  const [drafts, setDrafts] = useState<PhotoDraft[]>(() => [createDraft(true)]);
   const [summary, setSummary] = useState("");
   const [busy, setBusy] = useState(false);
-
-  // date dialog
   const [dateOpen, setDateOpen] = useState(false);
   const [tempDate, setTempDate] = useState<Date | undefined>(new Date());
 
-  // DnD
-  const dragFrom = useRef<number | null>(null);
-  const dragOver = useRef<number | null>(null);
-  const isDragging = useRef(false);
-
-  const canSubmit = useMemo(() => !!title.trim(), [title]);
-
-  // ✅ 통일된 사용자 식별자
+  const draftsRef = useRef(drafts);
   const currentUid = useMemo(
     () => user?.authId ?? user?.id ?? null,
-    [user?.authId, user?.id]
+    [user?.authId, user?.id],
   );
+  const canSubmit = title.trim().length > 0 && !busy;
+  const photoCount = drafts.filter((draft) => draft.file).length;
+
+  useEffect(() => {
+    draftsRef.current = drafts;
+  }, [drafts]);
+
+  useEffect(() => {
+    return () => {
+      draftsRef.current.forEach((draft) => {
+        if (draft.previewUrl) URL.revokeObjectURL(draft.previewUrl);
+      });
+    };
+  }, []);
 
   function addDraft() {
-    setDrafts((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        file: null,
-        previewUrl: null,
-        caption_author: "",
-        isCover: prev.length === 0, // 첫 장이면 대표
-      },
-    ]);
+    setDrafts((prev) => [...prev, createDraft(prev.length === 0)]);
   }
 
   function updateDraft(id: string, patch: Partial<PhotoDraft>) {
     setDrafts((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, ...patch } : d))
+      prev.map((draft) => (draft.id === id ? { ...draft, ...patch } : draft)),
     );
   }
 
-  // ✅ 파일/프리뷰 설정(기존 URL 정리 포함)
   function setDraftFile(id: string, file: File | null) {
     setDrafts((prev) =>
-      prev.map((d) => {
-        if (d.id !== id) return d;
-        if (d.previewUrl) {
-          try {
-            URL.revokeObjectURL(d.previewUrl);
-          } catch {}
-        }
-        const url = file ? URL.createObjectURL(file) : null;
-        return { ...d, file, previewUrl: url };
-      })
+      prev.map((draft) => {
+        if (draft.id !== id) return draft;
+        if (draft.previewUrl) URL.revokeObjectURL(draft.previewUrl);
+        return {
+          ...draft,
+          file,
+          previewUrl: file ? URL.createObjectURL(file) : null,
+        };
+      }),
     );
   }
 
-  // ✅ 프리뷰 URL 전체 정리 (언마운트)
-  useEffect(() => {
-    return () => {
-      drafts.forEach((d) => {
-        if (d.previewUrl) {
-          try {
-            URL.revokeObjectURL(d.previewUrl);
-          } catch {}
-        }
-      });
-    };
-  }, [drafts]);
-
-  // ✅ 대표 삭제 시 자동 승계
   function removeDraft(id: string) {
     setDrafts((prev) => {
-      const removed = prev.find((d) => d.id === id);
-      const next = prev.filter((d) => d.id !== id);
-      if (removed?.previewUrl) {
-        try {
-          URL.revokeObjectURL(removed.previewUrl);
-        } catch {}
-      }
-      if (removed?.isCover && next.length) {
+      const removed = prev.find((draft) => draft.id === id);
+      const next = prev.filter((draft) => draft.id !== id);
+      if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
+      if (removed?.isCover && next.length > 0) {
         next[0] = { ...next[0], isCover: true };
       }
       return next;
@@ -212,81 +161,72 @@ export default function FragmentFormPage() {
   }
 
   function setCover(id: string) {
-    setDrafts((prev) => prev.map((d) => ({ ...d, isCover: d.id === id })));
+    setDrafts((prev) =>
+      prev.map((draft) => ({ ...draft, isCover: draft.id === id })),
+    );
   }
 
-  function onDragStartIdx(i: number) {
-    dragFrom.current = i;
-    isDragging.current = true;
-  }
-  function onDragOverIdx(i: number) {
-    // 입력 포커스 중엔 드래그 무시(오작동 방지)
-    const el = document.activeElement;
-    if (el && /INPUT|TEXTAREA/.test(el.tagName)) return;
-    dragOver.current = i;
-  }
-  function onDropToIdx(i: number) {
-    if (!isDragging.current) return;
-    const from = dragFrom.current;
-    const to = i;
-    dragFrom.current = dragOver.current = null;
-    isDragging.current = false;
-    if (from == null || to == null || from === to) return;
+  function moveDraft(from: number, to: number) {
+    if (to < 0 || to >= drafts.length || from === to) return;
     setDrafts((prev) => arrayMove(prev, from, to));
   }
 
   async function handleCreate() {
     if (!couple?.id || !canSubmit) return;
     if (!currentUid) {
-      toast.error("로그인 정보가 확인되지 않아요. 다시 로그인해 주세요.");
+      toast.error("로그인 정보를 확인할 수 없어요. 다시 로그인해주세요.");
       return;
     }
+
     setBusy(true);
     try {
-      // 1) fragment 생성
-      const frag = await createFragment({
+      const fragment = await createFragment({
         couple_id: couple.id,
         author_id: currentUid,
-        title,
+        title: title.trim(),
         event_date: eventDate,
       });
 
-      // 2) 업로드 + 카드 생성
       let coverPath: string | null = null;
+      let firstUploadedPath: string | null = null;
       let order = 0;
-      for (const d of drafts) {
-        if (!d.file) continue;
-        try {
-          const up = await uploadMemoryImage({
-            coupleId: couple.id,
-            fragmentId: frag.id,
-            file: d.file,
-          });
-          await addCard({
-            fragment_id: frag.id,
-            couple_id: couple.id,
-            author_id: currentUid,
-            image_path: up.path,
-            layout: "photo-left",
-            caption_author: d.caption_author || null,
-            caption_partner: null,
-            order_index: order++,
-          });
-          if (d.isCover) coverPath = up.path;
-        } catch (err) {
-          console.error(err);
-          toast.error("일부 사진 업로드에 실패했어요. 다시 시도해 주세요.");
-        }
+
+      for (const draft of drafts) {
+        if (!draft.file) continue;
+
+        const uploaded = await uploadMemoryImage({
+          coupleId: couple.id,
+          fragmentId: fragment.id,
+          file: draft.file,
+        });
+
+        firstUploadedPath ??= uploaded.path;
+        if (draft.isCover) coverPath = uploaded.path;
+
+        await addCard({
+          fragment_id: fragment.id,
+          couple_id: couple.id,
+          author_id: currentUid,
+          image_path: uploaded.path,
+          layout: "photo-left",
+          caption_author: draft.caption_author.trim() || null,
+          caption_partner: null,
+          order_index: order++,
+        });
       }
 
-      if (coverPath)
-        await updateFragment(frag.id, { cover_photo_path: coverPath });
+      const finalCoverPath = coverPath ?? firstUploadedPath;
+      if (finalCoverPath) {
+        await updateFragment(fragment.id, { cover_photo_path: finalCoverPath });
+      }
 
       if (summary.trim()) {
-        await upsertSummary({ fragment_id: frag.id, content: summary.trim() });
+        await upsertSummary({
+          fragment_id: fragment.id,
+          content: summary.trim(),
+        });
       }
 
-      // ✅ 알림 전송
       if (partnerId) {
         try {
           await sendUserNotification({
@@ -294,339 +234,365 @@ export default function FragmentFormPage() {
             receiverId: partnerId,
             type: "추억조각 등록",
           });
-        } catch (e) {
-          console.warn("알림 전송 실패(무시 가능):", e);
+        } catch (error) {
+          console.warn("memory notification failed:", error);
         }
       }
 
-      toast.success("추억 조각이 생성되었어요!");
-      nav(`/memories/${frag.id}`);
+      toast.success("추억 조각을 만들었어요.");
+      nav(`/memories/${fragment.id}`);
+    } catch (error) {
+      console.error(error);
+      toast.error("추억 조각을 저장하지 못했어요. 잠시 후 다시 시도해주세요.");
     } finally {
       setBusy(false);
     }
   }
 
-  const dateText = formatKoreanDateStr(eventDate) || "날짜 선택";
-
-  // sticky offset
-  const STICKY_TOP = "top-44 md:top-40";
-
   return (
-    <div className="mx-auto max-w-7xl px-4 md:px-6 py-6 space-y-6">
-      {/* ✅ Sticky 헤더 : 1행(제목+날짜) / 2행(버튼들) */}
-      <div
-        className={`sticky ${STICKY_TOP} z-40 px-3 md:-mx-6 md:px-6
-        bg-white/90 md:bg-white/80 supports-[backdrop-filter]:bg-white/70 backdrop-blur
-        rounded-xl border shadow-[0_1px_0_rgba(0,0,0,0.03)]`}
-      >
-        <TooltipProvider delayDuration={80}>
-          {/* Row 1: 제목(좌) + 날짜 버튼(우) */}
-          <div className="h-14 grid grid-cols-[1fr_auto] items-center gap-3">
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="어떤 추억이었나요?"
-              className="bg-transparent outline-none text-xl md:text-2xl font-extrabold tracking-tight min-w-0 w-full truncate"
-              aria-label="제목"
-            />
+    <main className="min-h-[100dvh] bg-background pb-28 md:pb-8">
+      <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+        <Card className="shadow-sm">
+          <CardHeader className="gap-4">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div className="space-y-1">
+                <CardTitle className="text-2xl">추억 조각 추가</CardTitle>
+                <CardDescription>
+                  제목, 날짜, 사진을 차례대로 채워 새 추억을 남겨보세요.
+                </CardDescription>
+              </div>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  onClick={() => {
-                    setTempDate(new Date(eventDate));
-                    setDateOpen(true);
-                  }}
-                  variant="secondary"
-                  className="h-11 rounded-full px-4"
-                  aria-label="날짜 선택"
-                  title={dateText}
-                >
-                  <CalendarDays className="size-4 mr-2" />
-                  <span className="hidden md:inline">{dateText}</span>
-                  <span className="md:hidden">날짜</span>
+              <div className="hidden gap-2 md:flex">
+                <Button variant="outline" onClick={() => nav("/memories")}>
+                  <ArrowLeft className="mr-2 size-4" />
+                  목록
                 </Button>
-              </TooltipTrigger>
-              <TooltipContent>날짜 선택</TooltipContent>
-            </Tooltip>
+                <Button onClick={handleCreate} disabled={!canSubmit}>
+                  {busy ? (
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 size-4" />
+                  )}
+                  저장
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
+            <div className="space-y-2">
+              <Label htmlFor="memory-title">제목</Label>
+              <Input
+                id="memory-title"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="어떤 추억이었나요?"
+                className="h-11"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>날짜</Label>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 w-full justify-start gap-2"
+                onClick={() => {
+                  setTempDate(new Date(eventDate));
+                  setDateOpen(true);
+                }}
+              >
+                <CalendarDays className="size-4" />
+                {formatDate(eventDate)}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm">
+          <CardHeader className="gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-xl">사진</CardTitle>
+                  <Badge variant="secondary">{photoCount}</Badge>
+                </div>
+                <CardDescription>
+                  대표 사진은 목록에서 먼저 보이는 사진입니다.
+                </CardDescription>
+              </div>
+              <Button type="button" variant="outline" onClick={addDraft}>
+                <Plus className="mr-2 size-4" />
+                사진 추가
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {drafts.length === 0 ? (
+              <EmptyPhotos onAdd={addDraft} />
+            ) : (
+              drafts.map((draft, index) => (
+                <PhotoDraftCard
+                  key={draft.id}
+                  draft={draft}
+                  index={index}
+                  total={drafts.length}
+                  onFileChange={(file) => setDraftFile(draft.id, file)}
+                  onCaptionChange={(value) =>
+                    updateDraft(draft.id, { caption_author: value })
+                  }
+                  onSetCover={() => setCover(draft.id)}
+                  onRemove={() => removeDraft(draft.id)}
+                  onMoveUp={() => moveDraft(index, index - 1)}
+                  onMoveDown={() => moveDraft(index, index + 1)}
+                />
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-xl">메모</CardTitle>
+            <CardDescription>
+              사진 전체를 설명하는 짧은 기록을 남길 수 있습니다.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              value={summary}
+              onChange={(event) => setSummary(event.target.value)}
+              rows={5}
+              placeholder="그날의 분위기, 같이 나눈 말, 기억하고 싶은 장면을 적어보세요."
+              className="resize-y"
+            />
+          </CardContent>
+        </Card>
+
+        <Card className="hidden shadow-sm md:block">
+          <CardContent className="flex items-center justify-end gap-2 p-4">
+            <Button variant="outline" onClick={() => nav("/memories")}>
+              <ArrowLeft className="mr-2 size-4" />
+              목록
+            </Button>
+            <Button onClick={handleCreate} disabled={!canSubmit}>
+              {busy ? (
+                <Loader2 className="mr-2 size-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 size-4" />
+              )}
+              저장
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 p-3 backdrop-blur md:hidden">
+        <div className="mx-auto grid max-w-5xl grid-cols-2 gap-2">
+          <Button type="button" variant="outline" onClick={addDraft}>
+            <ImagePlus className="mr-2 size-4" />
+            사진 추가
+          </Button>
+          <Button onClick={handleCreate} disabled={!canSubmit}>
+            {busy ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 size-4" />
+            )}
+            저장
+          </Button>
+        </div>
+      </div>
+
+      <Dialog open={dateOpen} onOpenChange={setDateOpen}>
+        <DialogContent className="max-w-[min(92vw,520px)]">
+          <DialogHeader>
+            <DialogTitle>날짜 선택</DialogTitle>
+          </DialogHeader>
+          <div className="rounded-md border p-2">
+            <Calendar
+              mode="single"
+              selected={tempDate}
+              onSelect={setTempDate}
+              captionLayout="dropdown-buttons"
+              fromYear={2000}
+              toYear={2100}
+              className="mx-auto"
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDateOpen(false)}
+            >
+              취소
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setTempDate(new Date())}
+            >
+              오늘
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                if (tempDate) setEventDate(toYMD(tempDate));
+                setDateOpen(false);
+              }}
+            >
+              적용
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </main>
+  );
+}
+
+function PhotoDraftCard({
+  draft,
+  index,
+  total,
+  onFileChange,
+  onCaptionChange,
+  onSetCover,
+  onRemove,
+  onMoveUp,
+  onMoveDown,
+}: {
+  draft: PhotoDraft;
+  index: number;
+  total: number;
+  onFileChange: (file: File | null) => void;
+  onCaptionChange: (value: string) => void;
+  onSetCover: () => void;
+  onRemove: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+}) {
+  return (
+    <Card
+      className={cn(
+        "overflow-hidden shadow-sm",
+        draft.isCover && "ring-2 ring-primary/30",
+      )}
+    >
+      <div className="grid gap-0 md:grid-cols-[280px_minmax(0,1fr)]">
+        <div className="space-y-3 p-4">
+          <div className="relative aspect-[4/3] overflow-hidden rounded-md bg-muted">
+            {draft.previewUrl ? (
+              <img
+                src={draft.previewUrl}
+                alt={`preview-${index + 1}`}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+                <ImagePlus className="size-7" />
+                사진을 선택해주세요
+              </div>
+            )}
+            {draft.isCover && (
+              <Badge className="absolute left-3 top-3 gap-1">
+                <Crown className="size-3" />
+                대표
+              </Badge>
+            )}
+          </div>
+
+          <Input
+            type="file"
+            accept="image/*"
+            onChange={(event) => onFileChange(event.target.files?.[0] ?? null)}
+            className="cursor-pointer file:cursor-pointer"
+          />
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-4 p-4 md:p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="font-medium">사진 {index + 1}</div>
+              <div className="text-sm text-muted-foreground">
+                {draft.file?.name ?? "파일 미선택"}
+              </div>
+            </div>
+            <div className="flex gap-1">
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                onClick={onMoveUp}
+                disabled={index === 0}
+                aria-label="위로 이동"
+              >
+                <ChevronUp className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                onClick={onMoveDown}
+                disabled={index === total - 1}
+                aria-label="아래로 이동"
+              >
+                <ChevronDown className="size-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor={`caption-${draft.id}`}>사진 메모</Label>
+            <Textarea
+              id={`caption-${draft.id}`}
+              value={draft.caption_author}
+              onChange={(event) => onCaptionChange(event.target.value)}
+              rows={4}
+              placeholder="이 사진에 남기고 싶은 말을 적어보세요."
+              className="resize-y"
+            />
           </div>
 
           <Separator />
 
-          {/* Row 2: 버튼 3개 (좌: 뒤로가기 / 중: 사진 추가 / 우: 저장) */}
-          <div className="h-16 grid grid-cols-3 items-center gap-3">
-            {/* 뒤로가기 */}
-            <div className="justify-self-start">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    onClick={() => history.back()}
-                    variant="ghost"
-                    className="h-11 rounded-lg px-5 bg-white/80 hover:bg-white shadow-sm ring-1 ring-black/5"
-                    aria-label="뒤로가기"
-                  >
-                    <FontAwesomeIcon icon={faBackward} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>이전 페이지로</TooltipContent>
-              </Tooltip>
-            </div>
-
-            {/* 사진 추가 */}
-            <div className="justify-self-center">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    onClick={addDraft}
-                    variant="secondary"
-                    className="h-11 rounded-lg px-6 shadow-sm"
-                    aria-label="사진 추가"
-                  >
-                    <FontAwesomeIcon icon={faCamera} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>새 사진 카드 추가</TooltipContent>
-              </Tooltip>
-            </div>
-
-            {/* 저장 */}
-            <div className="justify-self-end">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    onClick={handleCreate}
-                    disabled={busy || !canSubmit}
-                    className="h-11 rounded-lg px-6 shadow-sm"
-                    aria-label="저장"
-                    type="button"
-                  >
-                    {busy ? (
-                      <>
-                        <FontAwesomeIcon
-                          icon={faSpinner}
-                          className="mr-2"
-                          spin
-                        />
-                        저장중…
-                      </>
-                    ) : (
-                      <>저장</>
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>새 추억 조각 저장</TooltipContent>
-              </Tooltip>
-            </div>
-          </div>
-        </TooltipProvider>
-      </div>
-
-      {/* 본문 */}
-      <div className="overflow-x-hidden space-y-8">
-        {/* 날짜 선택 Dialog */}
-        <Dialog open={dateOpen} onOpenChange={setDateOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>날짜 선택</DialogTitle>
-            </DialogHeader>
-
-            <div className="rounded-md border p-2">
-              <Calendar
-                mode="single"
-                selected={tempDate}
-                onSelect={setTempDate}
-                captionLayout="dropdown-buttons"
-                fromYear={2000}
-                toYear={2100}
-                className="w-full"
-              />
-            </div>
-
-            <DialogFooter className="gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setDateOpen(false)}
-              >
-                취소
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setTempDate(new Date())}
-              >
-                오늘
-              </Button>
-              <Button
-                type="button"
-                onClick={() => {
-                  if (tempDate) setEventDate(toYMD(tempDate));
-                  setDateOpen(false);
-                }}
-              >
-                저장
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* 사진 카드들 (드래그 정렬 + 시각 피드백) */}
-        <div className="grid gap-4">
-          {drafts.map((d, idx) => (
-            <DraggableDraft
-              key={d.id}
-              index={idx}
-              onDragStartIdx={onDragStartIdx}
-              onDragOverIdx={onDragOverIdx}
-              onDropToIdx={onDropToIdx}
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant={draft.isCover ? "default" : "outline"}
+              onClick={onSetCover}
+              className="gap-2"
             >
-              <Card
-                className={[
-                  "p-4 sm:p-6 space-y-4 transition-all",
-                  "focus-within:ring-2 focus-within:ring-purple-300",
-                  isDragging.current ? "opacity-90" : "",
-                  d.isCover
-                    ? "ring-2 ring-amber-300"
-                    : "hover:ring-1 hover:ring-muted-foreground/20",
-                ].join(" ")}
-              >
-                <div className="flex flex-col xl:flex-row gap-6">
-                  {/* 좌측: 이미지 영역 */}
-                  <div className="relative group/preview w-full">
-                    {/* 대표 배지 */}
-                    {d.isCover && (
-                      <div
-                        className="absolute left-3 top-3 flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/92 shadow-sm ring-1 ring-white/70 backdrop-blur-sm"
-                        title="대표 사진"
-                        aria-label="대표 사진"
-                      >
-                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 ring-1 ring-amber-200 shadow-sm">
-                          <FontAwesomeIcon
-                            icon={faCrown}
-                            className="text-amber-500"
-                          />
-                        </span>
-                        <span className="text-xs font-medium text-amber-700">
-                          대표
-                        </span>
-                      </div>
-                    )}
-
-                    {/* 프리뷰 / 플레이스홀더 */}
-                    {d.previewUrl ? (
-                      <div className="relative">
-                        <img
-                          src={d.previewUrl}
-                          alt={`preview-${idx + 1}`}
-                          className={[
-                            "w-full max-w-full md:max-w-[520px]",
-                            "rounded-xl object-cover",
-                            "aspect-[4/3] md:aspect-auto md:h-[340px]",
-                            "transition-transform duration-150 group-hover/preview:scale-[1.01]",
-                          ].join(" ")}
-                        />
-                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 rounded-b-xl bg-gradient-to-t from-black/55 to-transparent" />
-                      </div>
-                    ) : (
-                      <div className="w-full max-w-full md:max-w-[520px] rounded-xl bg-muted grid place-items-center text-sm text-muted-foreground aspect-[4/3] md:h-[340px]">
-                        <div className="flex flex-col items-center gap-2">
-                          <FontAwesomeIcon
-                            className="text-2xl opacity-70"
-                            icon={faImage}
-                          />
-                          <span className="opacity-80">아직 사진이 없어요</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* 파일 선택 */}
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      className="mt-3 cursor-pointer file:cursor-pointer w-full md:w-auto md:max-w-[520px]"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0] ?? null;
-                        setDraftFile(d.id, file);
-                      }}
-                    />
-                  </div>
-
-                  {/* 우측: 캡션/컨트롤 */}
-                  <div className="flex-1 grid gap-4 min-w-0 w-full md:min-w-[300px] xl:min-w-[360px]">
-                    <div className="grid gap-1">
-                      <Textarea
-                        placeholder="예) 벚꽃잎이 눈처럼 흩날리던 날, 네가 웃던 순간"
-                        value={d.caption_author}
-                        onChange={(e) =>
-                          updateDraft(d.id, { caption_author: e.target.value })
-                        }
-                        rows={4}
-                        className="resize-y"
-                      />
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        variant={d.isCover ? "default" : "secondary"}
-                        size="sm"
-                        className="gap-2"
-                        onClick={() => setCover(d.id)}
-                      >
-                        <FontAwesomeIcon icon={faCrown} />
-                        대표 사진으로
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="gap-2 "
-                        onClick={() => removeDraft(d.id)}
-                      >
-                        <FontAwesomeIcon icon={faTrashCan} />
-                        삭제
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            </DraggableDraft>
-          ))}
-
-          {drafts.length === 0 && (
-            <Card className="p-8 text-sm text-muted-foreground">
-              <div className="flex items-center gap-3">
-                <div className="grid place-items-center w-9 h-9 rounded-full bg-muted">
-                  <FontAwesomeIcon className="opacity-80" icon={faImage} />
-                </div>
-                <div>
-                  사진 카드가 없습니다. 상단 <b>사진 추가</b> 버튼을 눌러보세요.
-                </div>
-              </div>
-            </Card>
-          )}
-        </div>
-
-        {/* 마지막 요약 */}
-        <Card className="p-6 space-y-3">
-          <div className="flex items-center gap-2 font-medium">
-            추억에 대한 메모를 작성해주세요.
+              <Crown className="size-4" />
+              대표 사진
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={onRemove}
+              className="gap-2"
+            >
+              <Trash2 className="size-4" />
+              삭제
+            </Button>
           </div>
-          <Textarea
-            placeholder="그날의 감정을 따뜻하게 남겨보세요."
-            value={summary}
-            onChange={(e) => setSummary(e.target.value)}
-            rows={5}
-            className="resize-y bg-muted/40"
-          />
-        </Card>
-
-        {/* 안내 문구 */}
-        <p className="text-xs text-muted-foreground">
-          사진 카드 순서는 드래그에서 변경할 수 있어요.
-        </p>
+        </div>
       </div>
+    </Card>
+  );
+}
+
+function EmptyPhotos({ onAdd }: { onAdd: () => void }) {
+  return (
+    <div className="rounded-md border border-dashed p-8 text-center">
+      <ImagePlus className="mx-auto mb-3 size-8 text-muted-foreground" />
+      <div className="font-medium">사진이 없습니다</div>
+      <p className="mt-1 text-sm text-muted-foreground">
+        사진을 추가하면 목록에서 깔끔한 카드로 보입니다.
+      </p>
+      <Button type="button" variant="outline" className="mt-4" onClick={onAdd}>
+        <Plus className="mr-2 size-4" />
+        사진 추가
+      </Button>
     </div>
   );
 }

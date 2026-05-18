@@ -96,7 +96,7 @@ function DChip({ label, type }: { label: string; type: ScheduleType }) {
 
 export default function CoupleSchedulePreview({
   className = "",
-  maxHeight = 180, // 기본 높이
+  maxHeight = "100%",
   limit: _limit, // 하위 호환(미사용)
 }: Props) {
   const { user } = useUser();
@@ -154,6 +154,7 @@ export default function CoupleSchedulePreview({
       <Card
         className={cn(
           "relative overflow-hidden rounded-2xl border-none shadow-lg",
+          "flex flex-col",
           "bg-gradient-to-br from-rose-50 via-amber-50 to-sky-50",
           "shadow-[0_10px_30px_-12px_rgba(0,0,0,0.15)] ",
           className
@@ -176,7 +177,7 @@ export default function CoupleSchedulePreview({
           </div>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="flex min-h-0 flex-1 flex-col">
           {/* 로딩 상태 */}
           {loading && (
             <div className="mt-3 space-y-2">
@@ -218,7 +219,7 @@ export default function CoupleSchedulePreview({
           {!loading && items.length > 0 && (
             <ScrollArea
               style={{ maxHeight: listMaxHeight }}
-              className="relative mt-2 pr-1"
+              className="relative mt-2 min-h-0 flex-1 pr-1"
             >
               {/* 위/아래 페이드 마스크 */}
               <div className="pointer-events-none absolute inset-x-0 top-0 h-4 bg-gradient-to-b from-white/70 to-transparent" />
