@@ -96,7 +96,7 @@ export default function GardenBackyard() {
     const { data, error } = await supabase
       .from("garden_tiles")
       .select(
-        "couple_id,pos,state,seed_id,planted_at,ready_at,chosen_flower_id"
+        "couple_id,pos,state,seed_id,planted_at,ready_at,chosen_flower_id",
       )
       .eq("couple_id", coupleId)
       .order("pos", { ascending: true });
@@ -118,7 +118,7 @@ export default function GardenBackyard() {
     })) as Tile[];
 
     const byPos = new Map<number, Tile>(
-      (data ?? []).map((t: any) => [t.pos, t])
+      (data ?? []).map((t: any) => [t.pos, t]),
     );
     setTiles(base.map((b) => byPos.get(b.pos) ?? b));
   }, [coupleId]);
@@ -186,7 +186,7 @@ export default function GardenBackyard() {
     const now = Date.now();
     const pct = Math.min(
       100,
-      Math.max(0, ((now - start) / (end - start)) * 100)
+      Math.max(0, ((now - start) / (end - start)) * 100),
     );
     return isFinite(pct) ? pct : 0;
   }, []);
@@ -202,8 +202,8 @@ export default function GardenBackyard() {
           myId === String(u1)
             ? String(u2 ?? "")
             : myId === String(u2)
-            ? String(u1 ?? "")
-            : null;
+              ? String(u1 ?? "")
+              : null;
         return other || null;
       }
       if (!coupleId) return null;
@@ -262,7 +262,7 @@ export default function GardenBackyard() {
         console.warn("[garden] fetch claimed flower error:", e?.message);
       }
     },
-    [getPartnerId, myId]
+    [getPartnerId, myId],
   );
 
   // 타일 클릭
@@ -400,10 +400,10 @@ export default function GardenBackyard() {
       t.state === "ready"
         ? "ring-emerald-300/70"
         : t.state === "planted"
-        ? "ring-amber-200/70"
-        : selectedSeed
-        ? "ring-amber-300/50"
-        : "ring-border/50";
+          ? "ring-amber-200/70"
+          : selectedSeed
+            ? "ring-amber-300/50"
+            : "ring-border/50";
 
     const pct = progressFor(t);
 
@@ -428,7 +428,7 @@ export default function GardenBackyard() {
           isEmptyHoverable &&
             "hover:bg-amber-50/50 dark:hover:bg-zinc-900/30 cursor-pointer",
           isReadyHoverable &&
-            "hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 cursor-pointer"
+            "hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 cursor-pointer",
         )}
       >
         <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,.06),transparent)]" />
@@ -536,7 +536,7 @@ export default function GardenBackyard() {
             "ring-1 ring-transparent",
             disabled && "opacity-50 cursor-not-allowed",
             active &&
-              `ring-2 shadow-[0_8px_24px_-12px_rgba(245,158,11,0.45)] ${meta.tone}`
+              `ring-2 shadow-[0_8px_24px_-12px_rgba(245,158,11,0.45)] ${meta.tone}`,
           )}
         >
           <span className="inline-block h-6 w-6">
@@ -554,7 +554,7 @@ export default function GardenBackyard() {
             variant="secondary"
             className={cn(
               "ml-1 tabular-nums text-[11px] px-2 py-0.5",
-              active && "bg-black/5 dark:bg-white/10"
+              active && "bg-black/5 dark:bg-white/10",
             )}
           >
             x{qty}
@@ -598,41 +598,6 @@ export default function GardenBackyard() {
       {/* 헤더 카드: 뒤뜰 + 씨앗 보유 요약 */}
       <Card className="border-muted/60">
         <CardContent className="pt-4">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-3">
-              <div className="inline-flex size-10 items-center justify-center rounded-xl border bg-gradient-to-b from-green-100/70 to-transparent dark:from-emerald-900/20">
-                <span className="text-lg">🪴</span>
-              </div>
-              <div>
-                <h2 className="text-lg font-extrabold tracking-tight">뒤뜰</h2>
-                <p className="text-xs text-muted-foreground">
-                  씨앗을 심고, 자라면 수확하세요
-                </p>
-              </div>
-            </div>
-
-            {/* 씨앗 인벤 요약칩 */}
-            <div className="flex items-center gap-2">
-              {(Object.keys(SEED_META) as Array<unknown> as SeedId[]).map(
-                (id) => (
-                  <Badge
-                    key={id}
-                    variant="secondary"
-                    className="gap-1 text-[11px]"
-                    title={SEED_META[id].label}
-                  >
-                    <img
-                      src={SEED_META[id].img}
-                      alt=""
-                      className="h-3.5 w-3.5"
-                    />
-                    x{seeds[id] ?? 0}
-                  </Badge>
-                )
-              )}
-            </div>
-          </div>
-
           {/* 씨앗 선택 바 */}
           <div className="mt-3">
             <SeedToggleBar />
@@ -681,7 +646,7 @@ export default function GardenBackyard() {
           <div
             className={cn(
               "relative rounded-xl border p-4",
-              claimed ? gradeTone[claimed.grade] : "bg-muted"
+              claimed ? gradeTone[claimed.grade] : "bg-muted",
             )}
           >
             {/* 등급 뱃지 */}

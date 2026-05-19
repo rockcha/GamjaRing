@@ -401,7 +401,7 @@ export default function FragmentDetailPage() {
 
   if (loading) {
     return (
-      <main className="min-h-[100dvh] bg-background">
+      <main className="min-h-[100dvh]">
         <div className="mx-auto w-full max-w-5xl space-y-4 px-4 py-6 sm:px-6 lg:px-8">
           <Card className="shadow-sm">
             <CardHeader>
@@ -416,7 +416,7 @@ export default function FragmentDetailPage() {
 
   if (!frag) {
     return (
-      <main className="min-h-[100dvh] bg-background">
+      <main className="min-h-[100dvh]">
         <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
           <Card className="shadow-sm">
             <CardHeader>
@@ -433,7 +433,7 @@ export default function FragmentDetailPage() {
   }
 
   return (
-    <main className="min-h-[100dvh] bg-background pb-28 md:pb-8">
+    <main className="min-h-[100dvh] pb-28 md:pb-8">
       <input
         ref={fileRef}
         type="file"
@@ -627,7 +627,7 @@ export default function FragmentDetailPage() {
         </Card>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 p-3 backdrop-blur md:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-[#fbf1e3]/95 p-3 backdrop-blur md:hidden">
         <div className="mx-auto grid max-w-5xl grid-cols-2 gap-2">
           <Button
             type="button"

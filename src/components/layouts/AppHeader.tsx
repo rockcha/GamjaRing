@@ -252,12 +252,11 @@ export default function AppHeader({
       className={cn(
         "app-header-root",
         "fixed inset-x-0 top-0 z-40",
-        "bg-white/72 dark:bg-neutral-900/72",
-        "backdrop-blur-xl supports-[backdrop-filter]:bg-white/62 dark:supports-[backdrop-filter]:bg-neutral-900/62",
-        "ring-1 ring-neutral-200/70 dark:ring-neutral-800/70",
+        "bg-[#fbf1e3] dark:bg-[#251f18]",
+        "ring-1 ring-[#ead8c0] dark:ring-[#3c3228]",
         "shadow-[0_10px_28px_-18px_rgba(0,0,0,0.28)]",
         "rounded-b-xl pt-[env(safe-area-inset-top)]",
-        "transition-[padding,box-shadow,backdrop-filter] duration-300",
+        "transition-[padding,box-shadow] duration-300",
         "data-[compact=y]:py-0 data-[compact=n]:py-1",
         "overflow-x-hidden relative",
         className
@@ -309,7 +308,7 @@ export default function AppHeader({
             <div className={dividerVertical} />
 
             {/* Question pill만 흰 배경 */}
-            <div className="min-w-0 flex-1 rounded-lg border border-neutral-200/70 bg-white/72 shadow-sm dark:border-neutral-800/70 dark:bg-neutral-900/72">
+            <div className="min-w-0 flex-1 rounded-lg border border-[#ead8c0] bg-[#fff8ef] shadow-sm dark:border-[#3c3228] dark:bg-[#2c251d]">
               <TodayQuestionInline />
             </div>
 

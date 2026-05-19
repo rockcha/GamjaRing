@@ -82,7 +82,7 @@ export default function FragmentListPage() {
   );
 
   return (
-    <main className="min-h-[100dvh] bg-background pb-20 md:pb-0">
+    <main className="min-h-[100dvh] pb-20 md:pb-0">
       <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8 lg:pr-[280px]">
         <PageHeader
           onCreate={() => nav("/memories/new")}
@@ -107,7 +107,7 @@ export default function FragmentListPage() {
         onCreate={() => nav("/memories/new")}
       />
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 p-3 backdrop-blur md:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-[#fbf1e3]/95 p-3 backdrop-blur md:hidden">
         <div className="mx-auto max-w-7xl">
           <Button
             type="button"

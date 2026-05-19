@@ -222,7 +222,7 @@ export default function MyPartnerAnswersCard() {
   if (loading) {
     return (
       <Card className="h-[540px] flex flex-col">
-        <CardContent className="flex-1 space-y-3 overflow-hidden pt-6">
+        <CardContent className="flex-1 space-y-3 overflow-hidden px-4 pt-4 md:px-5">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="space-y-2">
               <Skeleton className="h-4 w-40" />
@@ -241,7 +241,7 @@ export default function MyPartnerAnswersCard() {
   return (
     <>
       <div className="h-[540px] flex flex-col">
-        <CardContent className="flex-1 overflow-y-auto space-y-2">
+        <CardContent className="flex-1 overflow-y-auto space-y-2 px-4 pt-4 md:px-5">
           {currentAnswers.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               아직 파트너의 답변이 없습니다.
