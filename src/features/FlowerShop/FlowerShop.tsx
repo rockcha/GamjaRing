@@ -1,24 +1,33 @@
-// src/features/flowers/FlowerShop.tsx
+// src/features/FlowerShop/FlowerShop.tsx
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Flower2,
+  Loader2,
+  PackageOpen,
+  ReceiptText,
+  Search,
+} from "lucide-react";
+import { toast } from "sonner";
+
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
-import supabase from "@/lib/supabase";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCoupleContext } from "@/contexts/CoupleContext";
+import supabase from "@/lib/supabase";
+import { cn } from "@/lib/utils";
 import FlowerDexButton from "./FlowerDexButton";
-import { Loader2 } from "lucide-react";
 
 type Grade = "일반" | "희귀" | "에픽";
 type Flower = { id: string; label: string; grade: Grade; price: number };
@@ -30,14 +39,26 @@ type OrderSlot =
   | { state: "sold" };
 
 const SLOT_COUNT = 8;
+const ORDER_COST = 20;
+const PROB = { normal: 0.6, rare: 0.35, epic: 0.05 } as const;
 
-const gradeTone: Record<Grade, string> = {
-  일반: "ring-1 ring-neutral-200/70 bg-neutral-50/70 dark:bg-neutral-950/50 dark:ring-neutral-800/60 shadow-[0_8px_30px_-12px_rgba(0,0,0,.25)]",
-  희귀: "ring-1 ring-sky-300/60 bg-sky-50/60 dark:bg-sky-950/30 dark:ring-sky-900/50 shadow-[0_10px_32px_-12px_rgba(56,189,248,.45)]",
-  에픽: "ring-1 ring-violet-300/60 bg-violet-50/60 dark:bg-violet-950/30 dark:ring-violet-900/50 shadow-[0_10px_32px_-12px_rgba(167,139,250,.50)]",
+const GRADE_LABEL: Record<Grade, string> = {
+  일반: "일반",
+  희귀: "희귀",
+  에픽: "에픽",
 };
 
-const PROB = { normal: 0.6, rare: 0.35, epic: 0.05 } as const;
+const GRADE_TONE: Record<Grade, string> = {
+  일반: "border-slate-200 bg-slate-50/70",
+  희귀: "border-sky-200 bg-sky-50/80",
+  에픽: "border-violet-200 bg-violet-50/80",
+};
+
+const GRADE_BADGE: Record<Grade, string> = {
+  일반: "bg-slate-100 text-slate-700 border-slate-200",
+  희귀: "bg-sky-100 text-sky-700 border-sky-200",
+  에픽: "bg-violet-100 text-violet-700 border-violet-200",
+};
 
 export default function FlowerShop() {
   const { couple, gold, spendGold, addGold } = useCoupleContext();
@@ -46,250 +67,230 @@ export default function FlowerShop() {
   const [flowers, setFlowers] = useState<Flower[]>([]);
   const [owned, setOwned] = useState<OwnedMap>({});
   const [invTab, setInvTab] = useState<"all" | Grade>("all");
-
   const [slots, setSlots] = useState<OrderSlot[]>(
-    Array.from({ length: SLOT_COUNT }, () => ({ state: "empty" }))
+    Array.from({ length: SLOT_COUNT }, () => ({ state: "empty" })),
   );
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [ordering, setOrdering] = useState(false);
   const [selling, setSelling] = useState<string | null>(null);
-
-  // Dialog
   const [open, setOpen] = useState(false);
 
-  /** ===== 데이터 로드 ===== */
   const loadFlowers = useCallback(async () => {
     const { data, error } = await supabase
       .from("flowers")
       .select("id,label,grade,price")
       .order("grade", { ascending: true })
       .order("price", { ascending: true });
+
     if (error) {
       console.warn("[FlowerShop] load flowers error:", error.message);
       setFlowers([]);
       return;
     }
+
     setFlowers((data ?? []) as Flower[]);
   }, []);
 
   const loadOwned = useCallback(async () => {
-    if (!coupleId) return setOwned({});
+    if (!coupleId) {
+      setOwned({});
+      return;
+    }
+
     const { data, error } = await supabase
       .from("flowers_inventory")
       .select("flower_id, qty")
       .eq("couple_id", coupleId);
+
     if (error) {
       console.warn("[FlowerShop] load owned error:", error.message);
       setOwned({});
       return;
     }
+
     const map: OwnedMap = {};
-    (data ?? []).forEach((r: any) => (map[r.flower_id] = Number(r.qty ?? 0)));
+    (data ?? []).forEach((row: any) => {
+      map[row.flower_id] = Number(row.qty ?? 0);
+    });
     setOwned(map);
   }, [coupleId]);
 
   useEffect(() => {
-    setLoading(true);
-    Promise.all([loadFlowers(), loadOwned()]).finally(() => setLoading(false));
-    return () =>
+    let mounted = true;
+
+    async function load() {
+      setLoading(true);
+      await Promise.all([loadFlowers(), loadOwned()]);
+      if (mounted) setLoading(false);
+    }
+
+    load();
+    return () => {
+      mounted = false;
       setSlots(Array.from({ length: SLOT_COUNT }, () => ({ state: "empty" })));
+    };
   }, [loadFlowers, loadOwned]);
 
-  /** ===== 유틸 ===== */
   const imgSrc = (label: string) => `/flowers/${encodeURIComponent(label)}.png`;
 
-  const pools = useMemo(() => {
-    return {
-      일반: flowers.filter((f) => f.grade === "일반"),
-      희귀: flowers.filter((f) => f.grade === "희귀"),
-      에픽: flowers.filter((f) => f.grade === "에픽"),
-    };
-  }, [flowers]);
+  const pools = useMemo(
+    () => ({
+      일반: flowers.filter((flower) => flower.grade === "일반"),
+      희귀: flowers.filter((flower) => flower.grade === "희귀"),
+      에픽: flowers.filter((flower) => flower.grade === "에픽"),
+    }),
+    [flowers],
+  );
 
-  const pickGrade = () => {
+  const ownedList = useMemo(() => {
+    let list = flowers.filter((flower) => (owned[flower.id] ?? 0) > 0);
+    if (invTab !== "all") {
+      list = list.filter((flower) => flower.grade === invTab);
+    }
+    return list;
+  }, [flowers, invTab, owned]);
+
+  const ownedTotal = useMemo(
+    () => Object.values(owned).reduce((sum, qty) => sum + qty, 0),
+    [owned],
+  );
+
+  const pickGrade = (): Grade => {
     const r = Math.random();
-    if (r < PROB.normal) return "일반" as Grade;
-    if (r < PROB.normal + PROB.rare) return "희귀" as Grade;
-    return "에픽" as Grade;
+    if (r < PROB.normal) return "일반";
+    if (r < PROB.normal + PROB.rare) return "희귀";
+    return "에픽";
   };
 
   const pickOne = (): Flower | null => {
-    const g = pickGrade();
-    const pool = pools[g];
-    if (pool.length === 0) {
-      if (flowers.length === 0) return null;
-      return flowers[Math.floor(Math.random() * flowers.length)];
-    }
-    return pool[Math.floor(Math.random() * pool.length)];
+    const grade = pickGrade();
+    const pool = pools[grade];
+    if (pool.length > 0)
+      return pool[Math.floor(Math.random() * pool.length)] ?? null;
+    if (flowers.length === 0) return null;
+    return flowers[Math.floor(Math.random() * flowers.length)] ?? null;
   };
 
   const makeOrders = () => {
-    const list: OrderSlot[] = [];
-    for (let i = 0; i < SLOT_COUNT; i++) {
-      const f = pickOne();
-      if (f) list.push({ state: "ordered", flower: f });
-      else list.push({ state: "empty" });
-    }
-    setSlots(list);
+    setSlots(
+      Array.from({ length: SLOT_COUNT }, () => {
+        const flower = pickOne();
+        return flower ? { state: "ordered", flower } : { state: "empty" };
+      }),
+    );
   };
 
-  /** ===== 주문 받기(🪙20, 무조건 지불) ===== */
   const handleOrder = async () => {
     if (ordering) return;
-    if ((gold ?? 0) < 20) {
-      toast.error("골드가 부족합니다. 🪙20 필요");
+    if ((gold ?? 0) < ORDER_COST) {
+      toast.error(`골드가 부족해요. ${ORDER_COST}골드가 필요합니다.`);
       return;
     }
+
     setOrdering(true);
     try {
-      const { error } = await spendGold(20);
+      const { error } = await spendGold(ORDER_COST);
       if (error) throw error;
+
       setSlots(Array.from({ length: SLOT_COUNT }, () => ({ state: "empty" })));
-      setTimeout(() => {
+      window.setTimeout(() => {
         makeOrders();
-        toast.success("새로운 꽃 주문이 도착했어요! ✉️");
+        toast.success("새 주문 목록이 도착했어요.");
         setOrdering(false);
-      }, 360);
-    } catch (e: any) {
-      toast.error(e?.message ?? "주문 생성 중 오류");
+      }, 250);
+    } catch (error: any) {
+      toast.error(error?.message ?? "주문을 불러오지 못했어요.");
       setOrdering(false);
     }
   };
 
-  /** ===== 판매 ===== */
-  const sell = async (flower: Flower, idx: number) => {
-    if (!coupleId) return;
+  const sell = async (flower: Flower, index: number) => {
+    if (!coupleId || selling) return;
     if ((owned[flower.id] ?? 0) <= 0) {
-      toast.error("보유 수량이 없습니다.");
+      toast.error("보유 수량이 없어요.");
       return;
     }
-    if (selling) return;
+
     setSelling(flower.id);
     try {
-      const { data: cur, error: selErr } = await supabase
+      const { data: current, error: selectError } = await supabase
         .from("flowers_inventory")
         .select("qty")
         .eq("couple_id", coupleId)
         .eq("flower_id", flower.id)
         .maybeSingle();
-      if (selErr) throw selErr;
+      if (selectError) throw selectError;
 
-      const nextQty = Math.max(0, Number(cur?.qty ?? 0) - 1);
-      const { error: updErr } = await supabase
+      const nextQty = Math.max(0, Number(current?.qty ?? 0) - 1);
+      const { error: updateError } = await supabase
         .from("flowers_inventory")
         .update({ qty: nextQty })
         .eq("couple_id", coupleId)
         .eq("flower_id", flower.id);
-      if (updErr) throw updErr;
+      if (updateError) throw updateError;
 
-      const { error: goldErr } = await addGold(flower.price);
-      if (goldErr) throw goldErr;
+      const { error: goldError } = await addGold(flower.price);
+      if (goldError) throw goldError;
 
-      setOwned((m) => ({ ...m, [flower.id]: nextQty }));
+      setOwned((prev) => ({ ...prev, [flower.id]: nextQty }));
       setSlots((prev) =>
-        prev.map((s, i) => (i === idx ? { state: "empty" } : s))
+        prev.map((slot, slotIndex) =>
+          slotIndex === index ? { state: "sold" } : slot,
+        ),
       );
+
       toast.success(
-        `"${flower.label}" 판매 완료! +🪙 ${flower.price.toLocaleString()}`
+        `${flower.label} 판매 완료. +${flower.price.toLocaleString()}골드`,
       );
-    } catch (e: any) {
-      toast.error(e?.message ?? "판매 중 오류");
+    } catch (error: any) {
+      toast.error(error?.message ?? "판매 중 오류가 발생했어요.");
     } finally {
       setSelling(null);
     }
   };
 
-  /** ===== 인벤토리 (보유만) ===== */
-  const ownedList = useMemo(() => {
-    let list = flowers.filter((f) => (owned[f.id] ?? 0) > 0);
-    if (invTab !== "all") list = list.filter((f) => f.grade === invTab);
-    return list;
-  }, [flowers, owned, invTab]);
-
   return (
     <div className="space-y-5">
-      {/* 헤더: 제목/탭 + (우측) 꽃도감 & 주문 받기 */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <h2 className="text-xl font-extrabold tracking-tight">꽃 인벤토리</h2>
-          <Tabs value={invTab} onValueChange={(v) => setInvTab(v as any)}>
-            <TabsList className="rounded-full bg-background/60 supports-[backdrop-filter]:bg-background/60">
-              <TabsTrigger className="rounded-full" value="all">
-                전체
-              </TabsTrigger>
-              <TabsTrigger className="rounded-full" value="일반">
-                일반
-              </TabsTrigger>
-              <TabsTrigger className="rounded-full" value="희귀">
-                희귀
-              </TabsTrigger>
-              <TabsTrigger className="rounded-full" value="에픽">
-                에픽
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
+      <Card className="border-border/80 bg-white shadow-sm">
+        <CardContent className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-wrap items-center gap-4">
+            <Tabs
+              value={invTab}
+              onValueChange={(value) => setInvTab(value as any)}
+            >
+              <TabsList>
+                <TabsTrigger value="all">전체</TabsTrigger>
+                <TabsTrigger value="일반">일반</TabsTrigger>
+                <TabsTrigger value="희귀">희귀</TabsTrigger>
+                <TabsTrigger value="에픽">에픽</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <FlowerDexButton />
+            <Button onClick={() => setOpen(true)} className="gap-2">
+              <ReceiptText className="size-4" />
+              주문 받기
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* 오른쪽: 꽃 도감 버튼 → 주문 받기 버튼 순서 */}
-        <div className="flex items-center gap-2">
-          <FlowerDexButton />
-          <Button
-            onClick={() => setOpen(true)}
-            className="h-10 rounded-xl px-4 font-semibold gap-2 shadow-sm"
-          >
-            <span aria-hidden>🧾</span>
-            주문 받기
-          </Button>
-        </div>
-      </div>
-
-      {/* 인벤토리: 메인 풀-와이드 강조 */}
-      <Card className="border-muted/60">
-        <CardContent className="pt-4">
-          <ScrollArea className="h-[66vh] pr-2">
+      <Card className="border-border/80 bg-white shadow-sm">
+        <CardContent className="p-4 md:p-5">
+          <ScrollArea className="h-[min(68vh,720px)] pr-2">
             {loading ? (
-              <div className="text-sm text-muted-foreground py-10">
-                불러오는 중…
-              </div>
+              <FlowerGridSkeleton />
             ) : ownedList.length === 0 ? (
-              <div className="text-sm text-muted-foreground py-10 space-y-2 text-center">
-                <div>보유한 꽃이 없습니다.</div>
-                <div className="text-xs">
-                  먼저 뒤뜰에서 씨앗을 심어보세요! 🌱
-                </div>
-              </div>
+              <EmptyInventory />
             ) : (
-              <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                {ownedList.map((f) => (
-                  <Card
-                    key={f.id}
-                    className={`relative overflow-hidden transition-shadow hover:shadow-md ${
-                      gradeTone[f.grade]
-                    }`}
-                  >
-                    <Badge
-                      className="absolute right-2 top-2 z-20 shadow-sm border border-black/20 bg-black/80 text-white px-2.5 py-1 font-mono font-bold"
-                      variant="secondary"
-                    >
-                      x{owned[f.id] ?? 0}
-                    </Badge>
-                    <CardContent className="flex aspect-[4/5] flex-col overflow-hidden p-0">
-                      <div className="relative min-h-0 flex-1 overflow-hidden bg-[radial-gradient(circle_at_50%_35%,rgba(255,255,255,0.42),rgba(0,0,0,0.08)_72%)]">
-                        <img
-                          src={imgSrc(f.label)}
-                          alt={f.label}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                          decoding="async"
-                        />
-                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/18 via-transparent to-white/10" />
-                      </div>
-                      <div className="flex min-h-[44px] items-center justify-center border-t border-black/10 bg-white/92 px-3 py-2.5 text-center text-sm font-semibold tracking-tight text-neutral-950 shadow-[0_-8px_18px_-16px_rgba(0,0,0,0.65)]">
-                        {f.label}
-                      </div>
-                    </CardContent>
-                  </Card>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
+                {ownedList.map((flower) => (
+                  <FlowerInventoryCard
+                    key={flower.id}
+                    flower={flower}
+                    qty={owned[flower.id] ?? 0}
+                    imgSrc={imgSrc(flower.label)}
+                  />
                 ))}
               </div>
             )}
@@ -297,147 +298,204 @@ export default function FlowerShop() {
         </CardContent>
       </Card>
 
-      {/* ===== 주문 다이얼로그 ===== */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-4xl rounded-2xl">
+        <DialogContent className="max-w-5xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <span aria-hidden>🧾</span>
-                주문 목록
-              </span>
-              <span className="sr-only">주문 안내</span>
+            <DialogTitle className="flex items-center gap-2">
+              <ReceiptText className="size-5 text-pink-600" />
+              주문 목록
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* 주문 슬롯들 */}
-            <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
-              {slots.map((slot, idx) => {
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              {slots.map((slot, index) => {
                 if (slot.state === "empty") {
-                  return (
-                    <div
-                      key={`empty-${idx}`}
-                      className="rounded-xl grid border-2 border-dashed border-border/60 bg-background/40 shadow-[inset_0_1px_0_rgba(255,255,255,.04)]"
-                    >
-                      <div className="aspect-square w-full grid place-items-center text-xs font-medium">
-                        대기 슬롯
-                      </div>
-                    </div>
-                  );
+                  return <EmptyOrderSlot key={`empty-${index}`} />;
                 }
 
                 if (slot.state === "sold") {
-                  return (
-                    <div
-                      key={`sold-${idx}`}
-                      className="relative rounded-xl grid bg-emerald-50/60 dark:bg-emerald-900/20 border border-emerald-200/60 shadow-[inset_0_0_0_1px_rgba(16,185,129,.25)]"
-                    >
-                      <div className="aspect-square w-full grid place-items-center text-sm">
-                        <span className="font-semibold text-emerald-700 dark:text-emerald-300">
-                          판매 완료
-                        </span>
-                      </div>
-                      <span className="absolute -rotate-12 top-2 left-2 text-[10px] px-1.5 py-0.5 rounded bg-emerald-600/10 border border-emerald-600/30 text-emerald-700">
-                        DONE
-                      </span>
-                    </div>
-                  );
+                  return <SoldOrderSlot key={`sold-${index}`} />;
                 }
 
-                // ---- ordered ----
-                const f = slot.flower;
-                const qty = Number(owned[f.id] ?? 0);
-                const has = qty > 0;
+                const flower = slot.flower;
+                const qty = Number(owned[flower.id] ?? 0);
+                const hasFlower = qty > 0;
+                const isSelling = selling === flower.id;
 
                 return (
                   <button
-                    key={`${f.id}-${idx}`}
-                    className={`group relative overflow-hidden border p-2 text-left rounded-xl ${
-                      gradeTone[f.grade]
-                    } transition-transform hover:scale-[1.01]`}
-                    disabled={selling === f.id}
-                    aria-busy={selling === f.id}
-                    onClick={async () => {
-                      if (!has) {
-                        toast.error("보유 수량이 없습니다.");
+                    key={`${flower.id}-${index}`}
+                    type="button"
+                    disabled={isSelling}
+                    aria-busy={isSelling}
+                    onClick={() => {
+                      if (!hasFlower) {
+                        toast.error("보유 수량이 없어요.");
                         return;
                       }
-                      await sell(f, idx);
+                      sell(flower, index);
                     }}
+                    className={cn(
+                      "relative overflow-hidden rounded-lg border p-2 text-left transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-200",
+                      GRADE_TONE[flower.grade],
+                    )}
                   >
-                    {/* 썸네일 */}
-                    <div className="relative aspect-square w-full overflow-hidden rounded-lg border border-white/10 bg-[radial-gradient(circle_at_50%_35%,rgba(255,255,255,0.42),rgba(0,0,0,0.08)_72%)]">
+                    <div className="relative aspect-square overflow-hidden rounded-md bg-white/70">
                       <img
-                        src={imgSrc(f.label)}
-                        alt={f.label}
+                        src={imgSrc(flower.label)}
+                        alt={flower.label}
                         className="h-full w-full object-cover"
                         loading="lazy"
                         decoding="async"
                       />
-                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-white/10" />
+                      {isSelling && (
+                        <div className="absolute inset-0 grid place-items-center bg-white/70">
+                          <Loader2 className="size-5 animate-spin text-pink-600" />
+                        </div>
+                      )}
                     </div>
 
-                    {/* 이름 */}
-                    <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-2 max-w-[calc(100%-1rem)] truncate text-[11px] font-semibold px-2 py-1 rounded-full border border-black/10 bg-white/92 text-neutral-950 shadow-sm backdrop-blur-[2px]">
-                      {f.label}
+                    <div className="mt-2 space-y-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="line-clamp-2 text-sm font-semibold leading-5">
+                          {flower.label}
+                        </p>
+                        <Badge
+                          variant="outline"
+                          className={cn("shrink-0", GRADE_BADGE[flower.grade])}
+                        >
+                          {GRADE_LABEL[flower.grade]}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>보유 x{qty}</span>
+                        <span className="font-semibold text-foreground">
+                          +{flower.price.toLocaleString()}G
+                        </span>
+                      </div>
                     </div>
-
-                    {/* ✅ 수량 배지(항상 표시): x n개 (0개는 붉은 톤) */}
-                    <span
-                      className={[
-                        "pointer-events-none absolute bottom-2 right-2 rounded-full px-2 py-1 text-[10px] font-semibold tabular-nums border",
-                        has
-                          ? "bg-black/80 text-white border-white/15"
-                          : "bg-red-600/18 text-red-700 dark:text-red-300 border-red-600/30",
-                      ].join(" ")}
-                      title={has ? `보유 수량: ${qty}` : "미보유"}
-                      aria-label={has ? `보유 수량 ${qty}` : "미보유(0)"}
-                    >
-                      {`x ${qty}`}
-                    </span>
-
-                    {/* 가격 배지() */}
-                    <span className="pointer-events-none absolute bottom-2 left-2 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums bg-black/40 text-white border border-white/10 shadow-sm">
-                      🪙 {f.price.toLocaleString()}
-                    </span>
                   </button>
                 );
               })}
             </div>
 
             <p className="text-xs text-muted-foreground">
-              💡 다이얼로그를 닫아도 주문 목록은 유지돼요. (꽃집을 떠나면
-              초기화)
+              주문 목록은 창을 닫아도 유지돼요. 보유 꽃이 있는 주문을 누르면
+              판매됩니다.
             </p>
           </div>
 
-          <DialogFooter className="flex items-center justify-between gap-3 sm:justify-between">
+          <DialogFooter className="flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-sm text-muted-foreground">
-              현재 골드:{" "}
-              <span className="font-semibold tabular-nums">
-                🪙 {Number(gold ?? 0).toLocaleString()}
+              보유 골드{" "}
+              <span className="font-semibold text-foreground">
+                {Number(gold ?? 0).toLocaleString("ko-KR")}G
               </span>
             </div>
 
-            {/* 무조건 20 지불 버튼 */}
-            <Button
-              onClick={handleOrder}
-              disabled={ordering}
-              className="gap-2 rounded-xl"
-            >
+            <Button onClick={handleOrder} disabled={ordering} className="gap-2">
               {ordering ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
-                  수령 중…
+                  주문 받는 중
                 </>
               ) : (
-                <>🪙 20 새 주문 받기</>
+                <>주문 받기 -{ORDER_COST}G</>
               )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function FlowerInventoryCard({
+  flower,
+  qty,
+  imgSrc,
+}: {
+  flower: Flower;
+  qty: number;
+  imgSrc: string;
+}) {
+  return (
+    <Card
+      className={cn(
+        "overflow-hidden border shadow-sm",
+        GRADE_TONE[flower.grade],
+      )}
+    >
+      <CardContent className="p-0">
+        <div className="relative aspect-[4/5] bg-white/70">
+          <img
+            src={imgSrc}
+            alt={flower.label}
+            className="h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
+          />
+          <Badge className="absolute right-2 top-2 bg-black/75 text-white">
+            x{qty}
+          </Badge>
+          <Badge
+            variant="outline"
+            className={cn("absolute left-2 top-2", GRADE_BADGE[flower.grade])}
+          >
+            {GRADE_LABEL[flower.grade]}
+          </Badge>
+        </div>
+        <div className="border-t bg-white/90 px-3 py-2">
+          <p className="truncate text-sm font-semibold">{flower.label}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            판매가 {flower.price.toLocaleString("ko-KR")}G
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function FlowerGridSkeleton() {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
+      {Array.from({ length: 14 }).map((_, index) => (
+        <Skeleton key={index} className="aspect-[4/5] rounded-lg" />
+      ))}
+    </div>
+  );
+}
+
+function EmptyInventory() {
+  return (
+    <div className="grid min-h-[320px] place-items-center rounded-lg border border-dashed bg-muted/20 p-8 text-center">
+      <div>
+        <PackageOpen className="mx-auto mb-3 size-9 text-muted-foreground" />
+        <p className="font-medium">보유한 꽃이 없어요</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          정원에서 씨앗을 심고 꽃을 수확해보세요.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function EmptyOrderSlot() {
+  return (
+    <div className="grid aspect-[4/5] place-items-center rounded-lg border border-dashed bg-muted/20 p-3 text-center text-sm text-muted-foreground">
+      <div>
+        <Search className="mx-auto mb-2 size-5" />
+        대기 슬롯
+      </div>
+    </div>
+  );
+}
+
+function SoldOrderSlot() {
+  return (
+    <div className="grid aspect-[4/5] place-items-center rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-center text-sm font-medium text-emerald-700">
+      판매 완료
     </div>
   );
 }

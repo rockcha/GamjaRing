@@ -1,34 +1,64 @@
-// src/features/potato-field/PotatoFieldGrid.tsx
+// src/features/potato_field/PotatoFieldGrid.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import { cn } from "@/lib/utils";
-import {
-  ensureRow,
-  computePlotsInfo,
-  getPotatoCount,
-  getPlotsPlantedAt,
-  plantSeed,
-  harvestPlot,
-} from "./utils";
-import { MATURE_MS, PLOT_COUNT } from "./types";
-import type { PlotInfo } from "./types";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { Loader2 } from "lucide-react";
+
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import {
+  computePlotsInfo,
+  ensureRow,
+  harvestPlot,
+  plantSeed,
+} from "./utils";
+import { MATURE_MS, PLOT_COUNT } from "./types";
+import type { PlotInfo, PlotState } from "./types";
 
-function fmtRemain(ms?: number) {
+function formatRemain(ms?: number) {
   if (!ms || ms <= 0) return "곧 수확 가능";
+
   const sec = Math.ceil(ms / 1000);
   const hh = Math.floor(sec / 3600);
   const mm = Math.floor((sec % 3600) / 60);
   const ss = sec % 60;
+
   if (hh > 0) return `${hh}시간 ${mm}분`;
   if (mm > 0) return `${mm}분 ${ss}초`;
   return `${ss}초`;
+}
+
+function getPlotCopy(state: PlotState, isBusy: boolean, remainMs?: number) {
+  if (state === "empty") {
+    return {
+      src: "/potato_field/empty.png",
+      alt: "빈 밭",
+      label: "씨앗 심기",
+      tooltip: isBusy ? "씨앗을 심는 중" : "씨앗 심기",
+    };
+  }
+
+  if (state === "growing") {
+    return {
+      src: "/potato_field/growing.png",
+      alt: "성장 중",
+      label: formatRemain(remainMs),
+      tooltip: `수확까지 ${formatRemain(remainMs)}`,
+    };
+  }
+
+  return {
+    src: "/potato_field/ready.png",
+    alt: "수확 가능",
+    label: "수확하기",
+    tooltip: isBusy ? "수확 중" : "수확하기",
+  };
 }
 
 export default function PotatoFieldGrid({
@@ -39,145 +69,224 @@ export default function PotatoFieldGrid({
   onCountChange?: (n: number) => void;
 }) {
   const [plots, setPlots] = useState<PlotInfo[]>([]);
-  const [busy, setBusy] = useState<Set<number>>(new Set());
-  const [rev, setRev] = useState(0);
+  const [busy, setBusy] = useState<Set<number>>(() => new Set());
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setError(null);
+    const row = await ensureRow(coupleId);
+    setPlots(computePlotsInfo(row));
+    onCountChange?.(row.harvested_count ?? 0);
+  }, [coupleId, onCountChange]);
 
   useEffect(() => {
-    if (!coupleId) return;
-    (async () => {
-      await ensureRow(coupleId);
-      const arr = await getPlotsPlantedAt(coupleId);
-      setPlots(
-        computePlotsInfo({
-          couple_id: coupleId,
-          harvested_count: 0,
-          plots_planted_at: arr,
-        })
-      );
-      const cnt = await getPotatoCount(coupleId);
-      onCountChange?.(cnt);
-    })();
-  }, [coupleId, onCountChange, rev]);
+    let mounted = true;
+
+    async function load() {
+      setLoading(true);
+      try {
+        const row = await ensureRow(coupleId);
+        if (!mounted) return;
+        setPlots(computePlotsInfo(row));
+        onCountChange?.(row.harvested_count ?? 0);
+        setError(null);
+      } catch (err) {
+        if (!mounted) return;
+        console.error(err);
+        setError("감자밭을 불러오지 못했어요.");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [coupleId, onCountChange]);
 
   useEffect(() => {
-    const t = setInterval(() => {
+    const timer = window.setInterval(() => {
       setPlots((prev) =>
-        prev.map((p) => {
-          if (p.state !== "growing" || !p.plantedAt) return p;
-          const elapsed = Date.now() - p.plantedAt.getTime();
-          if (elapsed >= MATURE_MS)
-            return { ...p, state: "ready", remainMs: 0 };
-          return { ...p, remainMs: Math.max(0, MATURE_MS - elapsed) };
-        })
+        prev.map((plot) => {
+          if (plot.state !== "growing" || !plot.plantedAt) return plot;
+
+          const elapsed = Date.now() - plot.plantedAt.getTime();
+          if (elapsed >= MATURE_MS) {
+            return { ...plot, state: "ready", remainMs: 0 };
+          }
+
+          return { ...plot, remainMs: Math.max(0, MATURE_MS - elapsed) };
+        }),
       );
     }, 10000);
-    return () => clearInterval(t);
+
+    return () => window.clearInterval(timer);
   }, []);
 
-  async function onClickCell(p: PlotInfo) {
-    if (p.state === "growing") return;
-    if (busy.has(p.idx)) return;
+  const counts = useMemo(
+    () => ({
+      empty: plots.filter((plot) => plot.state === "empty").length,
+      growing: plots.filter((plot) => plot.state === "growing").length,
+      ready: plots.filter((plot) => plot.state === "ready").length,
+    }),
+    [plots],
+  );
 
-    setBusy((prev) => new Set(prev).add(p.idx));
+  const handlePlotClick = useCallback(
+    async (plot: PlotInfo) => {
+      if (plot.state === "growing" || busy.has(plot.idx)) return;
 
-    if (p.state === "empty") {
-      await new Promise((r) => setTimeout(r, 2000));
+      setBusy((prev) => {
+        const next = new Set(prev);
+        next.add(plot.idx);
+        return next;
+      });
+
       try {
-        await plantSeed(coupleId, p.idx);
+        if (plot.state === "empty") {
+          await plantSeed(coupleId, plot.idx);
+        } else if (plot.state === "ready") {
+          const row = await harvestPlot(coupleId, plot.idx);
+          onCountChange?.(row.harvested_count ?? 0);
+        }
+
+        await refresh();
+      } catch (err) {
+        console.error(err);
+        setError("작업을 완료하지 못했어요. 잠시 후 다시 시도해주세요.");
       } finally {
-        // noop
+        setBusy((prev) => {
+          const next = new Set(prev);
+          next.delete(plot.idx);
+          return next;
+        });
       }
-    } else if (p.state === "ready") {
-      await new Promise((r) => setTimeout(r, 2000));
-      try {
-        const row = await harvestPlot(coupleId, p.idx);
-        onCountChange?.(row.harvested_count ?? 0);
-      } finally {
-        // noop
-      }
-    }
+    },
+    [busy, coupleId, onCountChange, refresh],
+  );
 
-    setBusy((prev) => {
-      const next = new Set(prev);
-      next.delete(p.idx);
-      return next;
-    });
-    setRev((n) => n + 1);
-  }
-
-  function renderCell(p: PlotInfo) {
-    const isBusy = busy.has(p.idx);
-
-    let mainSrc = "";
-    let mainAlt = "";
-    let tip = "";
-
-    if (p.state === "empty") {
-      mainSrc = "/potato_field/empty.png";
-      mainAlt = "빈 밭";
-      tip = isBusy ? "씨앗 심는 중…" : "씨앗 심기";
-    } else if (p.state === "growing") {
-      mainSrc = "/potato_field/growing.png";
-      mainAlt = "성장 중";
-      tip = `수확까지 ${fmtRemain(p.remainMs)}`;
-    } else {
-      mainSrc = "/potato_field/ready.png";
-      mainAlt = "수확 가능";
-      tip = isBusy ? "수확 중…" : "수확하기";
-    }
-
+  if (loading) {
     return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            disabled={p.state === "growing" || isBusy}
-            onClick={() => onClickCell(p)}
-            className={cn(
-              "relative aspect-square rounded-xl overflow-hidden grid place-items-center",
-              "focus:outline-none hover:scale-[1.01] transition-transform"
-            )}
-            /* ⬇️ 반 사이즈 */
-            style={{ minWidth: 32, minHeight: 32 }}
-          >
-            <img
-              key={mainSrc}
-              src={mainSrc}
-              alt={mainAlt}
-              className="absolute inset-0 h-full w-full object-cover animate-[fadeIn_220ms_ease-out_forwards]"
-              draggable={false}
-            />
-
-            {isBusy && (
-              <div className="absolute inset-0 grid place-items-end p-1 pointer-events-none">
-                <span className="inline-flex items-center gap-1 rounded-md bg-black/55 px-1.5 py-0.5 text-white text-[10px]">
-                  ⏳ {p.state === "empty" ? "씨앗 심는 중…" : "수확 중…"}
-                </span>
-              </div>
-            )}
-          </button>
-        </TooltipTrigger>
-        <TooltipContent>{tip}</TooltipContent>
-      </Tooltip>
+      <div className="space-y-4">
+        <div className="grid grid-cols-3 gap-2.5 md:gap-3">
+          {Array.from({ length: PLOT_COUNT }).map((_, index) => (
+            <Skeleton key={index} className="aspect-square rounded-lg" />
+          ))}
+        </div>
+        <Skeleton className="h-9 w-full rounded-lg" />
+      </div>
     );
   }
 
   return (
-    <TooltipProvider delayDuration={200}>
-      <div className="mx-auto w-full">
-        <div
-          className="grid gap-2" // 살짝 촘촘하게
-          /* ⬇️ 반 사이즈 */
-          style={{ gridTemplateColumns: "repeat(3, minmax(32px, 1fr))" }}
-        >
-          {Array.from({ length: PLOT_COUNT }).map((_, i) =>
-            renderCell(plots[i] ?? { idx: i, state: "empty", plantedAt: null })
-          )}
+    <TooltipProvider delayDuration={150}>
+      <div className="space-y-4">
+        <div className="grid grid-cols-3 gap-2">
+          {Array.from({ length: PLOT_COUNT }).map((_, idx) => (
+            <PlotCell
+              key={idx}
+              plot={plots[idx] ?? { idx, state: "empty", plantedAt: null }}
+              busy={busy.has(idx)}
+              onClick={handlePlotClick}
+            />
+          ))}
         </div>
-      </div>
 
-      <style>{`
-        @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
-      `}</style>
+        <div className="grid grid-cols-3 gap-2.5 text-center text-xs md:gap-3">
+          <StatPill label="빈 칸" value={counts.empty} className="bg-slate-50" />
+          <StatPill
+            label="성장 중"
+            value={counts.growing}
+            className="bg-amber-50 text-amber-700"
+          />
+          <StatPill
+            label="수확 가능"
+            value={counts.ready}
+            className="bg-emerald-50 text-emerald-700"
+          />
+        </div>
+
+        {error && (
+          <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            {error}
+          </p>
+        )}
+      </div>
     </TooltipProvider>
+  );
+}
+
+const PlotCell = memo(function PlotCell({
+  plot,
+  busy,
+  onClick,
+}: {
+  plot: PlotInfo;
+  busy: boolean;
+  onClick: (plot: PlotInfo) => void;
+}) {
+  const copy = getPlotCopy(plot.state, busy, plot.remainMs);
+  const disabled = plot.state === "growing" || busy;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => onClick(plot)}
+          className={cn(
+            "group relative aspect-square overflow-hidden rounded-lg border bg-amber-50/50 shadow-sm",
+            "transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300",
+            disabled && "cursor-default hover:translate-y-0 hover:shadow-sm",
+            plot.state === "ready" && "border-emerald-200 bg-emerald-50",
+          )}
+        >
+          <img
+            src={copy.src}
+            alt={copy.alt}
+            className="absolute inset-0 h-full w-full object-cover"
+            draggable={false}
+            loading="lazy"
+          />
+
+          <div className="absolute inset-x-1 bottom-1">
+            <span
+              className={cn(
+                "mx-auto flex min-h-6 max-w-full items-center justify-center rounded-md bg-white/90 px-1.5 text-[10px] font-medium shadow-sm backdrop-blur",
+                plot.state === "ready" && "text-emerald-700",
+                plot.state === "growing" && "text-amber-700",
+              )}
+            >
+              {busy ? (
+                <Loader2 className="size-3 animate-spin" />
+              ) : (
+                <span className="truncate">{copy.label}</span>
+              )}
+            </span>
+          </div>
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>{copy.tooltip}</TooltipContent>
+    </Tooltip>
+  );
+});
+
+function StatPill({
+  label,
+  value,
+  className,
+}: {
+  label: string;
+  value: number;
+  className?: string;
+}) {
+  return (
+    <div className={cn("rounded-lg border px-2 py-2", className)}>
+      <div className="font-bold tabular-nums">{value}</div>
+      <div className="mt-0.5 text-muted-foreground">{label}</div>
+    </div>
   );
 }

@@ -372,7 +372,7 @@ export default function CoupleSchedulerPage() {
   }
 
   return (
-    <main className="min-h-[100dvh] bg-background">
+    <main className="min-h-[100dvh]">
       <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
         <Card className="shadow-sm">
           <CardHeader className="gap-4">

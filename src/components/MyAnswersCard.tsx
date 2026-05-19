@@ -43,7 +43,7 @@ const ITEMS_PER_PAGE = 5;
  */
 function getMinimalPageItems(
   totalPages: number,
-  currentPage: number
+  currentPage: number,
 ): Array<number | "..."> {
   if (totalPages <= 1) return [1];
   const first = 1;
@@ -124,7 +124,7 @@ export default function MyAnswersCard() {
         (data ?? []).map(async (item) => {
           const questionText = await GetQuestionById(item.question_id);
           return { ...item, questionText: questionText ?? "" };
-        })
+        }),
       );
 
       setAnswers(enriched);
@@ -166,7 +166,7 @@ export default function MyAnswersCard() {
   // ✅ 미니멀 페이지 아이템 (항상 한 줄)
   const pageItems = useMemo(
     () => getMinimalPageItems(totalPages, currentPage),
-    [totalPages, currentPage]
+    [totalPages, currentPage],
   );
 
   // ─────────────────────────────────────────────────────────────
@@ -196,7 +196,7 @@ export default function MyAnswersCard() {
               content,
             },
           ],
-          { onConflict: "user_id,question_id" }
+          { onConflict: "user_id,question_id" },
         );
 
         if (error) throw error;
@@ -205,7 +205,7 @@ export default function MyAnswersCard() {
         if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
         saveTimerRef.current = window.setTimeout(
           () => setSaveStatus("idle"),
-          1200
+          1200,
         );
 
         toast.success("수정했습니다.");
@@ -218,8 +218,8 @@ export default function MyAnswersCard() {
                   ...a,
                   content,
                 }
-              : a
-          )
+              : a,
+          ),
         );
         setPopupContentRO(content);
         return true;
@@ -228,13 +228,13 @@ export default function MyAnswersCard() {
         if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
         saveTimerRef.current = window.setTimeout(
           () => setSaveStatus("idle"),
-          1800
+          1800,
         );
         toast.error("저장 실패 — 잠시 후 다시 시도해주세요.");
         return false;
       }
     },
-    [activeQid, user?.id]
+    [activeQid, user?.id],
   );
 
   // ─────────────────────────────────────────────────────────────
@@ -242,7 +242,7 @@ export default function MyAnswersCard() {
   if (loading) {
     return (
       <Card className="h-[540px] flex flex-col ">
-        <CardContent className="flex-1 space-y-3 overflow-hidden ">
+        <CardContent className="flex-1 space-y-3 overflow-hidden px-4 pt-4 md:px-5">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="space-y-2">
               <Skeleton className="h-4 w-40" />
@@ -262,7 +262,7 @@ export default function MyAnswersCard() {
   return (
     <>
       <div className="h-[540px] flex flex-col ">
-        <CardContent className="flex-1 overflow-y-auto space-y-2 ">
+        <CardContent className="flex-1 overflow-y-auto space-y-2 px-4 pt-4 md:px-5">
           {currentAnswers.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               아직 내 답변이 없습니다.
@@ -270,7 +270,7 @@ export default function MyAnswersCard() {
           ) : (
             currentAnswers.map((item) => {
               const { isToday, formattedDate } = getFormattedDate(
-                item.created_at
+                item.created_at,
               );
               const emojiChar =
                 item.emoji_type_id != null
@@ -359,7 +359,7 @@ export default function MyAnswersCard() {
                     >
                       {p}
                     </Button>
-                  )
+                  ),
                 )}
               </div>
             </nav>
@@ -420,7 +420,7 @@ export default function MyAnswersCard() {
                 "min-h-[220px] md:min-h-[260px] resize-none rounded-xl",
                 "bg-[linear-gradient(transparent_29px,rgba(0,0,0,0.04)_30px)] bg-[length:100%_30px] bg-blue-50/40",
                 "border border-amber-200/70 focus-visible:ring-2 focus-visible:ring-amber-100",
-                "px-4 py-3 text-[15px] md:text-[16px] leading-[30px]"
+                "px-4 py-3 text-[15px] md:text-[16px] leading-[30px]",
               )}
               placeholder="이곳에 내용을 입력하세요…"
             />

@@ -250,7 +250,7 @@ export default function FragmentFormPage() {
   }
 
   return (
-    <main className="min-h-[100dvh] bg-background pb-28 md:pb-8">
+    <main className="min-h-[100dvh] pb-28 md:pb-8">
       <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
         <Card className="shadow-sm">
           <CardHeader className="gap-4">
@@ -386,7 +386,7 @@ export default function FragmentFormPage() {
         </Card>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 p-3 backdrop-blur md:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-[#fbf1e3]/95 p-3 backdrop-blur md:hidden">
         <div className="mx-auto grid max-w-5xl grid-cols-2 gap-2">
           <Button type="button" variant="outline" onClick={addDraft}>
             <ImagePlus className="mr-2 size-4" />
