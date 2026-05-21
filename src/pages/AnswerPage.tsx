@@ -58,7 +58,7 @@ function AnswersPage() {
 
   return (
     <main className="min-h-[100dvh]">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6 md:gap-6 md:py-8 lg:px-8">
+      <div className="mx-auto flex w-full max-w-none flex-col gap-5 px-3 py-5 sm:px-4 md:gap-6 md:py-8 lg:px-6 2xl:px-8">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6 ">
           <AnswerPanel
             icon={<NotebookPen className="size-5" />}

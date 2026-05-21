@@ -283,7 +283,7 @@ export default function FlowerShop() {
             ) : ownedList.length === 0 ? (
               <EmptyInventory />
             ) : (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
                 {ownedList.map((flower) => (
                   <FlowerInventoryCard
                     key={flower.id}
@@ -299,7 +299,7 @@ export default function FlowerShop() {
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-5xl">
+        <DialogContent className="max-w-6xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ReceiptText className="size-5 text-pink-600" />
@@ -308,7 +308,7 @@ export default function FlowerShop() {
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-3">
               {slots.map((slot, index) => {
                 if (slot.state === "empty") {
                   return <EmptyOrderSlot key={`empty-${index}`} />;
@@ -459,7 +459,7 @@ function FlowerInventoryCard({
 
 function FlowerGridSkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
       {Array.from({ length: 14 }).map((_, index) => (
         <Skeleton key={index} className="aspect-[4/5] rounded-lg" />
       ))}

@@ -36,7 +36,7 @@ import { cn } from "@/lib/utils";
 import { useDailyAnswerStatusStore } from "@/stores/useDailyAnswerStatusStore";
 import { GetQuestionById } from "@/utils/GetQuestionById";
 import { usePartnerNotification } from "@/utils/notification/usePartnerNotification";
-import { getPreviousQuestionId } from "@/utils/questions/questionFlow";
+import { getDisplayQuestionId } from "@/utils/questions/questionFlow";
 import { useCompleteTask } from "@/utils/tasks/CompleteTask";
 
 const EMOJIS = [
@@ -127,10 +127,7 @@ export default function QuestionPage() {
       storedQuestionId: number | null = questionId,
       isSubmitted = submitted,
     ) => {
-      const displayId =
-        storedQuestionId != null && isSubmitted
-          ? getPreviousQuestionId(storedQuestionId)
-          : storedQuestionId;
+      const displayId = getDisplayQuestionId(storedQuestionId, isSubmitted);
 
       setDisplayQuestionId(displayId);
 
@@ -191,9 +188,7 @@ export default function QuestionPage() {
         error: null,
       });
 
-      const displayId = data.completed
-        ? getPreviousQuestionId(data.question_id)
-        : data.question_id;
+      const displayId = getDisplayQuestionId(data.question_id, data.completed);
 
       setDisplayQuestionId(displayId);
 

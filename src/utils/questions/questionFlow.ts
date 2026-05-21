@@ -21,3 +21,11 @@ export function getPreviousQuestionId(currentId?: number | null): number {
 
   return previousId < QUESTION_ID_MIN ? QUESTION_ID_MAX : previousId;
 }
+
+export function getDisplayQuestionId(
+  storedQuestionId?: number | null,
+  completed = false,
+): number | null {
+  if (storedQuestionId == null) return null;
+  return completed ? getPreviousQuestionId(storedQuestionId) : storedQuestionId;
+}
