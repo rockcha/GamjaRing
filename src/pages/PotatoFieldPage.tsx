@@ -40,7 +40,7 @@ export default function PotatoFieldPage() {
 
   return (
     <main className="min-h-[100dvh]">
-      <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 px-4 py-5 sm:px-6 md:gap-6 md:py-8 lg:px-8 xl:px-10">
+      <div className="mx-auto flex w-full max-w-none flex-col gap-5 px-3 py-5 sm:px-4 md:gap-6 md:py-8 lg:px-6 2xl:px-8">
         <Card className="overflow-hidden border-amber-100/80 bg-white/95 shadow-sm">
           <CardHeader className="gap-4 p-5 md:p-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -81,7 +81,7 @@ export default function PotatoFieldPage() {
           </CardHeader>
         </Card>
 
-        <div className="grid w-full items-start gap-5 lg:grid-cols-[minmax(0,1fr)_440px] lg:gap-6 xl:grid-cols-[minmax(0,1fr)_520px] 2xl:grid-cols-[minmax(0,1fr)_560px]">
+        <div className="grid w-full items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(500px,620px)] lg:gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(560px,700px)] 2xl:grid-cols-[minmax(0,1fr)_minmax(620px,760px)]">
           <FieldPanel
             icon={<Sprout className="size-5" />}
             title="생산 시설"

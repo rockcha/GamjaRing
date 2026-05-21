@@ -491,7 +491,7 @@ export default function GardenBackyard() {
   const grid = useMemo(() => {
     const list = tiles ?? [];
     return (
-      <div className="grid grid-cols-3 gap-2 max-w-[420px] sm:max-w-[520px] mx-auto">
+      <div className="mx-auto grid w-full max-w-[780px] grid-cols-3 gap-3">
         {list.map((t) => (
           <div key={t.pos}>{TileCard(t)}</div>
         ))}
@@ -583,7 +583,7 @@ export default function GardenBackyard() {
 
   // 로딩 스켈레톤
   const GridSkeleton = () => (
-    <div className="grid grid-cols-3 gap-2 max-w-[420px] sm:max-w-[520px] mx-auto">
+    <div className="mx-auto grid w-full max-w-[780px] grid-cols-3 gap-3">
       {Array.from({ length: 9 }).map((_, i) => (
         <div
           key={i}
