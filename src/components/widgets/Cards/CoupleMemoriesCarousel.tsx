@@ -1,9 +1,9 @@
-// src/components/widgets/Cards/StartEndMemoriesSlider.tsx
+// src/components/widgets/Cards/CoupleMemoriesCarousel.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CalendarDays, Plus } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -20,7 +20,7 @@ type MemoryItem = {
   imageUrl: string | null;
 };
 
-export default function StartEndMemoriesSlider({
+export default function CoupleMemoriesCarousel({
   className,
 }: {
   className?: string;
@@ -84,14 +84,24 @@ export default function StartEndMemoriesSlider({
   useEffect(() => {
     if (paused || items.length <= 1) return;
 
-    const timer = window.setInterval(() => {
+    const timer = window.setTimeout(() => {
       setIndex((current) => (current + 1) % items.length);
-    }, 4000);
+    }, 10000);
 
-    return () => window.clearInterval(timer);
-  }, [items.length, paused]);
+    return () => window.clearTimeout(timer);
+  }, [index, items.length, paused]);
 
   const current = items[index] ?? null;
+
+  const goPrevious = useCallback(() => {
+    setIndex((currentIndex) =>
+      currentIndex === 0 ? items.length - 1 : currentIndex - 1,
+    );
+  }, [items.length]);
+
+  const goNext = useCallback(() => {
+    setIndex((currentIndex) => (currentIndex + 1) % items.length);
+  }, [items.length]);
 
   if (loading) {
     return (
@@ -144,9 +154,31 @@ export default function StartEndMemoriesSlider({
         </div>
 
         {items.length > 1 && (
-          <div className="absolute right-4 top-4 z-10 rounded-full bg-black/45 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
-            {index + 1}/{items.length}
-          </div>
+          <>
+            <Button
+              type="button"
+              size="icon"
+              variant="secondary"
+              className="absolute left-4 top-1/2 z-20 size-9 -translate-y-1/2 rounded-full bg-black/45 text-white shadow-sm backdrop-blur hover:bg-black/60 hover:text-white"
+              onClick={goPrevious}
+              aria-label="이전 기억"
+            >
+              <ChevronLeft className="size-5" />
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              variant="secondary"
+              className="absolute right-4 top-1/2 z-20 size-9 -translate-y-1/2 rounded-full bg-black/45 text-white shadow-sm backdrop-blur hover:bg-black/60 hover:text-white"
+              onClick={goNext}
+              aria-label="다음 기억"
+            >
+              <ChevronRight className="size-5" />
+            </Button>
+            <div className="absolute right-4 top-4 z-10 rounded-full bg-black/45 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
+              {index + 1}/{items.length}
+            </div>
+          </>
         )}
       </div>
     </Card>

@@ -9,7 +9,8 @@ import SoloUserCard from "@/components/widgets/Cards/SoloUserCard";
 import CoupleSchedulePreview from "@/components/widgets/Cards/CoupleShedulePreview";
 import CoupleMusicCard from "@/components/widgets/Cards/CoupleMusicCard";
 import OneLinerCard from "@/components/widgets/Cards/OneLinerCard";
-import StartEndMemoriesSlider from "@/components/widgets/Cards/StartEndMemoriesSlider";
+import CoupleMemoriesCarousel from "@/components/widgets/Cards/CoupleMemoriesCarousel";
+import MainWeatherCard from "@/components/widgets/Cards/MainWeatherCard";
 
 export default function MainPage() {
   const { isCoupled, loading } = useUser();
@@ -34,27 +35,28 @@ export default function MainPage() {
   return (
     <div className="w-full">
       <div
-        className=" grid gap-2 items-start grid-cols-1
+        className="grid gap-3 items-start grid-cols-1
         md:[grid-template-columns:minmax(220px,1fr)_minmax(0,0.9fr)]
         lg:[grid-template-columns:minmax(260px,0.9fr)_minmax(0,1.0fr)_minmax(0,1.0fr)]"
       >
         {/* 왼쪽: 일정 프리뷰 */}
-        <div className="flex flex-col gap-2 min-w-0">
+        <div className="flex flex-col gap-3 min-w-0">
           <CoupleSchedulePreview
             className="h-[560px] w-full lg:h-[620px]"
             maxHeight="100%"
           />
+          <MainWeatherCard className="h-[400px] lg:h-[420px]" />
         </div>
 
         {/* 가운데: 기억 슬라이더 */}
-        <div className="flex flex-col gap-2 min-w-0">
-          <StartEndMemoriesSlider className="h-[560px] lg:h-[620px]" />
+        <div className="flex flex-col gap-3 min-w-0">
+          <CoupleMemoriesCarousel className="h-[560px] lg:h-[620px]" />
         </div>
 
         {/* 오른쪽: 한줄 기록 + 음악 */}
-        <div className="flex flex-col gap-2 min-w-0">
-          <OneLinerCard />
-          <CoupleMusicCard />
+        <div className="flex flex-col gap-3 min-w-0">
+          <OneLinerCard className="h-[560px] lg:h-[620px]" />
+          <CoupleMusicCard className="h-[400px] lg:h-[420px]" />
         </div>
       </div>
     </div>

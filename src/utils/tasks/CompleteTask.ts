@@ -4,6 +4,10 @@ import { useCoupleContext } from "@/contexts/CoupleContext";
 import { increaseCouplePoint } from "./IncreaseCouplePoint";
 import { useDailyAnswerStatusStore } from "@/stores/useDailyAnswerStatusStore";
 import { getNextQuestionId } from "@/utils/questions/questionFlow";
+import {
+  ensureDailyTaskForToday,
+  getTodayDateString,
+} from "@/utils/tasks/EnsureDailyTaskForToday";
 
 export function useCompleteTask() {
   const { user } = useUser();
@@ -11,7 +15,7 @@ export function useCompleteTask() {
   const setAnswerStatus = useDailyAnswerStatusStore((state) => state.setStatus);
 
   const completeTask = async () => {
-    const today = new Date().toLocaleDateString("sv-SE");
+    const today = getTodayDateString();
 
     if (!user?.id) {
       console.warn("유저 정보가 없습니다.");
@@ -25,7 +29,7 @@ export function useCompleteTask() {
 
     const { data: task, error: fetchError } = await supabase
       .from("daily_task")
-      .select("completed, question_id")
+      .select("completed, question_id, date")
       .eq("user_id", user.id)
       .maybeSingle();
 
@@ -39,15 +43,20 @@ export function useCompleteTask() {
       return;
     }
 
-    if (task.completed) {
+    const todaysTask = await ensureDailyTaskForToday({
+      userId: user.id,
+      task,
+    });
+
+    if (todaysTask.completed) {
       console.log("오늘 이미 완료한 task입니다.");
       return {
         completed: true,
-        question_id: task.question_id,
+        question_id: todaysTask.question_id,
       };
     }
 
-    const nextQuestionId = getNextQuestionId(task.question_id);
+    const nextQuestionId = getNextQuestionId(todaysTask.question_id);
 
     const { error: updateError } = await supabase
       .from("daily_task")

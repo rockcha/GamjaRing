@@ -4,6 +4,7 @@
 import { useEffect, useRef } from "react";
 import supabase from "@/lib/supabase";
 import { runDataIntegrityCheck } from "./utils/DataIntegrityCheck";
+import { getTodayDateString } from "@/utils/tasks/EnsureDailyTaskForToday";
 
 export default function AppInit() {
   // StrictMode의 이중 마운트/라우트 재마운트 방지
@@ -14,7 +15,7 @@ export default function AppInit() {
     ranRef.current = true;
 
     // 이 탭 세션에서 단 1회만 실행 (새로고침 시 sessionStorage 초기화되어 다시 1회 실행)
-    const BOOT_KEY = "dic:booted";
+    const BOOT_KEY = `dic:booted:${getTodayDateString()}`;
     if (sessionStorage.getItem(BOOT_KEY)) return;
     sessionStorage.setItem(BOOT_KEY, "1");
 
