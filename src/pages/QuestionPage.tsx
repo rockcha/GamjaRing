@@ -38,6 +38,7 @@ import { GetQuestionById } from "@/utils/GetQuestionById";
 import { usePartnerNotification } from "@/utils/notification/usePartnerNotification";
 import { getDisplayQuestionId } from "@/utils/questions/questionFlow";
 import { useCompleteTask } from "@/utils/tasks/CompleteTask";
+import { ensureDailyTaskForToday } from "@/utils/tasks/EnsureDailyTaskForToday";
 
 const EMOJIS = [
   "😊",
@@ -161,7 +162,7 @@ export default function QuestionPage() {
 
       const { data, error } = await supabase
         .from("daily_task")
-        .select("question_id, completed")
+        .select("question_id, completed, date")
         .eq("user_id", user.id)
         .single();
 
@@ -177,18 +178,28 @@ export default function QuestionPage() {
         return;
       }
 
-      setQuestionId(data.question_id);
-      setSubmitted(data.completed);
+      const todaysTask = await ensureDailyTaskForToday({
+        userId: user.id,
+        task: data,
+      });
+
+      if (!mounted) return;
+
+      setQuestionId(todaysTask.question_id);
+      setSubmitted(todaysTask.completed);
       setEditing(false);
       setAnswerStatus({
         userId: user.id,
-        questionId: data.question_id,
-        completed: data.completed,
+        questionId: todaysTask.question_id,
+        completed: todaysTask.completed,
         loading: false,
         error: null,
       });
 
-      const displayId = getDisplayQuestionId(data.question_id, data.completed);
+      const displayId = getDisplayQuestionId(
+        todaysTask.question_id,
+        todaysTask.completed,
+      );
 
       setDisplayQuestionId(displayId);
 

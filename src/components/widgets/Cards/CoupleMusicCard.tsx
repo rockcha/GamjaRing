@@ -165,7 +165,7 @@ function SoftPlayOverlay({
 /* =========================
  * Main Component
  * =======================*/
-export default function CoupleMusicCard() {
+export default function CoupleMusicCard({ className }: { className?: string }) {
   const { user } = useUser();
   const coupleId = user?.couple_id ?? null;
 
@@ -331,37 +331,38 @@ export default function CoupleMusicCard() {
   return (
     <Card
       className={[
-        "relative overflow-hidden",
-        "rounded-3xl border-0",
-        "bg-gradient-to-br from-[#FFF7FB] via-[#F7FAFF] to-[#F9FFF6]",
-        "shadow-[0_12px_40px_-12px_rgba(0,0,0,0.20)]",
+        "relative flex flex-col overflow-hidden",
+        "rounded-2xl border border-slate-200/70",
+        "bg-white",
+        "shadow-sm",
+        className ?? "",
       ].join(" ")}
     >
       {/* 몽글 배경 버블 */}
       <div
         aria-hidden
-        className="pointer-events-none absolute -top-10 -left-10 size-40 rounded-[2rem] bg-pink-200/40 blur-2xl motion-safe:animate-[float_6s_ease-in-out_infinite]"
+        className="hidden"
         style={{ animationDelay: "0.2s" }}
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute -bottom-14 -right-8 size-44 rounded-[2rem] bg-emerald-200/40 blur-2xl motion-safe:animate-[float_7.5s_ease-in-out_infinite]"
+        className="hidden"
         style={{ animationDelay: "0.6s" }}
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute top-6 right-10 size-24 rounded-[1.5rem] bg-indigo-200/40 blur-xl motion-safe:animate-[float_8s_ease-in-out_infinite]"
+        className="hidden"
         style={{ animationDelay: "1s" }}
       />
 
-      <CardHeader className="pb-2">
+      <CardHeader className="shrink-0 px-4 pb-2 pt-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center text-[#3d2b1f] text-[20px] font-semibold drop-shadow-[0_1px_0_rgba(255,255,255,0.6)]">
-            <span className="relative mr-2 grid place-items-center">
+          <CardTitle className="flex min-w-0 items-center text-base font-semibold text-slate-900">
+            <span className="relative mr-2 grid size-8 shrink-0 place-items-center rounded-lg bg-rose-50 text-rose-600 ring-1 ring-rose-100">
               <span className="absolute -inset-1 rounded-full bg-white/60 blur-md" />
               <FontAwesomeIcon
                 icon={faMusic}
-                className="relative z-10 opacity-90 text-[#3d2b1f]"
+                className="relative z-10 opacity-90"
               />
             </span>
             우리의 음악
@@ -372,7 +373,7 @@ export default function CoupleMusicCard() {
             size="sm"
             variant="outline"
             onClick={onOpen}
-            className="gap-1 hover:cursor-pointer rounded-full bg-white/60 backdrop-blur border-white/60 shadow-sm"
+            className="h-8 shrink-0 gap-1 rounded-lg bg-white px-2 text-xs hover:cursor-pointer"
           >
             <PencilLine className="h-4 w-4" />
             수정
@@ -380,32 +381,32 @@ export default function CoupleMusicCard() {
         </div>
       </CardHeader>
 
-      <CardContent className="pt-3">
+      <CardContent className="min-h-0 flex-1 px-4 pb-4 pt-0">
         {loading ? (
-          <div className="flex flex-col items-center">
-            <div className="w-full max-w-5xl md:max-w-6xl">
-              <div className="relative">
+          <div className="flex h-full flex-col">
+            <div className="flex min-h-0 w-full flex-1 flex-col">
+              <div className="relative min-h-0 flex-1">
                 {/* 말랑 프레임 */}
-                <div className="relative aspect-video overflow-hidden rounded-3xl ring-1 ring-black/5 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.25)]">
-                  <Skeleton className="absolute inset-0 rounded-3xl" />
+                <div className="relative h-full min-h-[132px] overflow-hidden rounded-xl ring-1 ring-slate-100">
+                  <Skeleton className="absolute inset-0 rounded-xl" />
                 </div>
                 {/* 하단 말풍선 배경 */}
-                <div className="mt-3 text-xs text-neutral-500/90 text-center">
+                <div className="mt-2 text-center text-xs text-slate-500">
                   로딩중이에요… 감자를 살짝 조물조물 중 🥔
                 </div>
               </div>
             </div>
           </div>
         ) : url && videoId ? (
-          <div className="flex flex-col items-center">
-            <div className="w-full max-w-5xl md:max-w-6xl">
-              <div className="relative">
+          <div className="flex h-full flex-col">
+            <div className="flex min-h-0 w-full flex-1 flex-col">
+              <div className="relative min-h-0 flex-1">
                 <div
                   className={[
-                    "relative aspect-video overflow-hidden rounded-[1.75rem]",
-                    "ring-1 ring-black/5",
-                    "shadow-[0_18px_60px_-16px_rgba(0,0,0,0.35)]",
-                    isAudible ? "outline outline-2 outline-emerald-200/70" : "",
+                    "relative h-full min-h-[132px] overflow-hidden rounded-xl",
+                    "ring-1 ring-slate-200",
+                    "shadow-sm",
+                    isAudible ? "outline outline-2 outline-emerald-200" : "",
                     "transition-all duration-500",
                   ].join(" ")}
                 >
@@ -414,7 +415,7 @@ export default function CoupleMusicCard() {
                   ) : (
                     <button
                       onClick={() => setPlayerOpen(true)}
-                      className="relative w-full h-full transition-transform duration-300 hover:scale-[1.015] focus-visible:scale-[1.015] outline-none"
+                      className="relative h-full w-full outline-none transition-transform duration-300 hover:scale-[1.01] focus-visible:scale-[1.01]"
                       title="재생"
                       aria-label="재생"
                       type="button"
@@ -423,12 +424,11 @@ export default function CoupleMusicCard() {
                         <img
                           src={thumb}
                           alt="thumbnail"
-                          className="w-full h-full object-cover"
+                          className="h-full w-full object-cover"
                           loading="lazy"
                         />
                       )}
                       {/* 소프트 그라데이션 베일 */}
-                      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.25)_0%,rgba(0,0,0,0.25)_100%)] mix-blend-soft-light" />
                       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 via-black/10 to-transparent" />
                       <SoftPlayOverlay isAudible={false} label="재생" />
                     </button>
@@ -438,10 +438,7 @@ export default function CoupleMusicCard() {
                 {/* 아랫쪽 캡션 바 */}
                 <div
                   className={[
-                    "mt-3 mx-auto w-max max-w-full",
-                    "rounded-full px-3 py-1.5 text-[12px]",
-                    "bg-white/70 backdrop-blur border border-white/60",
-                    "shadow-[0_6px_20px_-8px_rgba(0,0,0,0.25)]",
+                    "mt-2 truncate text-center text-xs text-slate-500",
                   ].join(" ")}
                 >
                   {url
@@ -454,8 +451,7 @@ export default function CoupleMusicCard() {
         ) : (
           <div
             className={[
-              "rounded-2xl border border-white/70 p-5 text-sm text-neutral-600 text-center",
-              "bg-white/60 backdrop-blur shadow-[0_10px_30px_-12px_rgba(0,0,0,0.25)]",
+              "flex h-full items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-sm text-slate-500",
             ].join(" ")}
           >
             등록된 YouTube 링크가 없어요.{" "}

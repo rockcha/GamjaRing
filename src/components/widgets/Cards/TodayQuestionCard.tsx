@@ -11,11 +11,13 @@ import { TypingAnimation } from "@/components/magicui/typing-animation";
 import { motion } from "motion/react";
 import { useDailyAnswerStatusStore } from "@/stores/useDailyAnswerStatusStore";
 import { getDisplayQuestionId } from "@/utils/questions/questionFlow";
+import { ensureDailyTaskForToday } from "@/utils/tasks/EnsureDailyTaskForToday";
 
 type DailyTaskRow = {
   user_id: string;
   completed: boolean;
   question_id: number;
+  date: string | null;
 };
 
 type QuestionRow = {
@@ -64,7 +66,7 @@ export default function TodayQuestionInline({
       // 1) 내 daily_task
       const { data: t, error: tErr } = await supabase
         .from("daily_task")
-        .select("user_id, completed, question_id")
+        .select("user_id, completed, question_id, date")
         .eq("user_id", user.id)
         .maybeSingle<DailyTaskRow>();
       if (tErr) throw tErr;
@@ -82,17 +84,25 @@ export default function TodayQuestionInline({
         setLoading(false);
         return;
       }
-      setTask(t);
+      const todaysTask = await ensureDailyTaskForToday({
+        userId: user.id,
+        task: t,
+      });
+
+      setTask(todaysTask);
       setAnswerStatus({
         userId: user.id,
-        questionId: t.question_id,
-        completed: t.completed,
+        questionId: todaysTask.question_id,
+        completed: todaysTask.completed,
         loading: false,
         error: null,
       });
 
       // 2) 표시할 질문 id
-      const displayId = getDisplayQuestionId(t.question_id, t.completed);
+      const displayId = getDisplayQuestionId(
+        todaysTask.question_id,
+        todaysTask.completed
+      );
       if (displayId == null) {
         setQuestion({
           id: -1,

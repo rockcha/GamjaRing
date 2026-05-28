@@ -153,7 +153,7 @@ function getNickname(user: any) {
   );
 }
 
-export default function OneLinerCard() {
+export default function OneLinerCard({ className }: { className?: string }) {
   const { user } = useUser();
   const { partnerId: couplePartnerId } = useCoupleContext();
 
@@ -162,7 +162,10 @@ export default function OneLinerCard() {
   const partnerId = couplePartnerId ?? user?.partner_id ?? null;
 
   return (
-    <Card className="overflow-hidden rounded-xl shadow-sm" role="region">
+    <Card
+      className={cn("overflow-hidden rounded-xl shadow-sm", className)}
+      role="region"
+    >
       <CardHeader className="pb-3">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-2">
