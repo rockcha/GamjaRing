@@ -2,7 +2,8 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import supabase from "@/lib/supabase";
 import { useUser } from "@/contexts/UserContext";
-import { GetQuestionById } from "@/utils/GetQuestionById";
+import { GetQuestionById, type QuestionTable } from "@/utils/GetQuestionById";
+import type { AnswerTable } from "@/utils/answers/answerSource";
 
 import {
   Dialog,
@@ -60,7 +61,13 @@ function getMinimalPageItems(
   return items;
 }
 
-export default function MyPartnerAnswersCard() {
+export default function MyPartnerAnswersCard({
+  questionTable = "question",
+  answerTable = "answer",
+}: {
+  questionTable?: QuestionTable;
+  answerTable?: AnswerTable;
+}) {
   const { user } = useUser();
 
   const [answers, setAnswers] = useState<AnswerWithQuestion[]>([]);
@@ -91,7 +98,7 @@ export default function MyPartnerAnswersCard() {
       }
 
       const { data, error } = await supabase
-        .from("answer")
+        .from(answerTable)
         .select("question_id, content, created_at, emoji_type_id")
         .eq("user_id", user.partner_id)
         .order("created_at", { ascending: false });
@@ -104,7 +111,7 @@ export default function MyPartnerAnswersCard() {
 
       const enriched = await Promise.all(
         (data ?? []).map(async (item) => {
-          const questionText = await GetQuestionById(item.question_id);
+          const questionText = await GetQuestionById(item.question_id, questionTable);
           return { ...item, questionText: questionText ?? "" };
         })
       );
@@ -135,7 +142,7 @@ export default function MyPartnerAnswersCard() {
     };
 
     fetchPartnerAnswers();
-  }, [user?.partner_id]);
+  }, [answerTable, questionTable, user?.partner_id]);
 
   // 모달 처음 열릴 때 전체 이모지 목록 로드(이미 있으면 스킵)
   useEffect(() => {
@@ -423,7 +430,7 @@ export default function MyPartnerAnswersCard() {
 
                           // ✅ partner의 해당 답변에 emoji_type_id 설정/업데이트
                           const { error: upErr } = await supabase
-                            .from("answer")
+                            .from(answerTable)
                             .update({ emoji_type_id: e.id })
                             .eq("user_id", user.partner_id)
                             .eq("question_id", activeQuestionId);

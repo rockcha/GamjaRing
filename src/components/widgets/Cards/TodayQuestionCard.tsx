@@ -99,7 +99,7 @@ export default function TodayQuestionInline({
       });
 
       // 2) 표시할 질문 id
-      const displayId = getDisplayQuestionId(
+      const displayId = await getDisplayQuestionId(
         todaysTask.question_id,
         todaysTask.completed
       );
@@ -114,7 +114,7 @@ export default function TodayQuestionInline({
 
       // 3) 질문 본문
       const { data: q, error: qErr } = await supabase
-        .from("question")
+        .from("question2")
         .select("id, content")
         .eq("id", displayId)
         .maybeSingle<QuestionRow>();
