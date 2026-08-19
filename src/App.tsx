@@ -61,6 +61,12 @@ export default function App() {
               <Route path="info" element={<InfoPage />} />
               <Route path="settings" element={<SettingPage />} />
               <Route path="bundle" element={<AnswersPage />} />
+              <Route
+                path="questions2"
+                element={
+                  <AnswersPage questionTable="question2" answerTable="answer2" />
+                }
+              />
               <Route path="scheduler" element={<CoupleSchedulerPage />} />
               <Route path="timeCapsule" element={<PartnerTimeCapsulesPage />} />
               <Route path="questions" element={<QuestionPage />} />

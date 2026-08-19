@@ -103,7 +103,7 @@ export default function QuestionPage() {
 
   const loadQuestionText = useCallback(async (qid: number | null) => {
     if (qid == null || qid < 0) return null;
-    return await GetQuestionById(qid);
+    return await GetQuestionById(qid, "question2");
   }, []);
 
   const loadMyAnswer = useCallback(
@@ -111,7 +111,7 @@ export default function QuestionPage() {
       if (qid == null || !user?.id) return null;
 
       const { data, error } = await supabase
-        .from("answer")
+        .from("answer2")
         .select("content")
         .eq("user_id", user.id)
         .eq("question_id", qid)
@@ -128,7 +128,10 @@ export default function QuestionPage() {
       storedQuestionId: number | null = questionId,
       isSubmitted = submitted,
     ) => {
-      const displayId = getDisplayQuestionId(storedQuestionId, isSubmitted);
+      const displayId = await getDisplayQuestionId(
+        storedQuestionId,
+        isSubmitted,
+      );
 
       setDisplayQuestionId(displayId);
 
@@ -196,7 +199,7 @@ export default function QuestionPage() {
         error: null,
       });
 
-      const displayId = getDisplayQuestionId(
+      const displayId = await getDisplayQuestionId(
         todaysTask.question_id,
         todaysTask.completed,
       );
@@ -234,7 +237,7 @@ export default function QuestionPage() {
       setSaveStatus("saving");
 
       try {
-        const { error } = await supabase.from("answer").upsert(
+        const { error } = await supabase.from("answer2").upsert(
           [
             {
               user_id: user.id,

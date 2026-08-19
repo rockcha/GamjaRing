@@ -5,9 +5,14 @@ import supabase from "@/lib/supabase";
  * @param id 질문 ID (0 ~ 399)
  * @returns 질문 문자열 (없으면 null)
  */
-export async function GetQuestionById(id: number): Promise<string | null> {
+export type QuestionTable = "question" | "question2";
+
+export async function GetQuestionById(
+  id: number,
+  table: QuestionTable = "question",
+): Promise<string | null> {
   const { data, error } = await supabase
-    .from("question")
+    .from(table)
     .select("content")
     .eq("id", id)
     .single();

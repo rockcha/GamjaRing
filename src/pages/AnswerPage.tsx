@@ -18,8 +18,16 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import type { QuestionTable } from "@/utils/GetQuestionById";
+import type { AnswerTable } from "@/utils/answers/answerSource";
 
-function AnswersPage() {
+function AnswersPage({
+  questionTable = "question",
+  answerTable = "answer",
+}: {
+  questionTable?: QuestionTable;
+  answerTable?: AnswerTable;
+}) {
   const { user } = useUser();
   const [partnerNickname, setPartnerNickname] = useState<string | null>(null);
 
@@ -66,7 +74,10 @@ function AnswersPage() {
             description="내가 남긴 답변을 다시 읽고 수정할 수 있어요."
             badge={user?.nickname ?? "나"}
           >
-            <MyAnswersCard />
+            <MyAnswersCard
+              questionTable={questionTable}
+              answerTable={answerTable}
+            />
           </AnswerPanel>
 
           <AnswerPanel
@@ -75,7 +86,10 @@ function AnswersPage() {
             description="상대방의 답변을 읽고 마음에 맞는 반응을 남겨보세요."
             badge={partnerLabel}
           >
-            <MyPartnerAnswersCard />
+            <MyPartnerAnswersCard
+              questionTable={questionTable}
+              answerTable={answerTable}
+            />
           </AnswerPanel>
         </div>
       </div>

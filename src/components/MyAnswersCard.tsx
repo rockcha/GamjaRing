@@ -4,7 +4,8 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import supabase from "@/lib/supabase";
 import { useUser } from "@/contexts/UserContext";
-import { GetQuestionById } from "@/utils/GetQuestionById";
+import { GetQuestionById, type QuestionTable } from "@/utils/GetQuestionById";
+import type { AnswerTable } from "@/utils/answers/answerSource";
 
 import {
   Dialog,
@@ -63,7 +64,13 @@ function getMinimalPageItems(
   return items;
 }
 
-export default function MyAnswersCard() {
+export default function MyAnswersCard({
+  questionTable = "question",
+  answerTable = "answer",
+}: {
+  questionTable?: QuestionTable;
+  answerTable?: AnswerTable;
+}) {
   const { user } = useUser();
 
   const [answers, setAnswers] = useState<AnswerWithQuestion[]>([]);
@@ -95,7 +102,7 @@ export default function MyAnswersCard() {
       if (!user?.id) return;
 
       const { data, error } = await supabase
-        .from("answer")
+        .from(answerTable)
         .select("question_id, content, created_at, emoji_type_id")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
@@ -122,7 +129,7 @@ export default function MyAnswersCard() {
 
       const enriched = await Promise.all(
         (data ?? []).map(async (item) => {
-          const questionText = await GetQuestionById(item.question_id);
+          const questionText = await GetQuestionById(item.question_id, questionTable);
           return { ...item, questionText: questionText ?? "" };
         }),
       );
@@ -137,7 +144,7 @@ export default function MyAnswersCard() {
     return () => {
       if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
     };
-  }, [user?.id]);
+  }, [answerTable, questionTable, user?.id]);
 
   // ─────────────────────────────────────────────────────────────
   // 페이지네이션/날짜 포맷
@@ -188,7 +195,7 @@ export default function MyAnswersCard() {
 
       setSaveStatus("saving");
       try {
-        const { error } = await supabase.from("answer").upsert(
+        const { error } = await supabase.from(answerTable).upsert(
           [
             {
               user_id: user.id,
@@ -234,7 +241,7 @@ export default function MyAnswersCard() {
         return false;
       }
     },
-    [activeQid, user?.id],
+    [activeQid, answerTable, user?.id],
   );
 
   // ─────────────────────────────────────────────────────────────

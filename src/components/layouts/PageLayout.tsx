@@ -38,6 +38,7 @@ export default function PageLayout({
   const { pathname } = useLocation();
 
   const titleMap: Record<string, string> = {
+    "/questions2": "새 답변꾸러미",
     "/main": "감자링",
     "/info": "감자링이란?",
     "/settings": "마이페이지",

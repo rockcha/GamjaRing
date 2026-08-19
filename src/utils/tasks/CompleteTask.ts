@@ -56,7 +56,7 @@ export function useCompleteTask() {
       };
     }
 
-    const nextQuestionId = getNextQuestionId(todaysTask.question_id);
+    const nextQuestionId = await getNextQuestionId(todaysTask.question_id);
 
     const { error: updateError } = await supabase
       .from("daily_task")

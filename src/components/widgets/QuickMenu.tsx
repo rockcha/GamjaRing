@@ -83,6 +83,7 @@ type NavId =
   | "info"
   | "questions"
   | "bundle"
+  | "questions2"
   | "scheduler"
   | "timeCapsule"
   | "memories"
@@ -106,6 +107,11 @@ type NavDef = {
 };
 
 const NAV_DEFS: Record<NavId, NavDef> = {
+  questions2: {
+    id: "questions2",
+    label: "새 답변꾸러미",
+    icon: MessagesSquare,
+  },
   home: { id: "home", label: "메인페이지", icon: Home },
   info: { id: "info", label: "감자링이란?", icon: Info },
 
@@ -147,6 +153,7 @@ const GUARDS: Record<
   home: {},
   info: {},
   questions: { requireLogin: true, requireCouple: true },
+  questions2: { requireLogin: true, requireCouple: true },
   bundle: { requireLogin: true, requireCouple: true },
   scheduler: { requireLogin: true, requireCouple: true },
   timeCapsule: { requireLogin: true, requireCouple: true },
@@ -169,6 +176,7 @@ const FALLBACK_ROUTE: Record<string, string> = {
   home: "/main",
   info: "/info",
   questions: "/questions",
+  questions2: "/questions2",
   bundle: "/bundle",
   scheduler: "/scheduler",
   timeCapsule: "/timeCapsule",
@@ -191,6 +199,7 @@ const FALLBACK_ROUTE: Record<string, string> = {
 const DAILY_IDS = [
   "questions",
   "bundle",
+  "questions2",
   "scheduler",
   "timeCapsule",
   "memories",
